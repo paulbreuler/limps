@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 describe('gitignore', () => {
-  const gitignorePath = join(__dirname, '..', '..', '.gitignore');
+  const gitignorePath = join(__dirname, '..', '.gitignore');
 
   it('should exist', () => {
     expect(existsSync(gitignorePath)).toBe(true);

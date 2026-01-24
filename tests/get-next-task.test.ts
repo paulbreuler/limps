@@ -466,7 +466,7 @@ Files: \`src/file2.ts\`
 
 Status: \`GAP\`
 Dependencies: None
-Files: \`src/file1.ts\`, \`.mcp/server/src/file2.ts\`
+Files: \`src/file1.ts\`, \`src/file2.ts\`
 `;
     const planFile = join(plansDir, 'plan.md');
     writeFileSync(planFile, planContent, 'utf-8');
