@@ -1,0 +1,128 @@
+import chokidar, { type FSWatcher } from 'chokidar';
+
+/**
+ * Default file extensions to watch.
+ */
+const DEFAULT_FILE_EXTENSIONS = ['.md'];
+
+/**
+ * Check if a file path matches any of the given extensions.
+ */
+function matchesExtension(filePath: string, extensions: string[]): boolean {
+  return extensions.some((ext) => filePath.endsWith(ext));
+}
+
+/**
+ * Start a file watcher for specified file types.
+ *
+ * @param watchPaths - Path(s) to watch (file or directory, single or array)
+ * @param onChange - Callback when file changes (path, event)
+ * @param fileExtensions - File extensions to watch (e.g., ['.md', '.jsx', '.tsx'])
+ * @param ignorePatterns - Patterns to ignore (e.g., ['.git', 'node_modules'])
+ * @param debounceDelay - Debounce delay in milliseconds (default: 200ms)
+ * @returns Chokidar watcher instance
+ */
+export function startWatcher(
+  watchPaths: string | string[],
+  onChange: (path: string, event: 'add' | 'change' | 'unlink') => Promise<void>,
+  fileExtensions: string[] = DEFAULT_FILE_EXTENSIONS,
+  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp'],
+  debounceDelay = 200
+): FSWatcher {
+  // Build ignore patterns for Chokidar
+  const ignored = ignorePatterns.map((pattern) => {
+    // Convert simple patterns to glob patterns
+    if (pattern.includes('*')) {
+      return pattern;
+    }
+    // Match directories and files with this name
+    return `**/${pattern}/**`;
+  });
+
+  // Build complete ignore patterns
+  const allIgnored: (string | RegExp | ((path: string) => boolean))[] = [
+    ...ignored,
+    /(^|[/\\])\../, // Ignore dotfiles
+  ];
+
+  // Watch the directory (or file if it's a single file)
+  const watcher = chokidar.watch(watchPaths, {
+    ignored: allIgnored,
+    persistent: true,
+    ignoreInitial: false,
+    awaitWriteFinish: {
+      stabilityThreshold: 100,
+      pollInterval: 100,
+    },
+  });
+
+  // Debounce map to track pending callbacks
+  const debounceMap = new Map<string, NodeJS.Timeout>();
+
+  const debouncedOnChange = (path: string, event: 'add' | 'change' | 'unlink'): void => {
+    // Clear existing timeout for this path
+    const existing = debounceMap.get(path);
+    if (existing) {
+      clearTimeout(existing);
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(async () => {
+      debounceMap.delete(path);
+      try {
+        await onChange(path, event);
+      } catch (error) {
+        // Log error but don't throw (watcher should continue)
+        console.error(`Error in onChange callback for ${path}:`, error);
+      }
+    }, debounceDelay);
+
+    debounceMap.set(path, timeout);
+  };
+
+  // Watch for file additions (only files with matching extensions)
+  watcher.on('add', (path) => {
+    if (matchesExtension(path, fileExtensions)) {
+      debouncedOnChange(path, 'add');
+    }
+  });
+
+  // Watch for file changes (only files with matching extensions)
+  watcher.on('change', (path) => {
+    if (matchesExtension(path, fileExtensions)) {
+      debouncedOnChange(path, 'change');
+    }
+  });
+
+  // Watch for file deletions (only files with matching extensions)
+  watcher.on('unlink', (path) => {
+    if (matchesExtension(path, fileExtensions)) {
+      // Clear any pending debounce for this path
+      const existing = debounceMap.get(path);
+      if (existing) {
+        clearTimeout(existing);
+        debounceMap.delete(path);
+      }
+      // Handle deletion immediately (no debounce needed)
+      onChange(path, 'unlink').catch((error) => {
+        console.error(`Error handling file deletion for ${path}:`, error);
+      });
+    }
+  });
+
+  // Handle errors
+  watcher.on('error', (error) => {
+    console.error('Watcher error:', error);
+  });
+
+  return watcher;
+}
+
+/**
+ * Stop a file watcher.
+ *
+ * @param watcher - Chokidar watcher instance
+ */
+export async function stopWatcher(watcher: FSWatcher): Promise<void> {
+  await watcher.close();
+}

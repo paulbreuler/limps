@@ -1,0 +1,11 @@
+{
+  "mcp.servers": {
+    "mcp-planning-server": {
+      "command": "node",
+      "args": [
+        "/path/to/mcp-planning-server/dist/index.js"
+      ],
+      "cwd": "/path/to/mcp-planning-server"
+    }
+  }
+}

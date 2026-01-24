@@ -1,0 +1,10 @@
+{
+  "plansPath": "./plans",
+  "docsPaths": ["."],
+  "fileExtensions": [".md"],
+  "dataPath": "./data",
+  "coordinationPath": "./data/coordination.json",
+  "heartbeatTimeout": 300000,
+  "debounceDelay": 200,
+  "maxHandoffIterations": 3
+}

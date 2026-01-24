@@ -1,0 +1,117 @@
+import { loadConfig, getAllDocsPaths, getFileExtensions } from './config.js';
+import { createServer, startServer } from './server.js';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { mkdirSync } from 'fs';
+import type { FSWatcher } from 'chokidar';
+import type { Database as DatabaseType } from 'better-sqlite3';
+import {
+  initializeDatabase,
+  createSchema,
+  indexAllPaths,
+  indexDocument,
+  removeDocument,
+} from './indexer.js';
+import { startWatcher, stopWatcher } from './watcher.js';
+import { readCoordination } from './coordination.js';
+
+// Global references for graceful shutdown
+let watcher: FSWatcher | null = null;
+let db: DatabaseType | null = null;
+
+/**
+ * Entry point for the MCP Planning Server.
+ * Loads configuration and starts the server.
+ */
+async function main(): Promise<void> {
+  try {
+    // Resolve config path relative to repository root
+    // This file is in src/index.ts
+    // Config is at config.json (root of repo)
+    const currentFile = fileURLToPath(import.meta.url);
+    const currentDir = dirname(currentFile);
+    const srcDir = dirname(currentDir); // src
+    const repoRoot = dirname(srcDir); // repository root
+    const configPath = resolve(repoRoot, 'config.json');
+
+    // Load configuration
+    const config = loadConfig(configPath);
+
+    // Ensure data directory exists
+    mkdirSync(config.dataPath, { recursive: true });
+
+    // Initialize database
+    const dbPath = resolve(config.dataPath, 'documents.sqlite');
+    db = initializeDatabase(dbPath);
+    createSchema(db);
+    console.error(`Database initialized at ${dbPath}`);
+
+    // Load coordination state
+    const coordination = await readCoordination(config.coordinationPath);
+    console.error(`Coordination state loaded from ${config.coordinationPath}`);
+
+    // Get all paths and extensions to index
+    const docsPaths = getAllDocsPaths(config);
+    const fileExtensions = getFileExtensions(config);
+    const ignorePatterns = ['.git', 'node_modules', '.tmp'];
+
+    // Initial indexing (#19)
+    const result = await indexAllPaths(db, docsPaths, fileExtensions, ignorePatterns);
+    console.error(
+      `Indexed ${result.indexed} documents (${result.updated} updated, ${result.skipped} skipped)`
+    );
+    console.error(`Paths: ${docsPaths.join(', ')}`);
+    console.error(`Extensions: ${fileExtensions.join(', ')}`);
+    if (result.errors.length > 0) {
+      console.error(`Indexing errors: ${result.errors.length}`);
+      for (const err of result.errors) {
+        console.error(`  - ${err.path}: ${err.error}`);
+      }
+    }
+
+    // Capture db reference for watcher callback
+    const dbRef = db;
+
+    // Start file watcher (#4)
+    watcher = startWatcher(
+      docsPaths,
+      async (path, event) => {
+        if (event === 'unlink') {
+          await removeDocument(dbRef, path);
+          console.error(`Removed document: ${path}`);
+        } else {
+          await indexDocument(dbRef, path);
+          console.error(`Indexed document: ${path} (${event})`);
+        }
+      },
+      fileExtensions,
+      ignorePatterns,
+      config.debounceDelay
+    );
+    console.error(`File watcher started for ${docsPaths.length} path(s)`);
+
+    // Create and start server (pass db and coordination for tools)
+    const server = createServer(config, db, coordination);
+    await startServer(server, async () => {
+      // Graceful shutdown callback
+      if (watcher) {
+        await stopWatcher(watcher);
+        console.error('File watcher stopped');
+        watcher = null;
+      }
+      if (db) {
+        db.close();
+        console.error('Database connection closed');
+        db = null;
+      }
+    });
+  } catch (error) {
+    console.error('Fatal error in main():', error);
+    process.exit(1);
+  }
+}
+
+main().catch((error) => {
+  console.error('Unhandled error in main():', error);
+  process.exit(1);
+});
