@@ -10,7 +10,32 @@ This guide explains how to install and configure the MCP Planning Server to work
 
 ## Installation Steps
 
-### 1. Clone or Download the Repository
+### Option A: Use Pre-built Release (Recommended)
+
+1. **Download the latest release:**
+   - Go to the [Releases](https://github.com/yourusername/mcp-planning-server/releases) page
+   - Download the archive for your platform:
+     - `mcp-planning-server-vX.X.X-linux-x64.tar.gz` for Linux
+     - `mcp-planning-server-vX.X.X-macos-x64.tar.gz` for macOS
+     - `mcp-planning-server-vX.X.X-windows-x64.zip` for Windows
+
+2. **Extract the archive:**
+   ```bash
+   # Linux/macOS
+   tar -xzf mcp-planning-server-vX.X.X-linux-x64.tar.gz
+   cd mcp-planning-server-vX.X.X-linux-x64
+   
+   # Windows
+   # Extract the ZIP file and navigate to the extracted folder
+   ```
+
+3. **Configure paths** (see Step 4 below)
+
+**No build step required!** The release includes pre-built files.
+
+### Option B: Build from Source
+
+1. **Clone or Download the Repository**
 
 ```bash
 # Option A: Clone the repository
@@ -22,13 +47,13 @@ cd mcp-planning-server
 cd mcp-planning-server
 ```
 
-### 2. Install Dependencies
+2. **Install Dependencies**
 
 ```bash
 npm install
 ```
 
-### 3. Build the Server
+3. **Build the Server**
 
 ```bash
 npm run build
@@ -36,7 +61,7 @@ npm run build
 
 This compiles TypeScript to JavaScript in the `dist/` directory.
 
-### 4. Configure Paths
+### 4. Configure Paths (Both Options)
 
 The server uses `config.json` to know where your planning documents are stored. You can point it to **any directory** on your system.
 
@@ -104,7 +129,7 @@ If your planning documents are in a sibling directory:
 
 **Note:** Relative paths are resolved relative to the `config.json` file location.
 
-### 5. Test the Server
+### 5. Test the Server (Both Options)
 
 Verify the server starts correctly:
 
