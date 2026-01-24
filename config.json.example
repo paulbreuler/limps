@@ -1,6 +1,6 @@
 {
-  "plansPath": "./plans",
-  "docsPaths": ["."],
+  "plansPath": "/path/to/your/planning/documents",
+  "docsPaths": ["/path/to/your/planning/documents"],
   "fileExtensions": [".md"],
   "dataPath": "./data",
   "coordinationPath": "./data/coordination.json",

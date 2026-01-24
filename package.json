@@ -4,6 +4,9 @@
   "description": "MCP server for planning document management",
   "type": "module",
   "main": "src/index.js",
+  "bin": {
+    "mcp-planning-server": "./dist/index.js"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -15,6 +18,20 @@
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\""
   },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "planning",
+    "document-management",
+    "ai",
+    "cursor"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/mcp-planning-server.git"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.22.0",
     "better-sqlite3": "^11.7.0",
@@ -23,6 +40,7 @@
     "micromatch": "^4.0.8",
     "open": "^10.2.0",
     "which": "^4.0.0",
+    "yaml": "^2.7.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -30,7 +48,7 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/micromatch": "^4.0.10",
     "@types/node": "^25.0.9",
-    "@types/which": "^3.0.4",
+    "@types/which": "^4.0.4",
     "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
     "prettier": "^3.8.0",

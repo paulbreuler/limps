@@ -197,9 +197,16 @@ The server uses SQLite with FTS5 for full-text search. Database files are stored
 5. **Optimistic concurrency** — Read freely, fail writes on state change
 6. **Scoring-based selection** — Dependencies, priority, agent fit, file conflicts
 
-## Setup
+## Installation
 
-See [SETUP_CURSOR.md](./SETUP_CURSOR.md) for detailed setup instructions for Cursor.
+See [INSTALLATION.md](./INSTALLATION.md) for complete installation and configuration instructions.
+
+**Quick Start:**
+
+1. Clone the repository
+2. Run `npm install && npm run build`
+3. Edit `config.json` to point to your planning documents directory
+4. Configure Cursor (see [SETUP_CURSOR.md](./SETUP_CURSOR.md))
 
 ## Verification
 
