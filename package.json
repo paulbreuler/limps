@@ -48,7 +48,7 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/micromatch": "^4.0.10",
     "@types/node": "^25.0.9",
-    "@types/which": "^4.0.4",
+    "@types/which": "^3.0.4",
     "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
     "prettier": "^3.8.0",
