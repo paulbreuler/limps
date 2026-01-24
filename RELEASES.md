@@ -1,6 +1,6 @@
 # Release Process
 
-This document explains how to create releases with pre-built binaries.
+This document explains how to create releases with pre-built binaries and automatically generated changelogs.
 
 ## Creating a Release
 
@@ -20,10 +20,12 @@ This document explains how to create releases with pre-built binaries.
    ```
 
 3. **GitHub Actions will automatically:**
+   - Validate code (lint, test, build)
    - Build the server on Linux, macOS, and Windows
-   - Run tests
+   - Run tests on all platforms
+   - Generate release notes from commits and PRs
    - Create release archives
-   - Create a GitHub release with all artifacts
+   - Create a GitHub release with all artifacts and changelog
 
 ### Manual Release
 
@@ -63,3 +65,78 @@ Follow [Semantic Versioning](https://semver.org/):
 - **PATCH** (0.0.1): Bug fixes, backward compatible
 
 Pre-release versions (e.g., `v0.2.1-beta.1`) are marked as pre-releases on GitHub.
+
+## Automatic Release Notes
+
+Releases automatically include changelogs generated from commits and pull requests using GitHub's official release notes API.
+
+### What's Included
+
+The automatically generated release notes include:
+
+- **List of merged pull requests** since the previous release
+- **Contributors** to the release
+- **Organized by category** (Features, Bug Fixes, Documentation, etc.)
+- **Link to full changelog** for detailed changes
+
+### Customization
+
+Release notes can be customized via `.github/release.yml` configuration file. The configuration allows you to:
+
+- **Organize by categories** - Group PRs by labels (e.g., `enhancement`, `bug`, `documentation`)
+- **Exclude items** - Hide certain labels or authors from release notes
+- **Custom titles** - Set custom category titles with emojis
+
+**Example configuration:**
+```yaml
+changelog:
+  categories:
+    - title: "🚀 Features"
+      labels:
+        - enhancement
+        - feature
+    - title: "🐛 Bug Fixes"
+      labels:
+        - bug
+        - fix
+    - title: "📚 Documentation"
+      labels:
+        - documentation
+        - docs
+```
+
+### How It Works
+
+1. When a tag is pushed, the workflow:
+   - Finds the previous tag (if any)
+   - Calls GitHub's `generateReleaseNotes` API endpoint
+   - Uses `.github/release.yml` for categorization
+   - Combines generated notes with installation instructions
+   - Creates the release with the complete changelog
+
+2. **First Release**: If no previous tag exists, the API generates notes from all commits since repository creation.
+
+3. **Fallback**: If API generation fails, a basic release template is used.
+
+### Commit Message Format
+
+For best results, use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `docs:` - Documentation
+- `test:` - Tests
+- `refactor:` - Refactoring
+- `chore:` - Maintenance
+
+Pull requests should be labeled appropriately to appear in the correct category.
+
+### Manual Override
+
+If you need to manually edit release notes:
+
+1. Create the release as a draft first
+2. Edit the release notes in GitHub's UI
+3. Publish when ready
+
+**Note:** The workflow will still generate notes, but you can edit them before publishing.

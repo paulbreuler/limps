@@ -120,6 +120,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for tag comparison
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -137,37 +139,127 @@ jobs:
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           echo "TAG=${VERSION}" >> $GITHUB_OUTPUT
 
+      - name: Get previous tag
+        id: previous_tag
+        run: |
+          CURRENT_TAG="${{ steps.version.outputs.TAG }}"
+          
+          # Get all tags sorted by version (semantic versioning)
+          PREVIOUS_TAG=$(git tag -l 'v*' | sort -V | grep -B1 "^${CURRENT_TAG}$" | head -1 || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "PREVIOUS_TAG=" >> $GITHUB_OUTPUT
+            echo "IS_FIRST_RELEASE=true" >> $GITHUB_OUTPUT
+            echo "No previous tag found - this appears to be the first release"
+          else
+            echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> $GITHUB_OUTPUT
+            echo "IS_FIRST_RELEASE=false" >> $GITHUB_OUTPUT
+            echo "Previous tag: ${PREVIOUS_TAG}"
+          fi
+
+      - name: Generate and prepare release notes
+        id: release_notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const version = '${{ steps.version.outputs.VERSION }}';
+            const previousTag = '${{ steps.previous_tag.outputs.PREVIOUS_TAG }}';
+            const repo = context.repo;
+            
+            let releaseName;
+            let releaseBody;
+            
+            try {
+              // Generate release notes using GitHub API
+              const { data } = await github.rest.repos.generateReleaseNotes({
+                owner: repo.owner,
+                repo: repo.repo,
+                tag_name: '${{ steps.version.outputs.TAG }}',
+                target_commitish: 'main',
+                previous_tag_name: previousTag || undefined,
+                configuration_file_path: '.github/release.yml'
+              });
+              
+              releaseName = data.name;
+              releaseBody = data.body;
+              console.log('Successfully generated release notes from GitHub API');
+            } catch (error) {
+              console.log('Failed to generate release notes, using fallback:', error.message);
+              releaseName = `Release ${version}`;
+              releaseBody = `## Pre-built Release
+
+This release includes pre-built binaries for:
+- Linux (x64)
+- macOS (x64)
+- Windows (x64)
+
+### Installation
+
+1. Download the archive for your platform
+2. Extract the archive
+3. Edit \`config.json.example\` and rename it to \`config.json\`
+4. Update paths in \`config.json\` to point to your planning documents
+5. Configure Cursor (see \`SETUP_CURSOR.md\`)
+
+### Usage
+
+Run the server:
+\`\`\`bash
+node dist/index.js
+\`\`\`
+
+Or configure Cursor to use it automatically.
+
+See [INSTALLATION.md](https://github.com/${repo.owner}/${repo.repo}/blob/main/INSTALLATION.md) for detailed instructions.`;
+            }
+            
+            // Combine generated notes with installation instructions
+            const installationSection = `
+
+---
+
+## 📦 Pre-built Release
+
+This release includes pre-built binaries for:
+- **Linux** (x64) - \`mcp-planning-server-${version}-linux-x64.tar.gz\`
+- **macOS** (x64) - \`mcp-planning-server-${version}-macos-x64.tar.gz\`
+- **Windows** (x64) - \`mcp-planning-server-${version}-windows-x64.zip\`
+
+### Quick Installation
+
+1. Download the archive for your platform from the assets above
+2. Extract the archive
+3. Copy \`config.json.example\` to \`config.json\` and edit paths to point to your planning documents
+4. Configure Cursor (see \`SETUP_CURSOR.md\` in the archive)
+
+### Usage
+
+Run the server:
+\`\`\`bash
+node dist/index.js
+\`\`\`
+
+Or configure Cursor to use it automatically.
+
+See [INSTALLATION.md](https://github.com/${repo.owner}/${repo.repo}/blob/main/INSTALLATION.md) for detailed instructions.`;
+            
+            const fullReleaseBody = releaseBody + installationSection;
+            
+            // Write to file for use with body_path
+            fs.writeFileSync('release_body.md', fullReleaseBody);
+            
+            // Set outputs
+            core.setOutput('name', releaseName);
+            console.log(`Release name: ${releaseName}`);
+            console.log(`Release body length: ${fullReleaseBody.length} characters`);
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.TAG }}
-          name: Release ${{ steps.version.outputs.VERSION }}
-          body: |
-            ## Pre-built Release
-            
-            This release includes pre-built binaries for:
-            - Linux (x64)
-            - macOS (x64)
-            - Windows (x64)
-            
-            ### Installation
-            
-            1. Download the archive for your platform
-            2. Extract the archive
-            3. Edit `config.json.example` and rename it to `config.json`
-            4. Update paths in `config.json` to point to your planning documents
-            5. Configure Cursor (see `SETUP_CURSOR.md`)
-            
-            ### Usage
-            
-            Run the server:
-            ```bash
-            node dist/index.js
-            ```
-            
-            Or configure Cursor to use it automatically.
-            
-            See [INSTALLATION.md](INSTALLATION.md) for detailed instructions.
+          name: ${{ steps.release_notes.outputs.name }}
+          body_path: release_body.md
           files: |
             artifacts/**/*
           draft: false
