@@ -1,24 +1,29 @@
 import { Text } from 'ink';
 
-export const description = 'Local Iterative Multi-agent Planning Server';
+export const description = 'Local Intelligent MCP Planning Server';
 
 export default function DefaultCommand(): React.ReactNode {
   return (
     <Text>
-      limps - Local Iterative Multi-agent Planning Server{'\n'}
+      <Text color="cyan" bold>
+        limps
+      </Text>{' '}
+      - Local Intelligent MCP Planning Server{'\n'}
       {'\n'}
-      Usage: limps {'<command>'} [options]{'\n'}
+      <Text color="yellow">Usage:</Text> limps {'<command>'} [options]{'\n'}
       {'\n'}
-      Commands:{'\n'}
-      {'  '}serve Start the MCP server{'\n'}
-      {'  '}init {'<name>'} Initialize a new project{'\n'}
-      {'  '}list-plans List all plans{'\n'}
-      {'  '}list-agents {'<plan>'} List agents in a plan{'\n'}
-      {'  '}next-task {'<plan>'} Get the next best task{'\n'}
-      {'  '}status {'<plan>'} Show plan status{'\n'}
-      {'  '}config Manage project configuration{'\n'}
+      <Text color="cyan">Commands:</Text>
       {'\n'}
-      Run `limps {'<command>'} --help` for more information.
+      {'  '}serve{'         '}Start the MCP server{'\n'}
+      {'  '}init {'<name>   '}Initialize a new project{'\n'}
+      {'  '}list-plans{'    '}List all plans with status{'\n'}
+      {'  '}list-agents{'   '}List agents in a plan{'\n'}
+      {'  '}next-task{'     '}Get the next best task{'\n'}
+      {'  '}status{'        '}Show plan progress{'\n'}
+      {'  '}config{'        '}Manage project configuration{'\n'}
+      {'\n'}
+      Run <Text color="green">limps {'<command>'}</Text> without args for usage help.{'\n'}
+      Run <Text color="green">limps {'<command>'} --help</Text> for full documentation.
     </Text>
   );
 }

@@ -7,7 +7,7 @@ import { AgentsList } from '../components/AgentsList.js';
 
 export const description = 'List agents in a plan';
 
-export const args = z.tuple([z.string().describe('Plan ID or name')]);
+export const args = z.tuple([z.string().describe('plan id or name').optional()]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
@@ -20,6 +20,27 @@ interface Props {
 
 export default function ListAgentsCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
+
+  if (!planId) {
+    return (
+      <Text>
+        <Text color="yellow">Usage:</Text> limps list-agents {'<plan>'} [options]
+        {'\n\n'}
+        <Text color="cyan">Arguments:</Text>
+        {'\n'}
+        {'  '}plan Plan ID or name (e.g., "4" or "0004-feature-name")
+        {'\n\n'}
+        <Text color="cyan">Options:</Text>
+        {'\n'}
+        {'  '}--config Path to config file
+        {'\n\n'}
+        <Text color="cyan">Examples:</Text>
+        {'\n'}
+        {'  '}limps list-agents 4{'\n'}
+        {'  '}limps list-agents 0004-my-feature
+      </Text>
+    );
+  }
 
   try {
     const configPath = resolveConfigPath(options.config);
