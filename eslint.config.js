@@ -28,11 +28,12 @@ export default tseslint.config(
       ],
     },
   },
-  // Allow 'any' in test files (tests need flexibility for mocking/assertions)
+  // Allow 'any' and non-null assertions in test files (tests need flexibility for mocking/assertions)
   {
-    files: ['tests/**/*.ts'],
+    files: ['tests/**/*.ts', 'tests/**/*.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {

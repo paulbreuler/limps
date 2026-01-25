@@ -18,9 +18,9 @@ describe('os-paths.ts', () => {
       expect(configPath.startsWith(HOME) || configPath.includes('AppData')).toBe(true);
     });
 
-    it('includes mcp-planning-server in path', () => {
+    it('includes limps in path', () => {
       const configPath = getOSConfigPath();
-      expect(configPath).toContain('mcp-planning-server');
+      expect(configPath).toContain('limps');
     });
   });
 
@@ -35,9 +35,9 @@ describe('os-paths.ts', () => {
       expect(dataPath.startsWith(HOME) || dataPath.includes('AppData')).toBe(true);
     });
 
-    it('includes mcp-planning-server in path', () => {
+    it('includes limps in path', () => {
       const dataPath = getOSDataPath();
-      expect(dataPath).toContain('mcp-planning-server');
+      expect(dataPath).toContain('limps');
     });
   });
 
@@ -52,9 +52,9 @@ describe('os-paths.ts', () => {
       expect(coordPath.startsWith(HOME) || coordPath.includes('AppData')).toBe(true);
     });
 
-    it('includes mcp-planning-server in path', () => {
+    it('includes limps in path', () => {
       const coordPath = getOSCoordinationPath();
-      expect(coordPath).toContain('mcp-planning-server');
+      expect(coordPath).toContain('limps');
     });
   });
 
@@ -66,21 +66,19 @@ describe('os-paths.ts', () => {
       it('macOS: config path is in Library/Application Support', () => {
         const configPath = getOSConfigPath();
         expect(configPath).toBe(
-          join(HOME, 'Library', 'Application Support', 'mcp-planning-server', 'config.json')
+          join(HOME, 'Library', 'Application Support', 'limps', 'config.json')
         );
       });
 
       it('macOS: data path is in Library/Application Support', () => {
         const dataPath = getOSDataPath();
-        expect(dataPath).toBe(
-          join(HOME, 'Library', 'Application Support', 'mcp-planning-server', 'data')
-        );
+        expect(dataPath).toBe(join(HOME, 'Library', 'Application Support', 'limps', 'data'));
       });
 
       it('macOS: coordination path is in Library/Application Support', () => {
         const coordPath = getOSCoordinationPath();
         expect(coordPath).toBe(
-          join(HOME, 'Library', 'Application Support', 'mcp-planning-server', 'coordination.json')
+          join(HOME, 'Library', 'Application Support', 'limps', 'coordination.json')
         );
       });
     }
@@ -102,12 +100,12 @@ describe('os-paths.ts', () => {
 
         it('Linux: config path defaults to ~/.config', () => {
           const configPath = getOSConfigPath();
-          expect(configPath).toBe(join(HOME, '.config', 'mcp-planning-server', 'config.json'));
+          expect(configPath).toBe(join(HOME, '.config', 'limps', 'config.json'));
         });
 
         it('Linux: data path defaults to ~/.local/share', () => {
           const dataPath = getOSDataPath();
-          expect(dataPath).toBe(join(HOME, '.local', 'share', 'mcp-planning-server', 'data'));
+          expect(dataPath).toBe(join(HOME, '.local', 'share', 'limps', 'data'));
         });
       });
 
@@ -127,12 +125,12 @@ describe('os-paths.ts', () => {
 
         it('Linux: config path uses XDG_CONFIG_HOME', () => {
           const configPath = getOSConfigPath();
-          expect(configPath).toBe(join(testXdgConfig, 'mcp-planning-server', 'config.json'));
+          expect(configPath).toBe(join(testXdgConfig, 'limps', 'config.json'));
         });
 
         it('Linux: data path uses XDG_DATA_HOME', () => {
           const dataPath = getOSDataPath();
-          expect(dataPath).toBe(join(testXdgData, 'mcp-planning-server', 'data'));
+          expect(dataPath).toBe(join(testXdgData, 'limps', 'data'));
         });
       });
     }
@@ -141,13 +139,13 @@ describe('os-paths.ts', () => {
       it('Windows: config path is in %APPDATA%', () => {
         const configPath = getOSConfigPath();
         const appData = process.env.APPDATA || join(HOME, 'AppData', 'Roaming');
-        expect(configPath).toBe(join(appData, 'mcp-planning-server', 'config.json'));
+        expect(configPath).toBe(join(appData, 'limps', 'config.json'));
       });
 
       it('Windows: data path is in %APPDATA%', () => {
         const dataPath = getOSDataPath();
         const appData = process.env.APPDATA || join(HOME, 'AppData', 'Roaming');
-        expect(dataPath).toBe(join(appData, 'mcp-planning-server', 'data'));
+        expect(dataPath).toBe(join(appData, 'limps', 'data'));
       });
     }
   });

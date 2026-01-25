@@ -39,22 +39,28 @@ async function verifyTools(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Expected tools (including the new RLM tools)
+  // Expected tools (16 total)
   const expectedTools = [
+    // Plan Management
     'create_plan',
+    'list_plans',
+    'list_agents',
+    'get_plan_status',
+    // Task Coordination
     'update_task_status',
     'claim_task',
     'release_task',
     'get_next_task',
+    // Document Operations
     'search_docs',
-    'read_doc',
     'list_docs',
     'create_doc',
     'update_doc',
     'delete_doc',
     'open_document_in_cursor',
-    'rlm_query', // NEW
-    'rlm_multi_query', // NEW
+    // RLM Processing
+    'process_doc',
+    'process_docs',
   ];
 
   console.log('✅ Server created and connected\n');
@@ -65,7 +71,7 @@ async function verifyTools(): Promise<void> {
   console.log('\n💡 To test in Cursor:');
   console.log('   1. Restart Cursor or reload MCP connection');
   console.log('   2. Ask: "What MCP tools do you have available?"');
-  console.log('   3. Try: "Use rlm_query to extract features from a plan document"');
+  console.log('   3. Try: "Use process_doc to extract features from a plan document"');
 
   await server.close();
   db.close();

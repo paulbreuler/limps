@@ -220,7 +220,7 @@ describe('document-crud-integration', () => {
       // Verify no errors during registration
       expect(server).toBeDefined();
 
-      // Tools should be registered: read_doc, list_docs, create_doc, update_doc, delete_doc
+      // Tools should be registered: list_docs, create_doc, update_doc, delete_doc
       // We verify by checking the server accepts tool registration without errors
       // The actual tool list would be verified via MCP protocol in a full integration test
     });
@@ -229,13 +229,11 @@ describe('document-crud-integration', () => {
       registerTools(server, context);
 
       // Verify schemas are defined correctly by checking imports
-      const { ReadDocInputSchema } = await import('../src/tools/read-doc.js');
       const { ListDocsInputSchema } = await import('../src/tools/list-docs.js');
       const { CreateDocInputSchema } = await import('../src/tools/create-doc.js');
       const { UpdateDocInputBaseSchema } = await import('../src/tools/update-doc.js');
       const { DeleteDocInputSchema } = await import('../src/tools/delete-doc.js');
 
-      expect(ReadDocInputSchema).toBeDefined();
       expect(ListDocsInputSchema).toBeDefined();
       expect(CreateDocInputSchema).toBeDefined();
       expect(UpdateDocInputBaseSchema).toBeDefined();

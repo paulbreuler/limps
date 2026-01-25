@@ -1,8 +1,7 @@
 /**
- * rlm_query tool: Execute JavaScript code on a single document.
- * Feature #2: RLM Query Tool
+ * process_doc tool: Process a document with JavaScript code (read, filter, transform, extract).
  *
- * Enables Claude to load documents as environment variables and execute
+ * Enables LLMs to load documents as environment variables and execute
  * filter/transform code before LLM reasoning.
  */
 
@@ -19,9 +18,9 @@ import { processSubCalls } from '../rlm/recursion.js';
 import type { SamplingClient } from '../rlm/sampling.js';
 
 /**
- * Input schema for rlm_query tool.
+ * Input schema for process_doc tool.
  */
-export const RlmQueryInputSchema = z.object({
+export const ProcessDocInputSchema = z.object({
   path: z.string().min(1).describe('Document path relative to repo root'),
   code: z.string().min(1).describe('JavaScript code to execute (doc variable available)'),
   sub_query: z.string().optional().describe('Prompt for recursive LLM processing of results'),
@@ -35,12 +34,12 @@ export const RlmQueryInputSchema = z.object({
     .describe('Maximum recursion depth for sub_query'),
 });
 
-export type RlmQueryInput = z.infer<typeof RlmQueryInputSchema>;
+export type ProcessDocInput = z.infer<typeof ProcessDocInputSchema>;
 
 /**
- * Output interface for rlm_query tool.
+ * Output interface for process_doc tool.
  */
-export interface RlmQueryOutput {
+export interface ProcessDocOutput {
   result: unknown; // Code execution result
   sub_results?: unknown[]; // Results from sub_query processing (Agent 3 will implement)
   execution_time_ms: number;
@@ -73,14 +72,14 @@ function estimateTokensSaved(docSize: number, resultSize: number): number {
 }
 
 /**
- * Handle rlm_query tool request.
+ * Handle process_doc tool request.
  *
  * @param input - Tool input
  * @param context - Tool context
  * @returns Tool result
  */
-export async function handleRlmQuery(
-  input: RlmQueryInput,
+export async function handleProcessDoc(
+  input: ProcessDocInput,
   context: ToolContext
 ): Promise<ToolResult> {
   const { path, code, sub_query, timeout = 5000 } = input;
@@ -133,7 +132,7 @@ export async function handleRlmQuery(
       const tokensSaved = estimateTokensSaved(docSize, resultSize);
 
       // Build output
-      const output: RlmQueryOutput = {
+      const output: ProcessDocOutput = {
         result: execResult.result,
         execution_time_ms: Math.max(1, Math.round(execResult.executionTimeMs)), // Ensure at least 1ms
         tokens_saved: tokensSaved,

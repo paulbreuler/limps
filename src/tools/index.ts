@@ -8,18 +8,20 @@ import { ClaimTaskInputSchema, handleClaimTask } from './claim-task.js';
 import { ReleaseTaskInputSchema, handleReleaseTask } from './release-task.js';
 import { GetNextTaskInputSchema, handleGetNextTask } from './get-next-task.js';
 import { SearchDocsInputSchema, handleSearchDocs } from './search-docs.js';
-import { ReadDocInputSchema, handleReadDoc } from './read-doc.js';
 import { ListDocsInputSchema, handleListDocs } from './list-docs.js';
 import { CreateDocInputSchema, handleCreateDoc } from './create-doc.js';
 import { UpdateDocInputSchema, UpdateDocInputBaseSchema, handleUpdateDoc } from './update-doc.js';
 import { DeleteDocInputSchema, handleDeleteDoc } from './delete-doc.js';
 import { OpenDocumentInputSchema, handleOpenDocumentInCursor } from './open-document-in-cursor.js';
-import { RlmQueryInputSchema, handleRlmQuery } from './rlm-query.js';
+import { ProcessDocInputSchema, handleProcessDoc } from './process-doc.js';
 import {
-  RlmMultiQueryInputBaseSchema,
-  RlmMultiQueryInputSchema,
-  handleRlmMultiQuery,
-} from './rlm-multi-query.js';
+  ProcessDocsInputBaseSchema,
+  ProcessDocsInputSchema,
+  handleProcessDocs,
+} from './process-docs.js';
+import { ListPlansInputSchema, handleListPlans } from './list-plans.js';
+import { ListAgentsInputSchema, handleListAgents } from './list-agents.js';
+import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status.js';
 
 /**
  * Register all MCP tools with the server.
@@ -73,7 +75,16 @@ export function registerTools(server: McpServer, context: ToolContext): void {
   // Task Selection Tools
   server.tool(
     'get_next_task',
-    'Get highest-priority available task based on dependencies and agent type',
+    `Get highest-priority available task based on dependencies and agent type.
+
+When planId is provided, returns detailed score breakdown:
+- dependencyScore: 40 points max (all dependencies satisfied)
+- priorityScore: 30 points max (based on agent number, lower = higher priority)
+- workloadScore: 30 points max (based on file count, fewer = higher score)
+- totalScore: sum of all scores (100 max)
+- otherAvailableTasks: count of other eligible tasks
+
+Without planId, searches across all plans (legacy behavior).`,
     GetNextTaskInputSchema.shape,
     async (input) => {
       const parsed = GetNextTaskInputSchema.parse(input);
@@ -93,16 +104,6 @@ export function registerTools(server: McpServer, context: ToolContext): void {
   );
 
   // Document CRUD Tools
-  server.tool(
-    'read_doc',
-    'Read full content of a document in the repository',
-    ReadDocInputSchema.shape,
-    async (input) => {
-      const parsed = ReadDocInputSchema.parse(input);
-      return handleReadDoc(parsed, context);
-    }
-  );
-
   server.tool(
     'list_docs',
     'List files and directories in the repository',
@@ -156,39 +157,42 @@ export function registerTools(server: McpServer, context: ToolContext): void {
     }
   );
 
-  // RLM Query Tools
+  // Document Processing Tools
   server.tool(
-    'rlm_query',
-    `Execute JavaScript code on a single document for filtered extraction.
+    'process_doc',
+    `Process a document with JavaScript code (read, filter, transform, extract). Can do everything read_doc does plus filtering/transformation.
 
 Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(), 
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
   path: "plans/0009/plan.md"
-  code: "extractFeatures(doc.content).filter(f => f.status === 'GAP')"`,
-    RlmQueryInputSchema.shape,
+  code: "extractFeatures(doc.content).filter(f => f.status === 'GAP')"
+  
+To read full content: code: "doc.content"
+To read line range: code: "doc.content.split('\\n').slice(10, 20).join('\\n')"`,
+    ProcessDocInputSchema.shape,
     async (input) => {
-      const parsed = RlmQueryInputSchema.parse(input);
-      return handleRlmQuery(parsed, context);
+      const parsed = ProcessDocInputSchema.parse(input);
+      return handleProcessDoc(parsed, context);
     }
   );
 
   server.tool(
-    'rlm_multi_query',
-    `Execute JavaScript code on multiple documents for cross-document analysis.
+    'process_docs',
+    `Process multiple documents with JavaScript code for cross-document analysis. Use glob patterns or explicit paths.
 
-Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(), 
+Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(),
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
   pattern: "plans/*/plan.md"
   code: "docs.map(d => ({ name: extractFrontmatter(d.content).meta.name, features: extractFeatures(d.content).length }))"`,
-    RlmMultiQueryInputBaseSchema.shape,
+    ProcessDocsInputBaseSchema.shape,
     async (input: unknown) => {
       try {
-        const parsed = RlmMultiQueryInputSchema.parse(input);
-        return handleRlmMultiQuery(parsed, context);
+        const parsed = ProcessDocsInputSchema.parse(input);
+        return handleProcessDocs(parsed, context);
       } catch (error) {
         // Handle Zod validation errors
         if (error && typeof error === 'object' && 'issues' in error) {
@@ -205,6 +209,62 @@ Example:
         }
         throw error;
       }
+    }
+  );
+
+  // Plan Overview Tools (aligned with CLI experience)
+  server.tool(
+    'list_plans',
+    `List all plans with overview information. Returns structured data including:
+- number: Plan number (e.g., "0001")
+- name: Human-readable name
+- workType: feature | bug | refactor | docs | unknown
+- overview: Brief description (max 100 chars)
+- status: GAP | WIP | PASS | BLOCKED
+
+Use this to get an overview of all available plans before diving into a specific one.`,
+    ListPlansInputSchema.shape,
+    async (input) => {
+      const parsed = ListPlansInputSchema.parse(input);
+      return handleListPlans(parsed, context);
+    }
+  );
+
+  server.tool(
+    'list_agents',
+    `List all agents for a specific plan with status and metadata. Returns:
+- agentNumber: Agent identifier (e.g., "000")
+- taskId: Full task ID (e.g., "0001-plan-name#000")
+- title: Agent/task title
+- status: GAP | WIP | PASS | BLOCKED
+- persona: coder | reviewer | pm | customer
+- dependencyCount: Number of dependencies
+- fileCount: Number of files to modify
+
+Also includes statusCounts summary showing how many agents are in each status.`,
+    ListAgentsInputSchema.shape,
+    async (input) => {
+      const parsed = ListAgentsInputSchema.parse(input);
+      return handleListAgents(parsed, context);
+    }
+  );
+
+  server.tool(
+    'get_plan_status',
+    `Get plan progress summary with completion percentage. Returns:
+- planName: Full plan directory name
+- totalAgents: Total number of agents
+- completionPercentage: % of agents with PASS status
+- statusCounts: Breakdown by status (GAP, WIP, PASS, BLOCKED)
+- personaCounts: Breakdown by persona (coder, reviewer, pm, customer)
+- blockedAgents: List of blocked agents with IDs and titles
+- wipAgents: List of in-progress agents with IDs and titles
+
+Use this to understand overall progress and identify blockers.`,
+    GetPlanStatusInputSchema.shape,
+    async (input) => {
+      const parsed = GetPlanStatusInputSchema.parse(input);
+      return handleGetPlanStatus(parsed, context);
     }
   );
 }

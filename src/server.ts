@@ -21,7 +21,7 @@ export function createServer(
   coordination: CoordinationState
 ): McpServer {
   const server = new McpServer({
-    name: 'mcp-planning-server',
+    name: 'limps',
     version: '0.2.0',
   });
 

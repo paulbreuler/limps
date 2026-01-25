@@ -1,6 +1,6 @@
 /**
- * rlm_multi_query tool: Execute JavaScript code on multiple documents.
- * Feature #4: RLM Multi-Query Tool
+ * process_docs tool: Process multiple documents with JavaScript code for cross-document analysis.
+ * Use glob patterns or explicit paths.
  *
  * Enables cross-document analysis with glob patterns or explicit paths.
  */
@@ -19,9 +19,9 @@ import { processSubCalls } from '../rlm/recursion.js';
 import type { SamplingClient } from '../rlm/sampling.js';
 
 /**
- * Base input schema for rlm_multi_query tool (for registration).
+ * Base input schema for process_docs tool (for registration).
  */
-export const RlmMultiQueryInputBaseSchema = z.object({
+export const ProcessDocsInputBaseSchema = z.object({
   paths: z.array(z.string().min(1)).optional().describe('Explicit list of document paths'),
   pattern: z.string().optional().describe('Glob pattern (e.g., "plans/*/plan.md")'),
   code: z.string().min(1).describe('JavaScript code to execute (docs array available)'),
@@ -31,9 +31,9 @@ export const RlmMultiQueryInputBaseSchema = z.object({
 });
 
 /**
- * Input schema for rlm_multi_query tool (with validation).
+ * Input schema for process_docs tool (with validation).
  */
-export const RlmMultiQueryInputSchema = RlmMultiQueryInputBaseSchema.refine(
+export const ProcessDocsInputSchema = ProcessDocsInputBaseSchema.refine(
   (data) => data.paths || data.pattern,
   {
     message: 'Either paths or pattern must be provided',
@@ -42,12 +42,12 @@ export const RlmMultiQueryInputSchema = RlmMultiQueryInputBaseSchema.refine(
   message: 'Cannot provide both paths and pattern',
 });
 
-export type RlmMultiQueryInput = z.infer<typeof RlmMultiQueryInputSchema>;
+export type ProcessDocsInput = z.infer<typeof ProcessDocsInputSchema>;
 
 /**
- * Output interface for rlm_multi_query tool.
+ * Output interface for process_docs tool.
  */
-export interface RlmMultiQueryOutput {
+export interface ProcessDocsOutput {
   result: unknown;
   docs_loaded: number;
   execution_time_ms: number;
@@ -164,19 +164,19 @@ async function loadDocument(repoRoot: string, relativePath: string): Promise<Doc
 }
 
 /**
- * Handle rlm_multi_query tool request.
+ * Handle process_docs tool request.
  *
  * @param input - Tool input
  * @param context - Tool context
  * @returns Tool result
  */
-export async function handleRlmMultiQuery(
-  input: RlmMultiQueryInput,
+export async function handleProcessDocs(
+  input: ProcessDocsInput,
   context: ToolContext
 ): Promise<ToolResult> {
   // Validate input (defense in depth - should already be validated by tool registration)
   try {
-    RlmMultiQueryInputSchema.parse(input);
+    ProcessDocsInputSchema.parse(input);
   } catch (error) {
     // Handle Zod validation errors
     if (error && typeof error === 'object' && 'issues' in error) {
@@ -224,7 +224,7 @@ export async function handleRlmMultiQuery(
 
     // Empty result (0 docs) should return empty array, not error (per gotchas)
     if (docPaths.length === 0) {
-      const output: RlmMultiQueryOutput = {
+      const output: ProcessDocsOutput = {
         result: [],
         docs_loaded: 0,
         execution_time_ms: 0,
@@ -270,7 +270,7 @@ export async function handleRlmMultiQuery(
       const resultSize = Buffer.byteLength(resultJson, 'utf-8');
 
       // Build output
-      const output: RlmMultiQueryOutput = {
+      const output: ProcessDocsOutput = {
         result: execResult.result,
         docs_loaded: docs.length,
         execution_time_ms: Math.max(1, Math.round(execResult.executionTimeMs)), // Ensure at least 1ms

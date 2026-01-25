@@ -6,79 +6,87 @@
 import { homedir } from 'os';
 import { join } from 'path';
 
-const APP_NAME = 'mcp-planning-server';
+const DEFAULT_APP_NAME = 'limps';
 
 /**
- * Get the OS-specific default configuration file path.
+ * Get the OS-specific base directory for application data.
  *
- * - macOS: ~/Library/Application Support/mcp-planning-server/config.json
- * - Windows: %APPDATA%\mcp-planning-server\config.json
- * - Linux/others: ~/.config/mcp-planning-server/config.json (XDG_CONFIG_HOME)
- *
- * @returns Absolute path to the default config file location
+ * @param appName - Application/project name (defaults to limps)
+ * @returns Absolute path to the base directory
  */
-export function getOSConfigPath(): string {
+export function getOSBasePath(appName: string = DEFAULT_APP_NAME): string {
   const home = homedir();
 
   switch (process.platform) {
     case 'darwin':
-      return join(home, 'Library', 'Application Support', APP_NAME, 'config.json');
+      return join(home, 'Library', 'Application Support', appName);
     case 'win32':
-      return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), APP_NAME, 'config.json');
+      return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), appName);
     default:
-      // Linux and other Unix-like systems follow XDG Base Directory Specification
-      return join(process.env.XDG_CONFIG_HOME || join(home, '.config'), APP_NAME, 'config.json');
+      return join(process.env.XDG_CONFIG_HOME || join(home, '.config'), appName);
   }
+}
+
+/**
+ * Get the OS-specific default configuration file path.
+ *
+ * - macOS: ~/Library/Application Support/{appName}/config.json
+ * - Windows: %APPDATA%\{appName}\config.json
+ * - Linux/others: ~/.config/{appName}/config.json (XDG_CONFIG_HOME)
+ *
+ * @param appName - Application/project name (defaults to limps)
+ * @returns Absolute path to the default config file location
+ */
+export function getOSConfigPath(appName: string = DEFAULT_APP_NAME): string {
+  return join(getOSBasePath(appName), 'config.json');
 }
 
 /**
  * Get the OS-specific default data directory path.
  *
- * - macOS: ~/Library/Application Support/mcp-planning-server/data
- * - Windows: %APPDATA%\mcp-planning-server\data
- * - Linux/others: ~/.local/share/mcp-planning-server/data (XDG_DATA_HOME)
+ * - macOS: ~/Library/Application Support/{appName}/data
+ * - Windows: %APPDATA%\{appName}\data
+ * - Linux/others: ~/.local/share/{appName}/data (XDG_DATA_HOME)
  *
+ * @param appName - Application/project name (defaults to limps)
  * @returns Absolute path to the default data directory
  */
-export function getOSDataPath(): string {
+export function getOSDataPath(appName: string = DEFAULT_APP_NAME): string {
   const home = homedir();
 
   switch (process.platform) {
     case 'darwin':
-      return join(home, 'Library', 'Application Support', APP_NAME, 'data');
+      return join(getOSBasePath(appName), 'data');
     case 'win32':
-      return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), APP_NAME, 'data');
+      return join(getOSBasePath(appName), 'data');
     default:
-      // Linux and other Unix-like systems follow XDG Base Directory Specification
-      return join(process.env.XDG_DATA_HOME || join(home, '.local', 'share'), APP_NAME, 'data');
+      // Linux: data goes to XDG_DATA_HOME, not XDG_CONFIG_HOME
+      return join(process.env.XDG_DATA_HOME || join(home, '.local', 'share'), appName, 'data');
   }
 }
 
 /**
  * Get the OS-specific default coordination file path.
  *
- * - macOS: ~/Library/Application Support/mcp-planning-server/coordination.json
- * - Windows: %APPDATA%\mcp-planning-server\coordination.json
- * - Linux/others: ~/.local/share/mcp-planning-server/coordination.json (XDG_DATA_HOME)
+ * - macOS: ~/Library/Application Support/{appName}/coordination.json
+ * - Windows: %APPDATA%\{appName}\coordination.json
+ * - Linux/others: ~/.local/share/{appName}/coordination.json (XDG_DATA_HOME)
  *
+ * @param appName - Application/project name (defaults to limps)
  * @returns Absolute path to the default coordination file
  */
-export function getOSCoordinationPath(): string {
+export function getOSCoordinationPath(appName: string = DEFAULT_APP_NAME): string {
   const home = homedir();
 
   switch (process.platform) {
     case 'darwin':
-      return join(home, 'Library', 'Application Support', APP_NAME, 'coordination.json');
+      return join(getOSBasePath(appName), 'coordination.json');
     case 'win32':
-      return join(
-        process.env.APPDATA || join(home, 'AppData', 'Roaming'),
-        APP_NAME,
-        'coordination.json'
-      );
+      return join(getOSBasePath(appName), 'coordination.json');
     default:
       return join(
         process.env.XDG_DATA_HOME || join(home, '.local', 'share'),
-        APP_NAME,
+        appName,
         'coordination.json'
       );
   }

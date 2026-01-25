@@ -81,8 +81,8 @@ describe('config-load', () => {
     const home = homedir();
     const configData = {
       plansPath: '~/Documents/plans',
-      dataPath: '~/Library/mcp-planning-server/data',
-      coordinationPath: '~/Library/mcp-planning-server/coordination.json',
+      dataPath: '~/Library/limps/data',
+      coordinationPath: '~/Library/limps/coordination.json',
       heartbeatTimeout: 300000,
       debounceDelay: 200,
       maxHandoffIterations: 3,
@@ -92,10 +92,8 @@ describe('config-load', () => {
     const config = loadConfig(configPath);
     // Tilde should be expanded to home directory
     expect(config.plansPath).toBe(join(home, 'Documents/plans'));
-    expect(config.dataPath).toBe(join(home, 'Library/mcp-planning-server/data'));
-    expect(config.coordinationPath).toBe(
-      join(home, 'Library/mcp-planning-server/coordination.json')
-    );
+    expect(config.dataPath).toBe(join(home, 'Library/limps/data'));
+    expect(config.coordinationPath).toBe(join(home, 'Library/limps/coordination.json'));
   });
 
   it('should expand tilde in docsPaths', () => {

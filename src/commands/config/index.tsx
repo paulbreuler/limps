@@ -1,0 +1,24 @@
+import { Text } from 'ink';
+
+export const description = 'Manage project configuration';
+
+export default function ConfigCommand(): React.ReactNode {
+  return (
+    <Text>
+      Usage: limps config {'<command>'}
+      {'\n'}
+      {'\n'}
+      Commands:{'\n'}
+      {'  '}list Show all registered projects{'\n'}
+      {'  '}use {'<name>'} Set the current/default project{'\n'}
+      {'  '}show Display resolved configuration values{'\n'}
+      {'  '}path Print the resolved config file path{'\n'}
+      {'  '}add {'<name>'} {'<path>'} Register an existing config file{'\n'}
+      {'  '}remove {'<name>'} Unregister a project (keeps files){'\n'}
+      {'  '}set {'<path>'} Set current from config path (auto-registers){'\n'}
+      {'  '}discover Find and register configs in default locations{'\n'}
+      {'\n'}
+      Run `limps config {'<command>'} --help` for more information.
+    </Text>
+  );
+}

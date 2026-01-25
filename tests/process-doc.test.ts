@@ -1,6 +1,6 @@
 /**
- * Tests for rlm_query tool.
- * Feature #2: RLM Query Tool
+ * Tests for process_doc tool.
+ * Feature #2: Document Processing Tool
  *
  * Test IDs: query-simple, query-filter, query-subcall, query-notfound
  */
@@ -13,11 +13,11 @@ import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
 import { readCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
-import { handleRlmQuery } from '../src/tools/rlm-query.js';
+import { handleProcessDoc } from '../src/tools/process-doc.js';
 import type { ToolContext } from '../src/types.js';
 import { MockSamplingClient } from '../src/rlm/sampling.js';
 
-describe('rlm-query', () => {
+describe('process-doc', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
@@ -68,7 +68,7 @@ describe('rlm-query', () => {
       const content = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';
       writeFileSync(filePath, content, 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: "doc.content.split('\\n').filter(l => l.includes('2'))",
@@ -90,7 +90,7 @@ describe('rlm-query', () => {
       const content = 'Test content';
       writeFileSync(filePath, content, 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: 'doc.content',
@@ -116,7 +116,7 @@ describe('rlm-query', () => {
       const content = lines.join('\n');
       writeFileSync(filePath, content, 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'large.md',
           code: "doc.content.split('\\n').slice(0, 10).join('\\n')", // Filter to first 10 lines
@@ -134,7 +134,7 @@ describe('rlm-query', () => {
 
   describe('query-notfound', () => {
     it('should handle non-existent document', async () => {
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'nonexistent.md',
           code: 'doc.content',
@@ -154,7 +154,7 @@ describe('rlm-query', () => {
       const filePath = join(repoRoot, 'test.md');
       writeFileSync(filePath, 'Test', 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: "require('fs').readFileSync('/etc/passwd')",
@@ -191,7 +191,7 @@ describe('rlm-query', () => {
         samplingClient: mockClient,
       } as ToolContext & { samplingClient: typeof mockClient };
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: "['item1', 'item2', 'item3']",
@@ -225,7 +225,7 @@ describe('rlm-query', () => {
         samplingClient: mockClient,
       } as ToolContext & { samplingClient: typeof mockClient };
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: "'single item'",
@@ -256,7 +256,7 @@ describe('rlm-query', () => {
         samplingClient: mockClient,
       } as ToolContext & { samplingClient: typeof mockClient };
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: "['item1']",
@@ -281,7 +281,7 @@ describe('rlm-query', () => {
       const filePath = join(repoRoot, 'test.md');
       writeFileSync(filePath, 'Test', 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: "'result'",
@@ -302,7 +302,7 @@ describe('rlm-query', () => {
       const filePath = join(repoRoot, 'test.md');
       writeFileSync(filePath, 'Test', 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: 'while(true) {}', // Infinite loop
@@ -323,7 +323,7 @@ describe('rlm-query', () => {
       const content = '# Title\n\n## Section 1\nContent 1\n\n## Section 2\nContent 2';
       writeFileSync(filePath, content, 'utf-8');
 
-      const result = await handleRlmQuery(
+      const result = await handleProcessDoc(
         {
           path: 'test.md',
           code: `({
