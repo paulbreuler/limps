@@ -1,11 +1,11 @@
 {
   "mcp.servers": {
-    "mcp-planning-server": {
+    "limps": {
       "command": "node",
       "args": [
-        "/path/to/mcp-planning-server/dist/index.js"
+        "/path/to/limps/dist/index.js"
       ],
-      "cwd": "/path/to/mcp-planning-server"
+      "cwd": "/path/to/limps"
     }
   }
 }

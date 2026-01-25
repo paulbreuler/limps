@@ -73,13 +73,13 @@ jobs:
           
           # Create archive name based on OS
           if [ "$RUNNER_OS" == "Windows" ]; then
-            ARCHIVE_NAME="mcp-planning-server-${VERSION}-windows-x64"
+            ARCHIVE_NAME="limps-${VERSION}-windows-x64"
             ARCHIVE_EXT=".zip"
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            ARCHIVE_NAME="mcp-planning-server-${VERSION}-macos-x64"
+            ARCHIVE_NAME="limps-${VERSION}-macos-x64"
             ARCHIVE_EXT=".tar.gz"
           else
-            ARCHIVE_NAME="mcp-planning-server-${VERSION}-linux-x64"
+            ARCHIVE_NAME="limps-${VERSION}-linux-x64"
             ARCHIVE_EXT=".tar.gz"
           fi
           
@@ -222,9 +222,9 @@ See [INSTALLATION.md](https://github.com/${repo.owner}/${repo.repo}/blob/main/IN
 ## 📦 Pre-built Release
 
 This release includes pre-built binaries for:
-- **Linux** (x64) - \`mcp-planning-server-${version}-linux-x64.tar.gz\`
-- **macOS** (x64) - \`mcp-planning-server-${version}-macos-x64.tar.gz\`
-- **Windows** (x64) - \`mcp-planning-server-${version}-windows-x64.zip\`
+- **Linux** (x64) - \`limps-${version}-linux-x64.tar.gz\`
+- **macOS** (x64) - \`limps-${version}-macos-x64.tar.gz\`
+- **Windows** (x64) - \`limps-${version}-windows-x64.zip\`
 
 ### Quick Installation
 

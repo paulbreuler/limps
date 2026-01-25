@@ -1,3 +1,9 @@
+# Run lint-staged to auto-fix formatting and linting on staged files
 npx lint-staged
-npm run build
-npm test
+
+# Stage any auto-fixed files from lint-staged before running full checks
+git add -u
+
+# Run full validation (format check, lint, type-check, build, test)
+# If all checks pass, the commit will continue. If any check fails, the commit is blocked.
+npm run validate

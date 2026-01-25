@@ -1,11 +1,11 @@
 {
-  "name": "mcp-planning-server",
-  "version": "0.2.0",
-  "description": "MCP server for planning document management",
+  "name": "@sudosandwich/limps",
+  "version": "0.2.2",
+  "description": "Local Intelligent MCP Planning Server - AI agent plan management and coordination",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "bin": {
-    "mcp-planning-server": "./dist/index.js"
+    "limps": "dist/cli.js"
   },
   "scripts": {
     "test": "vitest run",
@@ -13,10 +13,13 @@
     "test:coverage": "vitest run --coverage",
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src/ tests/",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/ tests/ --max-warnings 0",
     "lint:fix": "eslint src/ tests/ --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
+    "ci": "npm run validate",
     "prepare": "husky"
   },
   "keywords": [
@@ -25,33 +28,51 @@
     "planning",
     "document-management",
     "ai",
-    "cursor"
+    "cursor",
+    "claude",
+    "anthropic",
+    "ai-agent",
+    "local-first",
+    "llm",
+    "mcp-server",
+    "rlm",
+    "recursive-language-model"
   ],
-  "author": "",
+  "author": "Paul Breuler",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/mcp-planning-server.git"
+    "url": "git+https://github.com/paulbreuler/limps.git"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.22.0",
     "better-sqlite3": "^11.7.0",
     "chokidar": "^4.0.3",
+    "ink": "^6.6.0",
     "micromatch": "^4.0.8",
     "open": "^10.2.0",
+    "pastel": "^4.0.0",
     "quickjs-emscripten": "^0.31.0",
+    "react": "^19.2.3",
     "which": "^4.0.0",
     "yaml": "^2.7.0",
-    "zod": "^3.23.8"
+    "zod": "^4.3.6"
   },
   "lint-staged": {
-    "src/**/*.ts": [
+    "src/**/*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "eslint"
     ],
-    "tests/**/*.ts": [
+    "tests/**/*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "eslint"
     ]
   },
   "devDependencies": {
@@ -59,10 +80,12 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/micromatch": "^4.0.10",
     "@types/node": "^25.0.9",
+    "@types/react": "^19.2.9",
     "@types/which": "^3.0.4",
     "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
     "husky": "^9.1.7",
+    "ink-testing-library": "^4.0.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.8.0",
     "typescript": "^5.9.3",
