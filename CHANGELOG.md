@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/paulbreuler/limps/compare/v1.0.2...v1.1.0) (2026-01-25)
+
+
+### Features
+
+* Add version command and automatic update checking ([#5](https://github.com/paulbreuler/limps/issues/5)) ([eece1d1](https://github.com/paulbreuler/limps/commit/eece1d1eda00bbcf601b5d185d021f5c7bd703fd))
+
+
+### Bug Fixes
+
+* Build CLI before running tests in all workflows ([#6](https://github.com/paulbreuler/limps/issues/6)) ([00101c7](https://github.com/paulbreuler/limps/commit/00101c7d542fb44b5e04d3e99b575730c2932efd))
+* Build CLI before running tests in release workflow ([8a8c172](https://github.com/paulbreuler/limps/commit/8a8c172919c50102d4c6f913846507aeb180622b))
+
 ## [1.0.2](https://github.com/paulbreuler/limps/compare/v1.0.1...v1.0.2) (2026-01-25)
 
 
