@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/paulbreuler/limps/compare/v1.1.0...v1.1.1) (2026-01-25)
+
+
+### Bug Fixes
+
+* Update version tests to handle dynamic version and update messages ([#8](https://github.com/paulbreuler/limps/issues/8)) ([9bb515e](https://github.com/paulbreuler/limps/commit/9bb515e64d7c343496e0e434a6e17592bf138197))
+
 ## [1.1.0](https://github.com/paulbreuler/limps/compare/v1.0.2...v1.1.0) (2026-01-25)
 
 
