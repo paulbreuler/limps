@@ -277,13 +277,25 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "limps": {
       "command": "npx",
+      "args": ["-y", "@sudosandwich/limps"]
+    }
+  }
+}
+```
+
+With explicit config:
+```json
+{
+  "mcpServers": {
+    "limps": {
+      "command": "npx",
       "args": ["-y", "@sudosandwich/limps", "--config", "/path/to/config.json"]
     }
   }
 }
 ```
 
-> **Note:** Run `limps init my-project` first to generate the config, then copy the full path into the config above.
+> **Note:** Run `limps init my-project` first to generate a config, then use the full path above.
 
 ## Features
 

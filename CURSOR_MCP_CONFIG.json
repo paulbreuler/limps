@@ -1,11 +1,7 @@
 {
   "mcp.servers": {
     "limps": {
-      "command": "node",
-      "args": [
-        "/path/to/limps/dist/index.js"
-      ],
-      "cwd": "/path/to/limps"
+      "command": "limps"
     }
   }
 }
