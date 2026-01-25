@@ -7,7 +7,7 @@
 ![Tests](https://img.shields.io/badge/Tests-692%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-%3E70%25-brightgreen)
 
-![limps in action](.github/assets/limps-in-action.gif)
+![limps in action](https://raw.githubusercontent.com/paulbreuler/limps/main/.github/assets/limps-in-action.gif)
 
 *Claude Desktop accessing the planning MCP, talking to Runi project docs*
 
