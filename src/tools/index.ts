@@ -19,6 +19,9 @@ import {
   ProcessDocsInputSchema,
   handleProcessDocs,
 } from './process-docs.js';
+import { ListPlansInputSchema, handleListPlans } from './list-plans.js';
+import { ListAgentsInputSchema, handleListAgents } from './list-agents.js';
+import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status.js';
 
 /**
  * Register all MCP tools with the server.
@@ -72,7 +75,16 @@ export function registerTools(server: McpServer, context: ToolContext): void {
   // Task Selection Tools
   server.tool(
     'get_next_task',
-    'Get highest-priority available task based on dependencies and agent type',
+    `Get highest-priority available task based on dependencies and agent type.
+
+When planId is provided, returns detailed score breakdown:
+- dependencyScore: 40 points max (all dependencies satisfied)
+- priorityScore: 30 points max (based on agent number, lower = higher priority)
+- workloadScore: 30 points max (based on file count, fewer = higher score)
+- totalScore: sum of all scores (100 max)
+- otherAvailableTasks: count of other eligible tasks
+
+Without planId, searches across all plans (legacy behavior).`,
     GetNextTaskInputSchema.shape,
     async (input) => {
       const parsed = GetNextTaskInputSchema.parse(input);
@@ -170,7 +182,7 @@ To read line range: code: "doc.content.split('\\n').slice(10, 20).join('\\n')"`,
     'process_docs',
     `Process multiple documents with JavaScript code for cross-document analysis. Use glob patterns or explicit paths.
 
-Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(), 
+Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(),
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
@@ -197,6 +209,62 @@ Example:
         }
         throw error;
       }
+    }
+  );
+
+  // Plan Overview Tools (aligned with CLI experience)
+  server.tool(
+    'list_plans',
+    `List all plans with overview information. Returns structured data including:
+- number: Plan number (e.g., "0001")
+- name: Human-readable name
+- workType: feature | bug | refactor | docs | unknown
+- overview: Brief description (max 100 chars)
+- status: GAP | WIP | PASS | BLOCKED
+
+Use this to get an overview of all available plans before diving into a specific one.`,
+    ListPlansInputSchema.shape,
+    async (input) => {
+      const parsed = ListPlansInputSchema.parse(input);
+      return handleListPlans(parsed, context);
+    }
+  );
+
+  server.tool(
+    'list_agents',
+    `List all agents for a specific plan with status and metadata. Returns:
+- agentNumber: Agent identifier (e.g., "000")
+- taskId: Full task ID (e.g., "0001-plan-name#000")
+- title: Agent/task title
+- status: GAP | WIP | PASS | BLOCKED
+- persona: coder | reviewer | pm | customer
+- dependencyCount: Number of dependencies
+- fileCount: Number of files to modify
+
+Also includes statusCounts summary showing how many agents are in each status.`,
+    ListAgentsInputSchema.shape,
+    async (input) => {
+      const parsed = ListAgentsInputSchema.parse(input);
+      return handleListAgents(parsed, context);
+    }
+  );
+
+  server.tool(
+    'get_plan_status',
+    `Get plan progress summary with completion percentage. Returns:
+- planName: Full plan directory name
+- totalAgents: Total number of agents
+- completionPercentage: % of agents with PASS status
+- statusCounts: Breakdown by status (GAP, WIP, PASS, BLOCKED)
+- personaCounts: Breakdown by persona (coder, reviewer, pm, customer)
+- blockedAgents: List of blocked agents with IDs and titles
+- wipAgents: List of in-progress agents with IDs and titles
+
+Use this to understand overall progress and identify blockers.`,
+    GetPlanStatusInputSchema.shape,
+    async (input) => {
+      const parsed = GetPlanStatusInputSchema.parse(input);
+      return handleGetPlanStatus(parsed, context);
     }
   );
 }
