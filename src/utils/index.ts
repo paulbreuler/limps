@@ -7,3 +7,4 @@ export * from './errors.js';
 export * from './paths.js';
 export * from './backup.js';
 export * from './os-paths.js';
+export * from './markdown.js';

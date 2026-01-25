@@ -1,8 +1,9 @@
 import { Text } from 'ink';
 import { z } from 'zod';
-import { status } from '../cli/status.js';
+import { getPlanStatusSummary } from '../cli/status.js';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
+import { PlanStatus } from '../components/PlanStatus.js';
 
 export const description = 'Show plan status';
 
@@ -23,8 +24,8 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
   try {
     const configPath = resolveConfigPath(options.config);
     const config = loadConfig(configPath);
-    const output = status(config, planId);
-    return <Text>{output}</Text>;
+    const summary = getPlanStatusSummary(config, planId);
+    return <PlanStatus summary={summary} />;
   } catch (error) {
     return <Text color="red">Error: {(error as Error).message}</Text>;
   }

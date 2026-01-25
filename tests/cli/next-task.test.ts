@@ -415,7 +415,8 @@ files: []
     });
 
     it('handles plan not found', async () => {
-      await expect(nextTask(config, '99')).rejects.toThrow('Plan not found');
+      const result = await nextTask(config, '99');
+      expect(result).toContain('Plan not found: 99');
     });
   });
 });

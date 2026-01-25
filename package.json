@@ -59,6 +59,7 @@
     "pastel": "^4.0.0",
     "quickjs-emscripten": "^0.31.0",
     "react": "^19.2.3",
+    "remove-markdown": "^0.6.3",
     "which": "^4.0.0",
     "yaml": "^2.7.0",
     "zod": "^4.3.6"

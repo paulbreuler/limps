@@ -96,23 +96,42 @@ export function getAgentFiles(planDir: string): ParsedAgentFile[] {
 }
 
 /**
- * List all agents in a plan.
+ * Result of listing agents.
+ */
+export interface ListAgentsResult {
+  planName: string;
+  agents: ParsedAgentFile[];
+  statusCounts: {
+    GAP: number;
+    WIP: number;
+    PASS: number;
+    BLOCKED: number;
+  };
+  total: number;
+}
+
+/**
+ * Get all agents data from a plan.
+ * Returns structured data for rendering.
  *
  * @param config - Server configuration
  * @param planId - Plan number or name
- * @returns Formatted string output for CLI
+ * @returns Structured agent data or error
  */
-export function listAgents(config: ServerConfig, planId: string): string {
+export function getAgentsData(
+  config: ServerConfig,
+  planId: string
+): ListAgentsResult | { error: string } {
   const planDir = findPlanDirectory(config.plansPath, planId);
 
   if (!planDir) {
-    throw new Error(`Plan not found: ${planId}`);
+    return { error: `Plan not found: ${planId}` };
   }
 
   const agents = getAgentFiles(planDir);
 
   if (agents.length === 0) {
-    return 'No agents found';
+    return { error: 'No agents found' };
   }
 
   // Sort by agent number
@@ -134,9 +153,33 @@ export function listAgents(config: ServerConfig, planId: string): string {
     statusCounts[agent.frontmatter.status]++;
   }
 
+  const planName = planDir.split('/').pop() || planId;
+
+  return {
+    planName,
+    agents,
+    statusCounts,
+    total: agents.length,
+  };
+}
+
+/**
+ * List all agents in a plan.
+ *
+ * @param config - Server configuration
+ * @param planId - Plan number or name
+ * @returns Formatted string output for CLI
+ */
+export function listAgents(config: ServerConfig, planId: string): string {
+  const result = getAgentsData(config, planId);
+  if ('error' in result) {
+    return result.error;
+  }
+
+  const { planName, agents, statusCounts } = result;
+
   // Format output
   const lines: string[] = [];
-  const planName = planDir.split('/').pop() || planId;
   lines.push(`Agents in ${planName}:`);
   lines.push('');
 

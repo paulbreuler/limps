@@ -163,23 +163,35 @@ function scoreTask(
 }
 
 /**
- * Get the next best task from a plan.
+ * Result of getting next task.
+ */
+export interface NextTaskResult {
+  task: TaskScoreBreakdown;
+  otherAvailableTasks: number;
+}
+
+/**
+ * Get the next best task data from a plan.
+ * Returns structured data for rendering.
  *
  * @param config - Server configuration
  * @param planId - Plan number or name
- * @returns Formatted string output for CLI
+ * @returns Structured task data or error message
  */
-export async function nextTask(config: ServerConfig, planId: string): Promise<string> {
+export async function getNextTaskData(
+  config: ServerConfig,
+  planId: string
+): Promise<NextTaskResult | { error: string }> {
   const planDir = findPlanDirectory(config.plansPath, planId);
 
   if (!planDir) {
-    throw new Error(`Plan not found: ${planId}`);
+    return { error: `Plan not found: ${planId}` };
   }
 
   const agents = getAgentFiles(planDir);
 
   if (agents.length === 0) {
-    return 'No agents found';
+    return { error: 'No agents found' };
   }
 
   // Load coordination state
@@ -199,15 +211,36 @@ export async function nextTask(config: ServerConfig, planId: string): Promise<st
     // Check if all tasks are complete
     const passCount = agents.filter((a) => a.frontmatter.status === 'PASS').length;
     if (passCount === agents.length) {
-      return 'All tasks completed!';
+      return { error: 'All tasks completed!' };
     }
-    return 'No available tasks (all blocked or in progress)';
+    return { error: 'No available tasks (all blocked or in progress)' };
   }
 
   // Sort by total score (descending)
   scoredTasks.sort((a, b) => b.totalScore - a.totalScore);
 
   const best = scoredTasks[0];
+
+  return {
+    task: best,
+    otherAvailableTasks: scoredTasks.length - 1,
+  };
+}
+
+/**
+ * Get the next best task from a plan.
+ *
+ * @param config - Server configuration
+ * @param planId - Plan number or name
+ * @returns Formatted string output for CLI
+ */
+export async function nextTask(config: ServerConfig, planId: string): Promise<string> {
+  const result = await getNextTaskData(config, planId);
+  if ('error' in result) {
+    return result.error;
+  }
+
+  const { task: best, otherAvailableTasks } = result;
 
   // Format output
   const lines: string[] = [];
@@ -227,9 +260,9 @@ export async function nextTask(config: ServerConfig, planId: string): Promise<st
     lines.push(`  - ${reason}`);
   }
 
-  if (scoredTasks.length > 1) {
+  if (otherAvailableTasks > 0) {
     lines.push('');
-    lines.push(`Other available tasks: ${scoredTasks.length - 1}`);
+    lines.push(`Other available tasks: ${otherAvailableTasks}`);
   }
 
   return lines.join('\n');

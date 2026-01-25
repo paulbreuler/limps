@@ -1,9 +1,10 @@
 import { Text } from 'ink';
 import { z } from 'zod';
 import { useState, useEffect } from 'react';
-import { nextTask } from '../cli/next-task.js';
+import { getNextTaskData, type TaskScoreBreakdown } from '../cli/next-task.js';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
+import { NextTask } from '../components/NextTask.js';
 
 export const description = 'Get the next best task';
 
@@ -20,7 +21,9 @@ interface Props {
 
 export default function NextTaskCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
-  const [output, setOutput] = useState<string>('Loading...');
+  const [result, setResult] = useState<
+    { task: TaskScoreBreakdown; otherAvailableTasks: number } | { error: string } | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,8 +31,8 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
       try {
         const configPath = resolveConfigPath(options.config);
         const config = loadConfig(configPath);
-        const result = await nextTask(config, planId);
-        setOutput(result);
+        const data = await getNextTaskData(config, planId);
+        setResult(data);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -41,5 +44,13 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
     return <Text color="red">Error: {error}</Text>;
   }
 
-  return <Text>{output}</Text>;
+  if (!result) {
+    return <Text>Loading...</Text>;
+  }
+
+  if ('error' in result) {
+    return <Text color="red">{result.error}</Text>;
+  }
+
+  return <NextTask task={result.task} otherAvailableTasks={result.otherAvailableTasks} />;
 }

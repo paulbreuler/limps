@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { ServerConfig } from '../config.js';
+import { stripMarkdown } from '../utils/markdown.js';
 
 /**
  * Plan entry for CLI output.
@@ -22,7 +23,7 @@ export interface CliPlanEntry {
  * Extract plan number from directory name.
  * Handles both padded (0001-plan-name) and unpadded (1-plan-name) formats.
  */
-function extractPlanNumber(dirName: string): string | null {
+export function extractPlanNumber(dirName: string): string | null {
   const match = dirName.match(/^(\d+)-/);
   if (match) {
     return match[1];
@@ -34,7 +35,7 @@ function extractPlanNumber(dirName: string): string | null {
  * Extract plan name from directory name.
  * Removes the number prefix and converts dashes to spaces.
  */
-function extractPlanName(dirName: string): string {
+export function extractPlanName(dirName: string): string {
   const match = dirName.match(/^\d+-(.+)$/);
   if (match) {
     return match[1].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -45,7 +46,7 @@ function extractPlanName(dirName: string): string {
 /**
  * Detect work type from plan content or directory name.
  */
-function detectWorkType(dirName: string, content: string): CliPlanEntry['workType'] {
+export function detectWorkType(dirName: string, content: string): CliPlanEntry['workType'] {
   const lowerDir = dirName.toLowerCase();
   const lowerContent = content.toLowerCase();
 
@@ -115,7 +116,7 @@ function parseYamlFrontmatter(content: string): Record<string, unknown> {
  * Extract overview from plan content.
  * Looks for content after the title and before the first section.
  */
-function extractOverview(content: string): string {
+export function extractOverview(content: string): string {
   // Remove frontmatter
   const withoutFrontmatter = content.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '');
 
@@ -133,20 +134,33 @@ function extractOverview(content: string): string {
       if (line.startsWith('## ') || line.startsWith('### ')) {
         break;
       }
-      if (line.trim()) {
-        overviewLines.push(line.trim());
+      const trimmed = line.trim();
+      if (trimmed) {
+        // Skip lines that look like raw metadata (e.g., `**Status:** Draft **Date:** 2026-01-15`)
+        // These are common when frontmatter leaks into content
+        if (/^\*\*[A-Za-z]+\*\*:\s*.*(\*\*[A-Za-z]+\*\*:.*)?$/.test(trimmed)) {
+          continue;
+        }
+        // Skip horizontal rules
+        if (/^[-*_]{3,}$/.test(trimmed)) {
+          continue;
+        }
+        overviewLines.push(trimmed);
       }
     }
   }
 
-  const overview = overviewLines.join(' ').slice(0, 100);
-  return overview.length === 100 ? overview + '...' : overview;
+  const overview = overviewLines.join(' ');
+  // Strip markdown for clean CLI display
+  const cleaned = stripMarkdown(overview);
+  const truncated = cleaned.slice(0, 100);
+  return truncated.length === 100 ? truncated + '...' : truncated;
 }
 
 /**
  * Get plan status from frontmatter or default.
  */
-function getPlanStatus(content: string): CliPlanEntry['status'] {
+export function getPlanStatus(content: string): CliPlanEntry['status'] {
   const frontmatter = parseYamlFrontmatter(content);
   if (frontmatter.status && typeof frontmatter.status === 'string') {
     const status = frontmatter.status.toUpperCase();
@@ -158,16 +172,25 @@ function getPlanStatus(content: string): CliPlanEntry['status'] {
 }
 
 /**
- * List all plans from the configured plansPath.
+ * Result of listing plans.
+ */
+export interface ListPlansResult {
+  plans: CliPlanEntry[];
+  total: number;
+}
+
+/**
+ * Get all plans data from the configured plansPath.
+ * Returns structured data for rendering.
  *
  * @param config - Server configuration
- * @returns Formatted string output for CLI
+ * @returns Structured plan data or error message
  */
-export function listPlans(config: ServerConfig): string {
+export function getPlansData(config: ServerConfig): ListPlansResult | { error: string } {
   const plansPath = config.plansPath;
 
   if (!existsSync(plansPath)) {
-    return 'No plans found (plans directory does not exist)';
+    return { error: 'No plans found (plans directory does not exist)' };
   }
 
   const dirs = readdirSync(plansPath, { withFileTypes: true })
@@ -203,11 +226,28 @@ export function listPlans(config: ServerConfig): string {
   }
 
   if (plans.length === 0) {
-    return 'No plans found';
+    return { error: 'No plans found' };
   }
 
   // Sort by plan number
   plans.sort((a, b) => parseInt(a.number, 10) - parseInt(b.number, 10));
+
+  return { plans, total: plans.length };
+}
+
+/**
+ * List all plans from the configured plansPath.
+ *
+ * @param config - Server configuration
+ * @returns Formatted string output for CLI
+ */
+export function listPlans(config: ServerConfig): string {
+  const result = getPlansData(config);
+  if ('error' in result) {
+    return result.error;
+  }
+
+  const { plans } = result;
 
   // Format output
   const lines: string[] = [];

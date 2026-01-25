@@ -195,7 +195,8 @@ files: []
     });
 
     it('handles plan not found', () => {
-      expect(() => listAgents(config, '99')).toThrow('Plan not found: 99');
+      const result = listAgents(config, '99');
+      expect(result).toContain('Plan not found: 99');
     });
 
     it('shows no agents message', () => {
