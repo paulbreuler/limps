@@ -39,19 +39,26 @@ async function verifyTools(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Expected tools (including the new RLM tools)
+  // Expected tools (16 total)
   const expectedTools = [
+    // Plan Management
     'create_plan',
+    'list_plans',
+    'list_agents',
+    'get_plan_status',
+    // Task Coordination
     'update_task_status',
     'claim_task',
     'release_task',
     'get_next_task',
+    // Document Operations
     'search_docs',
     'list_docs',
     'create_doc',
     'update_doc',
     'delete_doc',
     'open_document_in_cursor',
+    // RLM Processing
     'process_doc',
     'process_docs',
   ];
