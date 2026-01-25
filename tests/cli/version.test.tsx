@@ -39,9 +39,12 @@ describe('version command', () => {
   });
 
   it('displays update information when --check flag is used and update is available', async () => {
+    const currentVersion = getPackageVersion();
+    // Mock a newer version than current
+    const newerVersion = '999.999.999';
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ version: '1.0.3' }),
+      json: async () => ({ version: newerVersion }),
     });
 
     const { default: VersionCommand } = await import('../../src/commands/version.js');
@@ -53,8 +56,9 @@ describe('version command', () => {
 
     const output = lastFrame() ?? '';
     // Should indicate an update is available
-    expect(output).toContain('1.0.3');
-    expect(output).toContain('1.0.2');
+    expect(output).toContain(newerVersion);
+    expect(output).toContain(currentVersion);
+    expect(output.toLowerCase()).toMatch(/update available|latest version/i);
   });
 
   it('shows up-to-date message when --check flag is used and no update is available', async () => {
