@@ -42,11 +42,11 @@ The [runi](https://github.com/paulbreuler/runi) project uses a separate git repo
 | Command | Description | MCP Tools Used |
 |---------|-------------|----------------|
 | `/create-feature-plan` | Generate TDD plan with docs and agent files | `create_plan`, `create_doc`, `list_docs` |
-| `/list-feature-plans` | List all plans with clickable file paths | `list_docs`, `read_doc` |
-| `/run-agent` | Start work on next agent task | `read_doc`, `rlm_query`, `claim_task` |
-| `/close-feature-agent` | Verify completion, sync status | `read_doc`, `update_doc`, `release_task` |
-| `/update-feature-plan` | Regenerate agents from updated plan | `read_doc`, `create_doc`, `rlm_multi_query` |
-| `/plan-list-agents` | Show all agents with status | `list_docs`, `rlm_multi_query` |
+| `/list-feature-plans` | List all plans with clickable file paths | `list_docs`, `process_doc` |
+| `/run-agent` | Start work on next agent task | `process_doc`, `claim_task` |
+| `/close-feature-agent` | Verify completion, sync status | `process_doc`, `update_doc`, `release_task` |
+| `/update-feature-plan` | Regenerate agents from updated plan | `process_doc`, `create_doc`, `process_docs` |
+| `/plan-list-agents` | Show all agents with status | `list_docs`, `process_docs` |
 
 **Example: `/create-feature-plan` using MCP tools:**
 
@@ -63,11 +63,11 @@ await create_doc({ path: `plans/${nextNum}-my-feature/plan.md`, content: '...' }
 await create_doc({ path: `plans/${nextNum}-my-feature/interfaces.md`, content: '...' });
 ```
 
-**Example: `/run-agent` using RLM query:**
+**Example: `/run-agent` using process_doc:**
 
 ```typescript
 // Extract next GAP feature from plan
-const nextGap = await rlm_query({
+const nextGap = await process_doc({
   path: `plans/${planName}/plan.md`,
   code: `
     const features = extractFeatures(doc.content);
@@ -287,18 +287,17 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## Features
 
-### Document Management (14 Tools)
+### Document Management (13 Tools)
 
 | Tool | Description |
 |------|-------------|
-| `read_doc` | Read full document content |
+| `process_doc` | Process a document with JavaScript code (read, filter, transform, extract). Can do everything read_doc does plus filtering/transformation |
+| `process_docs` | Process multiple documents with JavaScript code for cross-document analysis. Use glob patterns or explicit paths |
 | `create_doc` | Create new documents |
 | `update_doc` | Update with optimistic concurrency |
 | `delete_doc` | Delete documents |
 | `list_docs` | List files and directories |
 | `search_docs` | Full-text search (SQLite FTS5) |
-| `rlm_query` | JavaScript filter/transform on documents |
-| `rlm_multi_query` | Cross-document analysis with globs |
 | `create_plan` | Create feature plans with structure |
 | `update_task_status` | Update task status (GAP → WIP → PASS) |
 | `claim_task` | Claim tasks with file locks |

@@ -1,0 +1,65 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Check if version changed
+        id: check
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          NPM_VERSION=$(npm view ${PACKAGE_NAME} version 2>/dev/null || echo "0.0.0")
+
+          echo "Package: ${PACKAGE_NAME}"
+          echo "Local version: ${PACKAGE_VERSION}"
+          echo "npm version: ${NPM_VERSION}"
+
+          if [ "$PACKAGE_VERSION" = "$NPM_VERSION" ]; then
+            echo "Version unchanged, skipping publish"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected, will publish"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "version=${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to npm
+        if: steps.check.outputs.skip != 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create git tag
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.check.outputs.version }}"
+          git push origin "v${{ steps.check.outputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

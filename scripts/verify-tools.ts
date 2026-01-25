@@ -47,14 +47,13 @@ async function verifyTools(): Promise<void> {
     'release_task',
     'get_next_task',
     'search_docs',
-    'read_doc',
     'list_docs',
     'create_doc',
     'update_doc',
     'delete_doc',
     'open_document_in_cursor',
-    'rlm_query', // NEW
-    'rlm_multi_query', // NEW
+    'process_doc',
+    'process_docs',
   ];
 
   console.log('✅ Server created and connected\n');
@@ -65,7 +64,7 @@ async function verifyTools(): Promise<void> {
   console.log('\n💡 To test in Cursor:');
   console.log('   1. Restart Cursor or reload MCP connection');
   console.log('   2. Ask: "What MCP tools do you have available?"');
-  console.log('   3. Try: "Use rlm_query to extract features from a plan document"');
+  console.log('   3. Try: "Use process_doc to extract features from a plan document"');
 
   await server.close();
   db.close();

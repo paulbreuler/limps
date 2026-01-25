@@ -8,18 +8,17 @@ import { ClaimTaskInputSchema, handleClaimTask } from './claim-task.js';
 import { ReleaseTaskInputSchema, handleReleaseTask } from './release-task.js';
 import { GetNextTaskInputSchema, handleGetNextTask } from './get-next-task.js';
 import { SearchDocsInputSchema, handleSearchDocs } from './search-docs.js';
-import { ReadDocInputSchema, handleReadDoc } from './read-doc.js';
 import { ListDocsInputSchema, handleListDocs } from './list-docs.js';
 import { CreateDocInputSchema, handleCreateDoc } from './create-doc.js';
 import { UpdateDocInputSchema, UpdateDocInputBaseSchema, handleUpdateDoc } from './update-doc.js';
 import { DeleteDocInputSchema, handleDeleteDoc } from './delete-doc.js';
 import { OpenDocumentInputSchema, handleOpenDocumentInCursor } from './open-document-in-cursor.js';
-import { RlmQueryInputSchema, handleRlmQuery } from './rlm-query.js';
+import { ProcessDocInputSchema, handleProcessDoc } from './process-doc.js';
 import {
-  RlmMultiQueryInputBaseSchema,
-  RlmMultiQueryInputSchema,
-  handleRlmMultiQuery,
-} from './rlm-multi-query.js';
+  ProcessDocsInputBaseSchema,
+  ProcessDocsInputSchema,
+  handleProcessDocs,
+} from './process-docs.js';
 
 /**
  * Register all MCP tools with the server.
@@ -94,16 +93,6 @@ export function registerTools(server: McpServer, context: ToolContext): void {
 
   // Document CRUD Tools
   server.tool(
-    'read_doc',
-    'Read full content of a document in the repository',
-    ReadDocInputSchema.shape,
-    async (input) => {
-      const parsed = ReadDocInputSchema.parse(input);
-      return handleReadDoc(parsed, context);
-    }
-  );
-
-  server.tool(
     'list_docs',
     'List files and directories in the repository',
     ListDocsInputSchema.shape,
@@ -156,27 +145,30 @@ export function registerTools(server: McpServer, context: ToolContext): void {
     }
   );
 
-  // RLM Query Tools
+  // Document Processing Tools
   server.tool(
-    'rlm_query',
-    `Execute JavaScript code on a single document for filtered extraction.
+    'process_doc',
+    `Process a document with JavaScript code (read, filter, transform, extract). Can do everything read_doc does plus filtering/transformation.
 
 Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(), 
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
   path: "plans/0009/plan.md"
-  code: "extractFeatures(doc.content).filter(f => f.status === 'GAP')"`,
-    RlmQueryInputSchema.shape,
+  code: "extractFeatures(doc.content).filter(f => f.status === 'GAP')"
+  
+To read full content: code: "doc.content"
+To read line range: code: "doc.content.split('\\n').slice(10, 20).join('\\n')"`,
+    ProcessDocInputSchema.shape,
     async (input) => {
-      const parsed = RlmQueryInputSchema.parse(input);
-      return handleRlmQuery(parsed, context);
+      const parsed = ProcessDocInputSchema.parse(input);
+      return handleProcessDoc(parsed, context);
     }
   );
 
   server.tool(
-    'rlm_multi_query',
-    `Execute JavaScript code on multiple documents for cross-document analysis.
+    'process_docs',
+    `Process multiple documents with JavaScript code for cross-document analysis. Use glob patterns or explicit paths.
 
 Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(), 
 extractFeatures(), extractAgents(), findByPattern(), summarize()
@@ -184,11 +176,11 @@ extractFeatures(), extractAgents(), findByPattern(), summarize()
 Example:
   pattern: "plans/*/plan.md"
   code: "docs.map(d => ({ name: extractFrontmatter(d.content).meta.name, features: extractFeatures(d.content).length }))"`,
-    RlmMultiQueryInputBaseSchema.shape,
+    ProcessDocsInputBaseSchema.shape,
     async (input: unknown) => {
       try {
-        const parsed = RlmMultiQueryInputSchema.parse(input);
-        return handleRlmMultiQuery(parsed, context);
+        const parsed = ProcessDocsInputSchema.parse(input);
+        return handleProcessDocs(parsed, context);
       } catch (error) {
         // Handle Zod validation errors
         if (error && typeof error === 'object' && 'issues' in error) {

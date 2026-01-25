@@ -1,6 +1,6 @@
 /**
- * Tests for rlm_multi_query tool.
- * Feature #4: RLM Multi-Query Tool
+ * Tests for process_docs tool.
+ * Feature #4: Multi-Document Processing Tool
  *
  * Test IDs: multi-paths, multi-pattern, multi-limit, multi-aggregate
  */
@@ -13,10 +13,10 @@ import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
 import { readCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
-import { handleRlmMultiQuery } from '../src/tools/rlm-multi-query.js';
+import { handleProcessDocs } from '../src/tools/process-docs.js';
 import type { ToolContext } from '../src/types.js';
 
-describe('rlm-multi-query', () => {
+describe('process-docs', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
@@ -68,7 +68,7 @@ describe('rlm-multi-query', () => {
       writeFileSync(join(repoRoot, 'doc2.md'), 'Content 2', 'utf-8');
       writeFileSync(join(repoRoot, 'doc3.md'), 'Content 3', 'utf-8');
 
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           paths: ['doc1.md', 'doc2.md', 'doc3.md'],
           code: 'docs.map(d => d.content)',
@@ -88,7 +88,7 @@ describe('rlm-multi-query', () => {
       writeFileSync(join(repoRoot, 'doc1.md'), 'File 1', 'utf-8');
       writeFileSync(join(repoRoot, 'doc2.md'), 'File 2', 'utf-8');
 
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           paths: ['doc1.md', 'doc2.md'],
           code: 'docs.map(d => ({ path: d.path, content: d.content }))',
@@ -119,7 +119,7 @@ describe('rlm-multi-query', () => {
       writeFileSync(join(plansDir, 'plan2', 'plan.md'), 'Plan 2', 'utf-8');
       writeFileSync(join(plansDir, 'plan3', 'plan.md'), 'Plan 3', 'utf-8');
 
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           pattern: 'plans/*/plan.md',
           code: 'docs.map(d => d.content)',
@@ -149,7 +149,7 @@ describe('rlm-multi-query', () => {
         writeFileSync(join(plansDir, `plan${i}`, 'plan.md'), `Plan ${i}`, 'utf-8');
       }
 
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           pattern: 'plans/*/plan.md',
           code: 'docs.map(d => d.content)',
@@ -171,7 +171,7 @@ describe('rlm-multi-query', () => {
       writeFileSync(join(repoRoot, 'doc1.md'), 'Content 1', 'utf-8');
       writeFileSync(join(repoRoot, 'doc2.md'), 'Content 2', 'utf-8');
 
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           paths: ['doc1.md', 'doc2.md'],
           code: 'docs.length',
@@ -192,7 +192,7 @@ describe('rlm-multi-query', () => {
 
   describe('multi-validation', () => {
     it('should require paths OR pattern', async () => {
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           code: 'docs.length',
         },
@@ -205,7 +205,7 @@ describe('rlm-multi-query', () => {
     });
 
     it('should reject both paths AND pattern', async () => {
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           paths: ['doc1.md'],
           pattern: '*.md',
@@ -222,7 +222,7 @@ describe('rlm-multi-query', () => {
 
   describe('multi-empty', () => {
     it('should return empty array for 0 docs (not error)', async () => {
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           pattern: 'nonexistent/*.md',
           code: 'docs.length',
@@ -246,7 +246,7 @@ describe('rlm-multi-query', () => {
       writeFileSync(join(repoRoot, 'doc2.md'), 'Another document', 'utf-8');
       writeFileSync(join(repoRoot, 'doc3.md'), 'Third file', 'utf-8');
 
-      const result = await handleRlmMultiQuery(
+      const result = await handleProcessDocs(
         {
           paths: ['doc1.md', 'doc2.md', 'doc3.md'],
           code: `docs.map(d => ({
