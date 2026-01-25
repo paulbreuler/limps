@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
-import { loadConfig, type ServerConfig } from '../src/config.js';
+import { tmpdir, homedir } from 'os';
+import { loadConfig, expandTilde, type ServerConfig } from '../src/config.js';
 
 describe('config-load', () => {
   let configPath: string;
@@ -75,5 +75,73 @@ describe('config-load', () => {
     expect(config.plansPath).toContain(configDir);
     expect(config.dataPath).toContain(configDir);
     expect(config.coordinationPath).toContain(configDir);
+  });
+
+  it('should expand tilde in paths', () => {
+    const home = homedir();
+    const configData = {
+      plansPath: '~/Documents/plans',
+      dataPath: '~/Library/mcp-planning-server/data',
+      coordinationPath: '~/Library/mcp-planning-server/coordination.json',
+      heartbeatTimeout: 300000,
+      debounceDelay: 200,
+      maxHandoffIterations: 3,
+    };
+    writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
+
+    const config = loadConfig(configPath);
+    // Tilde should be expanded to home directory
+    expect(config.plansPath).toBe(join(home, 'Documents/plans'));
+    expect(config.dataPath).toBe(join(home, 'Library/mcp-planning-server/data'));
+    expect(config.coordinationPath).toBe(
+      join(home, 'Library/mcp-planning-server/coordination.json')
+    );
+  });
+
+  it('should expand tilde in docsPaths', () => {
+    const home = homedir();
+    const configData = {
+      plansPath: '~/plans',
+      docsPaths: ['~/Documents/docs1', '~/Documents/docs2'],
+      dataPath: '~/data',
+      coordinationPath: '~/coordination.json',
+      heartbeatTimeout: 300000,
+      debounceDelay: 200,
+      maxHandoffIterations: 3,
+    };
+    writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
+
+    const config = loadConfig(configPath);
+    expect(config.docsPaths).toEqual([
+      join(home, 'Documents/docs1'),
+      join(home, 'Documents/docs2'),
+    ]);
+  });
+});
+
+describe('expandTilde', () => {
+  const home = homedir();
+
+  it('expands ~ to home directory', () => {
+    expect(expandTilde('~')).toBe(home);
+  });
+
+  it('expands ~/ prefix to home directory', () => {
+    expect(expandTilde('~/Documents')).toBe(join(home, 'Documents'));
+    expect(expandTilde('~/foo/bar/baz')).toBe(join(home, 'foo/bar/baz'));
+  });
+
+  it('does not expand ~ in middle of path', () => {
+    expect(expandTilde('/path/to/~/file')).toBe('/path/to/~/file');
+  });
+
+  it('does not expand ~user syntax', () => {
+    expect(expandTilde('~user/path')).toBe('~user/path');
+  });
+
+  it('returns non-tilde paths unchanged', () => {
+    expect(expandTilde('/absolute/path')).toBe('/absolute/path');
+    expect(expandTilde('./relative/path')).toBe('./relative/path');
+    expect(expandTilde('relative/path')).toBe('relative/path');
   });
 });

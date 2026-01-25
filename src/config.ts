@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
+import { homedir } from 'os';
 
 /**
  * Server configuration interface.
@@ -35,6 +36,19 @@ const DEFAULT_CONFIG: ServerConfig = {
 };
 
 /**
+ * Expand tilde (~) to home directory in a path.
+ *
+ * @param path - Path that may contain ~ prefix
+ * @returns Path with ~ expanded to home directory
+ */
+export function expandTilde(path: string): string {
+  if (path.startsWith('~/') || path === '~') {
+    return path.replace(/^~/, homedir());
+  }
+  return path;
+}
+
+/**
  * Load configuration from file.
  * Creates default configuration file if it doesn't exist.
  * Paths are resolved relative to the config file location.
@@ -61,21 +75,26 @@ export function loadConfig(configPath: string): ServerConfig {
   const content = readFileSync(configPath, 'utf-8');
   const config = JSON.parse(content) as Partial<ServerConfig>;
 
-  // Resolve docsPaths relative to config file
-  const resolvedDocsPaths = config.docsPaths
-    ? config.docsPaths.map((p) => resolve(configDir, p))
-    : undefined;
+  // Helper to resolve path with tilde expansion
+  const resolvePath = (p: string): string => {
+    const expanded = expandTilde(p);
+    // If path starts with ~ it's now absolute, otherwise resolve relative to configDir
+    if (p.startsWith('~')) {
+      return expanded;
+    }
+    return resolve(configDir, expanded);
+  };
 
-  // Merge with defaults and resolve paths
+  // Resolve docsPaths relative to config file (with tilde expansion)
+  const resolvedDocsPaths = config.docsPaths ? config.docsPaths.map(resolvePath) : undefined;
+
+  // Merge with defaults and resolve paths (with tilde expansion)
   const mergedConfig: ServerConfig = {
-    plansPath: resolve(configDir, config.plansPath || DEFAULT_CONFIG.plansPath),
+    plansPath: resolvePath(config.plansPath || DEFAULT_CONFIG.plansPath),
     docsPaths: resolvedDocsPaths,
     fileExtensions: config.fileExtensions,
-    dataPath: resolve(configDir, config.dataPath || DEFAULT_CONFIG.dataPath),
-    coordinationPath: resolve(
-      configDir,
-      config.coordinationPath || DEFAULT_CONFIG.coordinationPath
-    ),
+    dataPath: resolvePath(config.dataPath || DEFAULT_CONFIG.dataPath),
+    coordinationPath: resolvePath(config.coordinationPath || DEFAULT_CONFIG.coordinationPath),
     heartbeatTimeout: config.heartbeatTimeout ?? DEFAULT_CONFIG.heartbeatTimeout,
     debounceDelay: config.debounceDelay ?? DEFAULT_CONFIG.debounceDelay,
     maxHandoffIterations: config.maxHandoffIterations ?? DEFAULT_CONFIG.maxHandoffIterations,

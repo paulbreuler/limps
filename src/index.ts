@@ -1,8 +1,9 @@
+#!/usr/bin/env node
 import { loadConfig, getAllDocsPaths, getFileExtensions } from './config.js';
 import { createServer, startServer } from './server.js';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { mkdirSync } from 'fs';
+import { mkdirSync, existsSync } from 'fs';
 import type { FSWatcher } from 'chokidar';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import {
@@ -14,10 +15,69 @@ import {
 } from './indexer.js';
 import { startWatcher, stopWatcher } from './watcher.js';
 import { readCoordination } from './coordination.js';
+import { getOSConfigPath } from './utils/os-paths.js';
 
 // Global references for graceful shutdown
 let watcher: FSWatcher | null = null;
 let db: DatabaseType | null = null;
+
+/**
+ * Parse command line arguments.
+ *
+ * @returns Parsed arguments with optional configPath
+ */
+function parseArgs(): { configPath?: string } {
+  const args = process.argv.slice(2);
+  const configIndex = args.indexOf('--config');
+  if (configIndex !== -1 && args[configIndex + 1]) {
+    return { configPath: args[configIndex + 1] };
+  }
+  return {};
+}
+
+/**
+ * Resolve configuration file path with priority:
+ * 1. CLI argument --config
+ * 2. Environment variable MCP_PLANNING_CONFIG
+ * 3. OS-specific default path
+ *
+ * Falls back to repo-local config.json if no config exists at determined path.
+ *
+ * @param cliConfigPath - Config path from CLI argument (if provided)
+ * @returns Resolved absolute path to config file
+ */
+function resolveConfigPath(cliConfigPath?: string): string {
+  // Priority 1: CLI argument
+  if (cliConfigPath) {
+    return resolve(cliConfigPath);
+  }
+
+  // Priority 2: Environment variable
+  const envConfigPath = process.env.MCP_PLANNING_CONFIG;
+  if (envConfigPath) {
+    return resolve(envConfigPath);
+  }
+
+  // Priority 3: OS-specific default
+  const osConfigPath = getOSConfigPath();
+  if (existsSync(osConfigPath)) {
+    return osConfigPath;
+  }
+
+  // Fallback: repo-local config.json (for development/backwards compatibility)
+  const currentFile = fileURLToPath(import.meta.url);
+  const currentDir = dirname(currentFile);
+  const srcDir = dirname(currentDir);
+  const repoRoot = dirname(srcDir);
+  const repoConfigPath = resolve(repoRoot, 'config.json');
+
+  // If neither OS config nor repo config exists, use OS path (will be created)
+  if (existsSync(repoConfigPath)) {
+    return repoConfigPath;
+  }
+
+  return osConfigPath;
+}
 
 /**
  * Entry point for the MCP Planning Server.
@@ -25,14 +85,9 @@ let db: DatabaseType | null = null;
  */
 async function main(): Promise<void> {
   try {
-    // Resolve config path relative to repository root
-    // This file is in src/index.ts
-    // Config is at config.json (root of repo)
-    const currentFile = fileURLToPath(import.meta.url);
-    const currentDir = dirname(currentFile);
-    const srcDir = dirname(currentDir); // src
-    const repoRoot = dirname(srcDir); // repository root
-    const configPath = resolve(repoRoot, 'config.json');
+    // Parse CLI arguments and resolve config path
+    const args = parseArgs();
+    const configPath = resolveConfigPath(args.configPath);
 
     // Load configuration
     const config = loadConfig(configPath);
