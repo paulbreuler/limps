@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/paulbreuler/limps/compare/v1.0.0...v1.0.1) (2026-01-25)
+
+
+### Bug Fixes
+
+* add npm publish job to release-please workflow ([094332a](https://github.com/paulbreuler/limps/commit/094332ae137967a56b5de9aea20306eb17716407))
+* use absolute URL for gif in README for npm display ([91a5ed5](https://github.com/paulbreuler/limps/commit/91a5ed59cc8c8fbfb095ecdf8c9bfc43cb430f4a))
+
 ## 1.0.0 (2026-01-25)
 
 
