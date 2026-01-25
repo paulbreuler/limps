@@ -1,14 +1,16 @@
 import { Text } from 'ink';
+import { getPackageVersion } from '../utils/version.js';
 
 export const description = 'Local Intelligent MCP Planning Server';
 
 export default function DefaultCommand(): React.ReactNode {
+  const version = getPackageVersion();
   return (
     <Text>
       <Text color="cyan" bold>
         limps
       </Text>{' '}
-      - Local Intelligent MCP Planning Server{'\n'}
+      <Text color="yellow">v{version}</Text> - Local Intelligent MCP Planning Server{'\n'}
       {'\n'}
       <Text color="yellow">Usage:</Text> limps {'<command>'} [options]{'\n'}
       {'\n'}
@@ -20,6 +22,7 @@ export default function DefaultCommand(): React.ReactNode {
       {'  '}list-agents{'   '}List agents in a plan{'\n'}
       {'  '}next-task{'     '}Get the next best task{'\n'}
       {'  '}status{'        '}Show plan progress{'\n'}
+      {'  '}version{'        '}Show version information{'\n'}
       {'  '}config{'        '}Manage project configuration{'\n'}
       {'\n'}
       Run <Text color="green">limps {'<command>'}</Text> without args for usage help.{'\n'}
