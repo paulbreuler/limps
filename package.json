@@ -1,6 +1,6 @@
 {
   "name": "@sudosandwich/limps",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Local Intelligent MCP Planning Server - AI agent plan management and coordination",
   "type": "module",
   "main": "dist/index.js",
