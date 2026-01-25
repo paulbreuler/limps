@@ -4,7 +4,7 @@
 
 [![npm](https://img.shields.io/npm/v/@sudosandwich/limps)](https://www.npmjs.com/package/@sudosandwich/limps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Tests](https://img.shields.io/badge/Tests-657%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-692%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-%3E70%25-brightgreen)
 
 ![limps in action](.github/assets/limps-in-action.gif)
@@ -287,23 +287,63 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## Features
 
-### Document Management (13 Tools)
+### MCP Tools (16 Tools)
+
+#### Document Operations
 
 | Tool | Description |
 |------|-------------|
-| `process_doc` | Process a document with JavaScript code (read, filter, transform, extract). Can do everything read_doc does plus filtering/transformation |
-| `process_docs` | Process multiple documents with JavaScript code for cross-document analysis. Use glob patterns or explicit paths |
+| `process_doc` | Process a document with JavaScript code (read, filter, transform, extract) |
+| `process_docs` | Process multiple documents with JavaScript for cross-document analysis |
 | `create_doc` | Create new documents |
 | `update_doc` | Update with optimistic concurrency |
 | `delete_doc` | Delete documents |
 | `list_docs` | List files and directories |
 | `search_docs` | Full-text search (SQLite FTS5) |
-| `create_plan` | Create feature plans with structure |
-| `update_task_status` | Update task status (GAP → WIP → PASS) |
+| `open_document_in_cursor` | Open files in Cursor editor |
+
+#### Plan Management
+
+| Tool | Description |
+|------|-------------|
+| `create_plan` | Create feature plans with directory structure and agent files |
+| `list_plans` | List all plans with status, workType, and overview |
+| `list_agents` | List agents for a plan with status, persona, and file counts |
+| `get_plan_status` | Get plan progress with completion %, blocked/WIP agents |
+
+#### Task Coordination
+
+| Tool | Description |
+|------|-------------|
+| `get_next_task` | Get highest-priority task with detailed score breakdown |
 | `claim_task` | Claim tasks with file locks |
 | `release_task` | Release tasks and locks |
-| `get_next_task` | Get highest-priority available task |
-| `open_document_in_cursor` | Open files in Cursor editor |
+| `update_task_status` | Update task status (GAP → WIP → PASS/BLOCKED) |
+
+#### Task Scoring Algorithm
+
+When using `get_next_task` with a `planId`, returns a detailed score breakdown:
+
+| Score Component | Max Points | Description |
+|----------------|------------|-------------|
+| Dependency Score | 40 | All dependencies satisfied = 40, otherwise 0 |
+| Priority Score | 30 | Based on agent number (lower = higher priority) |
+| Workload Score | 30 | Based on file count (fewer files = higher score) |
+| **Total** | **100** | Sum of all components |
+
+Example response:
+```json
+{
+  "taskId": "0001-feature#002",
+  "title": "Implement API endpoints",
+  "totalScore": 85,
+  "dependencyScore": 40,
+  "priorityScore": 24,
+  "workloadScore": 21,
+  "reasons": ["All 2 dependencies satisfied", "Agent #2 priority: 24/30", "3 files to modify: 21/30"],
+  "otherAvailableTasks": 3
+}
+```
 
 ### RLM (Recursive Language Model) Support
 
