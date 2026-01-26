@@ -18,10 +18,6 @@ describe('status', () => {
     config = {
       plansPath: plansDir,
       dataPath: join(testDir, 'data'),
-      coordinationPath: join(testDir, 'coordination.json'),
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 

@@ -92,12 +92,8 @@ export interface ConfigData {
   config: {
     plansPath: string;
     dataPath: string;
-    coordinationPath: string;
     docsPaths?: string[];
     fileExtensions?: string[];
-    heartbeatTimeout: number;
-    debounceDelay: number;
-    maxHandoffIterations: number;
   };
 }
 
@@ -122,12 +118,8 @@ export function getConfigData(resolveConfigPathFn: () => string): ConfigData {
     config: {
       plansPath: config.plansPath,
       dataPath: config.dataPath,
-      coordinationPath: config.coordinationPath,
       docsPaths: config.docsPaths,
       fileExtensions: config.fileExtensions,
-      heartbeatTimeout: config.heartbeatTimeout,
-      debounceDelay: config.debounceDelay,
-      maxHandoffIterations: config.maxHandoffIterations,
     },
   };
 }
@@ -153,7 +145,6 @@ export function configShow(resolveConfigPathFn: () => string): string {
   lines.push('Configuration:');
   lines.push(`  plansPath:          ${config.plansPath}`);
   lines.push(`  dataPath:           ${config.dataPath}`);
-  lines.push(`  coordinationPath:   ${config.coordinationPath}`);
 
   if (config.docsPaths && config.docsPaths.length > 0) {
     lines.push(`  docsPaths:`);
@@ -165,10 +156,6 @@ export function configShow(resolveConfigPathFn: () => string): string {
   if (config.fileExtensions) {
     lines.push(`  fileExtensions:     ${config.fileExtensions.join(', ')}`);
   }
-
-  lines.push(`  heartbeatTimeout:   ${config.heartbeatTimeout}ms`);
-  lines.push(`  debounceDelay:      ${config.debounceDelay}ms`);
-  lines.push(`  maxHandoffIterations: ${config.maxHandoffIterations}`);
 
   return lines.join('\n');
 }

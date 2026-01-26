@@ -11,10 +11,6 @@ describe('config-validation', () => {
     const config: ServerConfig = {
       plansPath: '/path/to/plans',
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     expect(validateConfig(config)).toBe(true);
@@ -31,77 +27,6 @@ describe('config-validation', () => {
   it('should reject missing required fields', () => {
     expect(validateConfig({ plansPath: '/path' } as unknown as ServerConfig)).toBe(false);
     expect(validateConfig({ dataPath: '/path' } as unknown as ServerConfig)).toBe(false);
-    expect(validateConfig({ coordinationPath: '/path' } as unknown as ServerConfig)).toBe(false);
-  });
-
-  it('should reject invalid field types', () => {
-    expect(
-      validateConfig({
-        plansPath: '/path',
-        dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 'invalid',
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
-      } as unknown as ServerConfig)
-    ).toBe(false);
-
-    expect(
-      validateConfig({
-        plansPath: '/path',
-        dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: 'invalid',
-        maxHandoffIterations: 3,
-      } as unknown as ServerConfig)
-    ).toBe(false);
-
-    expect(
-      validateConfig({
-        plansPath: '/path',
-        dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 'invalid',
-      } as unknown as ServerConfig)
-    ).toBe(false);
-  });
-
-  it('should reject negative values', () => {
-    expect(
-      validateConfig({
-        plansPath: '/path',
-        dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: -1,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
-      })
-    ).toBe(false);
-
-    expect(
-      validateConfig({
-        plansPath: '/path',
-        dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: -1,
-        maxHandoffIterations: 3,
-      })
-    ).toBe(false);
-
-    expect(
-      validateConfig({
-        plansPath: '/path',
-        dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: -1,
-      })
-    ).toBe(false);
   });
 
   it('should validate config with optional docsPaths', () => {
@@ -109,10 +34,6 @@ describe('config-validation', () => {
       plansPath: '/path/to/plans',
       docsPaths: ['/path/to/docs', '/path/to/more'],
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     expect(validateConfig(config)).toBe(true);
@@ -123,10 +44,6 @@ describe('config-validation', () => {
       plansPath: '/path/to/plans',
       fileExtensions: ['.md', '.jsx', '.tsx'],
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     expect(validateConfig(config)).toBe(true);
@@ -138,10 +55,6 @@ describe('config-validation', () => {
         plansPath: '/path',
         docsPaths: 'not-an-array',
         dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       })
     ).toBe(false);
   });
@@ -152,10 +65,6 @@ describe('config-validation', () => {
         plansPath: '/path',
         fileExtensions: '.md',
         dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       })
     ).toBe(false);
   });
@@ -166,10 +75,6 @@ describe('config-validation', () => {
         plansPath: '/path',
         docsPaths: ['/valid', 123, '/also-valid'],
         dataPath: '/path',
-        coordinationPath: '/path',
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       })
     ).toBe(false);
   });
@@ -180,10 +85,6 @@ describe('getAllDocsPaths', () => {
     const config: ServerConfig = {
       plansPath: '/path/to/plans',
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     const paths = getAllDocsPaths(config);
@@ -195,10 +96,6 @@ describe('getAllDocsPaths', () => {
       plansPath: '/path/to/plans',
       docsPaths: ['/path/to/docs', '/path/to/more'],
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     const paths = getAllDocsPaths(config);
@@ -213,10 +110,6 @@ describe('getAllDocsPaths', () => {
       plansPath: '/path/to/plans',
       docsPaths: ['/path/to/plans', '/path/to/docs'], // plansPath is duplicated
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     const paths = getAllDocsPaths(config);
@@ -230,10 +123,6 @@ describe('getFileExtensions', () => {
     const config: ServerConfig = {
       plansPath: '/path/to/plans',
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     const extensions = getFileExtensions(config);
@@ -245,10 +134,6 @@ describe('getFileExtensions', () => {
       plansPath: '/path/to/plans',
       fileExtensions: ['.md', '.jsx', '.tsx'],
       dataPath: '/path/to/data',
-      coordinationPath: '/path/to/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     const extensions = getFileExtensions(config);

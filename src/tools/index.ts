@@ -4,8 +4,6 @@ import type { ToolContext } from '../types.js';
 // Import all tool schemas and handlers
 import { CreatePlanInputSchema, handleCreatePlan } from './create-plan.js';
 import { UpdateTaskStatusInputSchema, handleUpdateTaskStatus } from './update-task-status.js';
-import { ClaimTaskInputSchema, handleClaimTask } from './claim-task.js';
-import { ReleaseTaskInputSchema, handleReleaseTask } from './release-task.js';
 import { GetNextTaskInputSchema, handleGetNextTask } from './get-next-task.js';
 import { SearchDocsInputSchema, handleSearchDocs } from './search-docs.js';
 import { ListDocsInputSchema, handleListDocs } from './list-docs.js';
@@ -51,40 +49,17 @@ export function registerTools(server: McpServer, context: ToolContext): void {
     }
   );
 
-  // Task Coordination Tools
-  server.tool(
-    'claim_task',
-    'Claim a task for an agent with file locks',
-    ClaimTaskInputSchema.shape,
-    async (input) => {
-      const parsed = ClaimTaskInputSchema.parse(input);
-      return handleClaimTask(parsed, context);
-    }
-  );
-
-  server.tool(
-    'release_task',
-    'Release a claimed task and file locks',
-    ReleaseTaskInputSchema.shape,
-    async (input) => {
-      const parsed = ReleaseTaskInputSchema.parse(input);
-      return handleReleaseTask(parsed, context);
-    }
-  );
-
   // Task Selection Tools
   server.tool(
     'get_next_task',
-    `Get highest-priority available task based on dependencies and agent type.
+    `Get highest-priority available task based on dependencies and agent frontmatter.
 
-When planId is provided, returns detailed score breakdown:
+Returns detailed score breakdown:
 - dependencyScore: 40 points max (all dependencies satisfied)
 - priorityScore: 30 points max (based on agent number, lower = higher priority)
 - workloadScore: 30 points max (based on file count, fewer = higher score)
 - totalScore: sum of all scores (100 max)
-- otherAvailableTasks: count of other eligible tasks
-
-Without planId, searches across all plans (legacy behavior).`,
+- otherAvailableTasks: count of other eligible tasks`,
     GetNextTaskInputSchema.shape,
     async (input) => {
       const parsed = GetNextTaskInputSchema.parse(input);

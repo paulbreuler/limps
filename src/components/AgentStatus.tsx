@@ -43,22 +43,6 @@ function statusColor(status: string): string {
 }
 
 /**
- * Format ISO duration to human-readable form.
- */
-function formatDuration(isoDuration: string): string {
-  const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
-  if (!match) return isoDuration;
-
-  const hours = parseInt(match[1] || '0', 10);
-  const minutes = parseInt(match[2] || '0', 10);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m ago`;
-  }
-  return `${minutes}m ago`;
-}
-
-/**
  * Component to display detailed agent status.
  */
 export function AgentStatus({ summary }: Props): React.ReactNode {
@@ -96,26 +80,6 @@ export function AgentStatus({ summary }: Props): React.ReactNode {
           <Text color="white">{summary.persona}</Text>
         </Box>
       </Box>
-
-      {/* Claim & Heartbeat */}
-      {summary.claimed && (
-        <Box flexDirection="column" marginTop={1}>
-          <Box>
-            <Text>Claimed: </Text>
-            <Text color="yellow">
-              {summary.claimed.by} ({formatDuration(summary.claimed.elapsed)})
-            </Text>
-          </Box>
-          {summary.heartbeat && (
-            <Box>
-              <Text>Heartbeat: </Text>
-              <Text color={summary.heartbeat.stale ? 'red' : 'green'}>
-                {summary.heartbeat.stale ? '⚠ Stale' : '✓ Active'}
-              </Text>
-            </Box>
-          )}
-        </Box>
-      )}
 
       {/* Features */}
       {summary.features.total > 0 && (
@@ -161,10 +125,7 @@ export function AgentStatus({ summary }: Props): React.ReactNode {
           <Box flexDirection="column" marginLeft={2}>
             {summary.files.map((file, i) => (
               <Box key={i}>
-                <Text color={file.locked ? 'yellow' : 'gray'}>
-                  {file.locked ? '🔒' : '  '} {file.path}
-                </Text>
-                {file.locked && file.lockedBy && <Text color="gray"> (by {file.lockedBy})</Text>}
+                <Text color="gray">  {file}</Text>
               </Box>
             ))}
           </Box>

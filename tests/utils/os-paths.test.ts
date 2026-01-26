@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { homedir } from 'os';
 import { join } from 'path';
-import { getOSConfigPath, getOSDataPath, getOSCoordinationPath } from '../../src/utils/os-paths.js';
+import { getOSConfigPath, getOSDataPath } from '../../src/utils/os-paths.js';
 
 // Get actual home directory for testing
 const HOME = homedir();
@@ -41,23 +41,6 @@ describe('os-paths.ts', () => {
     });
   });
 
-  describe('getOSCoordinationPath', () => {
-    it('returns path ending with coordination.json', () => {
-      const coordPath = getOSCoordinationPath();
-      expect(coordPath).toMatch(/coordination\.json$/);
-    });
-
-    it('returns absolute path starting with home directory', () => {
-      const coordPath = getOSCoordinationPath();
-      expect(coordPath.startsWith(HOME) || coordPath.includes('AppData')).toBe(true);
-    });
-
-    it('includes limps in path', () => {
-      const coordPath = getOSCoordinationPath();
-      expect(coordPath).toContain('limps');
-    });
-  });
-
   describe('platform-specific paths', () => {
     // Test current platform behavior
     const platform = process.platform;
@@ -73,13 +56,6 @@ describe('os-paths.ts', () => {
       it('macOS: data path is in Library/Application Support', () => {
         const dataPath = getOSDataPath();
         expect(dataPath).toBe(join(HOME, 'Library', 'Application Support', 'limps', 'data'));
-      });
-
-      it('macOS: coordination path is in Library/Application Support', () => {
-        const coordPath = getOSCoordinationPath();
-        expect(coordPath).toBe(
-          join(HOME, 'Library', 'Application Support', 'limps', 'coordination.json')
-        );
       });
     }
 

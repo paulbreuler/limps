@@ -4,39 +4,32 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination, writeCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { handleAgentsStatus } from '../src/resources/agents-status.js';
 import type { ResourceContext } from '../src/types.js';
-import type { CoordinationState } from '../src/coordination.js';
 
 describe('return-agents-status', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ResourceContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -56,7 +49,6 @@ describe('return-agents-status', () => {
 
   it('should return agents status with structure', async () => {
     // Create coordination state with agents
-    const coordination: CoordinationState = {
       version: 1,
       agents: {
         'agent-1': {
@@ -78,8 +70,6 @@ describe('return-agents-status', () => {
       handoffs: {},
     };
 
-    await writeCoordination(coordinationPath, coordination, 1);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleAgentsStatus('agents://status', context);
 
@@ -102,28 +92,23 @@ describe('include-heartbeat-timestamps', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ResourceContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -145,7 +130,6 @@ describe('include-heartbeat-timestamps', () => {
     const now = new Date();
     const staleTime = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
 
-    const coordination: CoordinationState = {
       version: 1,
       agents: {
         'agent-1': {
@@ -167,8 +151,6 @@ describe('include-heartbeat-timestamps', () => {
       handoffs: {},
     };
 
-    await writeCoordination(coordinationPath, coordination, 1);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleAgentsStatus('agents://status', context);
     const status = JSON.parse(result.contents[0].text || '{}');
@@ -193,28 +175,23 @@ describe('show-task-assignments', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ResourceContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -233,7 +210,6 @@ describe('show-task-assignments', () => {
   });
 
   it('should show task assignments in agent status', async () => {
-    const coordination: CoordinationState = {
       version: 1,
       agents: {
         'agent-1': {
@@ -255,8 +231,6 @@ describe('show-task-assignments', () => {
       handoffs: {},
     };
 
-    await writeCoordination(coordinationPath, coordination, 1);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleAgentsStatus('agents://status', context);
     const status = JSON.parse(result.contents[0].text || '{}');

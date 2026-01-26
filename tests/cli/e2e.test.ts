@@ -102,10 +102,6 @@ This is a test feature plan.
       JSON.stringify({
         plansPath: plansDir,
         dataPath: join(testDir, 'data'),
-        coordinationPath: join(testDir, 'coordination.json'),
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       }),
       'utf-8'
     );
@@ -176,10 +172,6 @@ This is a test feature plan.
         JSON.stringify({
           plansPath: emptyDir,
           dataPath: join(testDir, 'data'),
-          coordinationPath: join(testDir, 'coordination.json'),
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         }),
         'utf-8'
       );

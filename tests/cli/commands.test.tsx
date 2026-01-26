@@ -83,10 +83,6 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: '/plans',
           dataPath: '/data',
-          coordinationPath: '/coord.json',
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         })
       );
 
@@ -119,10 +115,6 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: plansDir,
           dataPath: join(testDir, 'data'),
-          coordinationPath: join(testDir, 'coordination.json'),
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         })
       );
 
@@ -149,10 +141,6 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: plansDir,
           dataPath: join(testDir, 'data'),
-          coordinationPath: join(testDir, 'coordination.json'),
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         })
       );
 

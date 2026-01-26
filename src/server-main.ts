@@ -3,7 +3,7 @@
  * Extracted from index.ts for use by CLI commands.
  */
 
-import { loadConfig, getAllDocsPaths, getFileExtensions } from './config.js';
+import { loadConfig, getAllDocsPaths, getFileExtensions, DEFAULT_DEBOUNCE_DELAY } from './config.js';
 import { createServer, startServer } from './server.js';
 import { resolve } from 'path';
 import { mkdirSync } from 'fs';
@@ -17,7 +17,6 @@ import {
   removeDocument,
 } from './indexer.js';
 import { startWatcher, stopWatcher } from './watcher.js';
-import { readCoordination } from './coordination.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
 
 // Global references for graceful shutdown
@@ -44,10 +43,6 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   db = initializeDatabase(dbPath);
   createSchema(db);
   console.error(`Database initialized at ${dbPath}`);
-
-  // Load coordination state
-  const coordination = await readCoordination(config.coordinationPath);
-  console.error(`Coordination state loaded from ${config.coordinationPath}`);
 
   // Get all paths and extensions to index
   const docsPaths = getAllDocsPaths(config);
@@ -85,12 +80,12 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
     },
     fileExtensions,
     ignorePatterns,
-    config.debounceDelay
+    DEFAULT_DEBOUNCE_DELAY
   );
   console.error(`File watcher started for ${docsPaths.length} path(s)`);
 
   // Create and start server
-  const server = createServer(config, db, coordination);
+  const server = createServer(config, db);
   await startServer(server, async () => {
     // Graceful shutdown callback
     if (watcher) {

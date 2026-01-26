@@ -4,7 +4,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { readCoordination, writeCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { handleGetNextTask } from '../src/tools/get-next-task.js';
 import type { ToolContext } from '../src/types.js';
@@ -14,29 +13,23 @@ describe('return-highest-score', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans', '0008-test-plan');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = join(testDir, 'plans');
 
-    // Initialize coordination state (readCoordination creates it with version 1)
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -81,15 +74,11 @@ Files: \`src/file3.ts\`
     await indexDocument(db!, planFile);
 
     // Mark feature #1 as PASS in coordination
-    const coordination = await readCoordination(coordinationPath);
-    coordination.tasks['0008-test-plan#1'] = {
       status: 'PASS',
       dependencies: [],
     };
-    await writeCoordination(coordinationPath, coordination, coordination.version);
 
     // Update context
-    context.coordination = await readCoordination(coordinationPath);
 
     // Request next task
     const result = await handleGetNextTask({ agentType: 'coder' }, context);
@@ -142,28 +131,23 @@ describe('score-dependencies', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans', '0008-test-plan');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = join(testDir, 'plans');
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -201,13 +185,9 @@ Files: \`src/file2.ts\`
     await indexDocument(db!, planFile);
 
     // Mark dependency as PASS
-    const coordination = await readCoordination(coordinationPath);
-    coordination.tasks['0008-test-plan#1'] = {
       status: 'PASS',
       dependencies: [],
     };
-    await writeCoordination(coordinationPath, coordination, coordination.version);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleGetNextTask({ agentType: 'coder' }, context);
 
@@ -264,13 +244,9 @@ Files: \`src/file2.ts\`
     await indexDocument(db!, planFile);
 
     // Mark dependency as BLOCKED
-    const coordination = await readCoordination(coordinationPath);
-    coordination.tasks['0008-test-plan#1'] = {
       status: 'BLOCKED',
       dependencies: [],
     };
-    await writeCoordination(coordinationPath, coordination, coordination.version);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleGetNextTask({ agentType: 'coder' }, context);
 
@@ -285,28 +261,23 @@ describe('score-agent-match', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans', '0008-test-plan');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = join(testDir, 'plans');
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -387,28 +358,23 @@ describe('penalize-conflicts', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans', '0008-test-plan');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = join(testDir, 'plans');
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -446,10 +412,6 @@ Files: \`src/file2.ts\`
     await indexDocument(db!, planFile);
 
     // Lock file1.ts
-    const coordination = await readCoordination(coordinationPath);
-    coordination.fileLocks['src/file1.ts'] = 'other-agent';
-    await writeCoordination(coordinationPath, coordination, coordination.version);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleGetNextTask({ agentType: 'coder' }, context);
 
@@ -473,10 +435,6 @@ Files: \`src/file1.ts\`, \`src/file2.ts\`
     await indexDocument(db!, planFile);
 
     // Lock one of the files
-    const coordination = await readCoordination(coordinationPath);
-    coordination.fileLocks['src/file2.ts'] = 'other-agent';
-    await writeCoordination(coordinationPath, coordination, coordination.version);
-    context.coordination = await readCoordination(coordinationPath);
 
     const result = await handleGetNextTask({ agentType: 'coder' }, context);
 
@@ -491,28 +449,23 @@ describe('exclude-task-ids', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans', '0008-test-plan');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = join(testDir, 'plans');
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });

@@ -10,34 +10,23 @@ import {
   isTaskEligible,
   scoreTask,
 } from '../../src/cli/next-task.js';
-import { readCoordination } from '../../src/coordination.js';
 import type { ServerConfig } from '../../src/config.js';
 import type { ParsedAgentFile, AgentFrontmatter } from '../../src/agent-parser.js';
-import type { CoordinationState } from '../../src/coordination.js';
 
 describe('next-task', () => {
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     testDir = join(tmpdir(), `test-cli-next-task-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
     mkdirSync(plansDir, { recursive: true });
 
     config = {
       plansPath: plansDir,
       dataPath: join(testDir, 'data'),
-      coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
-
-    // Initialize coordination state
-    await readCoordination(coordinationPath);
   });
 
   afterEach(() => {
@@ -70,23 +59,12 @@ describe('next-task', () => {
     };
   }
 
-  function createMockCoordination(overrides: Partial<CoordinationState> = {}): CoordinationState {
-    return {
-      version: 1,
-      agents: {},
-      tasks: {},
-      fileLocks: {},
-      ...overrides,
-    };
-  }
-
   describe('calculateDependencyScore', () => {
     it('returns 40 when no dependencies', () => {
       const agent = createMockAgent();
-      const coordination = createMockCoordination();
       const allAgents = [agent];
 
-      const result = calculateDependencyScore(agent, coordination, allAgents);
+      const result = calculateDependencyScore(agent, allAgents);
 
       expect(result.score).toBe(40);
       expect(result.reasons).toContain('No dependencies (unblocked)');
@@ -115,10 +93,9 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination();
       const allAgents = [agent, depAgent];
 
-      const result = calculateDependencyScore(agent, coordination, allAgents);
+      const result = calculateDependencyScore(agent, allAgents);
 
       expect(result.score).toBe(40);
     });
@@ -146,10 +123,9 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination();
       const allAgents = [agent, depAgent];
 
-      const result = calculateDependencyScore(agent, coordination, allAgents);
+      const result = calculateDependencyScore(agent, allAgents);
 
       expect(result.score).toBe(0);
     });
@@ -228,10 +204,9 @@ describe('next-task', () => {
   describe('isTaskEligible', () => {
     it('returns true for GAP status with no conflicts', () => {
       const agent = createMockAgent();
-      const coordination = createMockCoordination();
       const allAgents = [agent];
 
-      const result = isTaskEligible(agent, coordination, allAgents);
+      const result = isTaskEligible(agent, allAgents);
 
       expect(result.eligible).toBe(true);
     });
@@ -247,35 +222,12 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination();
       const allAgents = [agent];
 
-      const result = isTaskEligible(agent, coordination, allAgents);
+      const result = isTaskEligible(agent, allAgents);
 
       expect(result.eligible).toBe(false);
       expect(result.reason).toContain('WIP');
-    });
-
-    it('returns false when file is locked', () => {
-      const agent = createMockAgent({
-        frontmatter: {
-          status: 'GAP',
-          persona: 'coder',
-          claimedBy: null,
-          dependencies: [],
-          blocks: [],
-          files: ['src/locked.ts'],
-        },
-      });
-      const coordination = createMockCoordination({
-        fileLocks: { 'src/locked.ts': 'other-agent' },
-      });
-      const allAgents = [agent];
-
-      const result = isTaskEligible(agent, coordination, allAgents);
-
-      expect(result.eligible).toBe(false);
-      expect(result.reason).toContain('locked');
     });
 
     it('returns false when dependency not satisfied', () => {
@@ -301,10 +253,9 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination();
       const allAgents = [agent, depAgent];
 
-      const result = isTaskEligible(agent, coordination, allAgents);
+      const result = isTaskEligible(agent, allAgents);
 
       expect(result.eligible).toBe(false);
       expect(result.reason).toContain('not satisfied');
@@ -323,20 +274,18 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination();
       const allAgents = [agent];
 
-      const result = scoreTask(agent, coordination, allAgents);
+      const result = scoreTask(agent, allAgents);
 
       expect(result).toBeNull();
     });
 
     it('returns score breakdown for eligible task', () => {
       const agent = createMockAgent();
-      const coordination = createMockCoordination();
       const allAgents = [agent];
 
-      const result = scoreTask(agent, coordination, allAgents);
+      const result = scoreTask(agent, allAgents);
 
       expect(result).not.toBeNull();
       expect(result!.totalScore).toBe(100); // 40 + 30 + 30

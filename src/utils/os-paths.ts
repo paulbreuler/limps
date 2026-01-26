@@ -65,29 +65,3 @@ export function getOSDataPath(appName: string = DEFAULT_APP_NAME): string {
   }
 }
 
-/**
- * Get the OS-specific default coordination file path.
- *
- * - macOS: ~/Library/Application Support/{appName}/coordination.json
- * - Windows: %APPDATA%\{appName}\coordination.json
- * - Linux/others: ~/.local/share/{appName}/coordination.json (XDG_DATA_HOME)
- *
- * @param appName - Application/project name (defaults to limps)
- * @returns Absolute path to the default coordination file
- */
-export function getOSCoordinationPath(appName: string = DEFAULT_APP_NAME): string {
-  const home = homedir();
-
-  switch (process.platform) {
-    case 'darwin':
-      return join(getOSBasePath(appName), 'coordination.json');
-    case 'win32':
-      return join(getOSBasePath(appName), 'coordination.json');
-    default:
-      return join(
-        process.env.XDG_DATA_HOME || join(home, '.local', 'share'),
-        appName,
-        'coordination.json'
-      );
-  }
-}

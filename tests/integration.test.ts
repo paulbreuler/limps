@@ -6,7 +6,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
@@ -20,7 +19,6 @@ describe('integration-tests', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
   let serverProcess: ReturnType<typeof spawn> | null = null;
 
@@ -28,7 +26,6 @@ describe('integration-tests', () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
@@ -44,9 +41,6 @@ describe('integration-tests', () => {
       plansPath: plansDir,
       dataPath: join(testDir, 'data'),
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -68,7 +62,6 @@ describe('integration-tests', () => {
   });
 
   it('should list resources via MCP protocol', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const transport = new StdioServerTransport();
@@ -98,7 +91,6 @@ describe('integration-tests', () => {
   });
 
   it('should handle resource requests via MCP protocol', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const transport = new StdioServerTransport();
@@ -111,7 +103,6 @@ describe('integration-tests', () => {
   });
 
   it('should initialize server with all resources registered', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const transport = new StdioServerTransport();

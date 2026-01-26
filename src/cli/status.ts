@@ -6,7 +6,6 @@
 import type { ServerConfig } from '../config.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 import { readAgentFile, type AgentFrontmatter } from '../agent-parser.js';
-import type { CoordinationState } from '../coordination.js';
 import type { ResolvedTaskId } from './task-resolver.js';
 
 /**
@@ -100,17 +99,6 @@ export interface AgentStatusSummary {
   status: 'GAP' | 'WIP' | 'PASS' | 'BLOCKED';
   /** Agent persona */
   persona: 'coder' | 'reviewer' | 'pm' | 'customer';
-  /** Claim information if claimed */
-  claimed?: {
-    at: string; // ISO timestamp
-    by: string; // Agent ID
-    elapsed: string; // ISO duration (e.g., "PT47M")
-  };
-  /** Heartbeat information if active */
-  heartbeat?: {
-    last: string; // ISO timestamp
-    stale: boolean;
-  };
   /** Feature counts from agent content */
   features: {
     total: number;
@@ -119,12 +107,8 @@ export interface AgentStatusSummary {
     gap: number;
     blocked: number;
   };
-  /** Files from frontmatter with lock status */
-  files: {
-    path: string;
-    locked: boolean;
-    lockedBy?: string;
-  }[];
+  /** Files from frontmatter */
+  files: string[];
   /** Dependency status */
   dependencies: {
     taskId: string;
@@ -132,26 +116,6 @@ export interface AgentStatusSummary {
     status: string;
     satisfied: boolean;
   }[];
-}
-
-/**
- * Calculate elapsed time as ISO 8601 duration.
- *
- * @param startTime - ISO timestamp
- * @returns ISO duration string (e.g., "PT2H30M")
- */
-function calculateElapsed(startTime: string): string {
-  const start = new Date(startTime);
-  const now = new Date();
-  const diffMs = now.getTime() - start.getTime();
-
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (hours > 0) {
-    return `PT${hours}H${minutes}M`;
-  }
-  return `PT${minutes}M`;
 }
 
 /**
@@ -189,13 +153,11 @@ function parseFeatureCounts(content: string): {
  *
  * @param config - Server configuration
  * @param resolvedId - Resolved task ID
- * @param coordination - Current coordination state
  * @returns Agent status summary
  */
 export function getAgentStatusSummary(
   config: ServerConfig,
-  resolvedId: ResolvedTaskId,
-  coordination: CoordinationState
+  resolvedId: ResolvedTaskId
 ): AgentStatusSummary {
   const agentFile = readAgentFile(resolvedId.path);
   if (!agentFile) {
@@ -203,44 +165,9 @@ export function getAgentStatusSummary(
   }
 
   const { frontmatter, content, title } = agentFile;
-  const taskState = coordination.tasks[resolvedId.taskId];
-
-  // Build claim information
-  let claimed: AgentStatusSummary['claimed'] | undefined;
-  if (taskState?.claimedBy) {
-    const agentState = coordination.agents[taskState.claimedBy];
-    if (agentState) {
-      claimed = {
-        at: agentState.heartbeat, // Use heartbeat as claim time approximation
-        by: taskState.claimedBy,
-        elapsed: calculateElapsed(agentState.heartbeat),
-      };
-    }
-  }
-
-  // Build heartbeat information
-  let heartbeat: AgentStatusSummary['heartbeat'] | undefined;
-  if (taskState?.claimedBy) {
-    const agentState = coordination.agents[taskState.claimedBy];
-    if (agentState) {
-      const lastHeartbeat = new Date(agentState.heartbeat);
-      const staleThreshold = 5 * 60 * 1000; // 5 minutes
-      heartbeat = {
-        last: agentState.heartbeat,
-        stale: Date.now() - lastHeartbeat.getTime() > staleThreshold,
-      };
-    }
-  }
 
   // Parse features from content
   const features = parseFeatureCounts(content);
-
-  // Build files with lock status
-  const files = frontmatter.files.map((path) => ({
-    path,
-    locked: path in coordination.fileLocks,
-    lockedBy: coordination.fileLocks[path],
-  }));
 
   // Build dependency status
   const allAgents = getAgentFiles(findPlanDirectory(config.plansPath, resolvedId.planFolder) || '');
@@ -263,10 +190,8 @@ export function getAgentStatusSummary(
     agentNumber: resolvedId.agentNumber,
     status: frontmatter.status,
     persona: frontmatter.persona,
-    claimed,
-    heartbeat,
     features,
-    files,
+    files: frontmatter.files,
     dependencies,
   };
 }

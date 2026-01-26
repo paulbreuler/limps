@@ -5,7 +5,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { existsSync, unlinkSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -14,13 +13,11 @@ describe('server-initialize', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -29,9 +26,6 @@ describe('server-initialize', () => {
       plansPath: './plans',
       dataPath: './data',
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -49,13 +43,11 @@ describe('server-initialize', () => {
   });
 
   it('should create server instance with config', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
     expect(server).toBeInstanceOf(McpServer);
   });
 
   it('should initialize server with stdio transport capability', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
     // Server should be ready to connect to stdio transport
     expect(server).toBeDefined();
@@ -66,13 +58,11 @@ describe('server-error-handling', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -81,9 +71,6 @@ describe('server-error-handling', () => {
       plansPath: './plans',
       dataPath: './data',
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -101,7 +88,6 @@ describe('server-error-handling', () => {
   });
 
   it('should handle errors gracefully during startup', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Mock console.error to verify error handling
@@ -117,7 +103,6 @@ describe('server-error-handling', () => {
   });
 
   it('should handle shutdown gracefully', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Start server
@@ -128,7 +113,6 @@ describe('server-error-handling', () => {
   });
 
   it('should call onShutdown callback during graceful shutdown', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const onShutdown = vi.fn().mockResolvedValue(undefined);
@@ -147,7 +131,6 @@ describe('server-error-handling', () => {
   });
 
   it('should handle connection errors gracefully', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -167,13 +150,11 @@ describe('server-context-storage', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -182,9 +163,6 @@ describe('server-context-storage', () => {
       plansPath: './plans',
       dataPath: './data',
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -202,7 +180,6 @@ describe('server-context-storage', () => {
   });
 
   it('should store tool context on server instance', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Verify tool context is stored
@@ -214,7 +191,6 @@ describe('server-context-storage', () => {
   });
 
   it('should create server with correct name and version', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     expect(server).toBeInstanceOf(McpServer);
@@ -227,13 +203,11 @@ describe('tools-registered', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -242,9 +216,6 @@ describe('tools-registered', () => {
       plansPath: './plans',
       dataPath: './data',
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -262,7 +233,6 @@ describe('tools-registered', () => {
   });
 
   it('should register tools infrastructure', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Tools infrastructure should be registered (empty initially)
@@ -278,7 +248,6 @@ describe('tools-registered', () => {
   });
 
   it('should allow tools to be registered', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Server should support tool registration
@@ -295,13 +264,11 @@ describe('resources-registered', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -310,9 +277,6 @@ describe('resources-registered', () => {
       plansPath: './plans',
       dataPath: './data',
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -330,7 +294,6 @@ describe('resources-registered', () => {
   });
 
   it('should register resources infrastructure', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Resources infrastructure should be registered (empty initially)
@@ -345,7 +308,6 @@ describe('resources-registered', () => {
   });
 
   it('should allow resources to be registered', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Server should support resource registration

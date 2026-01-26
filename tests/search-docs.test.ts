@@ -4,7 +4,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { handleSearchDocs } from '../src/tools/search-docs.js';
 import type { ToolContext } from '../src/types.js';
@@ -14,14 +13,12 @@ describe('search-query', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
@@ -45,14 +42,11 @@ describe('search-query', () => {
     await indexDocument(db, doc2Path);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -85,14 +79,12 @@ describe('search-ranking', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
@@ -112,14 +104,11 @@ describe('search-ranking', () => {
     await indexDocument(db, doc2Path);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -157,14 +146,12 @@ describe('limit-results', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
@@ -178,14 +165,11 @@ describe('limit-results', () => {
     }
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -219,14 +203,12 @@ describe('empty-results', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
@@ -242,14 +224,11 @@ describe('empty-results', () => {
     await indexDocument(db, docPath);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
 
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });

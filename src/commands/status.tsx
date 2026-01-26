@@ -8,7 +8,6 @@ import { PlanStatus } from '../components/PlanStatus.js';
 import { AgentStatus } from '../components/AgentStatus.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 import { resolveTaskId } from '../cli/task-resolver.js';
-import { readCoordination } from '../coordination.js';
 
 export const description = 'Show plan or agent status';
 
@@ -51,8 +50,7 @@ function AgentStatusLoader({
           plansPath: config.plansPath,
           planContext,
         });
-        const coordination = await readCoordination(config.coordinationPath);
-        const result = getAgentStatusSummary(config, resolvedId, coordination);
+        const result = getAgentStatusSummary(config, resolvedId);
         setSummary(result);
       } catch (err) {
         setError((err as Error).message);
@@ -83,13 +81,12 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
 
     // Handle JSON output mode for agent status
     if (isJsonMode(options)) {
-      return handleJsonOutput(async () => {
+      return handleJsonOutput(() => {
         const resolvedId = resolveTaskId(agentId, {
           plansPath: config.plansPath,
           planContext: planId,
         });
-        const coordination = await readCoordination(config.coordinationPath);
-        return getAgentStatusSummary(config, resolvedId, coordination);
+        return getAgentStatusSummary(config, resolvedId);
       }, 'AGENT_STATUS_ERROR');
     }
 

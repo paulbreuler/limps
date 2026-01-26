@@ -5,7 +5,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { existsSync, unlinkSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -18,13 +17,11 @@ describe('protocol-compliance', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -33,9 +30,6 @@ describe('protocol-compliance', () => {
       plansPath: join(testDir, 'plans'),
       dataPath: join(testDir, 'data'),
       coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -53,7 +47,6 @@ describe('protocol-compliance', () => {
   });
 
   it('should implement MCP server interface correctly', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     expect(server).toBeInstanceOf(McpServer);
@@ -68,7 +61,6 @@ describe('protocol-compliance', () => {
   });
 
   it('should use stdio transport as specified', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const transport = new StdioServerTransport();
@@ -78,7 +70,6 @@ describe('protocol-compliance', () => {
   });
 
   it('should handle server initialization according to MCP spec', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Server should be ready after creation
@@ -94,7 +85,6 @@ describe('protocol-compliance', () => {
   });
 
   it('should register resources with correct URI format', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const transport = new StdioServerTransport();
@@ -108,7 +98,6 @@ describe('protocol-compliance', () => {
   });
 
   it('should handle graceful shutdown according to MCP spec', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     const transport = new StdioServerTransport();
@@ -119,7 +108,6 @@ describe('protocol-compliance', () => {
   });
 
   it('should maintain server state correctly', async () => {
-    const coordination = await readCoordination(coordinationPath);
     const server = createServer(config, db!, coordination);
 
     // Verify tool context is stored

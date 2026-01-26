@@ -39,10 +39,6 @@ describe('delete-doc.ts', () => {
     const config: ServerConfig = {
       plansPath: join(testDir, 'plans'),
       dataPath: join(testDir, 'data'),
-      coordinationPath: join(testDir, 'coordination.json'),
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     context = {

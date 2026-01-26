@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { getAgentStatusSummary } from '../../src/cli/status.js';
-import type { CoordinationState } from '../../src/coordination.js';
 import type { ServerConfig } from '../../src/config.js';
 import type { ResolvedTaskId } from '../../src/cli/task-resolver.js';
 
@@ -23,10 +22,6 @@ describe('agent-status', () => {
     config = {
       plansPath,
       dataPath: join(testDir, 'data'),
-      coordinationPath: join(testDir, 'coordination.json'),
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
   });
 
@@ -76,14 +71,8 @@ Status: \`GAP\`
         taskId: '0001-test-plan#001',
         path: filePath,
       };
-      const coordination: CoordinationState = {
-        version: 1,
-        agents: {},
-        tasks: {},
-        fileLocks: {},
-      };
 
-      const result = getAgentStatusSummary(config, resolvedId, coordination);
+      const result = getAgentStatusSummary(config, resolvedId);
 
       expect(result.taskId).toBe('0001-test-plan#001');
       expect(result.agentNumber).toBe('001');
@@ -124,14 +113,8 @@ Status: \`BLOCKED\`
         taskId: '0001-test-plan#001',
         path: filePath,
       };
-      const coordination: CoordinationState = {
-        version: 1,
-        agents: {},
-        tasks: {},
-        fileLocks: {},
-      };
 
-      const result = getAgentStatusSummary(config, resolvedId, coordination);
+      const result = getAgentStatusSummary(config, resolvedId);
 
       expect(result.features.total).toBe(4);
       expect(result.features.pass).toBe(1);
@@ -140,7 +123,7 @@ Status: \`BLOCKED\`
       expect(result.features.blocked).toBe(1);
     });
 
-    it('includes file lock status', () => {
+    it('includes file list', () => {
       const agentContent = `---
 status: GAP
 persona: coder
@@ -148,8 +131,8 @@ claimedBy: null
 dependencies: []
 blocks: []
 files:
-  - src/locked.ts
-  - src/unlocked.ts
+  - src/foo.ts
+  - src/bar.ts
 ---
 
 # Agent 001
@@ -162,21 +145,12 @@ files:
         taskId: '0001-test-plan#001',
         path: filePath,
       };
-      const coordination: CoordinationState = {
-        version: 1,
-        agents: {},
-        tasks: {},
-        fileLocks: {
-          'src/locked.ts': 'other-agent',
-        },
-      };
 
-      const result = getAgentStatusSummary(config, resolvedId, coordination);
+      const result = getAgentStatusSummary(config, resolvedId);
 
       expect(result.files).toHaveLength(2);
-      expect(result.files.find((f) => f.path === 'src/locked.ts')?.locked).toBe(true);
-      expect(result.files.find((f) => f.path === 'src/locked.ts')?.lockedBy).toBe('other-agent');
-      expect(result.files.find((f) => f.path === 'src/unlocked.ts')?.locked).toBe(false);
+      expect(result.files).toContain('src/foo.ts');
+      expect(result.files).toContain('src/bar.ts');
     });
 
     it('includes dependency status', () => {
@@ -213,68 +187,13 @@ files: []
         taskId: '0001-test-plan#001',
         path: filePath,
       };
-      const coordination: CoordinationState = {
-        version: 1,
-        agents: {},
-        tasks: {},
-        fileLocks: {},
-      };
 
-      const result = getAgentStatusSummary(config, resolvedId, coordination);
+      const result = getAgentStatusSummary(config, resolvedId);
 
       expect(result.dependencies).toHaveLength(1);
       expect(result.dependencies[0].taskId).toBe('0001-test-plan#000');
       expect(result.dependencies[0].status).toBe('PASS');
       expect(result.dependencies[0].satisfied).toBe(true);
-    });
-
-    it('includes claim and heartbeat info', () => {
-      const agentContent = `---
-status: WIP
-persona: coder
-claimedBy: null
-dependencies: []
-blocks: []
-files: []
----
-
-# Agent 001
-`;
-
-      const filePath = createAgentFile('0001-test-plan', '001', agentContent);
-      const resolvedId: ResolvedTaskId = {
-        planFolder: '0001-test-plan',
-        agentNumber: '001',
-        taskId: '0001-test-plan#001',
-        path: filePath,
-      };
-      const coordination: CoordinationState = {
-        version: 1,
-        agents: {
-          'agent-1': {
-            status: 'WIP',
-            persona: 'coder',
-            taskId: '0001-test-plan#001',
-            filesLocked: [],
-            heartbeat: new Date().toISOString(),
-          },
-        },
-        tasks: {
-          '0001-test-plan#001': {
-            status: 'WIP',
-            claimedBy: 'agent-1',
-            dependencies: [],
-          },
-        },
-        fileLocks: {},
-      };
-
-      const result = getAgentStatusSummary(config, resolvedId, coordination);
-
-      expect(result.claimed).toBeDefined();
-      expect(result.claimed?.by).toBe('agent-1');
-      expect(result.heartbeat).toBeDefined();
-      expect(result.heartbeat?.stale).toBe(false);
     });
   });
 });
