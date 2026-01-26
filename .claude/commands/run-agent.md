@@ -71,28 +71,28 @@ Assesses all agents in the plan for completion status and file organization.
 2. **Claim Task (CRITICAL - Do this first):**
    - After determining which agent file will be opened, **immediately claim the task** using limps MCP `claim_task` tool
    - **Extract plan name** from agent file path: `plans/<plan-name>/agents/...` → `<plan-name>` (e.g., `0004-feature-name`)
-   - **Extract feature number(s)** from agent file content: Look for `### Feature #<number>:` patterns (e.g., `#1`, `#2`)
-   - **Construct taskId**: Format is `<plan-name>#<feature-number>` (e.g., `0004-feature-name#1`)
+   - **Extract agent number** from agent file name: `<NNN>_agent_name.agent.md` → `<NNN>` (e.g., `000`, `001`)
+   - **Construct taskId**: Format is `<plan-name>#<agent-number>` (e.g., `0004-feature-name#000`)
    - **Extract agentId** from agent file name: `<agent-file-name>` (e.g., `000_agent_name.agent.md`)
-   - **For agents with multiple features**: Claim each feature separately, or claim the first/primary feature
+   - **If using `limps next-task` output**: Use the Task ID directly from the output (e.g., `0018-component-design-principles-audit#000`)
    - Call: `call_mcp_tool` with server `limps`, tool `claim_task`, arguments:
      ```json
      {
-       "taskId": "<plan-name>#<feature-number>",
+       "taskId": "<plan-name>#<agent-number>",
        "agentId": "<agent-file-name>",
        "persona": "coder"
      }
      ```
-   - **Example**: For agent file `plans/0004-feature-name/agents/000_agent_name.agent.md` with Feature #1:
+   - **Example**: For agent file `plans/0004-feature-name/agents/000_agent_name.agent.md`:
      ```json
      {
-       "taskId": "0004-feature-name#1",
+       "taskId": "0004-feature-name#000",
        "agentId": "000_agent_name.agent.md",
        "persona": "coder"
      }
      ```
    - **This must happen BEFORE opening the file or starting work** to prevent conflicts
-   - **Note**: The server expects taskId format `<plan-name>#<feature-number>`, not the agent file path
+   - **Note**: The taskId format is `<plan-name>#<agent-number>` (matches `limps next-task` output), not feature numbers
 
 3. **Open agent file:**
    - Use `open_document_in_cursor` MCP tool to open the agent file in Cursor

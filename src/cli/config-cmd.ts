@@ -15,6 +15,38 @@ import {
 import { loadConfig } from '../config.js';
 
 /**
+ * Project data for JSON output.
+ */
+export interface ProjectsData {
+  projects: {
+    name: string;
+    configPath: string;
+    current: boolean;
+    exists: boolean;
+  }[];
+  total: number;
+}
+
+/**
+ * Get projects data for JSON output.
+ *
+ * @returns Projects data object
+ */
+export function getProjectsData(): ProjectsData {
+  const projects = listProjects();
+
+  return {
+    projects: projects.map((p) => ({
+      name: p.name,
+      configPath: p.configPath,
+      current: p.current,
+      exists: existsSync(p.configPath),
+    })),
+    total: projects.length,
+  };
+}
+
+/**
  * List all registered projects.
  *
  * @returns Formatted list of projects
@@ -50,6 +82,54 @@ export function configList(): string {
 export function configUse(name: string): string {
   setCurrentProject(name);
   return `Switched to project "${name}"`;
+}
+
+/**
+ * Configuration data for JSON output.
+ */
+export interface ConfigData {
+  configPath: string;
+  config: {
+    plansPath: string;
+    dataPath: string;
+    coordinationPath: string;
+    docsPaths?: string[];
+    fileExtensions?: string[];
+    heartbeatTimeout: number;
+    debounceDelay: number;
+    maxHandoffIterations: number;
+  };
+}
+
+/**
+ * Get configuration data for JSON output.
+ *
+ * @param resolveConfigPathFn - Function to resolve config path (injected to avoid circular deps)
+ * @returns Configuration data object
+ * @throws Error if config file not found
+ */
+export function getConfigData(resolveConfigPathFn: () => string): ConfigData {
+  const configPath = resolveConfigPathFn();
+
+  if (!existsSync(configPath)) {
+    throw new Error(`Config file not found: ${configPath}`);
+  }
+
+  const config = loadConfig(configPath);
+
+  return {
+    configPath,
+    config: {
+      plansPath: config.plansPath,
+      dataPath: config.dataPath,
+      coordinationPath: config.coordinationPath,
+      docsPaths: config.docsPaths,
+      fileExtensions: config.fileExtensions,
+      heartbeatTimeout: config.heartbeatTimeout,
+      debounceDelay: config.debounceDelay,
+      maxHandoffIterations: config.maxHandoffIterations,
+    },
+  };
 }
 
 /**

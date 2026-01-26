@@ -5,7 +5,11 @@ import {
   type CoordinationState,
   type TaskState,
 } from '../coordination.js';
-import { extractPlanId, parseTasksFromDocument, findTaskById } from '../task-parser.js';
+import {
+  parseTaskId as parseAgentTaskId,
+  findAgentFilePath,
+  readAgentFile,
+} from '../agent-parser.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -18,92 +22,71 @@ export const ClaimTaskInputSchema = z.object({
 });
 
 /**
- * Extract files from task metadata.
- * For now, returns empty array. In future, this could query the database
- * to get files associated with the task from planning documents.
+ * Extract files from agent file frontmatter.
  *
- * @param _taskId - Task identifier
- * @param _context - Tool context
+ * @param taskId - Task identifier (format: planFolder#agentNumber)
+ * @param context - Tool context
  * @returns Array of file paths
  */
-async function extractTaskFiles(_taskId: string, _context: ToolContext): Promise<string[]> {
-  // TODO: Extract files from task metadata in database
-  // For now, return empty array - files will be determined by task implementation
-  return [];
-}
-
-/**
- * Parse task ID to extract plan ID and feature number.
- * Format: "<planId>#<featureNumber>"
- */
-function parseTaskId(taskId: string): { planId: string; featureNumber: number } | null {
-  const match = taskId.match(/^(.+)#(\d+)$/);
-  if (!match) {
-    return null;
+async function extractTaskFiles(taskId: string, context: ToolContext): Promise<string[]> {
+  const agentFilePath = findAgentFilePath(context.config.plansPath, taskId);
+  if (!agentFilePath) {
+    return [];
   }
-  return {
-    planId: match[1],
-    featureNumber: parseInt(match[2], 10),
-  };
+
+  const agentFile = readAgentFile(agentFilePath);
+  if (!agentFile) {
+    return [];
+  }
+
+  return agentFile.frontmatter.files;
 }
 
 /**
- * Try to auto-create a task entry from the plan document.
- * Returns the task state if found in the plan, null otherwise.
+ * Try to auto-create a task entry from an agent file.
+ * Returns the task state if found in the agent file, null otherwise.
  *
- * @param taskId - Task identifier
+ * @param taskId - Task identifier (format: planFolder#agentNumber)
  * @param context - Tool context
  * @returns Task state or null if not found
  */
-async function tryAutoCreateTaskFromPlan(
+async function tryAutoCreateTaskFromAgent(
   taskId: string,
   context: ToolContext
 ): Promise<TaskState | null> {
-  const parsed = parseTaskId(taskId);
+  const parsed = parseAgentTaskId(taskId);
   if (!parsed) {
     return null;
   }
 
-  const { planId } = parsed;
-  const { plansPath } = context.config;
+  const { planFolder } = parsed;
+  const agentFilePath = findAgentFilePath(context.config.plansPath, taskId);
 
-  // Query database for plan documents matching this plan ID
-  const plans = context.db
-    .prepare(
-      `
-    SELECT path, content
-    FROM documents
-    WHERE path LIKE ?
-    AND path LIKE '%/plan.md'
-  `
-    )
-    .all(`${plansPath}%${planId}%`) as { path: string; content: string }[];
-
-  if (plans.length === 0) {
+  if (!agentFilePath) {
     return null;
   }
 
-  // Find the plan document and parse tasks
-  for (const plan of plans) {
-    const extractedPlanId = extractPlanId(plan.path);
-    if (!extractedPlanId || !extractedPlanId.includes(planId)) {
-      continue;
-    }
-
-    const tasks = parseTasksFromDocument(plan.path, plan.content, extractedPlanId);
-    const task = findTaskById(tasks, taskId);
-
-    if (task) {
-      // Create TaskState from parsed task
-      return {
-        status: task.status,
-        claimedBy: undefined,
-        dependencies: task.dependencies,
-      };
-    }
+  const agentFile = readAgentFile(agentFilePath);
+  if (!agentFile) {
+    return null;
   }
 
-  return null;
+  // Convert agent number dependencies to full task IDs
+  const dependencies = agentFile.frontmatter.dependencies.map((dep) => {
+    // If it's already a full task ID, return as-is
+    if (dep.includes('#')) {
+      return dep;
+    }
+    // Otherwise, it's an agent number - convert to full task ID
+    return `${planFolder}#${dep}`;
+  });
+
+  // Create TaskState from agent file frontmatter
+  return {
+    status: agentFile.frontmatter.status,
+    claimedBy: agentFile.frontmatter.claimedBy || undefined,
+    dependencies,
+  };
 }
 
 /**
@@ -153,17 +136,18 @@ export async function handleClaimTask(
       const coordination = await readCoordination(coordinationPath);
       const expectedVersion = coordination.version;
 
-      // Check if task exists, auto-create if found in plan but not in coordination
+      // Check if task exists, auto-create from agent file if not in coordination
       let task = coordination.tasks[taskId];
       if (!task) {
-        // Try to auto-create from plan document
-        const autoCreatedTask = await tryAutoCreateTaskFromPlan(taskId, context);
+        // Try to auto-create from agent file
+        const autoCreatedTask = await tryAutoCreateTaskFromAgent(taskId, context);
+
         if (!autoCreatedTask) {
           return {
             content: [
               {
                 type: 'text',
-                text: `Task ${taskId} not found in coordination state or plan documents`,
+                text: `Task ${taskId} not found in coordination state or agent files`,
               },
             ],
             isError: true,

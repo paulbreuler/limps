@@ -4,6 +4,7 @@ import { getPlanStatusSummary } from '../cli/status.js';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { PlanStatus } from '../components/PlanStatus.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 
 export const description = 'Show plan status';
 
@@ -11,6 +12,7 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
+  json: z.boolean().optional().describe('Output as JSON'),
 });
 
 interface Props {
@@ -20,6 +22,20 @@ interface Props {
 
 export default function StatusCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
+
+  // Handle JSON output mode - must check before usage validation
+  if (isJsonMode(options)) {
+    if (!planId) {
+      return outputJson(wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID' }), 1);
+    }
+
+    const configPath = resolveConfigPath(options.config);
+    const config = loadConfig(configPath);
+
+    return handleJsonOutput(() => {
+      return getPlanStatusSummary(config, planId);
+    }, 'STATUS_ERROR');
+  }
 
   if (!planId) {
     return (
@@ -33,6 +49,8 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
         <Text color="cyan">Options:</Text>
         {'\n'}
         {'  '}--config Path to config file
+        {'\n'}
+        {'  '}--json Output as JSON
         {'\n\n'}
         <Text color="cyan">Output includes:</Text>
         {'\n'}
@@ -45,7 +63,8 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
         <Text color="cyan">Examples:</Text>
         {'\n'}
         {'  '}limps status 4{'\n'}
-        {'  '}limps status 0004-my-feature
+        {'  '}limps status 0004-my-feature{'\n'}
+        {'  '}limps status 4 --json
       </Text>
     );
   }

@@ -9,7 +9,7 @@ import {
   type CoordinationState,
 } from '../src/coordination.js';
 import { handleClaimTask } from '../src/tools/claim-task.js';
-import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
+import { initializeDatabase, createSchema } from '../src/indexer.js';
 import type { ToolContext } from '../src/types.js';
 import type { ServerConfig } from '../src/config.js';
 
@@ -334,7 +334,8 @@ describe('claim-task-auto-creation', () => {
   let testDir: string;
   let plansDir: string;
   let planDir: string;
-  let planFile: string;
+  let agentsDir: string;
+  let agentFile: string;
   let context: ToolContext;
   let config: ServerConfig;
 
@@ -345,32 +346,33 @@ describe('claim-task-auto-creation', () => {
     );
     plansDir = join(testDir, 'plans');
     planDir = join(plansDir, '0001-test-plan');
-    planFile = join(planDir, 'plan.md');
+    agentsDir = join(planDir, 'agents');
+    agentFile = join(agentsDir, '000_agent_test.agent.md');
     coordinationPath = join(testDir, 'coordination.json');
     dbPath = join(testDir, 'test.db');
 
-    mkdirSync(planDir, { recursive: true });
+    mkdirSync(agentsDir, { recursive: true });
 
-    // Create plan document with GAP status
-    const planContent = `# Test Plan
+    // Create agent file with GAP status
+    const agentContent = `---
+status: GAP
+persona: coder
+claimedBy: null
+dependencies: []
+blocks: []
+files:
+  - test.ts
+---
 
-### #1: Test Feature
+# Agent 000: Test Agent
 
-Status: \`GAP\`
-Dependencies: None
-Files: \`test.ts\`
-
-### #2: Second Feature
-
-Status: \`GAP\`
-Dependencies: #1
+Test agent description.
 `;
-    writeFileSync(planFile, planContent, 'utf-8');
+    writeFileSync(agentFile, agentContent, 'utf-8');
 
-    // Initialize database and index the plan
+    // Initialize database (not needed for agent files, but kept for compatibility)
     db = initializeDatabase(dbPath);
     createSchema(db);
-    await indexDocument(db, planFile);
 
     config = {
       plansPath: plansDir,
@@ -408,15 +410,15 @@ Dependencies: #1
     }
   });
 
-  it('should auto-create task when exists in plan but not in coordination', async () => {
+  it('should auto-create task when exists in agent file but not in coordination', async () => {
     // Verify task does not exist in coordination
     const beforeState = await readCoordination(coordinationPath);
-    expect(beforeState.tasks['0001-test-plan#1']).toBeUndefined();
+    expect(beforeState.tasks['0001-test-plan#000']).toBeUndefined();
 
-    // Claim the task (should auto-create from plan)
+    // Claim the task (should auto-create from agent file)
     const result = await handleClaimTask(
       {
-        taskId: '0001-test-plan#1',
+        taskId: '0001-test-plan#000',
         agentId: 'agent-1',
         persona: 'coder',
       },
@@ -428,12 +430,16 @@ Dependencies: #1
 
     // Verify task was created and claimed
     const afterState = await readCoordination(coordinationPath);
-    expect(afterState.tasks['0001-test-plan#1']).toBeDefined();
-    expect(afterState.tasks['0001-test-plan#1']?.status).toBe('WIP');
-    expect(afterState.tasks['0001-test-plan#1']?.claimedBy).toBe('agent-1');
+    expect(afterState.tasks['0001-test-plan#000']).toBeDefined();
+    expect(afterState.tasks['0001-test-plan#000']?.status).toBe('WIP');
+    expect(afterState.tasks['0001-test-plan#000']?.claimedBy).toBe('agent-1');
+
+    // Verify files were locked
+    expect(afterState.fileLocks['test.ts']).toBe('agent-1');
+    expect(afterState.agents['agent-1']?.filesLocked).toContain('test.ts');
   });
 
-  it('should fail gracefully when task does not exist in plan or coordination', async () => {
+  it('should fail gracefully when task does not exist in agent file or coordination', async () => {
     const result = await handleClaimTask(
       {
         taskId: '0001-test-plan#999',
@@ -445,13 +451,13 @@ Dependencies: #1
 
     expect(result.isError).toBe(true);
     expect(result.content[0]?.text).toContain('not found');
-    expect(result.content[0]?.text).toContain('plan documents');
+    expect(result.content[0]?.text).toContain('agent files');
   });
 
-  it('should fail gracefully when plan document does not exist', async () => {
+  it('should fail gracefully when agent file does not exist', async () => {
     const result = await handleClaimTask(
       {
-        taskId: '9999-nonexistent#1',
+        taskId: '9999-nonexistent#000',
         agentId: 'agent-1',
         persona: 'coder',
       },

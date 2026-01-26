@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { homedir } from 'os';
+import { checkDeprecations, emitDeprecationWarnings } from './utils/deprecations.js';
 
 /**
  * Server configuration interface.
@@ -99,6 +100,10 @@ export function loadConfig(configPath: string): ServerConfig {
     debounceDelay: config.debounceDelay ?? DEFAULT_CONFIG.debounceDelay,
     maxHandoffIterations: config.maxHandoffIterations ?? DEFAULT_CONFIG.maxHandoffIterations,
   };
+
+  // Check for deprecated options and emit warnings to stderr
+  const deprecatedOptions = checkDeprecations(config);
+  emitDeprecationWarnings(deprecatedOptions);
 
   return mergedConfig;
 }

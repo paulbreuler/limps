@@ -84,8 +84,9 @@ describe('next-task', () => {
     it('returns 40 when no dependencies', () => {
       const agent = createMockAgent();
       const coordination = createMockCoordination();
+      const allAgents = [agent];
 
-      const result = calculateDependencyScore(agent, coordination);
+      const result = calculateDependencyScore(agent, coordination, allAgents);
 
       expect(result.score).toBe(40);
       expect(result.reasons).toContain('No dependencies (unblocked)');
@@ -102,13 +103,22 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination({
-        tasks: {
-          '0004-test-plan#001': { status: 'PASS', dependencies: [] },
+      const depAgent = createMockAgent({
+        agentNumber: '001',
+        taskId: '0004-test-plan#001',
+        frontmatter: {
+          status: 'PASS',
+          persona: 'coder',
+          claimedBy: null,
+          dependencies: [],
+          blocks: [],
+          files: [],
         },
       });
+      const coordination = createMockCoordination();
+      const allAgents = [agent, depAgent];
 
-      const result = calculateDependencyScore(agent, coordination);
+      const result = calculateDependencyScore(agent, coordination, allAgents);
 
       expect(result.score).toBe(40);
     });
@@ -124,13 +134,22 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination({
-        tasks: {
-          '0004-test-plan#001': { status: 'GAP', dependencies: [] },
+      const depAgent = createMockAgent({
+        agentNumber: '001',
+        taskId: '0004-test-plan#001',
+        frontmatter: {
+          status: 'GAP',
+          persona: 'coder',
+          claimedBy: null,
+          dependencies: [],
+          blocks: [],
+          files: [],
         },
       });
+      const coordination = createMockCoordination();
+      const allAgents = [agent, depAgent];
 
-      const result = calculateDependencyScore(agent, coordination);
+      const result = calculateDependencyScore(agent, coordination, allAgents);
 
       expect(result.score).toBe(0);
     });
@@ -210,8 +229,9 @@ describe('next-task', () => {
     it('returns true for GAP status with no conflicts', () => {
       const agent = createMockAgent();
       const coordination = createMockCoordination();
+      const allAgents = [agent];
 
-      const result = isTaskEligible(agent, coordination);
+      const result = isTaskEligible(agent, coordination, allAgents);
 
       expect(result.eligible).toBe(true);
     });
@@ -228,8 +248,9 @@ describe('next-task', () => {
         },
       });
       const coordination = createMockCoordination();
+      const allAgents = [agent];
 
-      const result = isTaskEligible(agent, coordination);
+      const result = isTaskEligible(agent, coordination, allAgents);
 
       expect(result.eligible).toBe(false);
       expect(result.reason).toContain('WIP');
@@ -249,8 +270,9 @@ describe('next-task', () => {
       const coordination = createMockCoordination({
         fileLocks: { 'src/locked.ts': 'other-agent' },
       });
+      const allAgents = [agent];
 
-      const result = isTaskEligible(agent, coordination);
+      const result = isTaskEligible(agent, coordination, allAgents);
 
       expect(result.eligible).toBe(false);
       expect(result.reason).toContain('locked');
@@ -267,13 +289,22 @@ describe('next-task', () => {
           files: [],
         },
       });
-      const coordination = createMockCoordination({
-        tasks: {
-          '0004-test-plan#001': { status: 'GAP', dependencies: [] },
+      const depAgent = createMockAgent({
+        agentNumber: '001',
+        taskId: '0004-test-plan#001',
+        frontmatter: {
+          status: 'GAP',
+          persona: 'coder',
+          claimedBy: null,
+          dependencies: [],
+          blocks: [],
+          files: [],
         },
       });
+      const coordination = createMockCoordination();
+      const allAgents = [agent, depAgent];
 
-      const result = isTaskEligible(agent, coordination);
+      const result = isTaskEligible(agent, coordination, allAgents);
 
       expect(result.eligible).toBe(false);
       expect(result.reason).toContain('not satisfied');
@@ -293,8 +324,9 @@ describe('next-task', () => {
         },
       });
       const coordination = createMockCoordination();
+      const allAgents = [agent];
 
-      const result = scoreTask(agent, coordination);
+      const result = scoreTask(agent, coordination, allAgents);
 
       expect(result).toBeNull();
     });
@@ -302,8 +334,9 @@ describe('next-task', () => {
     it('returns score breakdown for eligible task', () => {
       const agent = createMockAgent();
       const coordination = createMockCoordination();
+      const allAgents = [agent];
 
-      const result = scoreTask(agent, coordination);
+      const result = scoreTask(agent, coordination, allAgents);
 
       expect(result).not.toBeNull();
       expect(result!.totalScore).toBe(100); // 40 + 30 + 30

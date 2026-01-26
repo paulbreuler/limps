@@ -32,7 +32,7 @@ describe('Pastel CLI Commands', () => {
     it('renders empty state when no projects registered', async () => {
       const { default: ConfigListCommand } = await import('../../src/commands/config/list.js');
 
-      const { lastFrame } = render(<ConfigListCommand />);
+      const { lastFrame } = render(<ConfigListCommand options={{}} />);
 
       expect(lastFrame()).toContain('No projects registered');
     });
@@ -44,7 +44,7 @@ describe('Pastel CLI Commands', () => {
 
       const { default: ConfigListCommand } = await import('../../src/commands/config/list.js');
 
-      const { lastFrame } = render(<ConfigListCommand />);
+      const { lastFrame } = render(<ConfigListCommand options={{}} />);
 
       expect(lastFrame()).toContain('test-project');
       expect(lastFrame()).toContain('/path/to/config.json');
