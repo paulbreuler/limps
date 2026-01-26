@@ -230,17 +230,40 @@ Create a `config.json` at the OS-specific location or specify a path:
 }
 ```
 
-**Config priority:**
-1. CLI: `limps --config /path/to/config.json`
-2. Environment: `MCP_PLANNING_CONFIG=/path/to/config.json`
-3. OS-specific default location
+### Config Resolution Priority
 
-**Path options:**
-- Tilde expansion: `~/Documents/plans`
-- Absolute: `/Users/john/Documents/plans`
-- Relative (to config file): `./plans`
+The server finds configuration in this order:
+
+1. **CLI argument**: `limps serve --config /path/to/config.json`
+2. **Environment variable**: `MCP_PLANNING_CONFIG=/path/to/config.json`
+3. **Project environment**: `LIMPS_PROJECT=my-project` (looks up in registry)
+4. **Registry current project**: Set via `limps config use <name>`
+5. **OS-specific default**: See table above
+
+> **Note:** If no config exists at the resolved path, limps auto-creates a default config file.
+
+### Config Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `plansPath` | string | `./plans` | Primary directory for plan documents |
+| `docsPaths` | string[] | `[]` | Additional directories to index |
+| `fileExtensions` | string[] | `[".md"]` | File types to index |
+| `dataPath` | string | `./data` | SQLite database location |
+| `coordinationPath` | string | `./coordination.json` | Multi-agent coordination state file |
+| `heartbeatTimeout` | number | `300000` | Agent heartbeat timeout (5 min) |
+| `debounceDelay` | number | `200` | File watcher debounce (ms) |
+| `maxHandoffIterations` | number | `3` | Max agent handoff iterations |
+
+### Path Options
+
+- **Tilde expansion**: `~/Documents/plans` → `/Users/you/Documents/plans`
+- **Absolute paths**: `/Users/john/Documents/plans`
+- **Relative paths**: `./plans` (relative to config file location)
 
 ## Cursor Setup
+
+> **Important:** MCP clients must use the `serve` subcommand to start the MCP server. Without `serve`, the CLI shows help text instead of starting the server.
 
 Add to Cursor settings (`Cmd+Shift+P` → "Preferences: Open User Settings (JSON)"):
 
@@ -248,7 +271,8 @@ Add to Cursor settings (`Cmd+Shift+P` → "Preferences: Open User Settings (JSON
 {
   "mcp.servers": {
     "limps": {
-      "command": "limps"
+      "command": "limps",
+      "args": ["serve"]
     }
   }
 }
@@ -260,7 +284,7 @@ With explicit config:
   "mcp.servers": {
     "limps": {
       "command": "limps",
-      "args": ["--config", "/path/to/config.json"]
+      "args": ["serve", "--config", "/path/to/config.json"]
     }
   }
 }
@@ -277,7 +301,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "limps": {
       "command": "npx",
-      "args": ["-y", "@sudosandwich/limps"]
+      "args": ["-y", "@sudosandwich/limps", "serve"]
     }
   }
 }
@@ -289,7 +313,7 @@ With explicit config:
   "mcpServers": {
     "limps": {
       "command": "npx",
-      "args": ["-y", "@sudosandwich/limps", "--config", "/path/to/config.json"]
+      "args": ["-y", "@sudosandwich/limps", "serve", "--config", "/path/to/config.json"]
     }
   }
 }
