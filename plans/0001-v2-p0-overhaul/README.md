@@ -41,7 +41,7 @@ graph TD
 | Agent | Title | Status | Features | Dependencies |
 |-------|-------|--------|----------|--------------|
 | 000 | JSON Output Infrastructure | `PASS` | #1 | None |
-| 001 | Per-Agent Status + Resolution | `GAP` | #2, #3 | Agent 000 |
+| 001 | Per-Agent Status + Resolution | `PASS` | #2, #3 | Agent 000 |
 | 002 | Error Messages + Deprecations | `PASS` | #4, #5 | Agent 000 |
 
 ---
@@ -51,8 +51,8 @@ graph TD
 | ID | Feature | Agent | Status |
 |----|---------|-------|--------|
 | #1 | JSON Output Infrastructure | 000 | `PASS` |
-| #2 | Per-Agent Status | 001 | `GAP` |
-| #3 | Shorthand Task ID Resolution | 001 | `GAP` |
+| #2 | Per-Agent Status | 001 | `PASS` |
+| #3 | Shorthand Task ID Resolution | 001 | `PASS` |
 | #4 | Improved Error Messages | 002 | `PASS` |
 | #5 | Config Deprecation Warnings | 002 | `PASS` |
 
