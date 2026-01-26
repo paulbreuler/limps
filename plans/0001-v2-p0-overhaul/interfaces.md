@@ -342,7 +342,6 @@ export interface CoordinationState {
 export interface AgentFrontmatter {
   status: 'GAP' | 'WIP' | 'PASS' | 'BLOCKED';
   persona: 'coder' | 'reviewer' | 'pm' | 'customer';
-  claimedBy: string | null;
   dependencies: string[];
   blocks: string[];
   files: string[];

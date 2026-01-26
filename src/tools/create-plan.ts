@@ -175,16 +175,17 @@ export async function handleCreatePlan(
     const tempDir = `${planDir}.tmp`;
     mkdirSync(tempDir, { recursive: true });
 
-    // Create plan.md from template
+    // Create plan file with descriptive name (e.g., 0004-integration-tests-plan.md)
+    const planFileName = `${planDirName}-plan.md`;
     const planContent = loadTemplate(planNumber, name, description);
-    const tempPlanFilePath = join(tempDir, 'plan.md');
+    const tempPlanFilePath = join(tempDir, planFileName);
     writeFileSync(tempPlanFilePath, planContent, 'utf-8');
 
     // Atomic rename
     renameSync(tempDir, planDir);
 
     // Index the new document (use final path after rename)
-    const planFilePath = join(planDir, 'plan.md');
+    const planFilePath = join(planDir, planFileName);
     await indexDocument(context.db, planFilePath);
 
     return {

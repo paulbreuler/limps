@@ -348,12 +348,17 @@ Implements the [RLM pattern from MIT CSAIL](https://arxiv.org/abs/2512.24601) fo
 
 ### Obsidian Vault Compatibility
 
-limps is compatible with Obsidian vaults, supporting frontmatter properties and tag management:
+limps is compatible with Obsidian vaults. Simply open your `plans/` directory as an Obsidian vault to get a visual editor for your planning documents:
 
+![Obsidian vault with limps plans](https://github.com/paulbreuler/limps/blob/main/.github/assets/obsidian-vault.png?raw=true)
+
+**Features:**
 - **Frontmatter parsing** - Full YAML frontmatter support via `gray-matter`
 - **Tag management** - Both frontmatter `tags:` arrays and inline `#tag` format
 - **Path filtering** - Automatically excludes `.obsidian/`, `.git/`, `node_modules/`
 - **Frontmatter search** - Search within YAML properties with `searchFrontmatter: true`
+
+> **Tip:** The `.obsidian/` folder is automatically excluded from indexing and should be added to `.gitignore` to keep local settings out of version control.
 
 #### Enhanced Search Features
 

@@ -17,7 +17,6 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 export interface AgentFrontmatter {
   status: 'GAP' | 'WIP' | 'PASS' | 'BLOCKED';
   persona: 'coder' | 'reviewer' | 'pm' | 'customer';
-  claimedBy: string | null;
   dependencies: string[]; // Agent numbers this depends on (e.g., ["000", "001"])
   blocks: string[]; // Agent numbers this blocks
   files: string[]; // Files this agent owns/modifies
@@ -51,7 +50,6 @@ export interface ParsedAgentFile {
 const DEFAULT_FRONTMATTER: AgentFrontmatter = {
   status: 'GAP',
   persona: 'coder',
-  claimedBy: null,
   dependencies: [],
   blocks: [],
   files: [],
@@ -327,7 +325,6 @@ export function parseAgentFile(path: string, content: string): ParsedAgentFile |
     frontmatter = {
       status: extractLegacyStatus(content),
       persona: extractLegacyPersona(content),
-      claimedBy: null,
       dependencies: extractLegacyDependencies(content),
       blocks: extractLegacyBlocks(content),
       files: extractLegacyFiles(content),
@@ -437,7 +434,6 @@ export function migrateAgentFile(path: string): ParsedAgentFile | null {
   const frontmatter: AgentFrontmatter = {
     status: extractLegacyStatus(content),
     persona: extractLegacyPersona(content),
-    claimedBy: null,
     dependencies: extractLegacyDependencies(content),
     blocks: extractLegacyBlocks(content),
     files: extractLegacyFiles(content),

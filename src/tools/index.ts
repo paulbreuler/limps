@@ -142,7 +142,7 @@ Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(),
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
-  path: "plans/0009/plan.md"
+  path: "plans/0009-feature/0009-feature-plan.md"
   code: "extractFeatures(doc.content).filter(f => f.status === 'GAP')"
   
 To read full content: code: "doc.content"
@@ -162,7 +162,7 @@ Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(),
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
-  pattern: "plans/*/plan.md"
+  pattern: "plans/*/*-plan.md"
   code: "docs.map(d => ({ name: extractFrontmatter(d.content).meta.name, features: extractFeatures(d.content).length }))"`,
     ProcessDocsInputBaseSchema.shape,
     async (input: unknown) => {

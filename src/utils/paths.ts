@@ -3,7 +3,8 @@
  * Validates paths, prevents directory traversal, and enforces access restrictions.
  */
 
-import { resolve, dirname, basename, extname, isAbsolute, relative } from 'path';
+import { resolve, dirname, basename, extname, isAbsolute, relative, join } from 'path';
+import { existsSync } from 'fs';
 import { restrictedPath, validationError } from './errors.js';
 import { PathFilter } from './pathfilter.js';
 
@@ -59,10 +60,48 @@ export const WRITABLE_DIRS: readonly string[] = ['addendums', 'examples', 'resea
 /**
  * Plan files that require confirmation before overwrite (protected, not blocked).
  * These files can be written, but require explicit confirmation (force: true).
+ * Supports both legacy (plan.md) and new ({dirName}-plan.md) formats.
  */
 export const PROTECTED_PLAN_FILES: readonly RegExp[] = [
-  /^plans\/\d{4}-[^/]+\/plan\.md$/, // Existing plan.md files
+  /^plans\/\d{4}-[^/]+\/plan\.md$/, // Legacy: plan.md
+  /^plans\/(\d{4}-[^/]+)\/\1-plan\.md$/, // New: {dirName}-plan.md
 ];
+
+/**
+ * Get the plan file name for a plan directory (new format).
+ * Format: {dirName}-plan.md (e.g., "0001-feature-name-plan.md")
+ *
+ * @param dirName - Plan directory name (e.g., "0001-feature-name")
+ * @returns Plan file name
+ */
+export function getPlanFileName(dirName: string): string {
+  return `${dirName}-plan.md`;
+}
+
+/**
+ * Find the plan file in a plan directory.
+ * Supports both new format ({dirName}-plan.md) and legacy format (plan.md).
+ *
+ * @param planDir - Absolute path to the plan directory
+ * @returns Absolute path to the plan file, or null if not found
+ */
+export function findPlanFile(planDir: string): string | null {
+  const dirName = basename(planDir);
+
+  // Try new format first: {dirName}-plan.md
+  const newFormat = join(planDir, `${dirName}-plan.md`);
+  if (existsSync(newFormat)) {
+    return newFormat;
+  }
+
+  // Fall back to legacy format: plan.md
+  const legacyFormat = join(planDir, 'plan.md');
+  if (existsSync(legacyFormat)) {
+    return legacyFormat;
+  }
+
+  return null;
+}
 
 /**
  * Check if a path is a protected plan file that requires confirmation.

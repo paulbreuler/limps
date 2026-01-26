@@ -23,7 +23,7 @@ import type { SamplingClient } from '../rlm/sampling.js';
  */
 export const ProcessDocsInputBaseSchema = z.object({
   paths: z.array(z.string().min(1)).optional().describe('Explicit list of document paths'),
-  pattern: z.string().optional().describe('Glob pattern (e.g., "plans/*/plan.md")'),
+  pattern: z.string().optional().describe('Glob pattern (e.g., "plans/*/*-plan.md")'),
   code: z.string().min(1).describe('JavaScript code to execute (docs array available)'),
   sub_query: z.string().optional().describe('Prompt for recursive LLM processing'),
   timeout: z.number().int().min(100).max(30000).default(5000),
@@ -73,7 +73,7 @@ function getRepoRoot(config: ToolContext['config']): string {
  * Recursively find files matching a glob pattern.
  *
  * @param repoRoot - Repository root directory
- * @param pattern - Glob pattern (e.g., "plans/**\/plan.md")
+ * @param pattern - Glob pattern (e.g., "plans/*\/*-plan.md")
  * @param maxDepth - Maximum directory depth to search
  * @returns Array of relative file paths
  */

@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { ResourceContext, ResourceResult } from '../types.js';
+import { findPlanFile } from '../utils/paths.js';
 
 /**
  * Handle plans://full/{planId} resource request.
@@ -33,10 +34,10 @@ export async function handlePlanFull(
 
   const planId = match[1];
   const planPath = join(plansPath, planId);
-  const planMdPath = join(planPath, 'plan.md');
+  const planMdPath = findPlanFile(planPath);
 
   // Check if plan exists
-  if (!existsSync(planMdPath)) {
+  if (!planMdPath) {
     return {
       contents: [
         {

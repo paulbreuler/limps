@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import type { ResourceContext, ResourceResult } from '../types.js';
+import { findPlanFile } from '../utils/paths.js';
 
 /**
  * Plan index entry interface.
@@ -89,7 +90,10 @@ function parseYamlFrontmatter(content: string): {
  * Get plan status from database content or default to GAP.
  */
 function getPlanStatus(db: DatabaseType, planPath: string): 'GAP' | 'WIP' | 'PASS' | 'BLOCKED' {
-  const planMdPath = join(planPath, 'plan.md');
+  const planMdPath = findPlanFile(planPath);
+  if (!planMdPath) {
+    return 'GAP';
+  }
   const result = db.prepare('SELECT content FROM documents WHERE path = ?').get(planMdPath) as
     | {
         content: string;
@@ -180,10 +184,10 @@ export async function handlePlansIndex(
     }
 
     const planPath = join(plansPath, dir);
-    const planMdPath = join(planPath, 'plan.md');
+    const planMdPath = findPlanFile(planPath);
 
-    // Check if plan.md exists
-    if (!existsSync(planMdPath)) {
+    // Check if plan file exists
+    if (!planMdPath) {
       continue;
     }
 
