@@ -19,6 +19,10 @@ export const ListDocsInputSchema = z.object({
   pattern: z.string().optional().describe('Glob pattern, e.g., "*.md"'),
   depth: z.number().int().min(1).max(5).default(2).describe('Max directory depth'),
   includeHidden: z.boolean().default(false).describe('Include hidden files'),
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
 });
 
 export type ListDocsInput = z.infer<typeof ListDocsInputSchema>;
@@ -182,7 +186,7 @@ export async function handleListDocs(
   input: ListDocsInput,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { path, pattern, depth = 2, includeHidden = false } = input;
+  const { path, pattern, depth = 2, includeHidden = false, prettyPrint = false } = input;
   const { config } = context;
 
   try {
@@ -244,7 +248,7 @@ export async function handleListDocs(
       content: [
         {
           type: 'text',
-          text: JSON.stringify(output, null, 2),
+          text: JSON.stringify(output, null, prettyPrint ? 2 : undefined),
         },
       ],
     };

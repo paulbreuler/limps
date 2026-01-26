@@ -6,8 +6,9 @@ import { z } from 'zod';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { dirname } from 'path';
 import { validatePath, isProtectedPlanFile } from '../utils/paths.js';
-import { notFound } from '../utils/errors.js';
+import { notFound, permissionDenied, noSpaceError } from '../utils/errors.js';
 import { createBackup } from '../utils/backup.js';
+import { FrontmatterHandler } from '../utils/frontmatter.js';
 import { indexDocument } from '../indexer.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
@@ -25,18 +26,39 @@ export const PatchSchema = z.object({
  */
 export const UpdateDocInputBaseSchema = z.object({
   path: z.string().min(1).describe('Path to existing file'),
-  content: z.string().optional().describe('Full replacement content'),
+  content: z
+    .string()
+    .optional()
+    .describe('Content to write (required for overwrite/append/prepend modes)'),
   patch: PatchSchema.optional().describe('Search/replace patch'),
+  mode: z
+    .enum(['overwrite', 'append', 'prepend'])
+    .default('overwrite')
+    .describe('Write mode: overwrite (default), append, or prepend'),
   createBackup: z.boolean().default(true).describe('Create backup before update'),
   force: z.boolean().default(false).describe('Skip validation warnings'),
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
 });
 
 /**
  * Input schema for update_doc tool (with validation).
  */
 export const UpdateDocInputSchema = UpdateDocInputBaseSchema.refine(
-  (data) => data.content !== undefined || data.patch !== undefined,
-  { message: 'Either content or patch must be provided' }
+  (data) => {
+    // For append/prepend modes, content is required
+    if ((data.mode === 'append' || data.mode === 'prepend') && data.content === undefined) {
+      return false;
+    }
+    // For overwrite mode or patch, either content or patch must be provided
+    return data.content !== undefined || data.patch !== undefined;
+  },
+  {
+    message:
+      'Content is required for append/prepend modes. For overwrite mode, either content or patch must be provided.',
+  }
 );
 
 export type UpdateDocInput = z.infer<typeof UpdateDocInputSchema>;
@@ -111,20 +133,34 @@ export async function handleUpdateDoc(
   input: UpdateDocInput,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { path, content, patch, createBackup: shouldBackup, force } = input;
+  const {
+    path,
+    content,
+    patch,
+    mode = 'overwrite',
+    createBackup: shouldBackup,
+    force,
+    prettyPrint,
+  } = input;
   const repoRoot = getRepoRoot(context.config);
+  const frontmatterHandler = new FrontmatterHandler();
 
   try {
     // Validate path
     const validated = validatePath(path, repoRoot);
 
-    // Check if file exists
-    if (!existsSync(validated.absolute)) {
+    // Check if file exists (required for append/prepend modes)
+    const fileExists = existsSync(validated.absolute);
+    if (!fileExists && (mode === 'append' || mode === 'prepend')) {
+      throw notFound(path);
+    }
+
+    if (!fileExists && mode === 'overwrite' && patch === undefined) {
       throw notFound(path);
     }
 
     // Check if this is a protected plan file
-    if (isProtectedPlanFile(validated.relative) && !force) {
+    if (fileExists && isProtectedPlanFile(validated.relative) && !force) {
       return {
         content: [
           {
@@ -135,7 +171,7 @@ export async function handleUpdateDoc(
                 path: validated.relative,
               },
               null,
-              2
+              prettyPrint ? 2 : undefined
             ),
           },
         ],
@@ -143,37 +179,110 @@ export async function handleUpdateDoc(
       };
     }
 
-    // Read existing content
-    const oldContent = readFileSync(validated.absolute, 'utf-8');
+    // Read existing content if file exists
+    const oldContent = fileExists ? readFileSync(validated.absolute, 'utf-8') : '';
     const hadFrontmatter = hasFrontmatter(oldContent);
 
     // Determine new content
     let newContent: string;
     if (content !== undefined) {
-      // Full replacement
-      newContent = content;
+      if (mode === 'overwrite') {
+        // Full replacement
+        newContent = content;
 
-      // Warn if frontmatter was removed (unless force is true)
-      if (hadFrontmatter && !hasFrontmatter(newContent) && !force) {
+        // Warn if frontmatter was removed (unless force is true)
+        if (hadFrontmatter && !hasFrontmatter(newContent) && !force) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    warning: 'Frontmatter removed - confirm with force: true',
+                    path: validated.relative,
+                  },
+                  null,
+                  prettyPrint ? 2 : undefined
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      } else if (mode === 'append' || mode === 'prepend') {
+        // Append or prepend mode - merge frontmatter and content
+        if (!fileExists) {
+          // File doesn't exist, treat as overwrite
+          newContent = content;
+        } else {
+          // Parse existing note
+          const existingNote = frontmatterHandler.parse(oldContent);
+          const newNote = frontmatterHandler.parse(content);
+
+          // Merge frontmatter
+          const mergedFrontmatter = {
+            ...existingNote.frontmatter,
+            ...newNote.frontmatter,
+          };
+
+          // Combine content based on mode
+          let combinedContent: string;
+          if (mode === 'append') {
+            combinedContent = existingNote.content + newNote.content;
+          } else {
+            // prepend
+            combinedContent = newNote.content + existingNote.content;
+          }
+
+          // Validate merged frontmatter
+          const validation = frontmatterHandler.validate(mergedFrontmatter);
+          if (!validation.isValid) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      error: `Invalid frontmatter after merge: ${validation.errors.join(', ')}`,
+                      path: validated.relative,
+                    },
+                    null,
+                    prettyPrint ? 2 : undefined
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // Stringify with merged frontmatter and combined content
+          newContent = frontmatterHandler.stringify(mergedFrontmatter, combinedContent);
+        }
+      } else {
+        // This should never happen due to schema validation
+        throw new Error(`Invalid mode: ${mode}`);
+      }
+    } else if (patch !== undefined) {
+      // Patch operation (only works with overwrite mode)
+      if (mode !== 'overwrite') {
         return {
           content: [
             {
               type: 'text',
               text: JSON.stringify(
                 {
-                  warning: 'Frontmatter removed - confirm with force: true',
+                  error: 'Patch operations only work with overwrite mode',
                   path: validated.relative,
                 },
                 null,
-                2
+                prettyPrint ? 2 : undefined
               ),
             },
           ],
           isError: true,
         };
       }
-    } else if (patch !== undefined) {
-      // Patch operation
+
       newContent = applyPatch(oldContent, patch);
 
       // Warn if patch had no matches
@@ -189,7 +298,7 @@ export async function handleUpdateDoc(
                   search: patch.search,
                 },
                 null,
-                2
+                prettyPrint ? 2 : undefined
               ),
             },
           ],
@@ -208,8 +317,20 @@ export async function handleUpdateDoc(
       backupPath = backupResult.backupPath;
     }
 
-    // Write new content
-    writeFileSync(validated.absolute, newContent, 'utf-8');
+    // Write new content with error handling
+    try {
+      writeFileSync(validated.absolute, newContent, 'utf-8');
+    } catch (error) {
+      if (error instanceof Error && 'code' in error) {
+        if (error.code === 'EACCES' || error.code === 'EPERM') {
+          throw permissionDenied(validated.relative, undefined, 'write');
+        }
+        if (error.code === 'ENOSPC') {
+          throw noSpaceError(validated.relative);
+        }
+      }
+      throw error;
+    }
 
     // Get file size
     const stats = statSync(validated.absolute);
@@ -233,7 +354,7 @@ export async function handleUpdateDoc(
       content: [
         {
           type: 'text',
-          text: JSON.stringify(output, null, 2),
+          text: JSON.stringify(output, null, prettyPrint ? 2 : undefined),
         },
       ],
     };
@@ -253,7 +374,7 @@ export async function handleUpdateDoc(
               error: error instanceof Error ? error.message : String(error),
             },
             null,
-            2
+            prettyPrint ? 2 : undefined
           ),
         },
       ],

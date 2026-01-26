@@ -399,4 +399,86 @@ describe('update-doc.ts', () => {
       expect(valid.force).toBe(false);
     });
   });
+
+  describe('write modes', () => {
+    it('appends content to existing file', async () => {
+      const filePath = join(TEST_REPO_ROOT, 'addendums', 'test.md');
+      mkdirSync(dirname(filePath), { recursive: true });
+      writeFileSync(filePath, 'Initial content\n', 'utf-8');
+
+      const input = {
+        path: 'addendums/test.md',
+        content: 'Appended content',
+        mode: 'append' as const,
+        createBackup: false,
+      };
+
+      const result = await handleUpdateDoc(input, context);
+      expect(result.isError).toBeUndefined();
+
+      const finalContent = readFileSync(filePath, 'utf-8');
+      expect(finalContent).toContain('Initial content');
+      expect(finalContent).toContain('Appended content');
+    });
+
+    it('prepends content to existing file', async () => {
+      const filePath = join(TEST_REPO_ROOT, 'addendums', 'test.md');
+      mkdirSync(dirname(filePath), { recursive: true });
+      writeFileSync(filePath, 'Original content\n', 'utf-8');
+
+      const input = {
+        path: 'addendums/test.md',
+        content: 'Prepended content\n',
+        mode: 'prepend' as const,
+        createBackup: false,
+      };
+
+      const result = await handleUpdateDoc(input, context);
+      expect(result.isError).toBeUndefined();
+
+      const finalContent = readFileSync(filePath, 'utf-8');
+      expect(finalContent).toContain('Prepended content');
+      expect(finalContent).toContain('Original content');
+      expect(finalContent.indexOf('Prepended')).toBeLessThan(finalContent.indexOf('Original'));
+    });
+
+    it('merges frontmatter when appending', async () => {
+      const filePath = join(TEST_REPO_ROOT, 'addendums', 'test.md');
+      mkdirSync(dirname(filePath), { recursive: true });
+      writeFileSync(
+        filePath,
+        `---
+title: Original
+tags:
+  - tag1
+---
+# Original Content
+`,
+        'utf-8'
+      );
+
+      const input = {
+        path: 'addendums/test.md',
+        content: `---
+title: Updated
+tags:
+  - tag2
+---
+# New Content
+`,
+        mode: 'append' as const,
+        createBackup: false,
+      };
+
+      const result = await handleUpdateDoc(input, context);
+      expect(result.isError).toBeUndefined();
+
+      const finalContent = readFileSync(filePath, 'utf-8');
+      // Frontmatter should be merged (new values override old)
+      expect(finalContent).toContain('title: Updated');
+      // Content should be appended
+      expect(finalContent).toContain('Original Content');
+      expect(finalContent).toContain('New Content');
+    });
+  });
 });

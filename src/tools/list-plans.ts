@@ -13,7 +13,12 @@ import type { ToolContext, ToolResult } from '../types.js';
  * Input schema for list_plans tool.
  * Currently accepts no parameters but schema is extensible.
  */
-export const ListPlansInputSchema = z.object({});
+export const ListPlansInputSchema = z.object({
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
+});
 
 /**
  * Handle list_plans tool request.
@@ -24,9 +29,10 @@ export const ListPlansInputSchema = z.object({});
  * @returns Tool result with plan list or error
  */
 export async function handleListPlans(
-  _input: z.infer<typeof ListPlansInputSchema>,
+  input: z.infer<typeof ListPlansInputSchema>,
   context: ToolContext
 ): Promise<ToolResult> {
+  const { prettyPrint = false } = input;
   const result = getPlansData(context.config);
 
   if ('error' in result) {
@@ -45,7 +51,7 @@ export async function handleListPlans(
     content: [
       {
         type: 'text',
-        text: JSON.stringify(result, null, 2),
+        text: JSON.stringify(result, null, prettyPrint ? 2 : undefined),
       },
     ],
   };

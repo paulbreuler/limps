@@ -32,6 +32,10 @@ export const ProcessDocInputSchema = z.object({
     .max(3)
     .default(1)
     .describe('Maximum recursion depth for sub_query'),
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
 });
 
 export type ProcessDocInput = z.infer<typeof ProcessDocInputSchema>;
@@ -82,7 +86,7 @@ export async function handleProcessDoc(
   input: ProcessDocInput,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { path, code, sub_query, timeout = 5000 } = input;
+  const { path, code, sub_query, timeout = 5000, prettyPrint = false } = input;
   const { config } = context;
 
   try {
@@ -181,7 +185,7 @@ export async function handleProcessDoc(
         content: [
           {
             type: 'text',
-            text: JSON.stringify(output, null, 2),
+            text: JSON.stringify(output, null, prettyPrint ? 2 : undefined),
           },
         ],
       };

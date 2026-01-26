@@ -8,14 +8,21 @@ import { findSimilar } from './suggestions.js';
 
 /**
  * Error codes for document operations.
+ * Includes filesystem error codes (ENOENT, EACCES, etc.) for better error handling.
  */
 export type ErrorCode =
   | 'NOT_FOUND'
+  | 'ENOENT' // File or directory not found (filesystem error code)
   | 'ALREADY_EXISTS'
+  | 'EEXIST' // File already exists (filesystem error code)
   | 'PERMISSION_DENIED'
+  | 'EACCES' // Permission denied (filesystem error code)
   | 'VALIDATION_ERROR'
   | 'RESTRICTED_PATH'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | 'EISDIR' // Is a directory (filesystem error code)
+  | 'ENOTDIR' // Not a directory (filesystem error code)
+  | 'ENOSPC'; // No space left on device (filesystem error code)
 
 /**
  * MCP-compatible error shape for JSON responses.
@@ -77,17 +84,63 @@ export class DocumentError extends Error {
  * Factory: File not found error.
  *
  * @param path - Path to the file that was not found
+ * @param suggestion - Optional custom suggestion
  * @returns DocumentError with NOT_FOUND code
  * @example
  * throw notFound('research/missing.md');
  * // DocumentError: File not found: research/missing.md
  */
-export function notFound(path: string): DocumentError {
+export function notFound(path: string, suggestion?: string): DocumentError {
   return new DocumentError(
     'NOT_FOUND',
-    `File not found: ${path}`,
+    `File not found: ${path}. Use list_directory to see available files, or check the path spelling.`,
     path,
-    'Use create_doc to create a new file, or check that the path is correct.'
+    suggestion || 'Use create_doc to create a new file, or check that the path is correct.'
+  );
+}
+
+/**
+ * Factory: Directory not found error.
+ *
+ * @param path - Path to the directory that was not found
+ * @returns DocumentError with ENOENT code
+ */
+export function directoryNotFound(path: string): DocumentError {
+  return new DocumentError(
+    'ENOENT',
+    `Directory not found: ${path}. Use list_directory with no path or '/' to see root folders.`,
+    path,
+    'Check that the directory path is correct and exists.'
+  );
+}
+
+/**
+ * Factory: Cannot read directory as file error.
+ *
+ * @param path - Path that is a directory, not a file
+ * @returns DocumentError with EISDIR code
+ */
+export function isDirectoryError(path: string): DocumentError {
+  return new DocumentError(
+    'EISDIR',
+    `Cannot read directory as file: ${path}. Use list_directory tool instead.`,
+    path,
+    'Use list_directory to list files in a directory, or read_note to read a file.'
+  );
+}
+
+/**
+ * Factory: Not a directory error.
+ *
+ * @param path - Path that points to a file, not a directory
+ * @returns DocumentError with ENOTDIR code
+ */
+export function notDirectoryError(path: string): DocumentError {
+  return new DocumentError(
+    'ENOTDIR',
+    `Not a directory: ${path}. This path points to a file, not a folder. Use read_note to read files.`,
+    path,
+    'Use read_note to read files, or list_directory to list directory contents.'
   );
 }
 
@@ -114,15 +167,20 @@ export function alreadyExists(path: string): DocumentError {
  *
  * @param path - Path to the file
  * @param reason - Reason for the permission denial
- * @returns DocumentError with PERMISSION_DENIED code
+ * @param operation - Operation that was denied (read, write, delete, etc.)
+ * @returns DocumentError with EACCES code
  * @example
- * throw permissionDenied('config.json', 'File is read-only');
- * // DocumentError: Permission denied for config.json: File is read-only
+ * throw permissionDenied('config.json', 'File is read-only', 'write');
+ * // DocumentError: Permission denied: config.json. The file exists but cannot be written due to filesystem permissions.
  */
-export function permissionDenied(path: string, reason: string): DocumentError {
+export function permissionDenied(path: string, reason?: string, operation?: string): DocumentError {
+  const operationText = operation ? ` (${operation})` : '';
+  const reasonText = reason ? `: ${reason}` : '';
+  const message = `Permission denied${operationText}: ${path}${reasonText}. The file exists but cannot be ${operation || 'accessed'} due to filesystem permissions.`;
+
   return new DocumentError(
-    'PERMISSION_DENIED',
-    `Permission denied for ${path}: ${reason}`,
+    'EACCES',
+    message,
     path,
     'Check file permissions or ensure the file is not locked.'
   );
@@ -157,7 +215,27 @@ export function restrictedPath(path: string): DocumentError {
  * // DocumentError: Validation failed for 'path': must be relative to repo root
  */
 export function validationError(field: string, message: string): DocumentError {
-  return new DocumentError('VALIDATION_ERROR', `Validation failed for '${field}': ${message}`);
+  return new DocumentError(
+    'VALIDATION_ERROR',
+    `Validation failed for '${field}': ${message}`,
+    undefined,
+    'Check the input format and try again.'
+  );
+}
+
+/**
+ * Factory: No space left on device error.
+ *
+ * @param path - Path where write failed
+ * @returns DocumentError with ENOSPC code
+ */
+export function noSpaceError(path: string): DocumentError {
+  return new DocumentError(
+    'ENOSPC',
+    `No space left on device: ${path}`,
+    path,
+    'Free up disk space and try again.'
+  );
 }
 
 /**

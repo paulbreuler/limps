@@ -52,7 +52,7 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   // Get all paths and extensions to index
   const docsPaths = getAllDocsPaths(config);
   const fileExtensions = getFileExtensions(config);
-  const ignorePatterns = ['.git', 'node_modules', '.tmp'];
+  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian'];
 
   // Initial indexing
   const result = await indexAllPaths(db, docsPaths, fileExtensions, ignorePatterns);

@@ -1,22 +1,53 @@
 import { z } from 'zod';
+import { FrontmatterHandler } from '../utils/frontmatter.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
  * Input schema for search_docs tool.
  */
 export const SearchDocsInputSchema = z.object({
-  query: z.string().min(1),
-  limit: z.number().int().positive().max(100).optional().default(20),
+  query: z.string().min(1).describe('Search query text'),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .optional()
+    .default(20)
+    .describe('Maximum number of results'),
+  searchContent: z.boolean().default(true).describe('Search in note content (default: true)'),
+  searchFrontmatter: z.boolean().default(false).describe('Search in frontmatter (default: false)'),
+  caseSensitive: z.boolean().default(false).describe('Case sensitive search (default: false)'),
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
 });
 
 /**
- * Search result interface.
+ * Search result interface with enhanced metadata.
  */
 export interface SearchResult {
-  path: string;
-  title: string;
-  snippet: string;
-  rank: number;
+  /** Path to document (minified: p) */
+  p: string;
+  /** Title (minified: t) */
+  t: string;
+  /** Excerpt with context (minified: ex) */
+  ex: string;
+  /** Match count (minified: mc) */
+  mc: number;
+  /** Line number of first match (minified: ln) */
+  ln: number;
+  /** Full path (for prettyPrint mode) */
+  path?: string;
+  /** Full title (for prettyPrint mode) */
+  title?: string;
+  /** Full excerpt (for prettyPrint mode) */
+  excerpt?: string;
+  /** Full match count (for prettyPrint mode) */
+  matchCount?: number;
+  /** Full line number (for prettyPrint mode) */
+  lineNumber?: number;
 }
 
 /**
@@ -52,46 +83,55 @@ function sanitizeFts5Query(query: string): string {
 }
 
 /**
- * Extract snippet from content with highlighted matches.
- * Uses FTS5 snippet function if available, otherwise simple extraction.
+ * Extract excerpt from content with context around matches.
+ * Returns excerpt with 21 chars context before and after match.
+ *
+ * @param content - Content to search
+ * @param query - Search query
+ * @param caseSensitive - Whether search is case sensitive
+ * @returns Object with excerpt, match count, and line number
  */
-function extractSnippet(content: string, query: string, maxLength = 200): string {
-  // Simple snippet extraction - find first occurrence
-  const queryLower = query.toLowerCase();
+function extractExcerpt(
+  content: string,
+  query: string,
+  caseSensitive: boolean
+): { excerpt: string; matchCount: number; lineNumber: number } {
+  const searchIn = caseSensitive ? content : content.toLowerCase();
+  const searchQuery = caseSensitive ? query : query.toLowerCase();
 
-  // Remove markdown headers from content for snippet extraction (they're shown separately as title)
-  // This prevents double-counting in regex matches
-  const contentWithoutHeaders = content.replace(/^#+\s+.*$/gm, '').trim();
-  const contentWithoutHeadersLower = contentWithoutHeaders.toLowerCase();
-  const index = contentWithoutHeadersLower.indexOf(queryLower);
-
+  const index = searchIn.indexOf(searchQuery);
   if (index === -1) {
-    // No match found, return beginning of content (without headers)
-    return (
-      contentWithoutHeaders.substring(0, maxLength).trim() +
-      (contentWithoutHeaders.length > maxLength ? '...' : '')
-    );
+    // No match found, return beginning of content
+    const excerpt = content.substring(0, 100).trim();
+    return {
+      excerpt: excerpt + (content.length > 100 ? '...' : ''),
+      matchCount: 0,
+      lineNumber: 1,
+    };
   }
 
-  // Extract context around match
-  const start = Math.max(0, index - 50);
-  const end = Math.min(contentWithoutHeaders.length, index + query.length + 50);
-  let snippet = contentWithoutHeaders.substring(start, end);
+  // Extract excerpt around first match (21 chars context)
+  const excerptStart = Math.max(0, index - 21);
+  const excerptEnd = Math.min(content.length, index + searchQuery.length + 21);
+  let excerpt = content.slice(excerptStart, excerptEnd).trim();
 
-  // Highlight match (simple approach - could be improved)
-  snippet = snippet.replace(
-    new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-    (match) => `**${match}**`
-  );
+  // Add ellipsis if excerpt is truncated
+  if (excerptStart > 0) excerpt = '...' + excerpt;
+  if (excerptEnd < content.length) excerpt = excerpt + '...';
 
-  if (start > 0) {
-    snippet = '...' + snippet;
+  // Count total matches
+  let matchCount = 0;
+  let searchIndex = 0;
+  while ((searchIndex = searchIn.indexOf(searchQuery, searchIndex)) !== -1) {
+    matchCount++;
+    searchIndex += searchQuery.length;
   }
-  if (end < contentWithoutHeaders.length) {
-    snippet = snippet + '...';
-  }
 
-  return snippet.trim();
+  // Find line number of first match
+  const lines = content.slice(0, index).split('\n');
+  const lineNumber = lines.length;
+
+  return { excerpt, matchCount, lineNumber };
 }
 
 /**
@@ -106,8 +146,16 @@ export async function handleSearchDocs(
   input: z.infer<typeof SearchDocsInputSchema>,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { query, limit } = input;
+  const {
+    query,
+    limit,
+    searchContent = true,
+    searchFrontmatter = false,
+    caseSensitive = false,
+    prettyPrint = false,
+  } = input;
   const { db } = context;
+  const frontmatterHandler = new FrontmatterHandler();
 
   // Sanitize query
   const sanitizedQuery = sanitizeFts5Query(query);
@@ -233,28 +281,98 @@ export async function handleSearchDocs(
       };
     }
 
-    // Format results with snippets
-    // Results are already limited from line 173, so just map them
-    const searchResults: SearchResult[] = results.map((row) => ({
-      path: row.path,
-      title: row.title,
-      snippet: extractSnippet(row.content, query),
-      rank: row.rank,
-    }));
+    // Process results with enhanced search capabilities
+    const searchResults: SearchResult[] = [];
+    const maxLimit = Math.min(limit, 20);
 
-    // Format output
-    const resultText = searchResults
-      .map((result, index) => {
-        const rankDisplay = Math.abs(result.rank).toFixed(2);
-        return `${index + 1}. **${result.title}** (rank: ${rankDisplay})\n   Path: ${result.path}\n   Snippet: ${result.snippet}\n`;
-      })
-      .join('\n');
+    for (const row of results) {
+      if (searchResults.length >= maxLimit) break;
+
+      // Parse frontmatter
+      const parsed = frontmatterHandler.parse(row.content);
+      let searchableText = '';
+
+      // Prepare search text based on options
+      if (searchContent && searchFrontmatter) {
+        searchableText = row.content;
+      } else if (searchContent) {
+        // Search only content (exclude frontmatter)
+        searchableText = parsed.content;
+      } else if (searchFrontmatter) {
+        // Search only frontmatter
+        searchableText = JSON.stringify(parsed.frontmatter);
+      } else {
+        // Should not happen (schema validation ensures at least one is true)
+        continue;
+      }
+
+      // Perform search with case sensitivity option
+      const searchIn = caseSensitive ? searchableText : searchableText.toLowerCase();
+      const searchQuery = caseSensitive ? query : query.toLowerCase();
+
+      const index = searchIn.indexOf(searchQuery);
+      if (index === -1) {
+        continue; // No match in this document
+      }
+
+      // Extract excerpt, match count, and line number
+      const { excerpt, matchCount, lineNumber } = extractExcerpt(
+        searchableText,
+        query,
+        caseSensitive
+      );
+
+      // Extract title from filename or frontmatter
+      const title =
+        (parsed.frontmatter.title as string) ||
+        row.title ||
+        row.path.split('/').pop()?.replace(/\.md$/, '') ||
+        row.path;
+
+      // Create result with minified field names for token optimization
+      const result: SearchResult = {
+        p: row.path,
+        t: title,
+        ex: excerpt,
+        mc: matchCount,
+        ln: lineNumber,
+      };
+
+      // Add full field names for prettyPrint mode
+      if (prettyPrint) {
+        result.path = row.path;
+        result.title = title;
+        result.excerpt = excerpt;
+        result.matchCount = matchCount;
+        result.lineNumber = lineNumber;
+      }
+
+      searchResults.push(result);
+    }
+
+    if (searchResults.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                message: `No results found for query: "${query}"`,
+                query,
+              },
+              null,
+              prettyPrint ? 2 : undefined
+            ),
+          },
+        ],
+      };
+    }
 
     return {
       content: [
         {
           type: 'text',
-          text: `Found ${searchResults.length} result(s) for query: "${query}"\n\n${resultText}`,
+          text: JSON.stringify(searchResults, null, prettyPrint ? 2 : undefined),
         },
       ],
     };
@@ -307,25 +425,86 @@ export async function handleSearchDocs(
         };
       }
 
-      // Format simple results and apply limit
-      const searchResults: SearchResult[] = simpleResults.slice(0, limit).map((row) => ({
-        path: row.path,
-        title: row.title,
-        snippet: extractSnippet(row.content, query),
-        rank: 0,
-      }));
+      // Process simple results with enhanced search
+      const searchResults: SearchResult[] = [];
+      const maxLimit = Math.min(limit, 20);
 
-      const resultText = searchResults
-        .map((result, index) => {
-          return `${index + 1}. **${result.title}**\n   Path: ${result.path}\n   Snippet: ${result.snippet}\n`;
-        })
-        .join('\n');
+      for (const row of simpleResults) {
+        if (searchResults.length >= maxLimit) break;
+
+        const parsed = frontmatterHandler.parse(row.content);
+        let searchableText = '';
+
+        if (searchContent && searchFrontmatter) {
+          searchableText = row.content;
+        } else if (searchContent) {
+          searchableText = parsed.content;
+        } else if (searchFrontmatter) {
+          searchableText = JSON.stringify(parsed.frontmatter);
+        } else {
+          continue;
+        }
+
+        const searchIn = caseSensitive ? searchableText : searchableText.toLowerCase();
+        const searchQuery = caseSensitive ? query : query.toLowerCase();
+
+        const index = searchIn.indexOf(searchQuery);
+        if (index === -1) continue;
+
+        const { excerpt, matchCount, lineNumber } = extractExcerpt(
+          searchableText,
+          query,
+          caseSensitive
+        );
+
+        const title =
+          (parsed.frontmatter.title as string) ||
+          row.title ||
+          row.path.split('/').pop()?.replace(/\.md$/, '') ||
+          row.path;
+
+        const result: SearchResult = {
+          p: row.path,
+          t: title,
+          ex: excerpt,
+          mc: matchCount,
+          ln: lineNumber,
+        };
+
+        if (prettyPrint) {
+          result.path = row.path;
+          result.title = title;
+          result.excerpt = excerpt;
+          result.matchCount = matchCount;
+          result.lineNumber = lineNumber;
+        }
+
+        searchResults.push(result);
+      }
+
+      if (searchResults.length === 0) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  message: `No results found for query: "${query}"`,
+                  query,
+                },
+                null,
+                prettyPrint ? 2 : undefined
+              ),
+            },
+          ],
+        };
+      }
 
       return {
         content: [
           {
             type: 'text',
-            text: `Found ${searchResults.length} result(s) for query: "${query}"\n\n${resultText}`,
+            text: JSON.stringify(searchResults, null, prettyPrint ? 2 : undefined),
           },
         ],
       };

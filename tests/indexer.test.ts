@@ -158,6 +158,81 @@ dependencies:
     expect(metadata.dependencies).toEqual(['feature-1', 'feature-2']);
   });
 
+  it('should parse Obsidian properties format (tags, aliases)', async () => {
+    const content = `---
+title: Obsidian Note
+tags:
+  - project/mobile
+  - status/in-progress
+aliases:
+  - Mobile Project
+  - App Development
+status: WIP
+created: 2024-01-15
+updated: 2024-01-20
+---
+
+# Obsidian Note
+
+This is an Obsidian note with properties.`;
+    writeFileSync(testFile, content, 'utf-8');
+
+    const metadata = await indexDocument(db!, testFile);
+
+    expect(metadata.title).toBe('Obsidian Note');
+    expect(metadata.status).toBe('WIP');
+    // Frontmatter should be parsed correctly (we can't directly access all fields,
+    // but the document should be indexed without errors)
+    expect(metadata.content).toBe(content);
+  });
+
+  it('should parse complex YAML frontmatter with nested objects', async () => {
+    const content = `---
+title: Complex Document
+metadata:
+  author: John Doe
+  version: 1.0
+  settings:
+    enabled: true
+    count: 42
+tags:
+  - tag1
+  - tag2
+description: |
+  This is a multiline
+  description that spans
+  multiple lines.
+---
+
+# Complex Document
+
+Content here.`;
+    writeFileSync(testFile, content, 'utf-8');
+
+    const metadata = await indexDocument(db!, testFile);
+
+    expect(metadata.title).toBe('Complex Document');
+    // Document should be indexed successfully even with complex YAML
+    expect(metadata.content).toBe(content);
+  });
+
+  it('should handle malformed YAML frontmatter gracefully', async () => {
+    const content = `---
+title: Test
+invalid: [unclosed
+---
+
+# Content`;
+    writeFileSync(testFile, content, 'utf-8');
+
+    // Should not throw - should treat as no frontmatter
+    const metadata = await indexDocument(db!, testFile);
+
+    // Should still index the document (title from H1)
+    expect(metadata.title).toBe('Content');
+    expect(metadata.content).toBe(content);
+  });
+
   it('should extract TOML frontmatter', async () => {
     const content = `+++
 title = "TOML Title"
@@ -507,6 +582,26 @@ describe('index-all-documents', () => {
     expect(row).toBeUndefined();
   });
 
+  it('should ignore .obsidian folder', async () => {
+    // Create .obsidian directory (Obsidian config folder)
+    const obsidianDir = join(testDir, '.obsidian');
+    mkdirSync(obsidianDir, { recursive: true });
+    writeFileSync(join(obsidianDir, 'config.md'), '# Config\n\nObsidian config.', 'utf-8');
+
+    // Create regular file
+    writeFileSync(join(testDir, 'valid.md'), '# Valid\n\nContent.', 'utf-8');
+
+    // Default ignore patterns should include .obsidian
+    const result = await indexAllDocuments(db!, testDir);
+
+    expect(result.indexed).toBe(1);
+
+    // Verify .obsidian file not in database
+    const obsidianPath = join(obsidianDir, 'config.md');
+    const row = db!.prepare('SELECT * FROM documents WHERE path = ?').get(obsidianPath);
+    expect(row).toBeUndefined();
+  });
+
   it('should handle nested directories', async () => {
     const subDir = join(testDir, 'subdir');
     mkdirSync(subDir, { recursive: true });
@@ -627,6 +722,26 @@ describe('index-all-paths', () => {
     // Verify ignored file not in database
     const ignoredPath = join(nodeModules, 'ignored.md');
     const row = db!.prepare('SELECT * FROM documents WHERE path = ?').get(ignoredPath);
+    expect(row).toBeUndefined();
+  });
+
+  it('should ignore .obsidian folder in indexAllPaths', async () => {
+    // Create .obsidian directory
+    const obsidianDir = join(testDir1, '.obsidian');
+    mkdirSync(obsidianDir, { recursive: true });
+    writeFileSync(join(obsidianDir, 'config.md'), '# Config\n\nObsidian config.', 'utf-8');
+
+    // Create regular file
+    writeFileSync(join(testDir1, 'valid.md'), '# Valid\n\nContent.', 'utf-8');
+
+    // Default ignore patterns should include .obsidian
+    const result = await indexAllPaths(db!, [testDir1], ['.md']);
+
+    expect(result.indexed).toBe(1);
+
+    // Verify .obsidian file not in database
+    const obsidianPath = join(obsidianDir, 'config.md');
+    const row = db!.prepare('SELECT * FROM documents WHERE path = ?').get(obsidianPath);
     expect(row).toBeUndefined();
   });
 

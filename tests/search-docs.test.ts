@@ -99,7 +99,7 @@ describe('search-ranking', () => {
     await indexDocument(db, doc1Path);
 
     const doc2Path = join(plansDir, 'low-relevance.md');
-    writeFileSync(doc2Path, '# Low Relevance\n\nThis document mentions the term once.', 'utf-8');
+    writeFileSync(doc2Path, '# Low Relevance\n\nThis document mentions search term once.', 'utf-8');
     await indexDocument(db, doc2Path);
 
     const config = loadConfig(join(testDir, 'config.json'));
@@ -251,5 +251,167 @@ describe('empty-results', () => {
     expect(result.isError).toBeFalsy();
     const resultText = result.content[0].text;
     expect(resultText.toLowerCase()).toContain('no results');
+  });
+});
+
+describe('enhanced-search-features', () => {
+  let dbPath: string;
+  let db: Database.Database | null = null;
+  let testDir: string;
+  let plansDir: string;
+  let context: ToolContext;
+
+  beforeEach(async () => {
+    dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
+    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
+    plansDir = join(testDir, 'plans');
+
+    mkdirSync(plansDir, { recursive: true });
+    db = initializeDatabase(dbPath);
+    createSchema(db);
+
+    // Create test document with frontmatter
+    const docPath = join(plansDir, 'test.md');
+    writeFileSync(
+      docPath,
+      `---
+title: Test Document
+tags:
+  - project
+  - important
+status: WIP
+---
+
+# Content
+
+This document contains machine learning information.
+It also mentions machine learning again.
+`,
+      'utf-8'
+    );
+    await indexDocument(db, docPath);
+
+    const config = loadConfig(join(testDir, 'config.json'));
+    config.plansPath = plansDir;
+
+    context = {
+      db,
+      config,
+    };
+  });
+
+  afterEach(() => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+    if (existsSync(dbPath)) {
+      unlinkSync(dbPath);
+    }
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('searches in frontmatter when searchFrontmatter is true', async () => {
+    const result = await handleSearchDocs(
+      {
+        query: 'WIP',
+        searchContent: false,
+        searchFrontmatter: true,
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const results = JSON.parse(result.content[0].text);
+    expect(Array.isArray(results)).toBe(true);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].p || results[0].path).toContain('test.md');
+  });
+
+  it('returns excerpts with context', async () => {
+    const result = await handleSearchDocs(
+      {
+        query: 'machine learning',
+        searchContent: true,
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const results = JSON.parse(result.content[0].text);
+    expect(results[0].ex || results[0].excerpt).toContain('machine learning');
+    // Excerpt should have context around match
+    expect((results[0].ex || results[0].excerpt).length).toBeGreaterThan('machine learning'.length);
+  });
+
+  it('returns match count', async () => {
+    const result = await handleSearchDocs(
+      {
+        query: 'machine learning',
+        searchContent: true,
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const results = JSON.parse(result.content[0].text);
+    // Document has "machine learning" twice
+    expect(results[0].mc || results[0].matchCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('returns line number of first match', async () => {
+    const result = await handleSearchDocs(
+      {
+        query: 'machine learning',
+        searchContent: true,
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const results = JSON.parse(result.content[0].text);
+    expect(results[0].ln || results[0].lineNumber).toBeGreaterThan(0);
+  });
+
+  it('uses minified field names when prettyPrint is false', async () => {
+    const result = await handleSearchDocs(
+      {
+        query: 'machine',
+        searchContent: true,
+        prettyPrint: false,
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const results = JSON.parse(result.content[0].text);
+    // Should have minified field names
+    expect(results[0].p).toBeDefined(); // path
+    expect(results[0].t).toBeDefined(); // title
+    expect(results[0].ex).toBeDefined(); // excerpt
+    expect(results[0].mc).toBeDefined(); // matchCount
+    expect(results[0].ln).toBeDefined(); // lineNumber
+  });
+
+  it('uses full field names when prettyPrint is true', async () => {
+    const result = await handleSearchDocs(
+      {
+        query: 'machine',
+        searchContent: true,
+        prettyPrint: true,
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const results = JSON.parse(result.content[0].text);
+    // Should have both minified and full field names
+    expect(results[0].path).toBeDefined();
+    expect(results[0].title).toBeDefined();
+    expect(results[0].excerpt).toBeDefined();
+    expect(results[0].matchCount).toBeDefined();
+    expect(results[0].lineNumber).toBeDefined();
   });
 });

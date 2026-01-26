@@ -12,6 +12,10 @@ import type { ToolContext, ToolResult } from '../types.js';
  */
 export const GetNextTaskInputSchema = z.object({
   planId: z.string().describe('Plan number or name to search within (e.g., "4" or "0004-feature")'),
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
 });
 
 /**
@@ -37,7 +41,7 @@ export async function handleGetNextTask(
   input: z.infer<typeof GetNextTaskInputSchema>,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { planId } = input;
+  const { planId, prettyPrint = false } = input;
 
   const result = await getNextTaskData(context.config, planId);
 
@@ -52,7 +56,7 @@ export async function handleGetNextTask(
               message: result.error,
             },
             null,
-            2
+            prettyPrint ? 2 : undefined
           ),
         },
       ],
@@ -78,7 +82,7 @@ export async function handleGetNextTask(
             otherAvailableTasks,
           },
           null,
-          2
+          prettyPrint ? 2 : undefined
         ),
       },
     ],

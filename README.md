@@ -1,6 +1,6 @@
 # limps
 
-**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver - AI agent plan management.
+**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver - limps your Local Intelligent MCP Planning Server across AI assistants. No subscriptions, no cloud—run it locally. Version control your planning docs in git. No more context drift—one shared source of truth for planning docs, tasks, and decisions across Claude Desktop, Cursor, GitHub Copilot, and any MCP tool.
 
 [![npm](https://img.shields.io/npm/v/@sudosandwich/limps)](https://www.npmjs.com/package/@sudosandwich/limps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

@@ -5,6 +5,7 @@
 
 import { resolve, dirname, basename, extname, isAbsolute, relative } from 'path';
 import { restrictedPath, validationError } from './errors.js';
+import { PathFilter } from './pathfilter.js';
 
 /**
  * Document type based on file extension.
@@ -140,13 +141,33 @@ function normalizePath(path: string): string {
   return normalized;
 }
 
+// Create PathFilter instance for path validation
+const pathFilter = new PathFilter({
+  ignoredPatterns: [
+    '.obsidian/**',
+    '.git/**',
+    'node_modules/**',
+    '.DS_Store',
+    'Thumbs.db',
+    ...RESTRICTED_PATHS.map((p) => `**/${p}/**`),
+  ],
+  allowedExtensions: ['.md', '.markdown', '.txt', '.jsx', '.tsx', '.ts', '.json', '.yaml', '.yml'],
+});
+
 /**
  * Check if path matches any restricted patterns.
+ * Uses PathFilter for consistent filtering.
  */
 function isRestrictedPath(relativePath: string): boolean {
   const normalized = normalizePath(relativePath);
-  const parts = normalized.split('/');
 
+  // Use PathFilter to check if path is allowed
+  if (!pathFilter.isAllowed(normalized)) {
+    return true;
+  }
+
+  // Also check legacy restricted paths for backward compatibility
+  const parts = normalized.split('/');
   for (const part of parts) {
     // Check exact matches
     if (RESTRICTED_PATHS.includes(part)) {

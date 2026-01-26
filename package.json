@@ -59,6 +59,7 @@
     "pastel": "^4.0.0",
     "quickjs-emscripten": "^0.31.0",
     "react": "^19.2.3",
+    "gray-matter": "^4.0.3",
     "remove-markdown": "^0.6.3",
     "update-notifier": "^7.3.1",
     "which": "^6.0.0",
