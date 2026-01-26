@@ -1,0 +1,6 @@
+{
+  "plansPath": "./plans",
+  "dataPath": "./data",
+  "coordinationPath": "./coordination.json",
+  "heartbeatTimeout": 300000
+}
