@@ -39,7 +39,6 @@ describe('next-task', () => {
     const frontmatter: AgentFrontmatter = {
       status: 'GAP',
       persona: 'coder',
-      claimedBy: null,
       dependencies: [],
       blocks: [],
       files: [],
@@ -75,7 +74,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: ['001'],
           blocks: [],
           files: [],
@@ -87,7 +85,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'PASS',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -105,7 +102,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: ['001'],
           blocks: [],
           files: [],
@@ -117,7 +113,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -171,7 +166,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: ['src/a.ts'],
@@ -188,7 +182,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'],
@@ -216,7 +209,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'WIP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -235,7 +227,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: ['001'],
           blocks: [],
           files: [],
@@ -247,7 +238,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -268,7 +258,6 @@ describe('next-task', () => {
         frontmatter: {
           status: 'WIP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -307,7 +296,6 @@ describe('next-task', () => {
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -324,7 +312,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -354,7 +341,6 @@ files: []
         `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -380,7 +366,6 @@ files: []
         `---
 status: WIP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []

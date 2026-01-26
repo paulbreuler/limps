@@ -73,7 +73,6 @@ describe('list-agents', () => {
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files:
@@ -92,7 +91,6 @@ Description here.
         `---
 status: WIP
 persona: reviewer
-claimedBy: agent-1
 dependencies:
   - "000"
 blocks: []
@@ -137,7 +135,6 @@ Another description.
         `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -153,7 +150,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -169,7 +165,6 @@ files: []
         `---
 status: GAP
 persona: reviewer
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -214,7 +209,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -230,7 +224,6 @@ files: []
         `---
 status: WIP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -257,7 +250,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies:
   - "001"
   - "002"

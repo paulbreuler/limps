@@ -43,7 +43,6 @@ function createAgentFile(
   const frontmatter = `---
 status: ${status}
 persona: ${persona}
-claimedBy: null
 dependencies: [${dependencies.map((d) => `"${d}"`).join(', ')}]
 blocks: []
 files: [${files.map((f) => `"${f}"`).join(', ')}]

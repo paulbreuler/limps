@@ -47,7 +47,6 @@ describe('agent-status', () => {
       const agentContent = `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files:
@@ -85,7 +84,6 @@ Status: \`GAP\`
       const agentContent = `---
 status: WIP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -127,7 +125,6 @@ Status: \`BLOCKED\`
       const agentContent = `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files:
@@ -158,7 +155,6 @@ files:
       const dep000Content = `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: ["001"]
 files: []
@@ -171,7 +167,6 @@ files: []
       const agentContent = `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: ["000"]
 blocks: []
 files: []

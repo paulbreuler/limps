@@ -11,7 +11,6 @@ function createMockAgent(overrides: Partial<ParsedAgentFile> = {}): ParsedAgentF
   const frontmatter: AgentFrontmatter = {
     status: 'GAP',
     persona: 'coder',
-    claimedBy: null,
     dependencies: [],
     blocks: [],
     files: [],
@@ -67,7 +66,6 @@ describe('AgentsList', () => {
         frontmatter: {
           status: 'WIP',
           persona: 'reviewer',
-          claimedBy: null,
           dependencies: ['001'],
           blocks: [],
           files: ['file1.ts', 'file2.ts'],
@@ -101,7 +99,6 @@ describe('AgentsList', () => {
         frontmatter: {
           status: 'GAP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -112,7 +109,6 @@ describe('AgentsList', () => {
         frontmatter: {
           status: 'WIP',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -123,7 +119,6 @@ describe('AgentsList', () => {
         frontmatter: {
           status: 'PASS',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
@@ -134,7 +129,6 @@ describe('AgentsList', () => {
         frontmatter: {
           status: 'BLOCKED',
           persona: 'coder',
-          claimedBy: null,
           dependencies: [],
           blocks: [],
           files: [],
