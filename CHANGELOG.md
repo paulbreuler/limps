@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/paulbreuler/limps/compare/v1.1.1...v2.0.0) (2026-01-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove coordination system (v2.0.0) ([#10](https://github.com/paulbreuler/limps/issues/10))
+
+### Code Refactoring
+
+* remove coordination system (v2.0.0) ([#10](https://github.com/paulbreuler/limps/issues/10)) ([cf188b3](https://github.com/paulbreuler/limps/commit/cf188b32cffaba77c87d7a48bf8d3c8576e6dda7))
+
 ## [1.1.1](https://github.com/paulbreuler/limps/compare/v1.1.0...v1.1.1) (2026-01-25)
 
 
