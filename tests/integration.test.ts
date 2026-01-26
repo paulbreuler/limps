@@ -40,7 +40,6 @@ describe('integration-tests', () => {
     config = {
       plansPath: plansDir,
       dataPath: join(testDir, 'data'),
-      coordinationPath,
     };
   });
 
@@ -62,7 +61,7 @@ describe('integration-tests', () => {
   });
 
   it('should list resources via MCP protocol', async () => {
-    const server = createServer(config, db!, coordination);
+    const server = createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -91,7 +90,7 @@ describe('integration-tests', () => {
   });
 
   it('should handle resource requests via MCP protocol', async () => {
-    const server = createServer(config, db!, coordination);
+    const server = createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -103,7 +102,7 @@ describe('integration-tests', () => {
   });
 
   it('should initialize server with all resources registered', async () => {
-    const server = createServer(config, db!, coordination);
+    const server = createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -112,7 +111,6 @@ describe('integration-tests', () => {
     const resourceContext = (server as any).resourceContext;
     expect(resourceContext).toBeDefined();
     expect(resourceContext.db).toBe(db);
-    expect(resourceContext.coordination).toBe(coordination);
 
     await server.close();
   });

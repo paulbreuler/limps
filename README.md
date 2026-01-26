@@ -1,6 +1,6 @@
 # limps
 
-**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver - AI agent plan management and coordination.
+**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver - AI agent plan management.
 
 [![npm](https://img.shields.io/npm/v/@sudosandwich/limps)](https://www.npmjs.com/package/@sudosandwich/limps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -17,7 +17,7 @@
 
 limps solves this by providing a **standardized MCP interface** that any MCP-compatible tool can access. Your planning documents, tasks, and decisions live in one place, accessible to:
 
-- **Claude Desktop** — Full access to search, read, update, create documents, claim tasks, and more
+- **Claude Desktop** — Full access to search, read, update, create documents, and more
 - **Cursor** — Integrated planning and task management via MCP tools
 - **GitHub Copilot** — When MCP support is enabled
 - **Any MCP-compatible tool** — Standard protocol means universal access
@@ -29,13 +29,11 @@ limps solves this by providing a **standardized MCP interface** that any MCP-com
 
 ## Used In Production
 
-limps is actively used to build [runi](https://github.com/paulbreuler/runi) - managing planning documents, agent coordination, and task tracking across the development lifecycle.
+limps is actively used to build [runi](https://github.com/paulbreuler/runi) - managing planning documents and task tracking across the development lifecycle.
 
 ### How runi Uses limps
 
 The [runi](https://github.com/paulbreuler/runi) project uses a separate git repository ([runi-planning-docs](https://github.com/paulbreuler/runi-planning-docs)) for version-controlled planning documents. Custom Cursor commands in `.cursor/commands/` integrate with limps tools:
-
-
 
 **Core Commands:**
 
@@ -43,8 +41,8 @@ The [runi](https://github.com/paulbreuler/runi) project uses a separate git repo
 |---------|-------------|----------------|
 | `/create-feature-plan` | Generate TDD plan with docs and agent files | `create_plan`, `create_doc`, `list_docs` |
 | `/list-feature-plans` | List all plans with clickable file paths | `list_docs`, `process_doc` |
-| `/run-agent` | Start work on next agent task | `process_doc`, `claim_task` |
-| `/close-feature-agent` | Verify completion, sync status | `process_doc`, `update_doc`, `release_task` |
+| `/run-agent` | Start work on next agent task | `process_doc`, `update_task_status` |
+| `/close-feature-agent` | Verify completion, sync status | `process_doc`, `update_doc`, `update_task_status` |
 | `/update-feature-plan` | Regenerate agents from updated plan | `process_doc`, `create_doc`, `process_docs` |
 | `/plan-list-agents` | Show all agents with status | `list_docs`, `process_docs` |
 
@@ -204,15 +202,6 @@ The server automatically finds configuration at OS-specific locations:
 | Linux | `~/.config/limps/config.json` |
 | Windows | `%APPDATA%\limps\config.json` |
 
-### From Source
-
-```bash
-git clone https://github.com/paulbreuler/limps.git
-cd limps
-npm install
-npm run build
-```
-
 ## Configuration
 
 Create a `config.json` at the OS-specific location or specify a path:
@@ -222,11 +211,7 @@ Create a `config.json` at the OS-specific location or specify a path:
   "plansPath": "~/Documents/my-plans",
   "docsPaths": ["~/Documents/my-plans"],
   "fileExtensions": [".md"],
-  "dataPath": "~/Library/Application Support/limps/data",
-  "coordinationPath": "~/Library/Application Support/limps/coordination.json",
-  "heartbeatTimeout": 300000,
-  "debounceDelay": 200,
-  "maxHandoffIterations": 3
+  "dataPath": "~/Library/Application Support/limps/data"
 }
 ```
 
@@ -250,10 +235,6 @@ The server finds configuration in this order:
 | `docsPaths` | string[] | `[]` | Additional directories to index |
 | `fileExtensions` | string[] | `[".md"]` | File types to index |
 | `dataPath` | string | `./data` | SQLite database location |
-| `coordinationPath` | string | `./coordination.json` | Multi-agent coordination state file |
-| `heartbeatTimeout` | number | `300000` | Agent heartbeat timeout (5 min) |
-| `debounceDelay` | number | `200` | File watcher debounce (ms) |
-| `maxHandoffIterations` | number | `3` | Max agent handoff iterations |
 
 ### Path Options
 
@@ -261,24 +242,14 @@ The server finds configuration in this order:
 - **Absolute paths**: `/Users/john/Documents/plans`
 - **Relative paths**: `./plans` (relative to config file location)
 
-## Cursor Setup
+## MCP Client Setup
 
-> **Important:** MCP clients must use the `serve` subcommand to start the MCP server. Without `serve`, the CLI shows help text instead of starting the server.
+> **Important:** MCP clients must use the `serve` subcommand. Run `limps init my-project` first to generate a config.
 
-Add to Cursor settings (`Cmd+Shift+P` → "Preferences: Open User Settings (JSON)"):
+### Cursor
 
-```json
-{
-  "mcp.servers": {
-    "limps": {
-      "command": "limps",
-      "args": ["serve"]
-    }
-  }
-}
-```
+Add to settings (`Cmd+Shift+P` → "Preferences: Open User Settings (JSON)"):
 
-With explicit config:
 ```json
 {
   "mcp.servers": {
@@ -290,24 +261,12 @@ With explicit config:
 }
 ```
 
-## Claude Desktop Setup
+### Claude Desktop
 
-Claude Desktop runs in a macOS sandbox and cannot access global npm binaries. Use `npx` instead.
+Claude Desktop runs in a macOS sandbox—use `npx` instead of global binaries.
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-```json
-{
-  "mcpServers": {
-    "limps": {
-      "command": "npx",
-      "args": ["-y", "@sudosandwich/limps", "serve"]
-    }
-  }
-}
-```
-
-With explicit config:
 ```json
 {
   "mcpServers": {
@@ -319,11 +278,9 @@ With explicit config:
 }
 ```
 
-> **Note:** Run `limps init my-project` first to generate a config, then use the full path above.
-
 ## Features
 
-### MCP Tools (16 Tools)
+### MCP Tools (14 Tools)
 
 #### Document Operations
 
@@ -347,13 +304,11 @@ With explicit config:
 | `list_agents` | List agents for a plan with status, persona, and file counts |
 | `get_plan_status` | Get plan progress with completion %, blocked/WIP agents |
 
-#### Task Coordination
+#### Task Management
 
 | Tool | Description |
 |------|-------------|
 | `get_next_task` | Get highest-priority task with detailed score breakdown |
-| `claim_task` | Claim tasks with file locks |
-| `release_task` | Release tasks and locks |
 | `update_task_status` | Update task status (GAP → WIP → PASS/BLOCKED) |
 
 #### Task Scoring Algorithm
@@ -401,9 +356,11 @@ Implements the [RLM pattern from MIT CSAIL](https://arxiv.org/abs/2512.24601) fo
 ## Development
 
 ```bash
+git clone https://github.com/paulbreuler/limps.git
+cd limps
 npm install       # Install dependencies
-npm test          # Run tests
 npm run build     # Build TypeScript
+npm test          # Run tests
 npm run dev       # Watch mode
 npm run lint      # ESLint check
 npm run format    # Prettier format
@@ -431,7 +388,6 @@ GitHub Actions automatically builds, tests, and creates releases with changelogs
 
 - Full-text search with auto-indexing
 - Real-time file watching (Chokidar)
-- Multi-agent coordination with heartbeats
 - RLM sandbox (QuickJS)
 
 ### Principles
@@ -444,23 +400,7 @@ GitHub Actions automatically builds, tests, and creates releases with changelogs
 
 ## Adapting for Other Uses
 
-The server is designed for planning documents but the core is generic:
-
-**Configuration-only:**
-
-```json
-{
-  "plansPath": "./your-docs",
-  "docsPaths": ["./content", "./docs"],
-  "fileExtensions": [".md", ".txt", ".rst"]
-}
-```
-
-**For different domains** (wikis, knowledge bases):
-
-- Replace/remove planning-specific tools
-- Customize document extractors in `src/rlm/extractors.ts`
-- Modify coordination patterns or remove if single-agent
+The server is designed for planning documents but the core is generic. For wikis or knowledge bases: configure `plansPath`/`docsPaths`/`fileExtensions` to point at your content, and optionally customize extractors in `src/rlm/extractors.ts`.
 
 ## What is MCP?
 

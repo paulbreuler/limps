@@ -57,7 +57,6 @@ describe('open-document-in-cursor', () => {
     config.plansPath = join(repoRoot, 'plans');
     config.docsPaths = [repoRoot];
 
-
     context = {
       db,
       config,

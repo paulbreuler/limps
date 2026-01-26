@@ -28,7 +28,6 @@ describe('list-docs', () => {
     config.plansPath = join(repoRoot, 'plans');
     config.docsPaths = [repoRoot];
 
-
     context = {
       db,
       config,

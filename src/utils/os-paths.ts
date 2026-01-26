@@ -64,4 +64,3 @@ export function getOSDataPath(appName: string = DEFAULT_APP_NAME): string {
       return join(process.env.XDG_DATA_HOME || join(home, '.local', 'share'), appName, 'data');
   }
 }
-

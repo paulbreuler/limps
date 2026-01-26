@@ -27,7 +27,6 @@ describe('return-plan-index', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -107,7 +106,6 @@ describe('include-status-summary', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -174,7 +172,6 @@ describe('sort-by-plan-number', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,

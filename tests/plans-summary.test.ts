@@ -27,7 +27,6 @@ describe('return-plan-summary', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -94,7 +93,6 @@ describe('include-task-breakdown', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -156,7 +154,6 @@ describe('handle-missing-plan', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,
@@ -248,7 +245,6 @@ describe('extract-dependencies', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,
@@ -370,7 +366,6 @@ describe('extract-description', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -470,7 +465,6 @@ describe('task-counts', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,

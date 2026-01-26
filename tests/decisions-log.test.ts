@@ -27,7 +27,6 @@ describe('return-decisions-log', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -86,7 +85,6 @@ describe('extract-decisions', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,
@@ -149,7 +147,6 @@ describe('filter-by-date-range', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,

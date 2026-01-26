@@ -33,7 +33,6 @@ describe('tool-registration-context', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
     };
 
     toolContext = {
@@ -84,7 +83,6 @@ describe('tool-registration-tools-list', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
     };
 
     toolContext = {
@@ -163,7 +161,6 @@ describe('tool-registration-names', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
     };
 
     toolContext = {
@@ -221,7 +218,6 @@ describe('tool-registration-no-duplicate', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
     };
 
     toolContext = {

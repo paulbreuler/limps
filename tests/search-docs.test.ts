@@ -44,7 +44,6 @@ describe('search-query', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -106,7 +105,6 @@ describe('search-ranking', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -167,7 +165,6 @@ describe('limit-results', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -225,7 +222,6 @@ describe('empty-results', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,

@@ -35,7 +35,6 @@ describe('create-plan-valid', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -89,7 +88,6 @@ describe('next-plan-number', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,
@@ -146,7 +144,6 @@ describe('reject-duplicate', () => {
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,
@@ -207,7 +204,6 @@ Description: {{DESCRIPTION}}
 
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
-
 
     context = {
       db,

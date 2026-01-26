@@ -3,7 +3,12 @@
  * Extracted from index.ts for use by CLI commands.
  */
 
-import { loadConfig, getAllDocsPaths, getFileExtensions, DEFAULT_DEBOUNCE_DELAY } from './config.js';
+import {
+  loadConfig,
+  getAllDocsPaths,
+  getFileExtensions,
+  DEFAULT_DEBOUNCE_DELAY,
+} from './config.js';
 import { createServer, startServer } from './server.js';
 import { resolve } from 'path';
 import { mkdirSync } from 'fs';

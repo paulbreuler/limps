@@ -125,7 +125,7 @@ export function AgentStatus({ summary }: Props): React.ReactNode {
           <Box flexDirection="column" marginLeft={2}>
             {summary.files.map((file, i) => (
               <Box key={i}>
-                <Text color="gray">  {file}</Text>
+                <Text color="gray"> {file}</Text>
               </Box>
             ))}
           </Box>

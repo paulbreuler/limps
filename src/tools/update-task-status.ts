@@ -115,11 +115,7 @@ function parseTaskId(taskId: string): { planId: string; featureNumber: number } 
 /**
  * Find document path for a plan.
  */
-function findPlanDocument(
-  db: DatabaseType,
-  plansPath: string,
-  planId: string
-): string | null {
+function findPlanDocument(db: DatabaseType, plansPath: string, planId: string): string | null {
   // Query database for plan documents
   // Match planId in path (could be "0001-plan-name" or just "0001")
   const plans = db

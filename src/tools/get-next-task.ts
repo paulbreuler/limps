@@ -11,9 +11,7 @@ import type { ToolContext, ToolResult } from '../types.js';
  * - Workload Score: 30 points max (based on file count)
  */
 export const GetNextTaskInputSchema = z.object({
-  planId: z
-    .string()
-    .describe('Plan number or name to search within (e.g., "4" or "0004-feature")'),
+  planId: z.string().describe('Plan number or name to search within (e.g., "4" or "0004-feature")'),
 });
 
 /**

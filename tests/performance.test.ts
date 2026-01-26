@@ -82,7 +82,6 @@ describe('performance-search', () => {
     const config = loadConfig(join(testDir, 'config.json'));
     config.plansPath = plansDir;
 
-
     context = {
       db,
       config,
@@ -113,52 +112,4 @@ describe('performance-search', () => {
   });
 });
 
-describe('performance-coordination', () => {
-  let testDir: string;
-
-  beforeEach(() => {
-    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-  });
-
-  afterEach(() => {
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-  });
-
-    // Create initial coordination state by reading (which creates it)
-
-    const startTime = Date.now();
-    const duration = Date.now() - startTime;
-
-    expect(duration).toBeLessThan(10); // < 10ms
-  });
-
-    // Read current state first to get version
-
-    const state = {
-      version: currentState.version,
-      agents: {
-        'agent-1': {
-          id: 'agent-1',
-          status: 'active',
-          lastHeartbeat: Date.now(),
-          currentTask: 'task-1',
-        },
-      },
-      tasks: {
-        'task-1': {
-          status: 'WIP',
-          claimedBy: 'agent-1',
-          dependencies: [],
-        },
-      },
-      fileLocks: {},
-    };
-
-    const startTime = Date.now();
-    const duration = Date.now() - startTime;
-
-    expect(duration).toBeLessThan(10); // < 10ms
-  });
-});
+// Note: performance-coordination tests removed - coordination system was deprecated in v2
