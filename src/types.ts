@@ -1,5 +1,4 @@
 import type { Database as DatabaseType } from 'better-sqlite3';
-import type { CoordinationState } from './coordination.js';
 import type { ServerConfig } from './config.js';
 
 /**
@@ -7,7 +6,6 @@ import type { ServerConfig } from './config.js';
  */
 export interface ToolContext {
   db: DatabaseType;
-  coordination: CoordinationState;
   config: ServerConfig;
 }
 
@@ -16,7 +14,6 @@ export interface ToolContext {
  */
 export interface ResourceContext {
   db: DatabaseType;
-  coordination: CoordinationState;
   config: ServerConfig;
 }
 

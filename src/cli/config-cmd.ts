@@ -15,6 +15,38 @@ import {
 import { loadConfig } from '../config.js';
 
 /**
+ * Project data for JSON output.
+ */
+export interface ProjectsData {
+  projects: {
+    name: string;
+    configPath: string;
+    current: boolean;
+    exists: boolean;
+  }[];
+  total: number;
+}
+
+/**
+ * Get projects data for JSON output.
+ *
+ * @returns Projects data object
+ */
+export function getProjectsData(): ProjectsData {
+  const projects = listProjects();
+
+  return {
+    projects: projects.map((p) => ({
+      name: p.name,
+      configPath: p.configPath,
+      current: p.current,
+      exists: existsSync(p.configPath),
+    })),
+    total: projects.length,
+  };
+}
+
+/**
  * List all registered projects.
  *
  * @returns Formatted list of projects
@@ -53,6 +85,46 @@ export function configUse(name: string): string {
 }
 
 /**
+ * Configuration data for JSON output.
+ */
+export interface ConfigData {
+  configPath: string;
+  config: {
+    plansPath: string;
+    dataPath: string;
+    docsPaths?: string[];
+    fileExtensions?: string[];
+  };
+}
+
+/**
+ * Get configuration data for JSON output.
+ *
+ * @param resolveConfigPathFn - Function to resolve config path (injected to avoid circular deps)
+ * @returns Configuration data object
+ * @throws Error if config file not found
+ */
+export function getConfigData(resolveConfigPathFn: () => string): ConfigData {
+  const configPath = resolveConfigPathFn();
+
+  if (!existsSync(configPath)) {
+    throw new Error(`Config file not found: ${configPath}`);
+  }
+
+  const config = loadConfig(configPath);
+
+  return {
+    configPath,
+    config: {
+      plansPath: config.plansPath,
+      dataPath: config.dataPath,
+      docsPaths: config.docsPaths,
+      fileExtensions: config.fileExtensions,
+    },
+  };
+}
+
+/**
  * Show the resolved configuration values.
  *
  * @param resolveConfigPathFn - Function to resolve config path (injected to avoid circular deps)
@@ -73,7 +145,6 @@ export function configShow(resolveConfigPathFn: () => string): string {
   lines.push('Configuration:');
   lines.push(`  plansPath:          ${config.plansPath}`);
   lines.push(`  dataPath:           ${config.dataPath}`);
-  lines.push(`  coordinationPath:   ${config.coordinationPath}`);
 
   if (config.docsPaths && config.docsPaths.length > 0) {
     lines.push(`  docsPaths:`);
@@ -85,10 +156,6 @@ export function configShow(resolveConfigPathFn: () => string): string {
   if (config.fileExtensions) {
     lines.push(`  fileExtensions:     ${config.fileExtensions.join(', ')}`);
   }
-
-  lines.push(`  heartbeatTimeout:   ${config.heartbeatTimeout}ms`);
-  lines.push(`  debounceDelay:      ${config.debounceDelay}ms`);
-  lines.push(`  maxHandoffIterations: ${config.maxHandoffIterations}`);
 
   return lines.join('\n');
 }

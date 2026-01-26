@@ -1,11 +1,23 @@
-import { Text } from 'ink';
+import { Box, Text } from 'ink';
+import { useState, useEffect } from 'react';
 import { getPackageVersion } from '../utils/version.js';
+import { shouldShowWhatsNew } from '../utils/version-state.js';
+import { WhatsNew } from '../components/WhatsNew.js';
 
 export const description = 'Local Intelligent MCP Planning Server';
 
 export default function DefaultCommand(): React.ReactNode {
   const version = getPackageVersion();
-  return (
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+
+  useEffect(() => {
+    // Check if we should show What's New on mount
+    if (shouldShowWhatsNew(version)) {
+      setShowWhatsNew(true);
+    }
+  }, [version]);
+
+  const defaultContent = (
     <Text>
       <Text color="cyan" bold>
         limps
@@ -29,4 +41,15 @@ export default function DefaultCommand(): React.ReactNode {
       Run <Text color="green">limps {'<command>'} --help</Text> for full documentation.
     </Text>
   );
+
+  if (showWhatsNew) {
+    return (
+      <Box flexDirection="column">
+        <WhatsNew version={version} onDismiss={() => setShowWhatsNew(false)} />
+        {defaultContent}
+      </Box>
+    );
+  }
+
+  return defaultContent;
 }

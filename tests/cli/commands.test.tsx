@@ -32,7 +32,7 @@ describe('Pastel CLI Commands', () => {
     it('renders empty state when no projects registered', async () => {
       const { default: ConfigListCommand } = await import('../../src/commands/config/list.js');
 
-      const { lastFrame } = render(<ConfigListCommand />);
+      const { lastFrame } = render(<ConfigListCommand options={{}} />);
 
       expect(lastFrame()).toContain('No projects registered');
     });
@@ -44,7 +44,7 @@ describe('Pastel CLI Commands', () => {
 
       const { default: ConfigListCommand } = await import('../../src/commands/config/list.js');
 
-      const { lastFrame } = render(<ConfigListCommand />);
+      const { lastFrame } = render(<ConfigListCommand options={{}} />);
 
       expect(lastFrame()).toContain('test-project');
       expect(lastFrame()).toContain('/path/to/config.json');
@@ -83,10 +83,6 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: '/plans',
           dataPath: '/data',
-          coordinationPath: '/coord.json',
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         })
       );
 
@@ -119,10 +115,6 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: plansDir,
           dataPath: join(testDir, 'data'),
-          coordinationPath: join(testDir, 'coordination.json'),
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         })
       );
 
@@ -149,10 +141,6 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: plansDir,
           dataPath: join(testDir, 'data'),
-          coordinationPath: join(testDir, 'coordination.json'),
-          heartbeatTimeout: 300000,
-          debounceDelay: 200,
-          maxHandoffIterations: 3,
         })
       );
 

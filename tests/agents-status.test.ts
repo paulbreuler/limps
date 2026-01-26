@@ -4,39 +4,31 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination, writeCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { handleAgentsStatus } from '../src/resources/agents-status.js';
 import type { ResourceContext } from '../src/types.js';
-import type { CoordinationState } from '../src/coordination.js';
 
-describe('return-agents-status', () => {
+describe('agents-status', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ResourceContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
-
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -54,33 +46,7 @@ describe('return-agents-status', () => {
     }
   });
 
-  it('should return agents status with structure', async () => {
-    // Create coordination state with agents
-    const coordination: CoordinationState = {
-      version: 1,
-      agents: {
-        'agent-1': {
-          status: 'idle',
-          persona: 'coder',
-          filesLocked: [],
-          heartbeat: new Date().toISOString(),
-        },
-        'agent-2': {
-          status: 'WIP',
-          persona: 'reviewer',
-          taskId: 'task-1',
-          filesLocked: ['file1.ts'],
-          heartbeat: new Date().toISOString(),
-        },
-      },
-      tasks: {},
-      fileLocks: {},
-      handoffs: {},
-    };
-
-    await writeCoordination(coordinationPath, coordination, 1);
-    context.coordination = await readCoordination(coordinationPath);
-
+  it('should return empty agents status (coordination removed)', async () => {
     const result = await handleAgentsStatus('agents://status', context);
 
     expect(result.contents).toHaveLength(1);
@@ -91,181 +57,9 @@ describe('return-agents-status', () => {
     expect(status).toHaveProperty('agents');
     expect(status).toHaveProperty('totalAgents');
     expect(status).toHaveProperty('activeAgents');
-    expect(status).toHaveProperty('staleAgents');
     expect(Array.isArray(status.agents)).toBe(true);
-    expect(status.totalAgents).toBeGreaterThanOrEqual(2);
-  });
-});
-
-describe('include-heartbeat-timestamps', () => {
-  let dbPath: string;
-  let db: Database.Database | null = null;
-  let testDir: string;
-  let plansDir: string;
-  let coordinationPath: string;
-  let context: ResourceContext;
-
-  beforeEach(async () => {
-    dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
-    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
-
-    mkdirSync(plansDir, { recursive: true });
-    db = initializeDatabase(dbPath);
-    createSchema(db);
-
-    const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
-    config.plansPath = plansDir;
-
-    const coordination = await readCoordination(coordinationPath);
-
-    context = {
-      db,
-      coordination,
-      config,
-    };
-  });
-
-  afterEach(() => {
-    if (db) {
-      db.close();
-      db = null;
-    }
-    if (existsSync(dbPath)) {
-      unlinkSync(dbPath);
-    }
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-  });
-
-  it('should include heartbeat timestamps and staleness', async () => {
-    const now = new Date();
-    const staleTime = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
-
-    const coordination: CoordinationState = {
-      version: 1,
-      agents: {
-        'agent-1': {
-          status: 'idle',
-          persona: 'coder',
-          filesLocked: [],
-          heartbeat: now.toISOString(),
-        },
-        'agent-2': {
-          status: 'WIP',
-          persona: 'reviewer',
-          taskId: 'task-1',
-          filesLocked: [],
-          heartbeat: staleTime.toISOString(),
-        },
-      },
-      tasks: {},
-      fileLocks: {},
-      handoffs: {},
-    };
-
-    await writeCoordination(coordinationPath, coordination, 1);
-    context.coordination = await readCoordination(coordinationPath);
-
-    const result = await handleAgentsStatus('agents://status', context);
-    const status = JSON.parse(result.contents[0].text || '{}');
-
-    expect(status.agents.length).toBeGreaterThanOrEqual(2);
-
-    const agent1 = status.agents.find((a: AgentStatus) => a.id === 'agent-1');
-    expect(agent1).toBeDefined();
-    expect(agent1.lastHeartbeat).toBeDefined();
-    expect(agent1.isStale).toBe(false);
-
-    const agent2 = status.agents.find((a: AgentStatus) => a.id === 'agent-2');
-    expect(agent2).toBeDefined();
-    expect(agent2.lastHeartbeat).toBeDefined();
-    expect(agent2.isStale).toBe(true);
-    expect(status.staleAgents).toBeGreaterThanOrEqual(1);
-  });
-});
-
-describe('show-task-assignments', () => {
-  let dbPath: string;
-  let db: Database.Database | null = null;
-  let testDir: string;
-  let plansDir: string;
-  let coordinationPath: string;
-  let context: ResourceContext;
-
-  beforeEach(async () => {
-    dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
-    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
-
-    mkdirSync(plansDir, { recursive: true });
-    db = initializeDatabase(dbPath);
-    createSchema(db);
-
-    const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
-    config.plansPath = plansDir;
-
-    const coordination = await readCoordination(coordinationPath);
-
-    context = {
-      db,
-      coordination,
-      config,
-    };
-  });
-
-  afterEach(() => {
-    if (db) {
-      db.close();
-      db = null;
-    }
-    if (existsSync(dbPath)) {
-      unlinkSync(dbPath);
-    }
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-  });
-
-  it('should show task assignments in agent status', async () => {
-    const coordination: CoordinationState = {
-      version: 1,
-      agents: {
-        'agent-1': {
-          status: 'WIP',
-          persona: 'coder',
-          taskId: 'task-1',
-          filesLocked: ['file1.ts', 'file2.ts'],
-          heartbeat: new Date().toISOString(),
-        },
-        'agent-2': {
-          status: 'idle',
-          persona: 'reviewer',
-          filesLocked: [],
-          heartbeat: new Date().toISOString(),
-        },
-      },
-      tasks: {},
-      fileLocks: {},
-      handoffs: {},
-    };
-
-    await writeCoordination(coordinationPath, coordination, 1);
-    context.coordination = await readCoordination(coordinationPath);
-
-    const result = await handleAgentsStatus('agents://status', context);
-    const status = JSON.parse(result.contents[0].text || '{}');
-
-    const agent1 = status.agents.find((a: AgentStatus) => a.id === 'agent-1');
-    expect(agent1).toBeDefined();
-    expect(agent1.taskId).toBe('task-1');
-    expect(agent1.filesLocked).toEqual(['file1.ts', 'file2.ts']);
-    expect(agent1.status).toBe('WIP');
-    expect(status.activeAgents).toBeGreaterThanOrEqual(1);
+    expect(status.agents).toHaveLength(0);
+    expect(status.totalAgents).toBe(0);
+    expect(status.activeAgents).toBe(0);
   });
 });

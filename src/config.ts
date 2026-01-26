@@ -10,16 +10,18 @@ export interface ServerConfig {
   docsPaths?: string[]; // Additional paths to index
   fileExtensions?: string[]; // File types to index (default: ['.md'])
   dataPath: string;
-  coordinationPath: string;
-  heartbeatTimeout: number; // milliseconds
-  debounceDelay: number; // milliseconds
-  maxHandoffIterations: number;
 }
 
 /**
  * Default file extensions to index.
  */
 const DEFAULT_FILE_EXTENSIONS = ['.md'];
+
+/**
+ * Default debounce delay for file watching (ms).
+ * Hardcoded - not user-configurable.
+ */
+export const DEFAULT_DEBOUNCE_DELAY = 200;
 
 /**
  * Default server configuration.
@@ -29,10 +31,6 @@ const DEFAULT_CONFIG: ServerConfig = {
   docsPaths: undefined,
   fileExtensions: undefined,
   dataPath: './data',
-  coordinationPath: './coordination.json',
-  heartbeatTimeout: 300000, // 5 minutes
-  debounceDelay: 200, // 200ms
-  maxHandoffIterations: 3,
 };
 
 /**
@@ -65,7 +63,6 @@ export function loadConfig(configPath: string): ServerConfig {
     // Resolve paths relative to config file
     defaultConfig.plansPath = resolve(configDir, DEFAULT_CONFIG.plansPath);
     defaultConfig.dataPath = resolve(configDir, DEFAULT_CONFIG.dataPath);
-    defaultConfig.coordinationPath = resolve(configDir, DEFAULT_CONFIG.coordinationPath);
 
     mkdirSync(configDir, { recursive: true });
     writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
@@ -94,10 +91,6 @@ export function loadConfig(configPath: string): ServerConfig {
     docsPaths: resolvedDocsPaths,
     fileExtensions: config.fileExtensions,
     dataPath: resolvePath(config.dataPath || DEFAULT_CONFIG.dataPath),
-    coordinationPath: resolvePath(config.coordinationPath || DEFAULT_CONFIG.coordinationPath),
-    heartbeatTimeout: config.heartbeatTimeout ?? DEFAULT_CONFIG.heartbeatTimeout,
-    debounceDelay: config.debounceDelay ?? DEFAULT_CONFIG.debounceDelay,
-    maxHandoffIterations: config.maxHandoffIterations ?? DEFAULT_CONFIG.maxHandoffIterations,
   };
 
   return mergedConfig;
@@ -118,14 +111,7 @@ export function validateConfig(config: unknown): config is ServerConfig {
   const c = config as Partial<ServerConfig>;
 
   // Check required fields
-  if (
-    typeof c.plansPath !== 'string' ||
-    typeof c.dataPath !== 'string' ||
-    typeof c.coordinationPath !== 'string' ||
-    typeof c.heartbeatTimeout !== 'number' ||
-    typeof c.debounceDelay !== 'number' ||
-    typeof c.maxHandoffIterations !== 'number'
-  ) {
+  if (typeof c.plansPath !== 'string' || typeof c.dataPath !== 'string') {
     return false;
   }
 
@@ -141,11 +127,6 @@ export function validateConfig(config: unknown): config is ServerConfig {
     if (!Array.isArray(c.fileExtensions) || !c.fileExtensions.every((e) => typeof e === 'string')) {
       return false;
     }
-  }
-
-  // Check positive values
-  if (c.heartbeatTimeout < 0 || c.debounceDelay < 0 || c.maxHandoffIterations < 0) {
-    return false;
   }
 
   return true;

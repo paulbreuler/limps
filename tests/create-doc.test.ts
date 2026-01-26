@@ -7,7 +7,6 @@ import { handleCreateDoc, CreateDocInputSchema, TEMPLATES } from '../src/tools/c
 import { initializeDatabase, createSchema } from '../src/indexer.js';
 import type { ToolContext } from '../src/types.js';
 import type { ServerConfig } from '../src/config.js';
-import { readCoordination } from '../src/coordination.js';
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -38,10 +37,6 @@ describe('create-doc.ts', () => {
       docsPaths: [TEST_REPO_ROOT],
       fileExtensions: ['.md', '.jsx'],
       dataPath: TEST_DATA_DIR,
-      coordinationPath: join(TEST_DATA_DIR, 'coordination.json'),
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
     // Initialize database
@@ -50,12 +45,10 @@ describe('create-doc.ts', () => {
     createSchema(db);
 
     // Create coordination state
-    const coordination = readCoordination(config.coordinationPath);
 
     // Create tool context
     context = {
       db,
-      coordination,
       config,
     };
   });

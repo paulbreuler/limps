@@ -31,30 +31,18 @@ describe('config-load', () => {
     const configData: ServerConfig = {
       plansPath: join(configDir, 'plans'),
       dataPath: join(configDir, 'data'),
-      coordinationPath: join(configDir, 'coordination.json'),
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
     const config = loadConfig(configPath);
     expect(config.plansPath).toBe(configData.plansPath);
     expect(config.dataPath).toBe(configData.dataPath);
-    expect(config.coordinationPath).toBe(configData.coordinationPath);
-    expect(config.heartbeatTimeout).toBe(300000);
-    expect(config.debounceDelay).toBe(200);
-    expect(config.maxHandoffIterations).toBe(3);
   });
 
   it('should use default configuration when file does not exist', () => {
     const config = loadConfig(configPath);
     expect(config.plansPath).toBeDefined();
     expect(config.dataPath).toBeDefined();
-    expect(config.coordinationPath).toBeDefined();
-    expect(config.heartbeatTimeout).toBeGreaterThan(0);
-    expect(config.debounceDelay).toBeGreaterThan(0);
-    expect(config.maxHandoffIterations).toBeGreaterThan(0);
     // File should be created with defaults
     expect(existsSync(configPath)).toBe(true);
   });
@@ -63,10 +51,6 @@ describe('config-load', () => {
     const configData: ServerConfig = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath: './coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
@@ -74,7 +58,6 @@ describe('config-load', () => {
     // Paths should be resolved relative to config file
     expect(config.plansPath).toContain(configDir);
     expect(config.dataPath).toContain(configDir);
-    expect(config.coordinationPath).toContain(configDir);
   });
 
   it('should expand tilde in paths', () => {
@@ -82,10 +65,6 @@ describe('config-load', () => {
     const configData = {
       plansPath: '~/Documents/plans',
       dataPath: '~/Library/limps/data',
-      coordinationPath: '~/Library/limps/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
@@ -93,7 +72,6 @@ describe('config-load', () => {
     // Tilde should be expanded to home directory
     expect(config.plansPath).toBe(join(home, 'Documents/plans'));
     expect(config.dataPath).toBe(join(home, 'Library/limps/data'));
-    expect(config.coordinationPath).toBe(join(home, 'Library/limps/coordination.json'));
   });
 
   it('should expand tilde in docsPaths', () => {
@@ -102,10 +80,6 @@ describe('config-load', () => {
       plansPath: '~/plans',
       docsPaths: ['~/Documents/docs1', '~/Documents/docs2'],
       dataPath: '~/data',
-      coordinationPath: '~/coordination.json',
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 

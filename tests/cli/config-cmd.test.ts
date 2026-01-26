@@ -46,10 +46,6 @@ describe('config-cmd', () => {
     const config = {
       plansPath: join(testDir, name, 'plans'),
       dataPath: join(testDir, name, 'data'),
-      coordinationPath: join(testDir, name, 'coordination.json'),
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2));
     return configPath;
@@ -124,8 +120,6 @@ describe('config-cmd', () => {
       expect(output).toContain('Config file:');
       expect(output).toContain('plansPath:');
       expect(output).toContain('dataPath:');
-      expect(output).toContain('coordinationPath:');
-      expect(output).toContain('heartbeatTimeout:');
     });
 
     it('returns error message when config file not found', () => {
@@ -200,10 +194,6 @@ describe('config-cmd', () => {
       const config = {
         plansPath: join(testDir, 'plans'),
         dataPath: join(testDir, 'data'),
-        coordinationPath: join(testDir, 'coordination.json'),
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       };
       writeFileSync(configFilePath, JSON.stringify(config, null, 2));
 
@@ -253,10 +243,6 @@ describe('config-cmd', () => {
       const config = {
         plansPath: join(projectDir, 'plans'),
         dataPath: join(projectDir, 'data'),
-        coordinationPath: join(projectDir, 'coordination.json'),
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       };
       writeFileSync(join(projectDir, 'config.json'), JSON.stringify(config, null, 2));
 
@@ -277,10 +263,6 @@ describe('config-cmd', () => {
       const config = {
         plansPath: join(projectDir, 'plans'),
         dataPath: join(projectDir, 'data'),
-        coordinationPath: join(projectDir, 'coordination.json'),
-        heartbeatTimeout: 300000,
-        debounceDelay: 200,
-        maxHandoffIterations: 3,
       };
       writeFileSync(configFilePath, JSON.stringify(config, null, 2));
       registerProject('already-registered', configFilePath);

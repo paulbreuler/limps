@@ -6,12 +6,7 @@ import { resolve } from 'path';
 import { mkdirSync, existsSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import which from 'which';
-import {
-  getOSConfigPath,
-  getOSBasePath,
-  getOSDataPath,
-  getOSCoordinationPath,
-} from '../utils/os-paths.js';
+import { getOSConfigPath, getOSBasePath, getOSDataPath } from '../utils/os-paths.js';
 import { registerProject } from './registry.js';
 
 /**
@@ -47,7 +42,6 @@ export function initProject(projectName: string, docsPath?: string): string {
   const basePath = getOSBasePath(projectName);
   const configPath = getOSConfigPath(projectName);
   const dataPath = getOSDataPath(projectName);
-  const coordinationPath = getOSCoordinationPath(projectName);
 
   // Expand tilde in docsPath if provided
   const resolvedDocsPath = docsPath ? expandTilde(docsPath) : null;
@@ -71,10 +65,6 @@ export function initProject(projectName: string, docsPath?: string): string {
     docsPaths: [resolvedDocsPath || defaultDocsPath],
     fileExtensions: ['.md'],
     dataPath: dataPath,
-    coordinationPath: coordinationPath,
-    heartbeatTimeout: 300000,
-    debounceDelay: 200,
-    maxHandoffIterations: 3,
   };
 
   writeFileSync(configPath, JSON.stringify(config, null, 2));

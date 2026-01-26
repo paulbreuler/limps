@@ -2,7 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { ServerConfig } from './config.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
-import type { CoordinationState } from './coordination.js';
 import type { ToolContext, ResourceContext } from './types.js';
 import { registerResources } from './resources/index.js';
 import { registerTools } from './tools/index.js';
@@ -12,14 +11,9 @@ import { registerTools } from './tools/index.js';
  *
  * @param config - Server configuration
  * @param db - Database instance for tools and resources
- * @param coordination - Coordination state for multi-agent orchestration
  * @returns MCP server instance
  */
-export function createServer(
-  config: ServerConfig,
-  db: DatabaseType,
-  coordination: CoordinationState
-): McpServer {
+export function createServer(config: ServerConfig, db: DatabaseType): McpServer {
   const server = new McpServer({
     name: 'limps',
     version: '0.2.0',
@@ -28,7 +22,6 @@ export function createServer(
   // Tool context for handlers
   const toolContext: ToolContext = {
     db,
-    coordination,
     config,
   };
 
@@ -38,7 +31,6 @@ export function createServer(
   // Resource context for handlers
   const resourceContext: ResourceContext = {
     db,
-    coordination,
     config,
   };
 

@@ -1,11 +1,12 @@
 /**
  * CLI command: status
- * Show plan status summary.
+ * Show plan status summary and agent-level details.
  */
 
 import type { ServerConfig } from '../config.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
-import type { AgentFrontmatter } from '../agent-parser.js';
+import { readAgentFile, type AgentFrontmatter } from '../agent-parser.js';
+import type { ResolvedTaskId } from './task-resolver.js';
 
 /**
  * Plan status summary.
@@ -77,6 +78,121 @@ export function getPlanStatusSummary(config: ServerConfig, planId: string): Plan
     completionPercentage,
     blockedAgents,
     wipAgents,
+  };
+}
+
+/**
+ * Agent status summary with full details.
+ */
+export interface AgentStatusSummary {
+  /** Full task ID (e.g., "0001-network-panel#002") */
+  taskId: string;
+  /** Agent title from markdown */
+  title: string;
+  /** Plan folder name */
+  planId: string;
+  /** Full plan name */
+  planName: string;
+  /** Agent number (e.g., "002") */
+  agentNumber: string;
+  /** Current status */
+  status: 'GAP' | 'WIP' | 'PASS' | 'BLOCKED';
+  /** Agent persona */
+  persona: 'coder' | 'reviewer' | 'pm' | 'customer';
+  /** Feature counts from agent content */
+  features: {
+    total: number;
+    pass: number;
+    wip: number;
+    gap: number;
+    blocked: number;
+  };
+  /** Files from frontmatter */
+  files: string[];
+  /** Dependency status */
+  dependencies: {
+    taskId: string;
+    title: string;
+    status: string;
+    satisfied: boolean;
+  }[];
+}
+
+/**
+ * Parse features from agent markdown content.
+ * Looks for Status: `GAP` patterns in feature sections.
+ *
+ * @param content - Agent file content
+ * @returns Feature counts
+ */
+function parseFeatureCounts(content: string): {
+  total: number;
+  pass: number;
+  wip: number;
+  gap: number;
+  blocked: number;
+} {
+  const counts = { total: 0, pass: 0, wip: 0, gap: 0, blocked: 0 };
+
+  // Match Status: `STATUS` patterns
+  const statusMatches = content.matchAll(/Status:\s*`(GAP|WIP|PASS|BLOCKED)`/gi);
+  for (const match of statusMatches) {
+    counts.total++;
+    const status = match[1].toUpperCase() as 'GAP' | 'WIP' | 'PASS' | 'BLOCKED';
+    if (status === 'PASS') counts.pass++;
+    else if (status === 'WIP') counts.wip++;
+    else if (status === 'GAP') counts.gap++;
+    else if (status === 'BLOCKED') counts.blocked++;
+  }
+
+  return counts;
+}
+
+/**
+ * Get detailed status summary for a single agent.
+ *
+ * @param config - Server configuration
+ * @param resolvedId - Resolved task ID
+ * @returns Agent status summary
+ */
+export function getAgentStatusSummary(
+  config: ServerConfig,
+  resolvedId: ResolvedTaskId
+): AgentStatusSummary {
+  const agentFile = readAgentFile(resolvedId.path);
+  if (!agentFile) {
+    throw new Error(`Failed to read agent file: ${resolvedId.path}`);
+  }
+
+  const { frontmatter, content, title } = agentFile;
+
+  // Parse features from content
+  const features = parseFeatureCounts(content);
+
+  // Build dependency status
+  const allAgents = getAgentFiles(findPlanDirectory(config.plansPath, resolvedId.planFolder) || '');
+  const dependencies = frontmatter.dependencies.map((dep) => {
+    const depAgent = allAgents.find((a) => a.agentNumber === dep);
+    const depTaskId = `${resolvedId.planFolder}#${dep}`;
+    return {
+      taskId: depTaskId,
+      title: depAgent?.title || `Agent ${dep}`,
+      status: depAgent?.frontmatter.status || 'UNKNOWN',
+      satisfied: depAgent?.frontmatter.status === 'PASS',
+    };
+  });
+
+  return {
+    taskId: resolvedId.taskId,
+    title: title || `Agent ${resolvedId.agentNumber}`,
+    planId: resolvedId.planFolder.split('-')[0] || resolvedId.planFolder,
+    planName: resolvedId.planFolder,
+    agentNumber: resolvedId.agentNumber,
+    status: frontmatter.status,
+    persona: frontmatter.persona,
+    features,
+    files: frontmatter.files,
+    dependencies,
   };
 }
 

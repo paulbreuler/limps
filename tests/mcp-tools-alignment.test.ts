@@ -10,8 +10,7 @@ import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
-import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { readCoordination, writeCoordination } from '../src/coordination.js';
+import { initializeDatabase, createSchema } from '../src/indexer.js';
 import { loadConfig } from '../src/config.js';
 import { handleGetNextTask } from '../src/tools/get-next-task.js';
 import { handleListPlans } from '../src/tools/list-plans.js';
@@ -69,28 +68,22 @@ describe('get_next_task with planId (CLI-aligned scoring)', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansPath: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-mcp-${Date.now()}`);
     plansPath = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansPath, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansPath;
-
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -236,15 +229,6 @@ describe('get_next_task with planId (CLI-aligned scoring)', () => {
       files: ['b.ts'],
     });
 
-    // Mark dependency as satisfied in coordination
-    const coordination = await readCoordination(coordinationPath);
-    coordination.tasks['0006-deps-pass#000'] = {
-      status: 'PASS',
-      dependencies: [],
-    };
-    await writeCoordination(coordinationPath, coordination, coordination.version);
-    context.coordination = await readCoordination(coordinationPath);
-
     const result = await handleGetNextTask({ agentType: 'coder', planId: '0006' }, context);
 
     expect(result.isError).toBeFalsy();
@@ -254,32 +238,7 @@ describe('get_next_task with planId (CLI-aligned scoring)', () => {
     expect(data.taskId).toBe('0006-deps-pass#001');
   });
 
-  it('should maintain backward compatibility without planId', async () => {
-    // Create plan with plan.md (old format)
-    const planDir = join(plansPath, '0007-compat');
-    mkdirSync(planDir, { recursive: true });
-
-    const planContent = `# Test Plan
-
-### #1: Feature One
-
-Status: \`GAP\`
-Dependencies: None
-Files: \`src/file1.ts\`
-`;
-    const planFile = join(planDir, 'plan.md');
-    writeFileSync(planFile, planContent, 'utf-8');
-    await indexDocument(db!, planFile);
-
-    // Without planId - should use legacy behavior
-    const result = await handleGetNextTask({ agentType: 'coder' }, context);
-
-    expect(result.isError).toBeFalsy();
-    const data = JSON.parse(result.content[0]?.text || '{}');
-
-    // Legacy format - just taskId and score
-    expect(data.taskId).toContain('0007-compat#1');
-  });
+  // Note: Backward compatibility test removed - planId is now required in v2
 });
 
 describe('list_plans MCP tool', () => {
@@ -287,28 +246,22 @@ describe('list_plans MCP tool', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansPath: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-list-plans-${Date.now()}`);
     plansPath = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansPath, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansPath;
-
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -422,28 +375,22 @@ describe('list_agents MCP tool', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansPath: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-list-agents-${Date.now()}`);
     plansPath = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansPath, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansPath;
-
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -541,28 +488,22 @@ describe('get_plan_status MCP tool', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansPath: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-plan-status-${Date.now()}`);
     plansPath = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansPath, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansPath;
-
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });

@@ -4,8 +4,7 @@ import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import Database from 'better-sqlite3';
 import { createSchema, indexDocument } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
-import { loadConfig } from '../src/config.js';
+import { loadConfig, DEFAULT_DEBOUNCE_DELAY } from '../src/config.js';
 import { createServer, startServer } from '../src/server.js';
 import { startWatcher, stopWatcher } from '../src/watcher.js';
 
@@ -18,7 +17,6 @@ describe('index-entry-point', () => {
   let plansDir: string;
   let dataDir: string;
   let configPath: string;
-  let coordinationPath: string;
   let dbPath: string;
   let db: Database.Database | null = null;
 
@@ -27,7 +25,6 @@ describe('index-entry-point', () => {
     plansDir = join(testDir, 'plans');
     dataDir = join(testDir, 'data');
     configPath = join(testDir, 'config.json');
-    coordinationPath = join(testDir, 'coordination.json');
     dbPath = join(dataDir, 'documents.sqlite');
 
     mkdirSync(plansDir, { recursive: true });
@@ -37,10 +34,6 @@ describe('index-entry-point', () => {
     const config = {
       plansPath: plansDir,
       dataPath: dataDir,
-      coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
 
@@ -91,7 +84,6 @@ describe('index-entry-point', () => {
     db = Database(dbPath);
     createSchema(db);
 
-    const _coordination = await readCoordination(coordinationPath);
     const config = loadConfig(configPath);
 
     let _watchCallbackCalled = false;
@@ -102,7 +94,7 @@ describe('index-entry-point', () => {
       },
       ['.md'], // fileExtensions
       ['.git', 'node_modules'], // ignorePatterns
-      config.debounceDelay
+      DEFAULT_DEBOUNCE_DELAY
     );
 
     // Create a new file to trigger watcher
@@ -120,10 +112,9 @@ describe('index-entry-point', () => {
     db = Database(dbPath);
     createSchema(db);
 
-    const coordination = await readCoordination(coordinationPath);
     const config = loadConfig(configPath);
 
-    const server = createServer(config, db, coordination);
+    const server = createServer(config, db);
     expect(server).toBeDefined();
 
     // Start server
@@ -140,7 +131,6 @@ describe('index-entry-point', () => {
     db = Database(dbPath);
     createSchema(db);
 
-    const coordination = await readCoordination(coordinationPath);
     const config = loadConfig(configPath);
 
     const watcher = startWatcher(
@@ -148,10 +138,10 @@ describe('index-entry-point', () => {
       async () => {},
       ['.md'], // fileExtensions
       ['.git', 'node_modules'], // ignorePatterns
-      config.debounceDelay
+      DEFAULT_DEBOUNCE_DELAY
     );
 
-    const server = createServer(config, db, coordination);
+    const server = createServer(config, db);
     await startServer(server, async () => {
       await stopWatcher(watcher);
       if (db) {

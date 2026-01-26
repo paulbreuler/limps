@@ -4,10 +4,8 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexAllDocuments } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { handleSearchDocs } from '../src/tools/search-docs.js';
-import { writeCoordination } from '../src/coordination.js';
 import type { ToolContext } from '../src/types.js';
 
 describe('performance-indexing', () => {
@@ -57,14 +55,12 @@ describe('performance-search', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(plansDir, { recursive: true });
     db = initializeDatabase(dbPath);
@@ -84,14 +80,10 @@ describe('performance-search', () => {
     await indexAllDocuments(db!, plansDir);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = plansDir;
-
-    const coordination = await readCoordination(coordinationPath);
 
     context = {
       db,
-      coordination,
       config,
     };
   });
@@ -120,60 +112,4 @@ describe('performance-search', () => {
   });
 });
 
-describe('performance-coordination', () => {
-  let testDir: string;
-  let coordinationPath: string;
-
-  beforeEach(() => {
-    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
-  });
-
-  afterEach(() => {
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-  });
-
-  it('should read coordination.json in less than 10ms', async () => {
-    // Create initial coordination state by reading (which creates it)
-    await readCoordination(coordinationPath);
-
-    const startTime = Date.now();
-    await readCoordination(coordinationPath);
-    const duration = Date.now() - startTime;
-
-    expect(duration).toBeLessThan(10); // < 10ms
-  });
-
-  it('should write coordination.json in less than 10ms', async () => {
-    // Read current state first to get version
-    const currentState = await readCoordination(coordinationPath);
-
-    const state = {
-      version: currentState.version,
-      agents: {
-        'agent-1': {
-          id: 'agent-1',
-          status: 'active',
-          lastHeartbeat: Date.now(),
-          currentTask: 'task-1',
-        },
-      },
-      tasks: {
-        'task-1': {
-          status: 'WIP',
-          claimedBy: 'agent-1',
-          dependencies: [],
-        },
-      },
-      fileLocks: {},
-    };
-
-    const startTime = Date.now();
-    await writeCoordination(coordinationPath, state, currentState.version);
-    const duration = Date.now() - startTime;
-
-    expect(duration).toBeLessThan(10); // < 10ms
-  });
-});
+// Note: performance-coordination tests removed - coordination system was deprecated in v2

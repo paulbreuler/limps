@@ -23,9 +23,4 @@ describe('gitignore', () => {
     const gitignore = readFileSync(gitignorePath, 'utf-8');
     expect(gitignore).toMatch(/node_modules/);
   });
-
-  it('should exclude coordination.json', () => {
-    const gitignore = readFileSync(gitignorePath, 'utf-8');
-    expect(gitignore).toMatch(/coordination\.json/);
-  });
 });

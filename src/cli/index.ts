@@ -40,3 +40,15 @@ export {
   configSet,
   configDiscover,
 } from './config-cmd.js';
+
+// JSON output utilities
+export {
+  wrapSuccess,
+  wrapError,
+  outputJson,
+  isJsonMode,
+  handleJsonOutput,
+  type JsonSuccess,
+  type JsonError,
+  type JsonEnvelope,
+} from './json-output.js';

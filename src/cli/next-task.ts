@@ -4,8 +4,7 @@
  */
 
 import type { ServerConfig } from '../config.js';
-import { readCoordination, type CoordinationState } from '../coordination.js';
-import { type ParsedAgentFile, resolveDependency } from '../agent-parser.js';
+import { type ParsedAgentFile } from '../agent-parser.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 
 /**
@@ -28,7 +27,7 @@ export interface TaskScoreBreakdown {
  */
 function calculateDependencyScore(
   agent: ParsedAgentFile,
-  coordination: CoordinationState
+  allAgents: ParsedAgentFile[]
 ): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   const deps = agent.frontmatter.dependencies;
@@ -40,12 +39,10 @@ function calculateDependencyScore(
 
   let satisfiedCount = 0;
   for (const dep of deps) {
-    const taskId = resolveDependency(dep, agent.planFolder);
-    if (taskId) {
-      const depTask = coordination.tasks[taskId];
-      if (depTask && depTask.status === 'PASS') {
-        satisfiedCount++;
-      }
+    // Find the dependent agent by number (deps are just agent numbers like "000")
+    const depAgent = allAgents.find((a) => a.agentNumber === dep);
+    if (depAgent && depAgent.frontmatter.status === 'PASS') {
+      satisfiedCount++;
     }
   }
 
@@ -91,11 +88,11 @@ function calculateWorkloadScore(agent: ParsedAgentFile): { score: number; reason
 }
 
 /**
- * Check if task is eligible (GAP status, no file conflicts).
+ * Check if task is eligible (GAP status, dependencies satisfied).
  */
 function isTaskEligible(
   agent: ParsedAgentFile,
-  coordination: CoordinationState
+  allAgents: ParsedAgentFile[]
 ): { eligible: boolean; reason?: string } {
   if (agent.frontmatter.status !== 'GAP') {
     return {
@@ -104,28 +101,15 @@ function isTaskEligible(
     };
   }
 
-  // Check file conflicts
-  for (const file of agent.frontmatter.files) {
-    const lockedBy = coordination.fileLocks[file];
-    if (lockedBy) {
+  // Check dependency satisfaction (using agent frontmatter status)
+  for (const dep of agent.frontmatter.dependencies) {
+    // Find the dependent agent by number (deps are just agent numbers like "000")
+    const depAgent = allAgents.find((a) => a.agentNumber === dep);
+    if (!depAgent || depAgent.frontmatter.status !== 'PASS') {
       return {
         eligible: false,
-        reason: `File ${file} is locked by ${lockedBy}`,
+        reason: `Dependency ${dep} not satisfied`,
       };
-    }
-  }
-
-  // Check dependency satisfaction
-  for (const dep of agent.frontmatter.dependencies) {
-    const taskId = resolveDependency(dep, agent.planFolder);
-    if (taskId) {
-      const depTask = coordination.tasks[taskId];
-      if (!depTask || depTask.status !== 'PASS') {
-        return {
-          eligible: false,
-          reason: `Dependency ${dep} not satisfied`,
-        };
-      }
     }
   }
 
@@ -137,14 +121,14 @@ function isTaskEligible(
  */
 function scoreTask(
   agent: ParsedAgentFile,
-  coordination: CoordinationState
+  allAgents: ParsedAgentFile[]
 ): TaskScoreBreakdown | null {
-  const eligibility = isTaskEligible(agent, coordination);
+  const eligibility = isTaskEligible(agent, allAgents);
   if (!eligibility.eligible) {
     return null;
   }
 
-  const depResult = calculateDependencyScore(agent, coordination);
+  const depResult = calculateDependencyScore(agent, allAgents);
   const priorityResult = calculatePriorityScore(agent);
   const workloadResult = calculateWorkloadScore(agent);
 
@@ -194,14 +178,11 @@ export async function getNextTaskData(
     return { error: 'No agents found' };
   }
 
-  // Load coordination state
-  const coordination = await readCoordination(config.coordinationPath);
-
   // Score all eligible tasks
   const scoredTasks: TaskScoreBreakdown[] = [];
 
   for (const agent of agents) {
-    const score = scoreTask(agent, coordination);
+    const score = scoreTask(agent, agents);
     if (score) {
       scoredTasks.push(score);
     }

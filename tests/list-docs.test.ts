@@ -4,7 +4,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { handleListDocs } from '../src/tools/list-docs.js';
 import type { ToolContext } from '../src/types.js';
@@ -14,29 +13,23 @@ describe('list-docs', () => {
   let db: Database.Database | null = null;
   let testDir: string;
   let repoRoot: string;
-  let coordinationPath: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     repoRoot = testDir;
-    coordinationPath = join(testDir, 'coordination.json');
 
     mkdirSync(repoRoot, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
     const config = loadConfig(join(testDir, 'config.json'));
-    config.coordinationPath = coordinationPath;
     config.plansPath = join(repoRoot, 'plans');
     config.docsPaths = [repoRoot];
 
-    const coordination = await readCoordination(coordinationPath);
-
     context = {
       db,
-      coordination,
       config,
     };
   });

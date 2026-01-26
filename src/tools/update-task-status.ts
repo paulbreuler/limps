@@ -1,14 +1,7 @@
 import { z } from 'zod';
 import { readFileSync, writeFileSync } from 'fs';
 import type { Database as DatabaseType } from 'better-sqlite3';
-import {
-  readCoordination,
-  writeCoordination,
-  type CoordinationState,
-  type TaskState,
-} from '../coordination.js';
 import { indexDocument } from '../indexer.js';
-import { extractPlanId, parseTasksFromDocument, findTaskById } from '../task-parser.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -68,6 +61,15 @@ function findTaskSection(
 }
 
 /**
+ * Extract current status from a task section.
+ */
+function extractStatusFromSection(section: string): string | null {
+  const statusRegex = /Status:\s*`?(\w+)`?/i;
+  const match = section.match(statusRegex);
+  return match ? match[1].toUpperCase() : null;
+}
+
+/**
  * Update status in task section.
  * Preserves formatting and other content.
  */
@@ -113,11 +115,7 @@ function parseTaskId(taskId: string): { planId: string; featureNumber: number } 
 /**
  * Find document path for a plan.
  */
-async function findPlanDocument(
-  db: DatabaseType,
-  plansPath: string,
-  planId: string
-): Promise<string | null> {
+function findPlanDocument(db: DatabaseType, plansPath: string, planId: string): string | null {
   // Query database for plan documents
   // Match planId in path (could be "0001-plan-name" or just "0001")
   const plans = db
@@ -146,65 +144,6 @@ async function findPlanDocument(
 }
 
 /**
- * Try to auto-create a task entry from the plan document.
- * Returns the task state if found in the plan, null otherwise.
- *
- * @param taskId - Task identifier
- * @param context - Tool context
- * @returns Task state or null if not found
- */
-async function tryAutoCreateTaskFromPlan(
-  taskId: string,
-  context: ToolContext
-): Promise<TaskState | null> {
-  const parsed = parseTaskId(taskId);
-  if (!parsed) {
-    return null;
-  }
-
-  const { planId } = parsed;
-  const { plansPath } = context.config;
-
-  // Query database for plan documents matching this plan ID
-  const plans = context.db
-    .prepare(
-      `
-    SELECT path, content
-    FROM documents
-    WHERE path LIKE ?
-    AND path LIKE '%/plan.md'
-  `
-    )
-    .all(`${plansPath}%${planId}%`) as { path: string; content: string }[];
-
-  if (plans.length === 0) {
-    return null;
-  }
-
-  // Find the plan document and parse tasks
-  for (const plan of plans) {
-    const extractedPlanId = extractPlanId(plan.path);
-    if (!extractedPlanId || !extractedPlanId.includes(planId)) {
-      continue;
-    }
-
-    const tasks = parseTasksFromDocument(plan.path, plan.content, extractedPlanId);
-    const task = findTaskById(tasks, taskId);
-
-    if (task) {
-      // Create TaskState from parsed task
-      return {
-        status: task.status,
-        claimedBy: undefined,
-        dependencies: task.dependencies,
-      };
-    }
-  }
-
-  return null;
-}
-
-/**
  * Handle update_task_status tool request.
  * Updates task status in planning documents (GAP → WIP → PASS/BLOCKED).
  *
@@ -217,7 +156,7 @@ export async function handleUpdateTaskStatus(
   context: ToolContext
 ): Promise<ToolResult> {
   const { taskId, status, agentId, notes } = input;
-  const { plansPath, coordinationPath } = context.config;
+  const { plansPath } = context.config;
 
   // Parse task ID
   const parsed = parseTaskId(taskId);
@@ -236,50 +175,13 @@ export async function handleUpdateTaskStatus(
   const { planId, featureNumber } = parsed;
 
   // Find plan document
-  const documentPath = await findPlanDocument(context.db, plansPath, planId);
+  const documentPath = findPlanDocument(context.db, plansPath, planId);
   if (!documentPath) {
     return {
       content: [
         {
           type: 'text',
           text: `Plan document not found for task ${taskId}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-
-  // Read current coordination state
-  const coordination = await readCoordination(coordinationPath);
-  let task = coordination.tasks[taskId];
-
-  // Auto-create task entry if found in plan but not in coordination
-  if (!task) {
-    const autoCreatedTask = await tryAutoCreateTaskFromPlan(taskId, context);
-    if (!autoCreatedTask) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Task ${taskId} not found in coordination state or plan documents`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    // Add the auto-created task to coordination state
-    coordination.tasks[taskId] = autoCreatedTask;
-    task = autoCreatedTask;
-  }
-
-  // Validate status transition
-  if (!isValidTransition(task.status, status)) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Invalid status transition from ${task.status} to ${status}. Valid transitions: ${VALID_TRANSITIONS[task.status]?.join(', ') || 'none'}`,
         },
       ],
       isError: true,
@@ -303,6 +205,33 @@ export async function handleUpdateTaskStatus(
     };
   }
 
+  // Get current status from the document
+  const currentStatus = extractStatusFromSection(taskSection.section);
+  if (!currentStatus) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Could not determine current status for task ${taskId}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // Validate status transition
+  if (!isValidTransition(currentStatus, status)) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Invalid status transition from ${currentStatus} to ${status}. Valid transitions: ${VALID_TRANSITIONS[currentStatus]?.join(', ') || 'none'}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
   // Update status in section
   const updatedSection = updateStatusInSection(taskSection.section, status);
 
@@ -312,51 +241,6 @@ export async function handleUpdateTaskStatus(
 
   // Write updated document
   writeFileSync(documentPath, updatedContent, 'utf-8');
-
-  // Update coordination state if agentId provided
-  if (agentId) {
-    const maxRetries = 5;
-    let retries = 0;
-
-    while (retries < maxRetries) {
-      try {
-        const currentCoordination = await readCoordination(coordinationPath);
-        const expectedVersion = currentCoordination.version;
-
-        // Update task status and claim
-        const updatedCoordination: CoordinationState = {
-          ...currentCoordination,
-          version: currentCoordination.version + 1,
-          tasks: {
-            ...currentCoordination.tasks,
-            [taskId]: {
-              ...currentCoordination.tasks[taskId],
-              status: status as 'GAP' | 'WIP' | 'PASS' | 'BLOCKED',
-              claimedBy: status === 'WIP' ? agentId : undefined,
-            },
-          },
-        };
-
-        await writeCoordination(coordinationPath, updatedCoordination, expectedVersion);
-        break;
-      } catch (error) {
-        retries++;
-        if (retries >= maxRetries) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Failed to update coordination state after ${maxRetries} retries: ${error instanceof Error ? error.message : String(error)}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-        // Wait a bit before retry
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      }
-    }
-  }
 
   // Re-index document
   await indexDocument(context.db, documentPath);

@@ -6,7 +6,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync, unlinkSync, rmSync } from 'fs';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import type { ServerConfig } from '../src/config.js';
 import type { ToolContext } from '../src/types.js';
 import { registerTools } from '../src/tools/index.js';
@@ -21,14 +20,12 @@ describe('tool-registration-context', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
   let toolContext: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -36,16 +33,10 @@ describe('tool-registration-context', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
-    const coordination = await readCoordination(coordinationPath);
     toolContext = {
       db,
-      coordination,
       config,
     };
   });
@@ -78,7 +69,6 @@ describe('tool-registration-tools-list', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
   let toolContext: ToolContext;
   let server: McpServer;
@@ -86,7 +76,6 @@ describe('tool-registration-tools-list', () => {
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -94,16 +83,10 @@ describe('tool-registration-tools-list', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
-    const coordination = await readCoordination(coordinationPath);
     toolContext = {
       db,
-      coordination,
       config,
     };
 
@@ -164,7 +147,6 @@ describe('tool-registration-names', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
   let toolContext: ToolContext;
   let server: McpServer;
@@ -172,7 +154,6 @@ describe('tool-registration-names', () => {
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -180,16 +161,10 @@ describe('tool-registration-names', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
-    const coordination = await readCoordination(coordinationPath);
     toolContext = {
       db,
-      coordination,
       config,
     };
 
@@ -229,7 +204,6 @@ describe('tool-registration-no-duplicate', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
-  let coordinationPath: string;
   let config: ServerConfig;
   let toolContext: ToolContext;
   let server: McpServer;
@@ -237,7 +211,6 @@ describe('tool-registration-no-duplicate', () => {
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
-    coordinationPath = join(testDir, 'coordination.json');
 
     db = initializeDatabase(dbPath);
     createSchema(db);
@@ -245,16 +218,10 @@ describe('tool-registration-no-duplicate', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
-      coordinationPath,
-      heartbeatTimeout: 300000,
-      debounceDelay: 200,
-      maxHandoffIterations: 3,
     };
 
-    const coordination = await readCoordination(coordinationPath);
     toolContext = {
       db,
-      coordination,
       config,
     };
 
