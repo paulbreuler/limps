@@ -599,3 +599,21 @@ export function configAddCursor(
   const adapter = getAdapter('cursor');
   return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
 }
+
+/**
+ * Add limps server configuration to Claude Code config.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Success message listing all added servers
+ * @throws Error if Claude Code config directory doesn't exist or can't be written
+ */
+export function configAddClaudeCode(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  const adapter = getAdapter('claude-code');
+  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}

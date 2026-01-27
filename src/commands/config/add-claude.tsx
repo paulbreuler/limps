@@ -1,14 +1,19 @@
 import { Text, Box } from 'ink';
 import { z } from 'zod';
 import { useState, useEffect } from 'react';
-import { configAddClaude, configAddCursor, generateConfigForPrint } from '../../cli/config-cmd.js';
+import {
+  configAddClaude,
+  configAddCursor,
+  configAddClaudeCode,
+  generateConfigForPrint,
+} from '../../cli/config-cmd.js';
 import { resolveConfigPath } from '../../utils/config-resolver.js';
 import { getAdapter } from '../../cli/mcp-client-adapter.js';
 import { Confirm } from '../../components/Confirm.js';
 import { listProjects } from '../../cli/registry.js';
 
 export const description =
-  'Add or update all registered limps projects in MCP client configs (default: all projects, both clients)';
+  'Add or update all registered limps projects in MCP client configs (default: all projects, all clients)';
 
 export const options = z.object({
   projects: z
@@ -16,10 +21,10 @@ export const options = z.object({
     .optional()
     .describe('Comma-separated list of project names to add (default: all registered projects)'),
   client: z
-    .enum(['claude', 'cursor', 'both'])
+    .enum(['claude', 'cursor', 'claude-code', 'all'])
     .optional()
-    .default('both')
-    .describe('MCP client to configure (claude, cursor, or both). Default: both'),
+    .default('all')
+    .describe('MCP client to configure (claude, cursor, claude-code, or all). Default: all'),
   print: z
     .boolean()
     .optional()
@@ -51,21 +56,24 @@ export default function ConfigAddClaudeCommand({ options }: Props): React.ReactN
     : allProjects;
 
   const clientsToShow: string[] = [];
-  if (options.client === 'claude' || options.client === 'both') {
+  if (options.client === 'claude' || options.client === 'all') {
     clientsToShow.push('Claude Desktop');
   }
-  if (options.client === 'cursor' || options.client === 'both') {
+  if (options.client === 'cursor' || options.client === 'all') {
     clientsToShow.push('Cursor');
   }
+  if (options.client === 'claude-code' || options.client === 'all') {
+    clientsToShow.push('Claude Code');
+  }
 
-  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(' and ')} config files.`;
+  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} config files.`;
 
   // If --print, just output the JSON format (no confirmation needed)
   if (options.print) {
     try {
       const printResults: string[] = [];
 
-      if (options.client === 'claude' || options.client === 'both') {
+      if (options.client === 'claude' || options.client === 'all') {
         try {
           const adapter = getAdapter('claude');
           const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
@@ -75,13 +83,23 @@ export default function ConfigAddClaudeCommand({ options }: Props): React.ReactN
         }
       }
 
-      if (options.client === 'cursor' || options.client === 'both') {
+      if (options.client === 'cursor' || options.client === 'all') {
         try {
           const adapter = getAdapter('cursor');
           const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
           printResults.push(output);
         } catch (err) {
           printResults.push(`Cursor: Error - ${(err as Error).message}`);
+        }
+      }
+
+      if (options.client === 'claude-code' || options.client === 'all') {
+        try {
+          const adapter = getAdapter('claude-code');
+          const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+          printResults.push(output);
+        } catch (err) {
+          printResults.push(`Claude Code: Error - ${(err as Error).message}`);
         }
       }
 
@@ -97,7 +115,7 @@ export default function ConfigAddClaudeCommand({ options }: Props): React.ReactN
       try {
         const outputResults: string[] = [];
 
-        if (options.client === 'claude' || options.client === 'both') {
+        if (options.client === 'claude' || options.client === 'all') {
           try {
             const output = configAddClaude(() => resolveConfigPath(), projectFilter);
             outputResults.push(output);
@@ -106,12 +124,21 @@ export default function ConfigAddClaudeCommand({ options }: Props): React.ReactN
           }
         }
 
-        if (options.client === 'cursor' || options.client === 'both') {
+        if (options.client === 'cursor' || options.client === 'all') {
           try {
             const output = configAddCursor(() => resolveConfigPath(), projectFilter);
             outputResults.push(output);
           } catch (err) {
             outputResults.push(`Cursor: Error - ${(err as Error).message}`);
+          }
+        }
+
+        if (options.client === 'claude-code' || options.client === 'all') {
+          try {
+            const output = configAddClaudeCode(() => resolveConfigPath(), projectFilter);
+            outputResults.push(output);
+          } catch (err) {
+            outputResults.push(`Claude Code: Error - ${(err as Error).message}`);
           }
         }
 

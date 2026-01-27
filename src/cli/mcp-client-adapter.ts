@@ -213,14 +213,85 @@ export class CursorAdapter implements McpClientAdapter {
 }
 
 /**
+ * Claude Code adapter
+ * Uses: mcpServers key, npx command, ~/.claude/.mcp.json (user scope)
+ * See: https://code.claude.com/docs/en/mcp
+ */
+export class ClaudeCodeAdapter implements McpClientAdapter {
+  getConfigPath(): string {
+    const home = homedir();
+    return join(home, '.claude', '.mcp.json');
+  }
+
+  getServersKey(): string {
+    return 'mcpServers';
+  }
+
+  readConfig(): McpClientConfig {
+    const configPath = this.getConfigPath();
+    const configDir = dirname(configPath);
+
+    // Ensure directory exists
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+
+    // Read existing config or return empty
+    if (existsSync(configPath)) {
+      try {
+        const content = readFileSync(configPath, 'utf-8');
+        return JSON.parse(content) as McpClientConfig;
+      } catch (error) {
+        throw new Error(
+          `Failed to parse Claude Code config: ${error instanceof Error ? error.message : 'unknown error'}`
+        );
+      }
+    }
+
+    return {};
+  }
+
+  writeConfig(config: McpClientConfig): void {
+    const configPath = this.getConfigPath();
+    const configDir = dirname(configPath);
+
+    // Ensure directory exists
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+
+    try {
+      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    } catch (error) {
+      throw new Error(
+        `Failed to write Claude Code config: ${error instanceof Error ? error.message : 'unknown error'}`
+      );
+    }
+  }
+
+  createServerConfig(configPath: string): McpServerConfig {
+    return {
+      command: 'npx',
+      args: ['-y', '@sudosandwich/limps', 'serve', '--config', configPath],
+    };
+  }
+
+  getDisplayName(): string {
+    return 'Claude Code';
+  }
+}
+
+/**
  * Get adapter for a client type
  */
-export function getAdapter(clientType: 'claude' | 'cursor'): McpClientAdapter {
+export function getAdapter(clientType: 'claude' | 'cursor' | 'claude-code'): McpClientAdapter {
   switch (clientType) {
     case 'claude':
       return new ClaudeDesktopAdapter();
     case 'cursor':
       return new CursorAdapter();
+    case 'claude-code':
+      return new ClaudeCodeAdapter();
     default:
       throw new Error(`Unknown client type: ${clientType}`);
   }
