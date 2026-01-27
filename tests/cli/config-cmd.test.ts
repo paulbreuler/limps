@@ -29,6 +29,7 @@ import {
   configAddClaude,
   configAddCursor,
   generateConfigForPrint,
+  configUpdate,
 } from '../../src/cli/config-cmd.js';
 import { getAdapter } from '../../src/cli/mcp-client-adapter.js';
 import {
@@ -626,6 +627,111 @@ describe('config-cmd', () => {
 
       expect(output).toContain('limps-planning-project-a');
       expect(output).not.toContain('limps-planning-project-b');
+    });
+  });
+
+  describe('configUpdate', () => {
+    it('updates plansPath in project config', () => {
+      const configPath = createConfig('update-test');
+      registerProject('update-test', configPath);
+
+      const output = configUpdate('update-test', {
+        plansPath: '~/new/plans/path',
+      });
+
+      expect(output).toContain('Updated project "update-test"');
+      expect(output).toContain('plansPath');
+      expect(output).toContain('~/new/plans/path');
+
+      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      expect(updatedConfig.plansPath).toBe('~/new/plans/path');
+    });
+
+    it('updates docsPaths in project config', () => {
+      const configPath = createConfig('docs-test');
+      registerProject('docs-test', configPath);
+
+      const output = configUpdate('docs-test', {
+        docsPath: '~/new/docs/path',
+      });
+
+      expect(output).toContain('Updated project "docs-test"');
+      expect(output).toContain('docsPaths');
+      expect(output).toContain('~/new/docs/path');
+
+      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      expect(updatedConfig.docsPaths).toEqual(['~/new/docs/path']);
+    });
+
+    it('updates both plansPath and docsPath together', () => {
+      const configPath = createConfig('both-test');
+      registerProject('both-test', configPath);
+
+      const output = configUpdate('both-test', {
+        plansPath: '~/new/plans',
+        docsPath: '~/new/docs',
+      });
+
+      expect(output).toContain('plansPath');
+      expect(output).toContain('docsPaths');
+
+      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      expect(updatedConfig.plansPath).toBe('~/new/plans');
+      expect(updatedConfig.docsPaths).toEqual(['~/new/docs']);
+    });
+
+    it('preserves other config fields when updating', () => {
+      const configPath = createConfig('preserve-test');
+      // Add extra fields to the config
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      config.fileExtensions = ['.md', '.txt'];
+      config.customField = 'should-stay';
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      registerProject('preserve-test', configPath);
+
+      configUpdate('preserve-test', { plansPath: '~/updated/plans' });
+
+      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      expect(updatedConfig.plansPath).toBe('~/updated/plans');
+      expect(updatedConfig.fileExtensions).toEqual(['.md', '.txt']);
+      expect(updatedConfig.customField).toBe('should-stay');
+    });
+
+    it('returns message when no changes specified', () => {
+      const configPath = createConfig('no-change');
+      registerProject('no-change', configPath);
+
+      const output = configUpdate('no-change', {});
+
+      expect(output).toContain('No changes specified');
+      expect(output).toContain('--plans-path');
+      expect(output).toContain('--docs-path');
+    });
+
+    it('throws error for unknown project', () => {
+      expect(() => configUpdate('nonexistent', { plansPath: '/some/path' })).toThrow(
+        'Project "nonexistent" not found'
+      );
+    });
+
+    it('lists available projects in error message', () => {
+      const configPath = createConfig('exists');
+      registerProject('exists', configPath);
+
+      try {
+        configUpdate('nonexistent', { plansPath: '/some/path' });
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect((error as Error).message).toContain('exists');
+      }
+    });
+
+    it('throws error when config file does not exist', () => {
+      registerProject('missing-config', '/nonexistent/config.json');
+
+      expect(() => configUpdate('missing-config', { plansPath: '/some/path' })).toThrow(
+        'Config file not found'
+      );
     });
   });
 });

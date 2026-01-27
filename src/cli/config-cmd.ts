@@ -3,7 +3,7 @@
  * Provides commands to manage the project registry and view configuration.
  */
 
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname, basename } from 'path';
 import {
   registerProject,
@@ -616,4 +616,71 @@ export function configAddClaudeCode(
 ): string {
   const adapter = getAdapter('claude-code');
   return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Update options for configUpdate.
+ */
+export interface ConfigUpdateOptions {
+  plansPath?: string;
+  docsPath?: string;
+}
+
+/**
+ * Update an existing project's configuration.
+ * Allows updating plansPath and docsPaths without recreating the config.
+ *
+ * @param projectName - Name of the project to update
+ * @param options - Fields to update
+ * @returns Success message
+ * @throws Error if project not found or config file doesn't exist
+ */
+export function configUpdate(projectName: string, options: ConfigUpdateOptions): string {
+  const projects = listProjects();
+  const project = projects.find((p) => p.name === projectName);
+
+  if (!project) {
+    const available = projects.map((p) => p.name).join(', ');
+    throw new Error(
+      `Project "${projectName}" not found.${available ? ` Available projects: ${available}` : ' No projects registered.'}`
+    );
+  }
+
+  if (!existsSync(project.configPath)) {
+    throw new Error(`Config file not found: ${project.configPath}`);
+  }
+
+  // Read the raw config file (not using loadConfig which resolves paths)
+  const content = readFileSync(project.configPath, 'utf-8');
+  const config = JSON.parse(content) as Record<string, unknown>;
+
+  const changes: string[] = [];
+
+  if (options.plansPath !== undefined) {
+    const oldValue = config.plansPath;
+    config.plansPath = options.plansPath;
+    changes.push(`  plansPath: ${oldValue} → ${options.plansPath}`);
+  }
+
+  if (options.docsPath !== undefined) {
+    const oldValue = config.docsPaths;
+    config.docsPaths = [options.docsPath];
+    changes.push(`  docsPaths: ${JSON.stringify(oldValue)} → ${JSON.stringify(config.docsPaths)}`);
+  }
+
+  if (changes.length === 0) {
+    return `No changes specified. Use --plans-path or --docs-path to update configuration.`;
+  }
+
+  // Write back
+  writeFileSync(project.configPath, JSON.stringify(config, null, 2));
+
+  const lines: string[] = [];
+  lines.push(`Updated project "${projectName}":`);
+  lines.push('');
+  lines.push(...changes);
+  lines.push('');
+  lines.push(`Config file: ${project.configPath}`);
+
+  return lines.join('\n');
 }
