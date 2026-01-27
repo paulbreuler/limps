@@ -89,8 +89,8 @@ graph TD
 
 | # | Feature | Agent | Status | Blocks |
 |---|---------|-------|--------|--------|
-| 0 | limps extension API | 000 | GAP | All |
-| 1 | Project Scaffolding | 000 | GAP | 2-18 |
+| 0 | limps extension API | 000 | PASS | All |
+| 1 | Project Scaffolding | 000 | PASS | 2-18 |
 | 2 | Type Fetcher | 001 | GAP | 3 |
 | 3 | Type Extractor | 001 | GAP | 4 |
 | 4 | Props Classifier | 001 | GAP | 5 |
@@ -131,7 +131,7 @@ graph TD
 
 | # | Agent | Features | Status | Files |
 |---|-------|----------|--------|-------|
-| 000 | [extension-api](./agents/000_agent_extension-api.agent.md) | limps extension API, package scaffolding | GAP | 8 |
+| 000 | [extension-api](./agents/000_agent_extension-api.agent.md) | limps extension API, package scaffolding | PASS | 8 |
 | 001 | [extraction](./agents/001_agent_extraction.agent.md) | Type Fetcher, Extractor, Classifier | GAP | 9 |
 | 002 | [signatures](./agents/002_agent_signatures.agent.md) | Signature Generator, Cache | GAP | 8 |
 | 003 | [read-tools](./agents/003_agent_read-tools.agent.md) | radix_list_primitives, radix_extract_primitive | GAP | 3 |

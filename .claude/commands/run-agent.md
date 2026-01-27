@@ -8,6 +8,7 @@ Select the next best agent task from a plan and open it in Cursor, or run a spec
 /run-agent [plan-name]
 /run-agent --agent [agent-path]
 /run-agent --assess [plan-name]
+/run-agent --agent [agent-path] --open-only
 ```
 
 ## What This Command Does
@@ -17,13 +18,17 @@ Select the next best agent task from a plan and open it in Cursor, or run a spec
    - Workload balance (30%): Agents with fewer remaining tasks get higher score
    - Priority (30%): Lower feature IDs (earlier in plan) get higher score
 
-2. **Claims task** - Claims the task using limps MCP `claim_task` tool to prevent conflicts
+2. **Skips auto-claiming tasks** - Task claiming is manual; the user decides which agent to run
 
 3. **Assesses agent status** - Checks completion state and file organization
 
-4. **Opens agent file in Cursor** - Opens the selected or specified agent file with context
+4. **Validates agent path** (when `--agent` provided) - Errors if file does not exist
 
-5. **Displays instructions** - Shows quick links and next steps
+5. **Opens agent file in Cursor** - Opens the selected or specified agent file with context
+
+6. **Displays instructions** - Shows quick links and next steps
+
+7. **Prints a brief checklist** - Extracts Files/Tests sections when present (LLM-focused)
 
 ## Usage Examples
 
@@ -68,31 +73,9 @@ Assesses all agents in the plan for completion status and file organization.
    - If `--agent` provided: Use the specified agent file path
    - If `--assess` provided: Use `limps status <plan-name>` to assess plan status
 
-2. **Claim Task (CRITICAL - Do this first):**
-   - After determining which agent file will be opened, **immediately claim the task** using limps MCP `claim_task` tool
-   - **Extract plan name** from agent file path: `plans/<plan-name>/agents/...` → `<plan-name>` (e.g., `0004-feature-name`)
-   - **Extract agent number** from agent file name: `<NNN>_agent_name.agent.md` → `<NNN>` (e.g., `000`, `001`)
-   - **Construct taskId**: Format is `<plan-name>#<agent-number>` (e.g., `0004-feature-name#000`)
-   - **Extract agentId** from agent file name: `<agent-file-name>` (e.g., `000_agent_name.agent.md`)
-   - **If using `limps next-task` output**: Use the Task ID directly from the output (e.g., `0018-component-design-principles-audit#000`)
-   - Call: `call_mcp_tool` with server `limps`, tool `claim_task`, arguments:
-     ```json
-     {
-       "taskId": "<plan-name>#<agent-number>",
-       "agentId": "<agent-file-name>",
-       "persona": "coder"
-     }
-     ```
-   - **Example**: For agent file `plans/0004-feature-name/agents/000_agent_name.agent.md`:
-     ```json
-     {
-       "taskId": "0004-feature-name#000",
-       "agentId": "000_agent_name.agent.md",
-       "persona": "coder"
-     }
-     ```
-   - **This must happen BEFORE opening the file or starting work** to prevent conflicts
-   - **Note**: The taskId format is `<plan-name>#<agent-number>` (matches `limps next-task` output), not feature numbers
+2. **Validate agent path (if --agent):**
+   - If the agent file does not exist, return a clear error and stop
+   - Suggest using `/plan-list-agents <plan>` to find valid paths
 
 3. **Open agent file:**
    - Use `open_document_in_cursor` MCP tool to open the agent file in Cursor
@@ -108,6 +91,12 @@ Assesses all agents in the plan for completion status and file organization.
    - Explain next steps for the agent
    - Reference related commands (`/close-feature-agent`, `limps status`, `limps next-task`)
    - Show how to verify completion
+
+6. **Checklist (LLM-focused):**
+   - If agent file includes Files or Tests sections, print a short checklist:
+     - Files to create/modify
+     - Tests to run (or test IDs)
+   - Keep it concise to avoid token waste
 
 ## Integration with Other Commands
 
@@ -200,6 +189,7 @@ Instructions:
 - **Agent file missing**: Reports error with suggestions
 - **Plan not found**: Suggests using `/list-feature-plans` to find correct plan name
 - **Cursor CLI not found**: Shows installation instructions
+- **Agent file missing**: Return a clear error with suggestions to use `/plan-list-agents`
 
 ## Notes
 
@@ -208,3 +198,9 @@ Instructions:
 - Status assessment uses `limps status` to check plan progress
 - Scoring algorithm prioritizes unblocked tasks to maximize parallel work
 - For best results, use `limps next-task <plan-name>` first to get the next task, then use `/run-agent <plan-name>` to start it
+
+## Additional Flags
+
+```
+/run-agent --agent [path] --open-only   # Open agent file only (skip selection/assessment output)
+```

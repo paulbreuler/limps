@@ -19,6 +19,8 @@ limps solves this by providing a **standardized MCP interface** that any MCP-com
 
 - **Claude Desktop** — Full access to search, read, update, create documents, and more
 - **Cursor** — Integrated planning and task management via MCP tools
+- **OpenAI Codex** — MCP servers via `~/.codex/config.toml`
+- **ChatGPT** — Custom connectors (remote MCP)
 - **GitHub Copilot** — When MCP support is enabled
 - **Any MCP-compatible tool** — Standard protocol means universal access
 
@@ -331,9 +333,39 @@ Add to `~/.claude/.mcp.json`:
 }
 ```
 
+### OpenAI Codex
+
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.limps]
+command = "limps"
+args = ["serve", "--config", "/path/to/config.json"]
+```
+
+### ChatGPT
+
+ChatGPT uses **Custom Connectors** for MCP. This requires a **remote MCP server reachable over HTTPS**.
+
+In ChatGPT → Settings → Connectors → Add custom connector:
+
+- **Server name**: `limps`
+- **Server URL**: `https://your-domain.example/mcp`
+- **Authentication**: set the method your deployment expects
+
+Tip: create one connector per limps project config.
+
+To print setup instructions via CLI:
+
+```bash
+limps config sync-mcp --client chatgpt --print
+```
+
 ### Automatic MCP Client Configuration
 
 Instead of manually editing config files, use the CLI:
+
+Note: ChatGPT uses manual connector setup, so `--client chatgpt` prints instructions instead of writing files.
 
 ```bash
 # Add all registered projects to all MCP clients
@@ -343,6 +375,8 @@ limps config sync-mcp
 limps config sync-mcp --client claude
 limps config sync-mcp --client cursor
 limps config sync-mcp --client claude-code
+limps config sync-mcp --client codex
+limps config sync-mcp --client chatgpt
 
 # Add specific projects
 limps config sync-mcp --projects my-project,other-project

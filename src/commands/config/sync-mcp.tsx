@@ -1,15 +1,7 @@
 import { Text, Box } from 'ink';
 import { z } from 'zod';
 import { useState, useEffect } from 'react';
-import {
-  configAddClaude,
-  configAddCursor,
-  configAddClaudeCode,
-  generateConfigForPrint,
-  previewMcpClientConfig,
-} from '../../cli/config-cmd.js';
-import { resolveConfigPath } from '../../utils/config-resolver.js';
-import { getAdapter } from '../../cli/mcp-client-adapter.js';
+import { getSyncClients, type McpSyncClient } from '../../cli/mcp-clients.js';
 import { Confirm } from '../../components/Confirm.js';
 import { listProjects } from '../../cli/registry.js';
 
@@ -26,10 +18,12 @@ export const options = z.object({
     .optional()
     .describe('Comma-separated list of project names to add (default: all registered projects)'),
   client: z
-    .enum(['claude', 'cursor', 'claude-code', 'all'])
+    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'all'])
     .optional()
     .default('all')
-    .describe('MCP client to configure (claude, cursor, claude-code, or all). Default: all'),
+    .describe(
+      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, or all). Default: all'
+    ),
   print: z
     .boolean()
     .optional()
@@ -43,8 +37,10 @@ interface Props {
 }
 
 export default function ConfigSyncMcpCommand({ args, options }: Props): React.ReactNode {
+  // Support short flag alias "-f" in addition to "--force"
+  const force = options.force || process.argv.includes('-f');
   // If force is set, skip confirmation
-  const [confirmed, setConfirmed] = useState<boolean | null>(options.force ? true : null);
+  const [confirmed, setConfirmed] = useState<boolean | null>(force ? true : null);
   const [results, setResults] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,92 +61,61 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
     ? allProjects.filter((p) => projectFilter.includes(p.name))
     : allProjects;
 
-  const clientsToShow: string[] = [];
+  const allClients = getSyncClients();
+  const selectedClients: McpSyncClient[] =
+    options.client === 'all'
+      ? allClients
+      : allClients.filter((client) => client.id === options.client);
+
+  const clientsToShow: string[] = selectedClients.map((client) => client.displayName);
   const diffBlocks: string[] = [];
   let hasAnyChanges = false;
-  if (options.client === 'claude' || options.client === 'all') {
-    clientsToShow.push('Claude Desktop');
-    if (!options.force) {
-      try {
-        const adapter = getAdapter('claude');
-        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
-        if (preview.hasChanges) {
-          hasAnyChanges = true;
-          diffBlocks.push(`--- Claude Desktop (${preview.configPath}) ---\n${preview.diffText}`);
-        }
-      } catch (err) {
-        diffBlocks.push(`--- Claude Desktop ---\nError: ${(err as Error).message}`);
+  if (!force) {
+    for (const client of selectedClients) {
+      if (!client.supportsPreview || !client.runPreview) {
+        continue;
       }
-    }
-  }
-  if (options.client === 'cursor' || options.client === 'all') {
-    clientsToShow.push('Cursor');
-    if (!options.force) {
       try {
-        const adapter = getAdapter('cursor');
-        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+        const preview = client.runPreview(projectFilter);
         if (preview.hasChanges) {
           hasAnyChanges = true;
-          diffBlocks.push(`--- Cursor (${preview.configPath}) ---\n${preview.diffText}`);
+          diffBlocks.push(
+            `--- ${client.displayName} (${preview.configPath}) ---\n${preview.diffText}`
+          );
         }
       } catch (err) {
-        diffBlocks.push(`--- Cursor ---\nError: ${(err as Error).message}`);
-      }
-    }
-  }
-  if (options.client === 'claude-code' || options.client === 'all') {
-    clientsToShow.push('Claude Code');
-    if (!options.force) {
-      try {
-        const adapter = getAdapter('claude-code');
-        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
-        if (preview.hasChanges) {
-          hasAnyChanges = true;
-          diffBlocks.push(`--- Claude Code (${preview.configPath}) ---\n${preview.diffText}`);
-        }
-      } catch (err) {
-        diffBlocks.push(`--- Claude Code ---\nError: ${(err as Error).message}`);
+        diffBlocks.push(`--- ${client.displayName} ---\nError: ${(err as Error).message}`);
       }
     }
   }
 
   const diffSection =
     diffBlocks.length > 0 ? `\n\nConfig diff (preview):\n${diffBlocks.join('\n\n')}` : '';
-  const changeNote = !options.force && !hasAnyChanges ? '\n\nNo config changes detected.' : '';
-  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} config files.${diffSection}${changeNote}`;
+  const printOnlyClients = selectedClients.filter((client) => client.printOnly);
+  const includesPrintOnly = printOnlyClients.length > 0;
+  const changeNote =
+    !force && !hasAnyChanges && !includesPrintOnly ? '\n\nNo config changes detected.' : '';
+  const printOnlyNames = printOnlyClients.map((client) => client.displayName).join(', ');
+  const printOnlyNote = includesPrintOnly
+    ? `\n\nPrint-only clients (${printOnlyNames}) will not write local config files.`
+    : '';
+  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} configuration outputs.${diffSection}${changeNote}${printOnlyNote}`;
 
   // If --print, just output the JSON format (no confirmation needed)
   if (options.print) {
     try {
       const printResults: string[] = [];
 
-      if (options.client === 'claude' || options.client === 'all') {
-        try {
-          const adapter = getAdapter('claude');
-          const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
-          printResults.push(output);
-        } catch (err) {
-          printResults.push(`Claude Desktop: Error - ${(err as Error).message}`);
+      for (const client of selectedClients) {
+        if (!client.supportsPrint || !client.runPrint) {
+          printResults.push(`${client.displayName}: Error - print not supported.`);
+          continue;
         }
-      }
-
-      if (options.client === 'cursor' || options.client === 'all') {
         try {
-          const adapter = getAdapter('cursor');
-          const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+          const output = client.runPrint(projectFilter);
           printResults.push(output);
         } catch (err) {
-          printResults.push(`Cursor: Error - ${(err as Error).message}`);
-        }
-      }
-
-      if (options.client === 'claude-code' || options.client === 'all') {
-        try {
-          const adapter = getAdapter('claude-code');
-          const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
-          printResults.push(output);
-        } catch (err) {
-          printResults.push(`Claude Code: Error - ${(err as Error).message}`);
+          printResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
         }
       }
 
@@ -162,35 +127,32 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
 
   // Execute the operation when confirmed or forced
   useEffect(() => {
-    if ((confirmed === true || options.force) && results.length === 0 && error === null) {
+    if ((confirmed === true || force) && results.length === 0 && error === null) {
       try {
         const outputResults: string[] = [];
 
-        if (options.client === 'claude' || options.client === 'all') {
-          try {
-            const output = configAddClaude(() => resolveConfigPath(), projectFilter);
-            outputResults.push(output);
-          } catch (err) {
-            outputResults.push(`Claude Desktop: Error - ${(err as Error).message}`);
+        for (const client of selectedClients) {
+          if (client.supportsWrite && client.runWrite) {
+            try {
+              const output = client.runWrite(projectFilter);
+              outputResults.push(output);
+            } catch (err) {
+              outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+            }
+            continue;
           }
-        }
 
-        if (options.client === 'cursor' || options.client === 'all') {
-          try {
-            const output = configAddCursor(() => resolveConfigPath(), projectFilter);
-            outputResults.push(output);
-          } catch (err) {
-            outputResults.push(`Cursor: Error - ${(err as Error).message}`);
+          if (client.printOnly && client.runPrint) {
+            try {
+              const output = client.runPrint(projectFilter);
+              outputResults.push(output);
+            } catch (err) {
+              outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+            }
+            continue;
           }
-        }
 
-        if (options.client === 'claude-code' || options.client === 'all') {
-          try {
-            const output = configAddClaudeCode(() => resolveConfigPath(), projectFilter);
-            outputResults.push(output);
-          } catch (err) {
-            outputResults.push(`Claude Code: Error - ${(err as Error).message}`);
-          }
+          outputResults.push(`${client.displayName}: Error - write not supported.`);
         }
 
         setResults(outputResults);
@@ -198,7 +160,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
         setError((err as Error).message);
       }
     }
-  }, [confirmed, options.force, options.client, projectFilter]);
+  }, [confirmed, force, options.client, projectFilter]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;
@@ -217,7 +179,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   }
 
   // Show confirmation prompt (unless force flag is set)
-  if (!options.force) {
+  if (!force) {
     return (
       <Confirm
         message={warningMessage}

@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import * as jsonpatch from 'fast-json-patch';
 import { resolve, dirname, basename } from 'path';
+import * as toml from '@iarna/toml';
 import {
   registerProject,
   unregisterProject,
@@ -434,10 +435,12 @@ export function generateMcpClientConfig(
 
   // Build servers configuration
   const servers: Record<string, McpServerConfig> = {};
+  const missingProjects: { name: string; path: string }[] = [];
 
   for (const project of projectsToAdd) {
     // Skip projects with missing config files
     if (!existsSync(project.configPath)) {
+      missingProjects.push({ name: project.name, path: project.configPath });
       continue;
     }
 
@@ -446,7 +449,13 @@ export function generateMcpClientConfig(
   }
 
   if (Object.keys(servers).length === 0) {
-    throw new Error('No valid projects to add. All projects have missing config files.');
+    const missingList =
+      missingProjects.length > 0
+        ? ` Missing config files: ${missingProjects.map((p) => `${p.name} (${p.path})`).join(', ')}`
+        : '';
+    throw new Error(
+      `No valid projects to add. All projects have missing config files.${missingList}`
+    );
   }
 
   // Build full config structure
@@ -652,6 +661,9 @@ function applyServerUpdates(
 
   if (useFlatKey) {
     // Use the key as a flat key (e.g., "mcp.servers" as a literal key)
+    if (clientConfig[serversKey] && typeof clientConfig[serversKey] !== 'object') {
+      throw new Error(`Invalid "${serversKey}" value: expected an object.`);
+    }
     if (!clientConfig[serversKey] || typeof clientConfig[serversKey] !== 'object') {
       clientConfig[serversKey] = {};
     }
@@ -664,6 +676,11 @@ function applyServerUpdates(
     // Navigate/create nested structure
     for (let i = 0; i < keyParts.length - 1; i++) {
       const part = keyParts[i];
+      if (current[part] && typeof current[part] !== 'object') {
+        throw new Error(
+          `Invalid "${keyParts.slice(0, i + 1).join('.')}" value: expected an object.`
+        );
+      }
       if (!current[part] || typeof current[part] !== 'object') {
         current[part] = {};
       }
@@ -672,6 +689,9 @@ function applyServerUpdates(
 
     // Get or create the final servers object
     const finalKey = keyParts[keyParts.length - 1];
+    if (current[finalKey] && typeof current[finalKey] !== 'object') {
+      throw new Error(`Invalid "${serversKey}" value: expected an object.`);
+    }
     if (!current[finalKey] || typeof current[finalKey] !== 'object') {
       current[finalKey] = {};
     }
@@ -714,10 +734,15 @@ export function generateConfigForPrint(
     projectFilter
   );
 
+  const isTomlConfig = adapter.getConfigPath().endsWith('.toml');
+  const formattedConfig = isTomlConfig
+    ? toml.stringify(fullConfig as unknown as toml.JsonMap)
+    : JSON.stringify(fullConfig, null, 2);
+
   const lines: string[] = [];
   lines.push(`\n${adapter.getDisplayName()} Configuration:`);
   lines.push(`\nAdd this to your ${adapter.getDisplayName()} config file:`);
-  lines.push(`\n${JSON.stringify(fullConfig, null, 2)}`);
+  lines.push(`\n${formattedConfig}`);
   lines.push(`\nConfig file location: ${adapter.getConfigPath()}`);
   lines.push(`\nNote: Merge the "${serversKey}" section into your existing config file.`);
 
@@ -776,6 +801,87 @@ export function configAddClaudeCode(
 ): string {
   const adapter = getAdapter('claude-code');
   return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Add limps server configuration to OpenAI Codex config.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Success message listing all added servers
+ * @throws Error if Codex config directory doesn't exist or can't be written
+ */
+export function configAddCodex(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  const adapter = getAdapter('codex');
+  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Generate ChatGPT MCP connector setup instructions.
+ * ChatGPT does not read local config files, so we provide manual steps instead.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Instruction text for ChatGPT custom connectors
+ */
+export function generateChatGptInstructions(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  const testConfigPath = resolveConfigPathFn();
+  if (!existsSync(testConfigPath)) {
+    throw new Error(
+      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+    );
+  }
+
+  const allProjects = listProjects();
+  if (allProjects.length === 0) {
+    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
+  }
+
+  const projectsToAdd = projectFilter
+    ? allProjects.filter((p) => projectFilter.includes(p.name))
+    : allProjects;
+
+  if (projectsToAdd.length === 0) {
+    throw new Error(
+      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
+    );
+  }
+
+  const validProjects = projectsToAdd.filter((p) => existsSync(p.configPath));
+  if (validProjects.length === 0) {
+    throw new Error('No valid projects to add. All projects have missing config files.');
+  }
+
+  const lines: string[] = [];
+  lines.push('ChatGPT Custom Connector Setup (Manual)');
+  lines.push('');
+  lines.push(
+    'ChatGPT requires a remote MCP server reachable over HTTPS. limps runs over stdio, so deploy it behind an MCP-compatible HTTP/SSE transport or proxy.'
+  );
+  lines.push('');
+  lines.push('For each project, create a Custom Connector in ChatGPT with:');
+  lines.push('');
+
+  for (const project of validProjects) {
+    lines.push(`- Project: ${project.name}`);
+    lines.push(`  Server Name: limps-planning-${project.name}`);
+    lines.push('  Server URL: https://your-domain.example/mcp');
+    lines.push('  Authentication: (required by your deployment)');
+    lines.push(`  limps command: limps serve --config ${project.configPath}`);
+    lines.push('');
+  }
+
+  lines.push('Tip: create one connector per project config.');
+
+  return lines.join('\n');
 }
 
 /**

@@ -15,8 +15,8 @@ export default function ConfigCommand(): React.ReactNode {
       {'  '}path Print the resolved config file path{'\n'}
       {'  '}add {'<name>'} {'<path>'} Register an existing config file{'\n'}
       {'  '}sync-mcp [project] [--projects {'<names>'}] [--client{' '}
-      {'<claude|cursor|claude-code|all>'}] [--print] [-f] Add/update limps projects in MCP client
-      configs (default: all){'\n'}
+      {'<claude|cursor|claude-code|codex|chatgpt|all>'}] [--print] [-f] Add/update limps projects in
+      MCP client configs (chatgpt is print-only; default: all){'\n'}
       {'  '}update {'<name>'} [--plans-path {'<path>'}] [--docs-path {'<path>'}] Update project
       paths{'\n'}
       {'  '}remove {'<name>'} Unregister a project (keeps files){'\n'}
