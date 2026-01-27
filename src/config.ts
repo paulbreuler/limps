@@ -3,6 +3,15 @@ import { resolve, dirname } from 'path';
 import { homedir } from 'os';
 
 /**
+ * Scoring weights for task prioritization.
+ */
+export interface ScoringWeights {
+  dependency: number; // default: 40
+  priority: number; // default: 30
+  workload: number; // default: 30
+}
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -10,12 +19,37 @@ export interface ServerConfig {
   docsPaths?: string[]; // Additional paths to index
   fileExtensions?: string[]; // File types to index (default: ['.md'])
   dataPath: string;
+  scoring?: {
+    weights?: Partial<ScoringWeights>;
+  };
 }
 
 /**
  * Default file extensions to index.
  */
 const DEFAULT_FILE_EXTENSIONS = ['.md'];
+
+/**
+ * Default scoring weights for task prioritization.
+ */
+export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
+  dependency: 40,
+  priority: 30,
+  workload: 30,
+};
+
+/**
+ * Get scoring weights from config, merging with defaults.
+ *
+ * @param config - Server configuration
+ * @returns Complete scoring weights with defaults applied
+ */
+export function getScoringWeights(config: ServerConfig): ScoringWeights {
+  return {
+    ...DEFAULT_SCORING_WEIGHTS,
+    ...config.scoring?.weights,
+  };
+}
 
 /**
  * Default debounce delay for file watching (ms).
