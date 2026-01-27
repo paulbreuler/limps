@@ -125,6 +125,7 @@ export function loadConfig(configPath: string): ServerConfig {
     docsPaths: resolvedDocsPaths,
     fileExtensions: config.fileExtensions,
     dataPath: resolvePath(config.dataPath || DEFAULT_CONFIG.dataPath),
+    scoring: config.scoring,
   };
 
   return mergedConfig;

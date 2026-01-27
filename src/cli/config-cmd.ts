@@ -157,6 +157,21 @@ export function configShow(resolveConfigPathFn: () => string): string {
     lines.push(`  fileExtensions:     ${config.fileExtensions.join(', ')}`);
   }
 
+  if (config.scoring?.weights) {
+    lines.push(`  scoring:`);
+    lines.push(`    weights:`);
+    const weights = config.scoring.weights;
+    if (weights.dependency !== undefined) {
+      lines.push(`      dependency:     ${weights.dependency}`);
+    }
+    if (weights.priority !== undefined) {
+      lines.push(`      priority:       ${weights.priority}`);
+    }
+    if (weights.workload !== undefined) {
+      lines.push(`      workload:       ${weights.workload}`);
+    }
+  }
+
   return lines.join('\n');
 }
 
