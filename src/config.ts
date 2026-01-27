@@ -43,6 +43,7 @@ export interface ServerConfig {
     weights: ScoringWeights;
     biases: ScoringBiases;
   };
+  extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-radix"])
 }
 
 /**
@@ -109,6 +110,7 @@ const DEFAULT_CONFIG: ServerConfig = {
     weights: DEFAULT_SCORING_WEIGHTS,
     biases: DEFAULT_SCORING_BIASES,
   },
+  extensions: undefined,
 };
 
 /**
@@ -148,29 +150,30 @@ export function loadConfig(configPath: string): ServerConfig {
   }
 
   const content = readFileSync(configPath, 'utf-8');
-  const config = JSON.parse(content) as Partial<ServerConfig>;
+  const config = JSON.parse(content) as Record<string, unknown>;
+  const typedConfig = config as Partial<ServerConfig>;
 
   // Migration: add scoring if missing (pre-v1 configs)
   let needsSave = false;
-  let scoring = config.scoring;
+  let scoring = typedConfig.scoring;
   if (!scoring?.weights || !scoring?.biases) {
     scoring = {
       weights: DEFAULT_SCORING_WEIGHTS,
       biases: DEFAULT_SCORING_BIASES,
     };
-    config.scoring = scoring;
+    typedConfig.scoring = scoring;
     needsSave = true;
   }
 
   // Migration: add configVersion if missing
-  if (config.configVersion === undefined) {
-    config.configVersion = CURRENT_CONFIG_VERSION;
+  if (typedConfig.configVersion === undefined) {
+    typedConfig.configVersion = CURRENT_CONFIG_VERSION;
     needsSave = true;
   }
 
   // Save migrated config back to disk
   if (needsSave) {
-    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    writeFileSync(configPath, JSON.stringify(typedConfig, null, 2), 'utf-8');
   }
 
   // Helper to resolve path with tilde expansion
@@ -184,17 +187,26 @@ export function loadConfig(configPath: string): ServerConfig {
   };
 
   // Resolve docsPaths relative to config file (with tilde expansion)
-  const resolvedDocsPaths = config.docsPaths ? config.docsPaths.map(resolvePath) : undefined;
+  const resolvedDocsPaths = typedConfig.docsPaths
+    ? typedConfig.docsPaths.map(resolvePath)
+    : undefined;
 
   // Merge with defaults and resolve paths (with tilde expansion)
-  const mergedConfig: ServerConfig = {
-    configVersion: config.configVersion,
-    plansPath: resolvePath(config.plansPath || DEFAULT_CONFIG.plansPath),
+  const resolvedConfig: ServerConfig = {
+    configVersion: typedConfig.configVersion,
+    plansPath: resolvePath(typedConfig.plansPath || DEFAULT_CONFIG.plansPath),
     docsPaths: resolvedDocsPaths,
-    fileExtensions: config.fileExtensions,
-    dataPath: resolvePath(config.dataPath || DEFAULT_CONFIG.dataPath),
+    fileExtensions: typedConfig.fileExtensions,
+    dataPath: resolvePath(typedConfig.dataPath || DEFAULT_CONFIG.dataPath),
     scoring,
+    extensions: typedConfig.extensions,
   };
+
+  // Preserve extension-specific config keys at top level.
+  const mergedConfig: ServerConfig = {
+    ...(config as Record<string, unknown>),
+    ...resolvedConfig,
+  } as ServerConfig;
 
   return mergedConfig;
 }

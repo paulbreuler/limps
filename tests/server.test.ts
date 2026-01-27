@@ -50,12 +50,12 @@ describe('server-initialize', () => {
   });
 
   it('should create server instance with config', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
     expect(server).toBeInstanceOf(McpServer);
   });
 
   it('should initialize server with stdio transport capability', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
     // Server should be ready to connect to stdio transport
     expect(server).toBeDefined();
   });
@@ -102,7 +102,7 @@ describe('server-error-handling', () => {
   });
 
   it('should handle errors gracefully during startup', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Mock console.error to verify error handling
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -117,7 +117,7 @@ describe('server-error-handling', () => {
   });
 
   it('should handle shutdown gracefully', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Start server
     await startServer(server);
@@ -127,7 +127,7 @@ describe('server-error-handling', () => {
   });
 
   it('should call onShutdown callback during graceful shutdown', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const onShutdown = vi.fn().mockResolvedValue(undefined);
 
@@ -145,7 +145,7 @@ describe('server-error-handling', () => {
   });
 
   it('should handle connection errors gracefully', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -201,7 +201,7 @@ describe('server-context-storage', () => {
   });
 
   it('should store tool context on server instance', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Verify tool context is stored
     const toolContext = (server as McpServer & { toolContext: any }).toolContext;
@@ -211,7 +211,7 @@ describe('server-context-storage', () => {
   });
 
   it('should create server with correct name and version', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     expect(server).toBeInstanceOf(McpServer);
     // Server should be ready for resource registration
@@ -260,7 +260,7 @@ describe('tools-registered', () => {
   });
 
   it('should register tools infrastructure', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Tools infrastructure should be registered (empty initially)
     // We can verify by checking that server can connect
@@ -275,7 +275,7 @@ describe('tools-registered', () => {
   });
 
   it('should allow tools to be registered', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Server should support tool registration
     // Initially empty, but infrastructure should be ready
@@ -328,7 +328,7 @@ describe('resources-registered', () => {
   });
 
   it('should register resources infrastructure', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Resources infrastructure should be registered (empty initially)
     const transport = new StdioServerTransport();
@@ -342,7 +342,7 @@ describe('resources-registered', () => {
   });
 
   it('should allow resources to be registered', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Server should support resource registration
     // Initially empty, but infrastructure should be ready

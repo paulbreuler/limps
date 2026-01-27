@@ -22,6 +22,24 @@ import { ListAgentsInputSchema, handleListAgents } from './list-agents.js';
 import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status.js';
 import { ManageTagsInputSchema, handleManageTags } from './manage-tags.js';
 
+export const CORE_TOOL_NAMES = [
+  'create_plan',
+  'update_task_status',
+  'get_next_task',
+  'search_docs',
+  'list_docs',
+  'create_doc',
+  'update_doc',
+  'delete_doc',
+  'open_document_in_cursor',
+  'process_doc',
+  'process_docs',
+  'list_plans',
+  'list_agents',
+  'get_plan_status',
+  'manage_tags',
+] as const;
+
 /**
  * Register all MCP tools with the server.
  *

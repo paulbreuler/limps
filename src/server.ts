@@ -3,17 +3,32 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { ServerConfig } from './config.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import type { ToolContext, ResourceContext } from './types.js';
-import { registerResources } from './resources/index.js';
-import { registerTools } from './tools/index.js';
+import { CORE_RESOURCE_NAMES, CORE_RESOURCE_URIS, registerResources } from './resources/index.js';
+import { CORE_TOOL_NAMES, registerTools } from './tools/index.js';
+import {
+  loadExtensions,
+  getExtensionTools,
+  getExtensionResources,
+  shutdownExtensions,
+  type LoadedExtension,
+} from './extensions/loader.js';
 
 /**
  * Create an MCP server instance with the given configuration.
+ * Loads and registers extensions if configured.
  *
  * @param config - Server configuration
  * @param db - Database instance for tools and resources
- * @returns MCP server instance
+ * @returns MCP server instance with loaded extensions stored on it
  */
-export function createServer(config: ServerConfig, db: DatabaseType): McpServer {
+export async function createServer(
+  config: ServerConfig,
+  db: DatabaseType
+): Promise<McpServer & { loadedExtensions?: LoadedExtension[] }> {
+  const coreToolNames = new Set<string>(CORE_TOOL_NAMES);
+  const coreResourceUris = new Set<string>(CORE_RESOURCE_URIS);
+  const coreResourceNames = new Set<string>(CORE_RESOURCE_NAMES);
+
   const server = new McpServer({
     name: 'limps',
     version: '0.2.0',
@@ -34,13 +49,45 @@ export function createServer(config: ServerConfig, db: DatabaseType): McpServer 
     config,
   };
 
-  // Register resources
+  // Register core resources
   registerResources(server, resourceContext);
 
-  // Register tools
+  // Register core tools
   registerTools(server, toolContext);
 
-  return server;
+  // Load and register extensions
+  const loadedExtensions = await loadExtensions(config);
+  if (loadedExtensions.length > 0) {
+    // Store extensions on server for shutdown
+    (server as McpServer & { loadedExtensions: LoadedExtension[] }).loadedExtensions =
+      loadedExtensions;
+
+    // Register extension tools
+    const extensionTools = getExtensionTools(loadedExtensions);
+    for (const tool of extensionTools) {
+      if (coreToolNames.has(tool.name)) {
+        console.error(
+          `Tool name collision: ${tool.name} is a core tool. Extension tool will be skipped.`
+        );
+        continue;
+      }
+      server.tool(tool.name, tool.description, tool.inputSchema.shape, tool.handler);
+    }
+
+    // Register extension resources
+    const extensionResources = getExtensionResources(loadedExtensions);
+    for (const resource of extensionResources) {
+      if (coreResourceUris.has(resource.uri) || coreResourceNames.has(resource.name)) {
+        console.error(
+          `Resource collision: ${resource.uri} (${resource.name}) matches a core resource. Extension resource will be skipped.`
+        );
+        continue;
+      }
+      server.resource(resource.name, resource.uri, resource.handler);
+    }
+  }
+
+  return server as McpServer & { loadedExtensions?: LoadedExtension[] };
 }
 
 /**
@@ -62,7 +109,15 @@ export async function startServer(
   const shutdown = async (signal: string): Promise<void> => {
     console.error(`Received ${signal}, shutting down gracefully...`);
     try {
-      // Run custom shutdown callback first (stop watcher, close db)
+      // Shutdown extensions first
+      const serverWithExtensions = server as McpServer & {
+        loadedExtensions?: LoadedExtension[];
+      };
+      if (serverWithExtensions.loadedExtensions) {
+        await shutdownExtensions(serverWithExtensions.loadedExtensions);
+      }
+
+      // Run custom shutdown callback (stop watcher, close db)
       if (onShutdown) {
         await onShutdown();
       }

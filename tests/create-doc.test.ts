@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Test directory
-const TEST_DIR = join(__dirname, '..', '..', '.tmp', 'create-doc-test');
+const TEST_DIR = join(process.cwd(), '.tmp', 'create-doc-test');
 const TEST_REPO_ROOT = join(TEST_DIR, 'repo');
 const TEST_DATA_DIR = join(TEST_DIR, 'data');
 

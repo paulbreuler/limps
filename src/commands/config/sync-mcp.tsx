@@ -6,6 +6,7 @@ import {
   configAddCursor,
   configAddClaudeCode,
   generateConfigForPrint,
+  previewMcpClientConfig,
 } from '../../cli/config-cmd.js';
 import { resolveConfigPath } from '../../utils/config-resolver.js';
 import { getAdapter } from '../../cli/mcp-client-adapter.js';
@@ -14,6 +15,10 @@ import { listProjects } from '../../cli/registry.js';
 
 export const description =
   'Add or update all registered limps projects in MCP client configs (default: all projects, all clients)';
+
+export const args = z.tuple([
+  z.string().describe('Project name (optional, overrides --projects)').optional(),
+]);
 
 export const options = z.object({
   projects: z
@@ -33,21 +38,26 @@ export const options = z.object({
 });
 
 interface Props {
+  args: z.infer<typeof args>;
   options: z.infer<typeof options>;
 }
 
-export default function ConfigSyncMcpCommand({ options }: Props): React.ReactNode {
+export default function ConfigSyncMcpCommand({ args, options }: Props): React.ReactNode {
   // If force is set, skip confirmation
   const [confirmed, setConfirmed] = useState<boolean | null>(options.force ? true : null);
   const [results, setResults] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const projectFilter = options.projects
-    ? options.projects
-        .split(',')
-        .map((p) => p.trim())
-        .filter((p) => p.length > 0)
-    : undefined;
+  // Positional argument takes precedence over --projects option
+  const [positionalProject] = args;
+  const projectFilter = positionalProject
+    ? [positionalProject]
+    : options.projects
+      ? options.projects
+          .split(',')
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0)
+      : undefined;
 
   // Build warning message
   const allProjects = listProjects();
@@ -56,17 +66,58 @@ export default function ConfigSyncMcpCommand({ options }: Props): React.ReactNod
     : allProjects;
 
   const clientsToShow: string[] = [];
+  const diffBlocks: string[] = [];
+  let hasAnyChanges = false;
   if (options.client === 'claude' || options.client === 'all') {
     clientsToShow.push('Claude Desktop');
+    if (!options.force) {
+      try {
+        const adapter = getAdapter('claude');
+        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+        if (preview.hasChanges) {
+          hasAnyChanges = true;
+          diffBlocks.push(`--- Claude Desktop (${preview.configPath}) ---\n${preview.diffText}`);
+        }
+      } catch (err) {
+        diffBlocks.push(`--- Claude Desktop ---\nError: ${(err as Error).message}`);
+      }
+    }
   }
   if (options.client === 'cursor' || options.client === 'all') {
     clientsToShow.push('Cursor');
+    if (!options.force) {
+      try {
+        const adapter = getAdapter('cursor');
+        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+        if (preview.hasChanges) {
+          hasAnyChanges = true;
+          diffBlocks.push(`--- Cursor (${preview.configPath}) ---\n${preview.diffText}`);
+        }
+      } catch (err) {
+        diffBlocks.push(`--- Cursor ---\nError: ${(err as Error).message}`);
+      }
+    }
   }
   if (options.client === 'claude-code' || options.client === 'all') {
     clientsToShow.push('Claude Code');
+    if (!options.force) {
+      try {
+        const adapter = getAdapter('claude-code');
+        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+        if (preview.hasChanges) {
+          hasAnyChanges = true;
+          diffBlocks.push(`--- Claude Code (${preview.configPath}) ---\n${preview.diffText}`);
+        }
+      } catch (err) {
+        diffBlocks.push(`--- Claude Code ---\nError: ${(err as Error).message}`);
+      }
+    }
   }
 
-  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} config files.`;
+  const diffSection =
+    diffBlocks.length > 0 ? `\n\nConfig diff (preview):\n${diffBlocks.join('\n\n')}` : '';
+  const changeNote = !options.force && !hasAnyChanges ? '\n\nNo config changes detected.' : '';
+  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} config files.${diffSection}${changeNote}`;
 
   // If --print, just output the JSON format (no confirmation needed)
   if (options.print) {

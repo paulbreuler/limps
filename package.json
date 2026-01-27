@@ -4,6 +4,10 @@
   "description": "Local Intelligent MCP Planning Server - AI agent plan management and coordination",
   "type": "module",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./extensions": "./dist/extensions/index.js"
+  },
   "bin": {
     "limps": "dist/cli.js"
   },
@@ -59,6 +63,7 @@
     "pastel": "^4.0.0",
     "quickjs-emscripten": "^0.31.0",
     "react": "^19.2.3",
+    "fast-json-patch": "^3.1.1",
     "gray-matter": "^4.0.3",
     "remove-markdown": "^0.6.3",
     "update-notifier": "^7.3.1",
@@ -95,5 +100,8 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.53.1",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "hono": "^4.11.7"
   }
 }

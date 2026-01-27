@@ -47,6 +47,39 @@ describe('config-load', () => {
     expect(config.dataPath).toBe(configData.dataPath);
   });
 
+  it('should preserve extension-specific config keys', () => {
+    const configData = {
+      plansPath: join(configDir, 'plans'),
+      dataPath: join(configDir, 'data'),
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
+      extensions: ['@sudosandwich/limps-radix'],
+      '@sudosandwich/limps-radix': {
+        cacheDir: '~/Library/Application Support/limps-radix',
+        featureFlags: {
+          enableRadix: true,
+        },
+      },
+    };
+    writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
+
+    const config = loadConfig(configPath);
+    const extensionConfig = (config as Record<string, unknown>)[
+      '@sudosandwich/limps-radix'
+    ] as Record<string, unknown>;
+
+    expect(config.extensions).toEqual(['@sudosandwich/limps-radix']);
+    expect(extensionConfig).toBeDefined();
+    expect(extensionConfig.cacheDir).toBe('~/Library/Application Support/limps-radix');
+    expect((extensionConfig.featureFlags as { enableRadix: boolean }).enableRadix).toBe(true);
+  });
+
   it('should use default configuration when file does not exist', () => {
     const config = loadConfig(configPath);
     expect(config.plansPath).toBeDefined();

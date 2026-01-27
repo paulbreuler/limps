@@ -54,7 +54,7 @@ describe('protocol-compliance', () => {
   });
 
   it('should implement MCP server interface correctly', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     expect(server).toBeInstanceOf(McpServer);
 
@@ -68,7 +68,7 @@ describe('protocol-compliance', () => {
   });
 
   it('should use stdio transport as specified', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await expect(server.connect(transport)).resolves.not.toThrow();
@@ -77,7 +77,7 @@ describe('protocol-compliance', () => {
   });
 
   it('should handle server initialization according to MCP spec', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Server should be ready after creation
     expect(server).toBeDefined();
@@ -92,7 +92,7 @@ describe('protocol-compliance', () => {
   });
 
   it('should register resources with correct URI format', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -105,7 +105,7 @@ describe('protocol-compliance', () => {
   });
 
   it('should handle graceful shutdown according to MCP spec', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -115,7 +115,7 @@ describe('protocol-compliance', () => {
   });
 
   it('should maintain server state correctly', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     // Verify tool context is stored
     const toolContext = (server as any).toolContext;
