@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/paulbreuler/limps/compare/v2.1.0...v2.2.0) (2026-01-27)
+
+
+### Features
+
+* add Obsidian-compatible frontmatter to all docs ([#14](https://github.com/paulbreuler/limps/issues/14)) ([108d36b](https://github.com/paulbreuler/limps/commit/108d36bb4591cef35c0091ce2a218807adfa14c5))
+
 ## [2.1.0](https://github.com/paulbreuler/limps/compare/v2.0.0...v2.1.0) (2026-01-27)
 
 
