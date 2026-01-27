@@ -1,6 +1,5 @@
-import { Text } from 'ink';
 import { z } from 'zod';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { startMcpServer } from '../server-main.js';
 
 export const description = 'Start the MCP server';
@@ -13,28 +12,23 @@ interface Props {
   options: z.infer<typeof options>;
 }
 
+/**
+ * MCP Server command.
+ * IMPORTANT: This command must NOT render anything to stdout.
+ * MCP servers use stdio transport and stdout must only contain JSON-RPC messages.
+ * All status/error messages go to stderr via console.error().
+ */
 export default function ServeCommand({ options }: Props): React.ReactNode {
-  const [status, setStatus] = useState<'starting' | 'running' | 'error'>('starting');
-  const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
-    startMcpServer(options.config)
-      .then(() => {
-        setStatus('running');
-      })
-      .catch((err: Error) => {
-        setStatus('error');
-        setError(err.message);
-      });
+    // All output goes to stderr, not stdout
+    console.error('MCP Planning Server running on stdio');
+
+    startMcpServer(options.config).catch((err: Error) => {
+      console.error(`Server error: ${err.message}`);
+      process.exit(1);
+    });
   }, [options.config]);
 
-  if (status === 'error') {
-    return <Text color="red">Server error: {error}</Text>;
-  }
-
-  if (status === 'starting') {
-    return <Text>Starting MCP server...</Text>;
-  }
-
-  return <Text color="green">MCP server running</Text>;
+  // Return null - no stdout output allowed for MCP servers
+  return null;
 }

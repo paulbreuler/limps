@@ -2,24 +2,40 @@
 import Pastel from 'pastel';
 import updateNotifier from 'update-notifier';
 import { getPackageVersion, getPackageName } from './utils/version.js';
+import { startMcpServer } from './server-main.js';
 
-// Initialize update notifier for automatic update checks
-// This runs asynchronously in the background and won't block CLI startup
-const pkg = {
-  name: getPackageName(),
-  version: getPackageVersion(),
-};
+// Check if running serve command - needs clean stdio, bypass Pastel/Ink
+const args = process.argv.slice(2);
+if (args[0] === 'serve') {
+  // Parse --config option
+  const configIndex = args.indexOf('--config');
+  const configPath = configIndex !== -1 ? args[configIndex + 1] : undefined;
 
-updateNotifier({
-  pkg,
-  updateCheckInterval: 1000 * 60 * 60 * 24 * 7, // Check once per week
-}).notify();
+  // Run server directly without Ink's terminal management
+  console.error('MCP Planning Server running on stdio');
+  startMcpServer(configPath).catch((err: Error) => {
+    console.error(`Server error: ${err.message}`);
+    process.exit(1);
+  });
+} else {
+  // Initialize update notifier for automatic update checks
+  // This runs asynchronously in the background and won't block CLI startup
+  const pkg = {
+    name: getPackageName(),
+    version: getPackageVersion(),
+  };
 
-const app = new Pastel({
-  importMeta: import.meta,
-  name: 'limps',
-  version: getPackageVersion(),
-  description: 'Local Intelligent MCP Planning Server',
-});
+  updateNotifier({
+    pkg,
+    updateCheckInterval: 1000 * 60 * 60 * 24 * 7, // Check once per week
+  }).notify();
 
-await app.run();
+  const app = new Pastel({
+    importMeta: import.meta,
+    name: 'limps',
+    version: getPackageVersion(),
+    description: 'Local Intelligent MCP Planning Server',
+  });
+
+  await app.run();
+}
