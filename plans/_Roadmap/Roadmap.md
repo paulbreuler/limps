@@ -73,10 +73,10 @@ Both are optimizing for **human readers discovering docs via AI**. limps should 
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
-| Obsidian-compatible frontmatter | HIGH | `title`, `tags`, `aliases`, `created`, `updated` for all file types |
-| Graph-friendly titles | HIGH | Descriptive node names in graph view |
-| Tag taxonomy | MEDIUM | `limps/plan`, `limps/agent`, `limps/status/*` hierarchy |
-| Wikilink support | MEDIUM | `[[000-agent]]` style cross-references |
+| Obsidian-compatible frontmatter | ✅ | `title`, `tags`, `aliases`, `created`, `updated` for all file types |
+| Graph-friendly titles | ✅ | Descriptive node names in graph view |
+| Tag taxonomy | ✅ | `limps/plan`, `limps/agent`, `limps/status/*` hierarchy |
+| Standard markdown links | ✅ | `[text](path.md)` over wikilinks for broader tool compatibility |
 | Dataview compatibility | LOW | Structured queries over limps data |
 
 **Why:** Obsidian is where many devs keep their second brain. limps docs should be browsable there.
@@ -223,6 +223,7 @@ Things we're explicitly NOT building:
 | Vector DB | **sqlite-vec** | All local, no external deps, fits SQLite-first architecture |
 | Embedding model | **Local (ollama)** | Privacy-first, no API costs, works offline |
 | Obsidian strategy | **Build a plugin** | First-class UX, not just file compat |
+| Cross-references | **Standard markdown links** | Wikilinks not globally recognized; `[text](path.md)` works in GitHub, VS Code, etc. |
 
 ## Open Questions
 
