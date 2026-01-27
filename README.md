@@ -355,6 +355,12 @@ In ChatGPT → Settings → Connectors → Add custom connector:
 
 Tip: create one connector per limps project config.
 
+To print setup instructions via CLI:
+
+```bash
+limps config sync-mcp --client chatgpt --print
+```
+
 ### Automatic MCP Client Configuration
 
 Instead of manually editing config files, use the CLI:
