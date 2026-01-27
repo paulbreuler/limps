@@ -1,12 +1,14 @@
 # Plan 0037: Codex + ChatGPT MCP Setup
 
+Status: PASS
+
 ## Status Matrix
 
 | Feature | Status |
 | --- | --- |
-| #1 Codex MCP Client Adapter | GAP |
-| #2 ChatGPT MCP Setup Guidance | GAP |
-| #3 Docs + CLI UX Updates | GAP |
+| #1 Codex MCP Client Adapter | PASS |
+| #2 ChatGPT MCP Setup Guidance | PASS |
+| #3 Docs + CLI UX Updates | PASS |
 
 ## Dependency Graph
 
