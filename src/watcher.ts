@@ -71,11 +71,14 @@ export function startWatcher(
     /(^|[/\\])\../, // Ignore dotfiles
   ];
 
+  const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
   // Watch the directory (or file if it's a single file)
   const watcher = chokidar.watch(watchPaths, {
     ignored: allIgnored,
     persistent: true,
     ignoreInitial: false,
+    usePolling: isTestEnvironment,
     awaitWriteFinish: {
       stabilityThreshold: 100,
       pollInterval: 100,

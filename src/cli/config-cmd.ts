@@ -4,6 +4,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import * as jsonpatch from 'fast-json-patch';
 import { resolve, dirname, basename } from 'path';
 import {
   registerProject,
@@ -320,7 +321,12 @@ export function configSet(configFilePath: string): string {
 }
 
 import { getOSBasePath } from '../utils/os-paths.js';
-import { getAdapter, type McpClientAdapter } from './mcp-client-adapter.js';
+import {
+  getAdapter,
+  type McpClientAdapter,
+  type McpClientConfig,
+  type McpServerConfig,
+} from './mcp-client-adapter.js';
 
 /**
  * Discover and register config files from default OS locations.
@@ -395,7 +401,11 @@ export function generateMcpClientConfig(
   adapter: McpClientAdapter,
   resolveConfigPathFn: () => string,
   projectFilter?: string[]
-): { serversKey: string; servers: Record<string, unknown>; fullConfig: Record<string, unknown> } {
+): {
+  serversKey: string;
+  servers: Record<string, McpServerConfig>;
+  fullConfig: Record<string, unknown>;
+} {
   // Validate that at least one config exists
   const testConfigPath = resolveConfigPathFn();
   if (!existsSync(testConfigPath)) {
@@ -423,7 +433,7 @@ export function generateMcpClientConfig(
   }
 
   // Build servers configuration
-  const servers: Record<string, unknown> = {};
+  const servers: Record<string, McpServerConfig> = {};
 
   for (const project of projectsToAdd) {
     // Skip projects with missing config files
@@ -512,10 +522,135 @@ function configAddMcpClient(
   // Read existing config or create new one
   const clientConfig = adapter.readConfig();
 
+  const { addedServers, updatedServers } = applyServerUpdates(
+    clientConfig,
+    serversKey,
+    servers,
+    adapter.useFlatKey?.() ?? false
+  );
+
+  // Write back to file
+  adapter.writeConfig(clientConfig);
+
+  // Build success message
+  const lines: string[] = [];
+  const totalChanges = addedServers.length + updatedServers.length;
+
+  if (totalChanges === 0) {
+    lines.push(`No changes needed for ${adapter.getDisplayName()} config.`);
+  } else {
+    if (addedServers.length > 0) {
+      lines.push(
+        `Added ${addedServers.length} limps project(s) to ${adapter.getDisplayName()} config:`
+      );
+      for (const server of addedServers) {
+        lines.push(`  + ${server}`);
+      }
+    }
+    if (updatedServers.length > 0) {
+      if (addedServers.length > 0) {
+        lines.push('');
+      }
+      lines.push(
+        `Updated ${updatedServers.length} limps project(s) in ${adapter.getDisplayName()} config:`
+      );
+      for (const server of updatedServers) {
+        lines.push(`  ~ ${server}`);
+      }
+    }
+  }
+
+  lines.push('');
+  lines.push(`Config location: ${adapter.getConfigPath()}`);
+  if (totalChanges > 0) {
+    lines.push(`Restart ${adapter.getDisplayName()} to use the updated MCP servers.`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Preview MCP client config changes without writing to disk.
+ * Returns a formatted diff and counts of additions/updates.
+ */
+export function previewMcpClientConfig(
+  adapter: McpClientAdapter,
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): {
+  hasChanges: boolean;
+  diffText: string;
+  addedServers: string[];
+  updatedServers: string[];
+  configPath: string;
+} {
+  // Validate that at least one config exists
+  const testConfigPath = resolveConfigPathFn();
+  if (!existsSync(testConfigPath)) {
+    throw new Error(
+      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+    );
+  }
+
+  // Get all registered projects
+  const allProjects = listProjects();
+  if (allProjects.length === 0) {
+    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
+  }
+
+  // Filter projects if filter is provided
+  const projectsToAdd = projectFilter
+    ? allProjects.filter((p) => projectFilter.includes(p.name))
+    : allProjects;
+
+  if (projectsToAdd.length === 0) {
+    throw new Error(
+      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
+    );
+  }
+
+  const { serversKey, servers } = generateMcpClientConfig(
+    adapter,
+    resolveConfigPathFn,
+    projectFilter
+  );
+
+  const originalConfig = adapter.readConfig();
+  const nextConfig = deepCloneConfig(originalConfig);
+
+  const { addedServers, updatedServers } = applyServerUpdates(
+    nextConfig,
+    serversKey,
+    servers,
+    adapter.useFlatKey?.() ?? false
+  );
+
+  const patch = jsonpatch.compare(originalConfig, nextConfig);
+  const diffText = patch.length > 0 ? JSON.stringify(patch, null, 2) : '';
+
+  return {
+    hasChanges: patch.length > 0,
+    diffText,
+    addedServers,
+    updatedServers,
+    configPath: adapter.getConfigPath(),
+  };
+}
+
+function deepCloneConfig(config: McpClientConfig): McpClientConfig {
+  return JSON.parse(JSON.stringify(config)) as McpClientConfig;
+}
+
+function applyServerUpdates(
+  clientConfig: McpClientConfig,
+  serversKey: string,
+  servers: Record<string, McpServerConfig>,
+  useFlatKey: boolean
+): { addedServers: string[]; updatedServers: string[] } {
   // Get or create the servers object
   let existingServers: Record<string, unknown>;
 
-  if (adapter.useFlatKey?.()) {
+  if (useFlatKey) {
     // Use the key as a flat key (e.g., "mcp.servers" as a literal key)
     if (!clientConfig[serversKey] || typeof clientConfig[serversKey] !== 'object') {
       clientConfig[serversKey] = {};
@@ -557,44 +692,7 @@ function configAddMcpClient(
     }
   }
 
-  // Write back to file
-  adapter.writeConfig(clientConfig);
-
-  // Build success message
-  const lines: string[] = [];
-  const totalChanges = addedServers.length + updatedServers.length;
-
-  if (totalChanges === 0) {
-    lines.push(`No changes needed for ${adapter.getDisplayName()} config.`);
-  } else {
-    if (addedServers.length > 0) {
-      lines.push(
-        `Added ${addedServers.length} limps project(s) to ${adapter.getDisplayName()} config:`
-      );
-      for (const server of addedServers) {
-        lines.push(`  + ${server}`);
-      }
-    }
-    if (updatedServers.length > 0) {
-      if (addedServers.length > 0) {
-        lines.push('');
-      }
-      lines.push(
-        `Updated ${updatedServers.length} limps project(s) in ${adapter.getDisplayName()} config:`
-      );
-      for (const server of updatedServers) {
-        lines.push(`  ~ ${server}`);
-      }
-    }
-  }
-
-  lines.push('');
-  lines.push(`Config location: ${adapter.getConfigPath()}`);
-  if (totalChanges > 0) {
-    lines.push(`Restart ${adapter.getDisplayName()} to use the updated MCP servers.`);
-  }
-
-  return lines.join('\n');
+  return { addedServers, updatedServers };
 }
 
 /**

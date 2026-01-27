@@ -214,6 +214,13 @@ Create a `config.json` at the OS-specific location or specify a path:
   "docsPaths": ["~/Documents/my-plans"],
   "fileExtensions": [".md"],
   "dataPath": "~/Library/Application Support/limps/data",
+  "extensions": ["@sudosandwich/limps-radix"],
+  "@sudosandwich/limps-radix": {
+    "cacheDir": "~/Library/Application Support/limps-radix",
+    "featureFlags": {
+      "enableRadix": true
+    }
+  },
   "scoring": {
     "weights": {
       "dependency": 40,
@@ -246,12 +253,32 @@ The server finds configuration in this order:
 | `fileExtensions` | string[] | `[".md"]` | File types to index |
 | `dataPath` | string | `./data` | SQLite database location |
 | `scoring` | object | required | Task scoring configuration for `get_next_task` (weights and biases) |
+| `extensions` | string[] | `[]` | Extension package names to load (e.g., `["@sudosandwich/limps-radix"]`) |
 
 ### Path Options
 
 - **Tilde expansion**: `~/Documents/plans` → `/Users/you/Documents/plans`
 - **Absolute paths**: `/Users/john/Documents/plans`
 - **Relative paths**: `./plans` (relative to config file location)
+
+### Extensions
+
+Extensions are loaded by package name from `node_modules` and can register MCP tools/resources.
+Per-extension configuration lives under a top-level key matching the package name.
+
+Security note: extensions execute local code. Only install extensions you trust. Extensions should never log prompts or model outputs; keep logs to metadata only.
+
+```json
+{
+  "extensions": ["@sudosandwich/limps-radix"],
+  "@sudosandwich/limps-radix": {
+    "cacheDir": "~/Library/Application Support/limps-radix",
+    "featureFlags": {
+      "enableRadix": true
+    }
+  }
+}
+```
 
 ## MCP Client Setup
 
@@ -322,6 +349,12 @@ limps config sync-mcp --projects my-project,other-project
 
 # Preview without writing
 limps config sync-mcp --print
+
+# Show a JSON Patch diff before writing (confirm prompt)
+limps config sync-mcp
+
+# Skip diff/confirmation and write directly
+limps config sync-mcp -f
 ```
 
 ## Features

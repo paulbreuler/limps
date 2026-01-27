@@ -34,8 +34,10 @@ export interface ToolResult {
 /**
  * Result returned by resource handlers.
  * Matches MCP SDK resource result format.
+ * Index signature required for MCP SDK compatibility.
  */
 export interface ResourceResult {
+  [key: string]: unknown;
   contents: (
     | {
         uri: string;

@@ -91,7 +91,7 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   console.error(`File watcher started for ${docsPaths.length} path(s)`);
 
   // Create and start server
-  const server = createServer(config, db);
+  const server = await createServer(config, db);
   await startServer(server, async () => {
     // Graceful shutdown callback
     if (watcher) {

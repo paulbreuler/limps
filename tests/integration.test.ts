@@ -69,7 +69,7 @@ describe('integration-tests', () => {
   });
 
   it('should list resources via MCP protocol', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -98,7 +98,7 @@ describe('integration-tests', () => {
   });
 
   it('should handle resource requests via MCP protocol', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -110,7 +110,7 @@ describe('integration-tests', () => {
   });
 
   it('should initialize server with all resources registered', async () => {
-    const server = createServer(config, db!);
+    const server = await createServer(config, db!);
 
     const transport = new StdioServerTransport();
     await server.connect(transport);

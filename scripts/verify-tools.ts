@@ -7,7 +7,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createServer } from '../src/server.js';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { readCoordination } from '../src/coordination.js';
 import { loadConfig } from '../src/config.js';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
@@ -22,34 +21,27 @@ async function verifyTools(): Promise<void> {
   }
 
   const dbPath = join(testDir, 'test-verify.sqlite');
-  const coordinationPath = join(testDir, 'coordination.json');
-
   const db = initializeDatabase(dbPath);
   createSchema(db);
 
   const config = loadConfig(join(process.cwd(), 'config.json'));
-  config.coordinationPath = coordinationPath;
-
-  const coordination = await readCoordination(coordinationPath);
 
   // Create server (this registers all tools)
-  const server = createServer(config, db, coordination);
+  const server = await createServer(config, db);
 
   // Connect to transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Expected tools (16 total)
+  // Expected tools (15 total)
   const expectedTools = [
     // Plan Management
     'create_plan',
     'list_plans',
     'list_agents',
     'get_plan_status',
-    // Task Coordination
+    // Task Management
     'update_task_status',
-    'claim_task',
-    'release_task',
     'get_next_task',
     // Document Operations
     'search_docs',

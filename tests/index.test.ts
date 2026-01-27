@@ -122,7 +122,7 @@ describe('index-entry-point', () => {
 
     const config = loadConfig(configPath);
 
-    const server = createServer(config, db);
+    const server = await createServer(config, db);
     expect(server).toBeDefined();
 
     // Start server
@@ -149,7 +149,7 @@ describe('index-entry-point', () => {
       DEFAULT_DEBOUNCE_DELAY
     );
 
-    const server = createServer(config, db);
+    const server = await createServer(config, db);
     await startServer(server, async () => {
       await stopWatcher(watcher);
       if (db) {

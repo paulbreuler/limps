@@ -6,6 +6,22 @@ import { handlePlanFull } from './plans-full.js';
 import { handleDecisionsLog } from './decisions-log.js';
 import { handleAgentsStatus } from './agents-status.js';
 
+export const CORE_RESOURCE_URIS = [
+  'plans://index',
+  'plans://summary/*',
+  'plans://full/*',
+  'decisions://log',
+  'agents://status',
+] as const;
+
+export const CORE_RESOURCE_NAMES = [
+  'Plans Index',
+  'Plan Summary',
+  'Full Plan',
+  'Decisions Log',
+  'Agents Status',
+] as const;
+
 /**
  * Register all MCP resources with the server.
  *
