@@ -258,6 +258,7 @@ export function configSet(configFilePath: string): string {
 }
 
 import { getOSBasePath } from '../utils/os-paths.js';
+import { getAdapter, type McpClientAdapter } from './mcp-client-adapter.js';
 
 /**
  * Discover and register config files from default OS locations.
@@ -316,4 +317,285 @@ export function configDiscover(): string {
   lines.push('Run `limps config use <name>` to switch to a project.');
 
   return lines.join('\n');
+}
+
+/**
+ * Generate MCP server configuration JSON for limps projects.
+ * Returns the JSON structure that should be added to the client config.
+ *
+ * @param adapter - MCP client adapter
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Object with servers key and the servers configuration
+ * @throws Error if no valid projects found
+ */
+export function generateMcpClientConfig(
+  adapter: McpClientAdapter,
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): { serversKey: string; servers: Record<string, unknown>; fullConfig: Record<string, unknown> } {
+  // Validate that at least one config exists
+  const testConfigPath = resolveConfigPathFn();
+  if (!existsSync(testConfigPath)) {
+    throw new Error(
+      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+    );
+  }
+
+  // Get all registered projects
+  const allProjects = listProjects();
+
+  if (allProjects.length === 0) {
+    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
+  }
+
+  // Filter projects if filter is provided
+  const projectsToAdd = projectFilter
+    ? allProjects.filter((p) => projectFilter.includes(p.name))
+    : allProjects;
+
+  if (projectsToAdd.length === 0) {
+    throw new Error(
+      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
+    );
+  }
+
+  // Build servers configuration
+  const servers: Record<string, unknown> = {};
+
+  for (const project of projectsToAdd) {
+    // Skip projects with missing config files
+    if (!existsSync(project.configPath)) {
+      continue;
+    }
+
+    const serverName = `limps-planning-${project.name}`;
+    servers[serverName] = adapter.createServerConfig(project.configPath);
+  }
+
+  if (Object.keys(servers).length === 0) {
+    throw new Error('No valid projects to add. All projects have missing config files.');
+  }
+
+  // Build full config structure
+  const serversKey = adapter.getServersKey();
+  const fullConfig: Record<string, unknown> = {};
+
+  if (adapter.useFlatKey?.()) {
+    // Use the key as a flat key
+    fullConfig[serversKey] = servers;
+  } else {
+    // Build nested structure
+    const keyParts = serversKey.split('.');
+    let current: Record<string, unknown> = fullConfig;
+    for (let i = 0; i < keyParts.length - 1; i++) {
+      current[keyParts[i]] = {};
+      current = current[keyParts[i]] as Record<string, unknown>;
+    }
+    current[keyParts[keyParts.length - 1]] = servers;
+  }
+
+  return { serversKey, servers, fullConfig };
+}
+
+/**
+ * Add limps server configuration to an MCP client config.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param adapter - MCP client adapter
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Success message listing all added servers
+ * @throws Error if config directory doesn't exist or can't be written
+ */
+function configAddMcpClient(
+  adapter: McpClientAdapter,
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  // Validate that at least one config exists
+  const testConfigPath = resolveConfigPathFn();
+  if (!existsSync(testConfigPath)) {
+    throw new Error(
+      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+    );
+  }
+
+  // Get all registered projects
+  const allProjects = listProjects();
+
+  if (allProjects.length === 0) {
+    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
+  }
+
+  // Filter projects if filter is provided
+  const projectsToAdd = projectFilter
+    ? allProjects.filter((p) => projectFilter.includes(p.name))
+    : allProjects;
+
+  if (projectsToAdd.length === 0) {
+    throw new Error(
+      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
+    );
+  }
+
+  // Generate the config
+  const { serversKey, servers } = generateMcpClientConfig(
+    adapter,
+    resolveConfigPathFn,
+    projectFilter
+  );
+
+  // Read existing config or create new one
+  const clientConfig = adapter.readConfig();
+
+  // Get or create the servers object
+  let existingServers: Record<string, unknown>;
+
+  if (adapter.useFlatKey?.()) {
+    // Use the key as a flat key (e.g., "mcp.servers" as a literal key)
+    if (!clientConfig[serversKey] || typeof clientConfig[serversKey] !== 'object') {
+      clientConfig[serversKey] = {};
+    }
+    existingServers = clientConfig[serversKey] as Record<string, unknown>;
+  } else {
+    // Handle nested keys like "mcp.servers" -> { mcp: { servers: {...} } }
+    const keyParts = serversKey.split('.');
+    let current: Record<string, unknown> = clientConfig as Record<string, unknown>;
+
+    // Navigate/create nested structure
+    for (let i = 0; i < keyParts.length - 1; i++) {
+      const part = keyParts[i];
+      if (!current[part] || typeof current[part] !== 'object') {
+        current[part] = {};
+      }
+      current = current[part] as Record<string, unknown>;
+    }
+
+    // Get or create the final servers object
+    const finalKey = keyParts[keyParts.length - 1];
+    if (!current[finalKey] || typeof current[finalKey] !== 'object') {
+      current[finalKey] = {};
+    }
+    existingServers = current[finalKey] as Record<string, unknown>;
+  }
+
+  // Track what was added/updated
+  const addedServers: string[] = [];
+  const updatedServers: string[] = [];
+
+  for (const [serverName, serverConfig] of Object.entries(servers)) {
+    const wasExisting = serverName in existingServers;
+    existingServers[serverName] = serverConfig;
+    if (wasExisting) {
+      updatedServers.push(serverName);
+    } else {
+      addedServers.push(serverName);
+    }
+  }
+
+  // Write back to file
+  adapter.writeConfig(clientConfig);
+
+  // Build success message
+  const lines: string[] = [];
+  const totalChanges = addedServers.length + updatedServers.length;
+
+  if (totalChanges === 0) {
+    lines.push(`No changes needed for ${adapter.getDisplayName()} config.`);
+  } else {
+    if (addedServers.length > 0) {
+      lines.push(
+        `Added ${addedServers.length} limps project(s) to ${adapter.getDisplayName()} config:`
+      );
+      for (const server of addedServers) {
+        lines.push(`  + ${server}`);
+      }
+    }
+    if (updatedServers.length > 0) {
+      if (addedServers.length > 0) {
+        lines.push('');
+      }
+      lines.push(
+        `Updated ${updatedServers.length} limps project(s) in ${adapter.getDisplayName()} config:`
+      );
+      for (const server of updatedServers) {
+        lines.push(`  ~ ${server}`);
+      }
+    }
+  }
+
+  lines.push('');
+  lines.push(`Config location: ${adapter.getConfigPath()}`);
+  if (totalChanges > 0) {
+    lines.push(`Restart ${adapter.getDisplayName()} to use the updated MCP servers.`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate config JSON for printing (for unsupported clients).
+ *
+ * @param adapter - MCP client adapter
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns JSON string and instructions
+ */
+export function generateConfigForPrint(
+  adapter: McpClientAdapter,
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  const { fullConfig, serversKey } = generateMcpClientConfig(
+    adapter,
+    resolveConfigPathFn,
+    projectFilter
+  );
+
+  const lines: string[] = [];
+  lines.push(`\n${adapter.getDisplayName()} Configuration:`);
+  lines.push(`\nAdd this to your ${adapter.getDisplayName()} config file:`);
+  lines.push(`\n${JSON.stringify(fullConfig, null, 2)}`);
+  lines.push(`\nConfig file location: ${adapter.getConfigPath()}`);
+  lines.push(`\nNote: Merge the "${serversKey}" section into your existing config file.`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Add limps server configuration to Claude Desktop config.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Success message listing all added servers
+ * @throws Error if Claude Desktop config directory doesn't exist or can't be written
+ */
+export function configAddClaude(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  const adapter = getAdapter('claude');
+  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Add limps server configuration to Cursor config.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @returns Success message listing all added servers
+ * @throws Error if Cursor config directory doesn't exist or can't be written
+ */
+export function configAddCursor(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[]
+): string {
+  const adapter = getAdapter('cursor');
+  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
 }

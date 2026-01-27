@@ -1,7 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
+import type * as osModule from 'os';
+import * as osPaths from '../../src/utils/os-paths.js';
+
+// Track the mock homedir value
+let mockHomedirValue: string | null = null;
+
+// Mock the os module's homedir function - must be before importing modules that use it
+vi.mock('os', async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof osModule;
+  return {
+    ...actual,
+    homedir: (): string => mockHomedirValue ?? actual.homedir(),
+  };
+});
+
 import {
   configList,
   configUse,
@@ -11,9 +26,17 @@ import {
   configRemove,
   configSet,
   configDiscover,
+  configAddClaude,
+  configAddCursor,
+  generateConfigForPrint,
 } from '../../src/cli/config-cmd.js';
-import { registerProject, setCurrentProject, loadRegistry } from '../../src/cli/registry.js';
-import * as osPaths from '../../src/utils/os-paths.js';
+import { getAdapter } from '../../src/cli/mcp-client-adapter.js';
+import {
+  registerProject,
+  setCurrentProject,
+  loadRegistry,
+  unregisterProject,
+} from '../../src/cli/registry.js';
 
 describe('config-cmd', () => {
   let testDir: string;
@@ -270,6 +293,331 @@ describe('config-cmd', () => {
       const output = configDiscover();
 
       expect(output).toContain('No new projects discovered');
+    });
+  });
+
+  describe('configAddClaude', () => {
+    let claudeConfigDir: string;
+    let claudeConfigPath: string;
+
+    beforeEach(() => {
+      // Mock homedir to use test directory
+      mockHomedirValue = testDir;
+      claudeConfigDir = join(testDir, 'Library', 'Application Support', 'Claude');
+      claudeConfigPath = join(claudeConfigDir, 'claude_desktop_config.json');
+      mkdirSync(claudeConfigDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      mockHomedirValue = null;
+    });
+
+    it('adds all registered projects to Claude Desktop config', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const output = configAddClaude(() => configA);
+
+      expect(output).toContain('Added');
+      expect(output).toContain('claude_desktop_config.json');
+
+      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      expect(claudeConfig.mcpServers).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-project-a']).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-project-b']).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-project-a'].command).toBe('npx');
+      expect(claudeConfig.mcpServers['limps-planning-project-a'].args).toEqual([
+        '-y',
+        '@sudosandwich/limps',
+        'serve',
+        '--config',
+        configA,
+      ]);
+      expect(claudeConfig.mcpServers['limps-planning-project-b'].args).toEqual([
+        '-y',
+        '@sudosandwich/limps',
+        'serve',
+        '--config',
+        configB,
+      ]);
+    });
+
+    it('creates Claude Desktop config if it does not exist', () => {
+      const configPath = createConfig('new-project');
+      registerProject('new-project', configPath);
+
+      configAddClaude(() => configPath);
+
+      expect(existsSync(claudeConfigPath)).toBe(true);
+      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      expect(claudeConfig.mcpServers).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-new-project']).toBeDefined();
+    });
+
+    it('preserves existing MCP servers in Claude Desktop config', () => {
+      const existingConfig = {
+        mcpServers: {
+          'other-server': {
+            command: 'other-command',
+            args: ['arg1'],
+          },
+        },
+      };
+      writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2));
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      configAddClaude(() => configPath);
+
+      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      expect(claudeConfig.mcpServers['other-server']).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-my-project']).toBeDefined();
+    });
+
+    it('filters projects when project list is provided', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      const configC = createConfig('project-c');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+      registerProject('project-c', configC);
+
+      configAddClaude(() => configA, ['project-a', 'project-c']);
+
+      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      expect(claudeConfig.mcpServers['limps-planning-project-a']).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-project-b']).toBeUndefined();
+      expect(claudeConfig.mcpServers['limps-planning-project-c']).toBeDefined();
+    });
+
+    it('skips projects with missing config files', () => {
+      const configA = createConfig('project-a');
+      registerProject('project-a', configA);
+      registerProject('missing-project', '/nonexistent/config.json');
+
+      const output = configAddClaude(() => configA);
+
+      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      expect(claudeConfig.mcpServers['limps-planning-project-a']).toBeDefined();
+      expect(claudeConfig.mcpServers['limps-planning-missing-project']).toBeUndefined();
+      expect(output).toContain('project-a');
+    });
+
+    it('returns message listing all added servers', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const output = configAddClaude(() => configA);
+
+      expect(output).toContain('limps-planning-project-a');
+      expect(output).toContain('limps-planning-project-b');
+      expect(output).toContain('Restart Claude Desktop');
+    });
+
+    it('throws error when no projects are registered', () => {
+      expect(() => configAddClaude(() => '/nonexistent/config.json')).toThrow(
+        'Limps config not found'
+      );
+    });
+
+    it('throws error when registry is empty', () => {
+      // Clear registry by removing all projects
+      const registry = loadRegistry();
+      const projectNames = Object.keys(registry.projects);
+      for (const name of projectNames) {
+        unregisterProject(name);
+      }
+
+      const configPath = createConfig('test');
+      expect(() => configAddClaude(() => configPath)).toThrow('No projects registered');
+    });
+
+    it('overwrites existing limps server entries', () => {
+      const existingConfig = {
+        mcpServers: {
+          'limps-planning-project-a': {
+            command: 'old-command',
+            args: ['old-args'],
+          },
+        },
+      };
+      writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2));
+
+      const configA = createConfig('project-a');
+      registerProject('project-a', configA);
+
+      configAddClaude(() => configA);
+
+      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      expect(claudeConfig.mcpServers['limps-planning-project-a'].command).toBe('npx');
+      expect(claudeConfig.mcpServers['limps-planning-project-a'].args).toContain('serve');
+    });
+
+    it('throws error when all projects have missing config files', () => {
+      // Create a valid config to pass the initial validation
+      const validConfig = createConfig('temp-valid');
+      registerProject('missing-1', '/nonexistent/config1.json');
+      registerProject('missing-2', '/nonexistent/config2.json');
+
+      // Filter to only the missing projects
+      expect(() => configAddClaude(() => validConfig, ['missing-1', 'missing-2'])).toThrow(
+        'No valid projects to add'
+      );
+    });
+
+    it('throws error when filtered projects do not exist', () => {
+      const configA = createConfig('project-a');
+      registerProject('project-a', configA);
+
+      expect(() => configAddClaude(() => configA, ['nonexistent-project'])).toThrow(
+        'No matching projects found'
+      );
+    });
+  });
+
+  describe('configAddCursor', () => {
+    let cursorConfigDir: string;
+    let cursorConfigPath: string;
+
+    beforeEach(() => {
+      // Mock homedir to use test directory
+      mockHomedirValue = testDir;
+      // Cursor uses VS Code settings.json location
+      if (process.platform === 'darwin') {
+        cursorConfigDir = join(testDir, 'Library', 'Application Support', 'Cursor', 'User');
+      } else if (process.platform === 'win32') {
+        cursorConfigDir = join(testDir, 'AppData', 'Roaming', 'Cursor', 'User');
+      } else {
+        cursorConfigDir = join(testDir, '.config', 'Cursor', 'User');
+      }
+      cursorConfigPath = join(cursorConfigDir, 'settings.json');
+      mkdirSync(cursorConfigDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      mockHomedirValue = null;
+    });
+
+    it('adds all registered projects to Cursor config', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const output = configAddCursor(() => configA);
+
+      expect(output).toContain('Added');
+      expect(output).toContain('settings.json');
+
+      const cursorConfig = JSON.parse(readFileSync(cursorConfigPath, 'utf-8'));
+      expect(cursorConfig['mcp.servers']).toBeDefined();
+      expect(cursorConfig['mcp.servers']['limps-planning-project-a']).toBeDefined();
+      expect(cursorConfig['mcp.servers']['limps-planning-project-b']).toBeDefined();
+      expect(cursorConfig['mcp.servers']['limps-planning-project-a'].command).toBe('limps');
+      expect(cursorConfig['mcp.servers']['limps-planning-project-a'].args).toEqual([
+        'serve',
+        '--config',
+        configA,
+      ]);
+    });
+
+    it('creates Cursor config if it does not exist', () => {
+      const configPath = createConfig('new-project');
+      registerProject('new-project', configPath);
+
+      configAddCursor(() => configPath);
+
+      expect(existsSync(cursorConfigPath)).toBe(true);
+      const cursorConfig = JSON.parse(readFileSync(cursorConfigPath, 'utf-8'));
+      expect(cursorConfig['mcp.servers']).toBeDefined();
+      expect(cursorConfig['mcp.servers']['limps-planning-new-project']).toBeDefined();
+    });
+
+    it('preserves existing settings in Cursor config', () => {
+      const existingConfig = {
+        'editor.formatOnSave': true,
+        'mcp.servers': {
+          'other-server': {
+            command: 'other-command',
+            args: ['arg1'],
+          },
+        },
+      };
+      writeFileSync(cursorConfigPath, JSON.stringify(existingConfig, null, 2));
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      configAddCursor(() => configPath);
+
+      const cursorConfig = JSON.parse(readFileSync(cursorConfigPath, 'utf-8'));
+      expect(cursorConfig['editor.formatOnSave']).toBe(true);
+      expect(cursorConfig['mcp.servers']['other-server']).toBeDefined();
+      expect(cursorConfig['mcp.servers']['limps-planning-my-project']).toBeDefined();
+    });
+  });
+
+  describe('generateConfigForPrint', () => {
+    it('generates config JSON for Claude Desktop', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const adapter = getAdapter('claude');
+      const output = generateConfigForPrint(adapter, () => configA);
+
+      expect(output).toContain('Claude Desktop Configuration');
+      expect(output).toContain('mcpServers');
+      expect(output).toContain('limps-planning-project-a');
+      expect(output).toContain('limps-planning-project-b');
+      expect(output).toContain('npx');
+      expect(output).toContain('@sudosandwich/limps');
+      // Should contain valid JSON
+      const jsonMatch = output.match(/\{[\s\S]*\}/);
+      expect(jsonMatch).toBeTruthy();
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        expect(parsed.mcpServers).toBeDefined();
+      }
+    });
+
+    it('generates config JSON for Cursor', () => {
+      const configA = createConfig('project-a');
+      registerProject('project-a', configA);
+
+      const adapter = getAdapter('cursor');
+      const output = generateConfigForPrint(adapter, () => configA);
+
+      expect(output).toContain('Cursor Configuration');
+      expect(output).toContain('mcp.servers');
+      expect(output).toContain('limps-planning-project-a');
+      expect(output).toContain('limps');
+      // Should contain valid JSON
+      const jsonMatch = output.match(/\{[\s\S]*\}/);
+      expect(jsonMatch).toBeTruthy();
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        expect(parsed['mcp.servers']).toBeDefined();
+      }
+    });
+
+    it('filters projects when project list is provided', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const adapter = getAdapter('claude');
+      const output = generateConfigForPrint(adapter, () => configA, ['project-a']);
+
+      expect(output).toContain('limps-planning-project-a');
+      expect(output).not.toContain('limps-planning-project-b');
     });
   });
 });

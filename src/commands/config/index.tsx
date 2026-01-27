@@ -14,6 +14,8 @@ export default function ConfigCommand(): React.ReactNode {
       {'  '}show Display resolved configuration values{'\n'}
       {'  '}path Print the resolved config file path{'\n'}
       {'  '}add {'<name>'} {'<path>'} Register an existing config file{'\n'}
+      {'  '}add-claude [--projects {'<names>'}] [--client {'<claude|cursor|both>'}] [--print] [-f]
+      Add/update all registered limps projects in MCP client configs (default: both clients){'\n'}
       {'  '}remove {'<name>'} Unregister a project (keeps files){'\n'}
       {'  '}set {'<path>'} Set current from config path (auto-registers){'\n'}
       {'  '}discover Find and register configs in default locations{'\n'}
