@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.0](https://github.com/paulbreuler/limps/compare/v2.3.0...v2.4.0) (2026-01-27)
+
+
+### Features
+
+* add config migration and rename add-claude to sync-mcp ([#24](https://github.com/paulbreuler/limps/issues/24)) ([31a5f91](https://github.com/paulbreuler/limps/commit/31a5f9101830e8212c73c1168dbc69683f76c0b8))
+
+
+### Bug Fixes
+
+* remove aggressive frontmatter healing feature ([#26](https://github.com/paulbreuler/limps/issues/26)) ([d74f04e](https://github.com/paulbreuler/limps/commit/d74f04e4bd87be7a70f22937c1ee3ff8140a51f7))
+
 ## [2.3.0](https://github.com/paulbreuler/limps/compare/v2.2.0...v2.3.0) (2026-01-27)
 
 
