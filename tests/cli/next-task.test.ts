@@ -33,6 +33,10 @@ describe('next-task', () => {
     config = {
       plansPath: plansDir,
       dataPath: join(testDir, 'data'),
+      scoring: {
+        weights: DEFAULT_SCORING_WEIGHTS,
+        biases: DEFAULT_SCORING_BIASES,
+      },
     };
   });
 
@@ -272,7 +276,7 @@ describe('next-task', () => {
       });
       const allAgents = [agent];
 
-      const result = scoreTask(agent, allAgents);
+      const result = scoreTask(agent, allAgents, DEFAULT_SCORING_WEIGHTS, DEFAULT_SCORING_BIASES);
 
       expect(result).toBeNull();
     });
@@ -281,7 +285,7 @@ describe('next-task', () => {
       const agent = createMockAgent();
       const allAgents = [agent];
 
-      const result = scoreTask(agent, allAgents);
+      const result = scoreTask(agent, allAgents, DEFAULT_SCORING_WEIGHTS, DEFAULT_SCORING_BIASES);
 
       expect(result).not.toBeNull();
       expect(result!.totalScore).toBe(100); // 40 + 30 + 30
@@ -396,15 +400,6 @@ files: []
 
   describe('configurable weights', () => {
     describe('getScoringWeights', () => {
-      it('returns defaults when no scoring config', () => {
-        const weights = getScoringWeights(config);
-
-        expect(weights).toEqual(DEFAULT_SCORING_WEIGHTS);
-        expect(weights.dependency).toBe(40);
-        expect(weights.priority).toBe(30);
-        expect(weights.workload).toBe(30);
-      });
-
       it('applies custom weights from config', () => {
         const customConfig: ServerConfig = {
           ...config,
@@ -414,6 +409,7 @@ files: []
               priority: 25,
               workload: 25,
             },
+            biases: DEFAULT_SCORING_BIASES,
           },
         };
 
@@ -422,34 +418,6 @@ files: []
         expect(weights.dependency).toBe(50);
         expect(weights.priority).toBe(25);
         expect(weights.workload).toBe(25);
-      });
-
-      it('allows partial weight overrides', () => {
-        const customConfig: ServerConfig = {
-          ...config,
-          scoring: {
-            weights: {
-              dependency: 60,
-            },
-          },
-        };
-
-        const weights = getScoringWeights(customConfig);
-
-        expect(weights.dependency).toBe(60);
-        expect(weights.priority).toBe(30); // default
-        expect(weights.workload).toBe(30); // default
-      });
-
-      it('handles empty scoring object', () => {
-        const customConfig: ServerConfig = {
-          ...config,
-          scoring: {},
-        };
-
-        const weights = getScoringWeights(customConfig);
-
-        expect(weights).toEqual(DEFAULT_SCORING_WEIGHTS);
       });
     });
 
@@ -550,6 +518,7 @@ files: []
               priority: 25,
               workload: 25,
             },
+            biases: DEFAULT_SCORING_BIASES,
           },
         };
 
@@ -583,16 +552,11 @@ files: []
 
   describe('configurable biases', () => {
     describe('getScoringBiases', () => {
-      it('returns defaults when no scoring config', () => {
-        const biases = getScoringBiases(config);
-
-        expect(biases).toEqual(DEFAULT_SCORING_BIASES);
-      });
-
       it('applies custom biases from config', () => {
         const customConfig: ServerConfig = {
           ...config,
           scoring: {
+            weights: DEFAULT_SCORING_WEIGHTS,
             biases: {
               plans: { '0004-test-plan': 20 },
               personas: { coder: 10 },
@@ -606,17 +570,6 @@ files: []
         expect(biases.plans?.['0004-test-plan']).toBe(20);
         expect(biases.personas?.coder).toBe(10);
         expect(biases.statuses?.GAP).toBe(5);
-      });
-
-      it('handles empty scoring object', () => {
-        const customConfig: ServerConfig = {
-          ...config,
-          scoring: {},
-        };
-
-        const biases = getScoringBiases(customConfig);
-
-        expect(biases).toEqual(DEFAULT_SCORING_BIASES);
       });
     });
 
@@ -771,7 +724,7 @@ files: []
         const allAgents = [agent];
         const biases = { plans: { '0004-test-plan': 10 } };
 
-        const result = scoreTask(agent, allAgents, undefined, biases);
+        const result = scoreTask(agent, allAgents, DEFAULT_SCORING_WEIGHTS, biases);
 
         expect(result).not.toBeNull();
         expect(result!.biasScore).toBe(10);
@@ -783,7 +736,7 @@ files: []
         const allAgents = [agent];
         const biases = { plans: { '0004-test-plan': -200 } };
 
-        const result = scoreTask(agent, allAgents, undefined, biases);
+        const result = scoreTask(agent, allAgents, DEFAULT_SCORING_WEIGHTS, biases);
 
         expect(result).not.toBeNull();
         expect(result!.biasScore).toBe(-200);
@@ -807,7 +760,7 @@ files: []
           personas: { coder: 10 },
         };
 
-        const result = scoreTask(agent, allAgents, undefined, biases);
+        const result = scoreTask(agent, allAgents, DEFAULT_SCORING_WEIGHTS, biases);
 
         expect(result).not.toBeNull();
         expect(result!.reasons).toContain('Plan bias: +20');
@@ -820,6 +773,7 @@ files: []
         const customConfig: ServerConfig = {
           ...config,
           scoring: {
+            weights: DEFAULT_SCORING_WEIGHTS,
             biases: {
               plans: { '0006-bias-test': 15 },
             },
@@ -881,6 +835,7 @@ files: []
         const customConfig: ServerConfig = {
           ...config,
           scoring: {
+            weights: DEFAULT_SCORING_WEIGHTS,
             biases: {
               personas: { reviewer: 50 },
             },

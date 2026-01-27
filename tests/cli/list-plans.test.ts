@@ -18,6 +18,14 @@ describe('list-plans', () => {
     config = {
       plansPath: plansDir,
       dataPath: join(testDir, 'data'),
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 

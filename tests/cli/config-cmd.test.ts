@@ -70,6 +70,14 @@ describe('config-cmd', () => {
     const config = {
       plansPath: join(testDir, name, 'plans'),
       dataPath: join(testDir, name, 'data'),
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2));
     return configPath;
@@ -164,6 +172,7 @@ describe('config-cmd', () => {
             priority: 25,
             workload: 25,
           },
+          biases: {},
         },
       };
       writeFileSync(configPath, JSON.stringify(config, null, 2));
@@ -179,35 +188,17 @@ describe('config-cmd', () => {
       expect(output).toContain('workload:');
     });
 
-    it('shows partial scoring weights', () => {
-      const configPath = join(configDir, 'partial-scoring-config.json');
-      const config = {
-        plansPath: join(testDir, 'plans'),
-        dataPath: join(testDir, 'data'),
-        scoring: {
-          weights: {
-            dependency: 60,
-          },
-        },
-      };
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-      const output = configShow(() => configPath);
-
-      expect(output).toContain('scoring:');
-      expect(output).toContain('dependency:');
-      expect(output).toContain('60');
-      // Should not show unset weights
-      expect(output).not.toContain('priority:');
-      expect(output).not.toContain('workload:');
-    });
-
     it('shows scoring biases when present', () => {
       const configPath = join(configDir, 'biases-config.json');
       const config = {
         plansPath: join(testDir, 'plans'),
         dataPath: join(testDir, 'data'),
         scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
           biases: {
             plans: { '0001-test-plan': 20 },
             personas: { coder: 10, reviewer: -5 },
@@ -327,6 +318,14 @@ describe('config-cmd', () => {
       const config = {
         plansPath: join(testDir, 'plans'),
         dataPath: join(testDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       };
       writeFileSync(configFilePath, JSON.stringify(config, null, 2));
 
@@ -376,6 +375,14 @@ describe('config-cmd', () => {
       const config = {
         plansPath: join(projectDir, 'plans'),
         dataPath: join(projectDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       };
       writeFileSync(join(projectDir, 'config.json'), JSON.stringify(config, null, 2));
 
@@ -396,6 +403,14 @@ describe('config-cmd', () => {
       const config = {
         plansPath: join(projectDir, 'plans'),
         dataPath: join(projectDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       };
       writeFileSync(configFilePath, JSON.stringify(config, null, 2));
       registerProject('already-registered', configFilePath);

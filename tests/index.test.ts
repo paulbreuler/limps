@@ -34,6 +34,14 @@ describe('index-entry-point', () => {
     const config = {
       plansPath: plansDir,
       dataPath: dataDir,
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
 

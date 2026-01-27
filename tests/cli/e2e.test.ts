@@ -102,6 +102,14 @@ This is a test feature plan.
       JSON.stringify({
         plansPath: plansDir,
         dataPath: join(testDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       }),
       'utf-8'
     );
@@ -172,6 +180,14 @@ This is a test feature plan.
         JSON.stringify({
           plansPath: emptyDir,
           dataPath: join(testDir, 'data'),
+          scoring: {
+            weights: {
+              dependency: 40,
+              priority: 30,
+              workload: 30,
+            },
+            biases: {},
+          },
         }),
         'utf-8'
       );

@@ -195,18 +195,18 @@ function isTaskEligible(
 function scoreTask(
   agent: ParsedAgentFile,
   allAgents: ParsedAgentFile[],
-  weights?: ScoringWeights,
-  biases?: ScoringBiases
+  weights: ScoringWeights,
+  biases: ScoringBiases
 ): TaskScoreBreakdown | null {
   const eligibility = isTaskEligible(agent, allAgents);
   if (!eligibility.eligible) {
     return null;
   }
 
-  const depResult = calculateDependencyScore(agent, allAgents, weights?.dependency);
-  const priorityResult = calculatePriorityScore(agent, weights?.priority);
-  const workloadResult = calculateWorkloadScore(agent, weights?.workload);
-  const biasResult = calculateBiasScore(agent, biases || {});
+  const depResult = calculateDependencyScore(agent, allAgents, weights.dependency);
+  const priorityResult = calculatePriorityScore(agent, weights.priority);
+  const workloadResult = calculateWorkloadScore(agent, weights.workload);
+  const biasResult = calculateBiasScore(agent, biases);
 
   const baseScore = depResult.score + priorityResult.score + workloadResult.score;
   // Floor total at 0 (no negative scores)

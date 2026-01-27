@@ -213,7 +213,15 @@ Create a `config.json` at the OS-specific location or specify a path:
   "plansPath": "~/Documents/my-plans",
   "docsPaths": ["~/Documents/my-plans"],
   "fileExtensions": [".md"],
-  "dataPath": "~/Library/Application Support/limps/data"
+  "dataPath": "~/Library/Application Support/limps/data",
+  "scoring": {
+    "weights": {
+      "dependency": 40,
+      "priority": 30,
+      "workload": 30
+    },
+    "biases": {}
+  }
 }
 ```
 
@@ -237,6 +245,7 @@ The server finds configuration in this order:
 | `docsPaths` | string[] | `[]` | Additional directories to index for search (any markdown, no structure required) |
 | `fileExtensions` | string[] | `[".md"]` | File types to index |
 | `dataPath` | string | `./data` | SQLite database location |
+| `scoring` | object | required | Task scoring configuration for `get_next_task` (weights and biases) |
 
 ### Path Options
 
@@ -374,6 +383,41 @@ Example response:
 }
 ```
 
+#### Scoring Biases
+
+Biases are numeric adjustments added to the final score. Use them to promote or demote specific plans, personas, or statuses.
+
+Supported bias keys:
+
+| Bias Key | Description | Example |
+|---------|-------------|---------|
+| `plans` | Per-plan bias keyed by plan folder name | `"plans": { "0030-limps-scoring-weights": 20 }` |
+| `personas.coder` | Bias for coder tasks | `"personas": { "coder": 10 }` |
+| `personas.reviewer` | Bias for reviewer tasks | `"personas": { "reviewer": -10 }` |
+| `personas.pm` | Bias for PM tasks | `"personas": { "pm": 5 }` |
+| `personas.customer` | Bias for customer tasks | `"personas": { "customer": 5 }` |
+| `statuses.GAP` | Bias for GAP tasks | `"statuses": { "GAP": 5 }` |
+| `statuses.WIP` | Bias for WIP tasks | `"statuses": { "WIP": -5 }` |
+| `statuses.BLOCKED` | Bias for BLOCKED tasks | `"statuses": { "BLOCKED": 10 }` |
+
+Example:
+```json
+{
+  "scoring": {
+    "weights": {
+      "dependency": 40,
+      "priority": 30,
+      "workload": 30
+    },
+    "biases": {
+      "plans": { "0030-limps-scoring-weights": 20 },
+      "personas": { "reviewer": -10, "coder": 5 },
+      "statuses": { "GAP": 5 }
+    }
+  }
+}
+```
+
 ### RLM (Recursive Language Model) Support
 
 Implements the [RLM pattern from MIT CSAIL](https://arxiv.org/abs/2512.24601) for programmatic document examination and recursive processing:
@@ -382,6 +426,25 @@ Implements the [RLM pattern from MIT CSAIL](https://arxiv.org/abs/2512.24601) fo
 - **Recursive sub-calls** - Depth-limited processing
 - **Parallel execution** - Cross-document analysis
 - **Document extractors** - Markdown, YAML, Gherkin parsing
+
+#### Sub-query LLM Gating
+
+`process_doc` and `process_docs` only invoke LLM sub-queries when explicitly enabled. This keeps local workflows deterministic by default and avoids token spend unless requested.
+
+- **Opt-in:** `allow_llm: true` is required to run `sub_query`
+- **Policy:** `llm_policy: "auto"` (default) skips small results (under 800 bytes); `"force"` always runs
+- **Skip metadata:** when skipped, responses include `sub_query_skipped` and `sub_query_reason`
+
+Example:
+```typescript
+await process_doc({
+  path: 'plans/0001-feature/plan.md',
+  code: 'extractFeatures(doc.content)',
+  sub_query: 'Summarize each feature',
+  allow_llm: true,
+  llm_policy: 'force'
+});
+```
 
 ### Obsidian Vault Compatibility
 

@@ -41,6 +41,14 @@ describe('manage-tags.ts', () => {
       docsPaths: [TEST_REPO_ROOT],
       fileExtensions: ['.md'],
       dataPath: TEST_DATA_DIR,
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     // Initialize database
@@ -84,6 +92,7 @@ tags:
       const input = {
         path: 'plans/test.md',
         operation: 'list' as const,
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);
@@ -114,6 +123,7 @@ This has #inline-tag and #another-tag in the content.
       const input = {
         path: 'plans/test.md',
         operation: 'list' as const,
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);
@@ -142,6 +152,7 @@ Has #inline-tag here.
       const input = {
         path: 'plans/test.md',
         operation: 'list' as const,
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);
@@ -169,6 +180,7 @@ tags:
         path: 'plans/test.md',
         operation: 'add' as const,
         tags: ['new-tag', 'another-tag'],
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);
@@ -205,6 +217,7 @@ tags:
         path: 'plans/test.md',
         operation: 'remove' as const,
         tags: ['remove', 'also-remove'],
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);
@@ -235,6 +248,7 @@ Has #duplicate tag inline too.
       const input = {
         path: 'plans/test.md',
         operation: 'list' as const,
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);
@@ -260,6 +274,7 @@ Has #inline-tag here.
         path: 'plans/test.md',
         operation: 'add' as const,
         tags: ['new-tag'],
+        prettyPrint: false,
       };
 
       const result = await handleManageTags(input, context);

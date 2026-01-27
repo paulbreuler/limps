@@ -83,6 +83,14 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: '/plans',
           dataPath: '/data',
+          scoring: {
+            weights: {
+              dependency: 40,
+              priority: 30,
+              workload: 30,
+            },
+            biases: {},
+          },
         })
       );
 
@@ -115,6 +123,14 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: plansDir,
           dataPath: join(testDir, 'data'),
+          scoring: {
+            weights: {
+              dependency: 40,
+              priority: 30,
+              workload: 30,
+            },
+            biases: {},
+          },
         })
       );
 
@@ -141,6 +157,14 @@ describe('Pastel CLI Commands', () => {
         JSON.stringify({
           plansPath: plansDir,
           dataPath: join(testDir, 'data'),
+          scoring: {
+            weights: {
+              dependency: 40,
+              priority: 30,
+              workload: 30,
+            },
+            biases: {},
+          },
         })
       );
 

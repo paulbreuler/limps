@@ -37,6 +37,14 @@ describe('update-doc.ts', () => {
       docsPaths: [TEST_REPO_ROOT],
       fileExtensions: ['.md', '.jsx'],
       dataPath: TEST_DATA_DIR,
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     // Initialize database
@@ -73,6 +81,9 @@ describe('update-doc.ts', () => {
         path: 'addendums/test.md',
         content: 'New content',
         createBackup: false,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -101,6 +112,9 @@ describe('update-doc.ts', () => {
           all: false,
         },
         createBackup: false,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -124,6 +138,9 @@ describe('update-doc.ts', () => {
           all: true,
         },
         createBackup: false,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       await handleUpdateDoc(input, context);
@@ -142,6 +159,9 @@ describe('update-doc.ts', () => {
         path: 'addendums/backup-test.md',
         content: 'Updated content',
         createBackup: true,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -160,6 +180,10 @@ describe('update-doc.ts', () => {
       const input = {
         path: 'addendums/nonexistent.md',
         content: 'New content',
+        mode: 'overwrite' as const,
+        createBackup: false,
+        force: false,
+        prettyPrint: false,
       };
 
       await expect(handleUpdateDoc(input, context)).rejects.toThrow('not found');
@@ -176,6 +200,9 @@ describe('update-doc.ts', () => {
         path: 'addendums/changes-test.md',
         content: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5',
         createBackup: false,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -202,6 +229,9 @@ describe('update-doc.ts', () => {
         path: 'addendums/reindex-test.md',
         content: 'Updated content',
         createBackup: false,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       await handleUpdateDoc(input, context);
@@ -226,6 +256,8 @@ describe('update-doc.ts', () => {
         content: '# Content without frontmatter',
         createBackup: false,
         force: false,
+        mode: 'overwrite' as const,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -247,6 +279,8 @@ describe('update-doc.ts', () => {
         content: '# Content without frontmatter',
         createBackup: false,
         force: true,
+        mode: 'overwrite' as const,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -271,6 +305,9 @@ describe('update-doc.ts', () => {
           all: false,
         },
         createBackup: false,
+        mode: 'overwrite' as const,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -293,6 +330,8 @@ describe('update-doc.ts', () => {
         content: '# Test Plan\n\nUpdated content',
         createBackup: false,
         force: false,
+        mode: 'overwrite' as const,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -320,6 +359,8 @@ describe('update-doc.ts', () => {
         content: '# Another Plan\n\nUpdated',
         createBackup: false,
         force: true,
+        mode: 'overwrite' as const,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -342,6 +383,8 @@ describe('update-doc.ts', () => {
         content: 'Updated README',
         createBackup: false,
         force: false,
+        mode: 'overwrite' as const,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -411,6 +454,8 @@ describe('update-doc.ts', () => {
         content: 'Appended content',
         mode: 'append' as const,
         createBackup: false,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -431,6 +476,8 @@ describe('update-doc.ts', () => {
         content: 'Prepended content\n',
         mode: 'prepend' as const,
         createBackup: false,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
@@ -468,6 +515,8 @@ tags:
 `,
         mode: 'append' as const,
         createBackup: false,
+        force: false,
+        prettyPrint: false,
       };
 
       const result = await handleUpdateDoc(input, context);
