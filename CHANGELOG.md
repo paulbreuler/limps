@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.3.0](https://github.com/paulbreuler/limps/compare/v2.2.0...v2.3.0) (2026-01-27)
+
+
+### Features
+
+* add configurable scoring weights for task prioritization ([#19](https://github.com/paulbreuler/limps/issues/19)) ([6a99af9](https://github.com/paulbreuler/limps/commit/6a99af9f30028e3e74bb950841786ccfbc2ad89a))
+* add MCP client config management command ([#16](https://github.com/paulbreuler/limps/issues/16)) ([702f134](https://github.com/paulbreuler/limps/commit/702f134593345fff72877f9c9a4877729cb5da03))
+* add settled watcher processing ([#22](https://github.com/paulbreuler/limps/issues/22)) ([4901beb](https://github.com/paulbreuler/limps/commit/4901beb820d73668518b7ed16680e03c17571d54))
+
+
+### Bug Fixes
+
+* preserve scoring config when loading and display in config show ([#20](https://github.com/paulbreuler/limps/issues/20)) ([9e053f3](https://github.com/paulbreuler/limps/commit/9e053f3e9d33f094ffbf854b927b6a1a8f9f8e3c))
+* preserve scoring config when loading and display in config show ([#21](https://github.com/paulbreuler/limps/issues/21)) ([51f33f9](https://github.com/paulbreuler/limps/commit/51f33f94890fe29a69782de191b3269dd0f8bb00))
+
 ## [2.2.0](https://github.com/paulbreuler/limps/compare/v2.1.0...v2.2.0) (2026-01-27)
 
 
