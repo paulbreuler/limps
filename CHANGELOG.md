@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/paulbreuler/limps/compare/v2.0.0...v2.1.0) (2026-01-27)
+
+
+### Features
+
+* add Obsidian-compatible frontmatter and tag management ([#12](https://github.com/paulbreuler/limps/issues/12)) ([686c336](https://github.com/paulbreuler/limps/commit/686c3362f13c31cde8bcabf61d9d7369888a8249))
+
 ## [2.0.0](https://github.com/paulbreuler/limps/compare/v1.1.1...v2.0.0) (2026-01-26)
 
 
