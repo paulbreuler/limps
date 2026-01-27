@@ -3,7 +3,7 @@
  * Get the next best task with scoring breakdown.
  */
 
-import type { ServerConfig } from '../config.js';
+import { type ServerConfig, type ScoringWeights, getScoringWeights } from '../config.js';
 import { type ParsedAgentFile } from '../agent-parser.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 
@@ -22,19 +22,24 @@ export interface TaskScoreBreakdown {
 }
 
 /**
- * Calculate dependency score (40% weight).
+ * Calculate dependency score.
  * Higher score when all dependencies are satisfied.
+ *
+ * @param agent - Agent to score
+ * @param allAgents - All agents in the plan
+ * @param maxScore - Maximum score for this category (default: 40)
  */
 function calculateDependencyScore(
   agent: ParsedAgentFile,
-  allAgents: ParsedAgentFile[]
+  allAgents: ParsedAgentFile[],
+  maxScore = 40
 ): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   const deps = agent.frontmatter.dependencies;
 
   if (deps.length === 0) {
     reasons.push('No dependencies (unblocked)');
-    return { score: 40, reasons };
+    return { score: maxScore, reasons };
   }
 
   let satisfiedCount = 0;
@@ -48,7 +53,7 @@ function calculateDependencyScore(
 
   if (satisfiedCount === deps.length) {
     reasons.push(`All ${deps.length} dependencies satisfied`);
-    return { score: 40, reasons };
+    return { score: maxScore, reasons };
   }
 
   const unsatisfied = deps.length - satisfiedCount;
@@ -57,32 +62,46 @@ function calculateDependencyScore(
 }
 
 /**
- * Calculate priority score (30% weight).
+ * Calculate priority score.
  * Lower agent numbers get higher priority.
+ *
+ * @param agent - Agent to score
+ * @param maxScore - Maximum score for this category (default: 30)
  */
-function calculatePriorityScore(agent: ParsedAgentFile): { score: number; reasons: string[] } {
+function calculatePriorityScore(
+  agent: ParsedAgentFile,
+  maxScore = 30
+): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   const agentNum = parseInt(agent.agentNumber, 10);
 
   // Agents 0-2 get full priority score
-  // Score decreases for higher agent numbers
-  const score = Math.max(0, 30 - agentNum * 3);
-  reasons.push(`Agent #${agentNum} priority: ${score}/30`);
+  // Score decreases for higher agent numbers (10% of maxScore per agent number)
+  const decrementPerAgent = maxScore * 0.1;
+  const score = Math.max(0, maxScore - agentNum * decrementPerAgent);
+  reasons.push(`Agent #${agentNum} priority: ${score}/${maxScore}`);
 
   return { score, reasons };
 }
 
 /**
- * Calculate workload score (30% weight).
+ * Calculate workload score.
  * Based on file count - fewer files = easier task = higher score.
+ *
+ * @param agent - Agent to score
+ * @param maxScore - Maximum score for this category (default: 30)
  */
-function calculateWorkloadScore(agent: ParsedAgentFile): { score: number; reasons: string[] } {
+function calculateWorkloadScore(
+  agent: ParsedAgentFile,
+  maxScore = 30
+): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   const fileCount = agent.frontmatter.files.length;
 
-  // Fewer files = higher score (max 30)
-  const score = Math.max(0, 30 - fileCount * 5);
-  reasons.push(`${fileCount} files to modify: ${score}/30`);
+  // Fewer files = higher score (approximately 1/6 of maxScore per file)
+  const decrementPerFile = maxScore / 6;
+  const score = Math.max(0, maxScore - fileCount * decrementPerFile);
+  reasons.push(`${fileCount} files to modify: ${score}/${maxScore}`);
 
   return { score, reasons };
 }
@@ -118,19 +137,24 @@ function isTaskEligible(
 
 /**
  * Score a task and return breakdown.
+ *
+ * @param agent - Agent to score
+ * @param allAgents - All agents in the plan
+ * @param weights - Scoring weights configuration
  */
 function scoreTask(
   agent: ParsedAgentFile,
-  allAgents: ParsedAgentFile[]
+  allAgents: ParsedAgentFile[],
+  weights?: ScoringWeights
 ): TaskScoreBreakdown | null {
   const eligibility = isTaskEligible(agent, allAgents);
   if (!eligibility.eligible) {
     return null;
   }
 
-  const depResult = calculateDependencyScore(agent, allAgents);
-  const priorityResult = calculatePriorityScore(agent);
-  const workloadResult = calculateWorkloadScore(agent);
+  const depResult = calculateDependencyScore(agent, allAgents, weights?.dependency);
+  const priorityResult = calculatePriorityScore(agent, weights?.priority);
+  const workloadResult = calculateWorkloadScore(agent, weights?.workload);
 
   const totalScore = depResult.score + priorityResult.score + workloadResult.score;
 
@@ -178,11 +202,14 @@ export async function getNextTaskData(
     return { error: 'No agents found' };
   }
 
+  // Get scoring weights from config
+  const weights = getScoringWeights(config);
+
   // Score all eligible tasks
   const scoredTasks: TaskScoreBreakdown[] = [];
 
   for (const agent of agents) {
-    const score = scoreTask(agent, agents);
+    const score = scoreTask(agent, agents, weights);
     if (score) {
       scoredTasks.push(score);
     }
@@ -222,6 +249,8 @@ export async function nextTask(config: ServerConfig, planId: string): Promise<st
   }
 
   const { task: best, otherAvailableTasks } = result;
+  const weights = getScoringWeights(config);
+  const totalMax = weights.dependency + weights.priority + weights.workload;
 
   // Format output
   const lines: string[] = [];
@@ -231,10 +260,10 @@ export async function nextTask(config: ServerConfig, planId: string): Promise<st
   lines.push(`  Title: ${best.title}`);
   lines.push('');
   lines.push('Score Breakdown:');
-  lines.push(`  Total Score: ${best.totalScore}/100`);
-  lines.push(`  Dependencies: ${best.dependencyScore}/40`);
-  lines.push(`  Priority: ${best.priorityScore}/30`);
-  lines.push(`  Workload: ${best.workloadScore}/30`);
+  lines.push(`  Total Score: ${best.totalScore}/${totalMax}`);
+  lines.push(`  Dependencies: ${best.dependencyScore}/${weights.dependency}`);
+  lines.push(`  Priority: ${best.priorityScore}/${weights.priority}`);
+  lines.push(`  Workload: ${best.workloadScore}/${weights.workload}`);
   lines.push('');
   lines.push('Scoring Reasons:');
   for (const reason of best.reasons) {
