@@ -189,6 +189,8 @@ describe('process-doc', () => {
           path: 'test.md',
           code: "['item1', 'item2', 'item3']",
           sub_query: 'Summarize each item',
+          allow_llm: true,
+          llm_policy: 'force',
         },
         contextWithClient
       );
@@ -223,6 +225,8 @@ describe('process-doc', () => {
           path: 'test.md',
           code: "'single item'",
           sub_query: 'Summarize',
+          allow_llm: true,
+          llm_policy: 'force',
         },
         contextWithClient
       );
@@ -254,6 +258,8 @@ describe('process-doc', () => {
           path: 'test.md',
           code: "['item1']",
           sub_query: 'Summarize',
+          allow_llm: true,
+          llm_policy: 'force',
         },
         contextWithClient
       );
@@ -287,6 +293,49 @@ describe('process-doc', () => {
       const output = JSON.parse(resultText);
       expect(output.sub_results).toBeUndefined();
       expect(output.metadata.depth).toBe(0);
+    });
+
+    it('should skip sub_query when allow_llm is false', async () => {
+      const filePath = join(repoRoot, 'test.md');
+      writeFileSync(filePath, 'Test', 'utf-8');
+
+      const result = await handleProcessDoc(
+        {
+          path: 'test.md',
+          code: "['item1']",
+          sub_query: 'Summarize',
+        },
+        context
+      );
+
+      expect(result.isError).toBeFalsy();
+      const resultText = result.content[0].text;
+      const output = JSON.parse(resultText);
+      expect(output.sub_results).toBeUndefined();
+      expect(output.sub_query_skipped).toBe(true);
+      expect(output.sub_query_reason).toContain('allow_llm=true');
+    });
+
+    it('should skip sub_query in auto mode for small results', async () => {
+      const filePath = join(repoRoot, 'test.md');
+      writeFileSync(filePath, 'Test', 'utf-8');
+
+      const result = await handleProcessDoc(
+        {
+          path: 'test.md',
+          code: "['item1']",
+          sub_query: 'Summarize',
+          allow_llm: true,
+        },
+        context
+      );
+
+      expect(result.isError).toBeFalsy();
+      const resultText = result.content[0].text;
+      const output = JSON.parse(resultText);
+      expect(output.sub_results).toBeUndefined();
+      expect(output.sub_query_skipped).toBe(true);
+      expect(output.sub_query_reason).toContain('llm_policy=force');
     });
   });
 

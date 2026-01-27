@@ -201,6 +201,66 @@ describe('config-cmd', () => {
       expect(output).not.toContain('priority:');
       expect(output).not.toContain('workload:');
     });
+
+    it('shows scoring biases when present', () => {
+      const configPath = join(configDir, 'biases-config.json');
+      const config = {
+        plansPath: join(testDir, 'plans'),
+        dataPath: join(testDir, 'data'),
+        scoring: {
+          biases: {
+            plans: { '0001-test-plan': 20 },
+            personas: { coder: 10, reviewer: -5 },
+            statuses: { GAP: 5 },
+          },
+        },
+      };
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      const output = configShow(() => configPath);
+
+      expect(output).toContain('scoring:');
+      expect(output).toContain('biases:');
+      expect(output).toContain('plans:');
+      expect(output).toContain('0001-test-plan: +20');
+      expect(output).toContain('personas:');
+      expect(output).toContain('coder:');
+      expect(output).toContain('+10');
+      expect(output).toContain('reviewer:');
+      expect(output).toContain('-5');
+      expect(output).toContain('statuses:');
+      expect(output).toContain('GAP:');
+      expect(output).toContain('+5');
+    });
+
+    it('shows both weights and biases together', () => {
+      const configPath = join(configDir, 'full-scoring-config.json');
+      const config = {
+        plansPath: join(testDir, 'plans'),
+        dataPath: join(testDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 50,
+            priority: 25,
+            workload: 25,
+          },
+          biases: {
+            plans: { '0030-limps-scoring': 15 },
+          },
+        },
+      };
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      const output = configShow(() => configPath);
+
+      expect(output).toContain('scoring:');
+      expect(output).toContain('weights:');
+      expect(output).toContain('dependency:');
+      expect(output).toContain('50');
+      expect(output).toContain('biases:');
+      expect(output).toContain('plans:');
+      expect(output).toContain('0030-limps-scoring: +15');
+    });
   });
 
   describe('configPath', () => {

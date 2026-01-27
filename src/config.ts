@@ -12,6 +12,25 @@ export interface ScoringWeights {
 }
 
 /**
+ * Scoring biases for task prioritization.
+ * Biases add/subtract from the weighted score (-50 to +50 range recommended).
+ */
+export interface ScoringBiases {
+  plans?: Record<string, number>;
+  personas?: {
+    coder?: number;
+    reviewer?: number;
+    pm?: number;
+    customer?: number;
+  };
+  statuses?: {
+    GAP?: number;
+    WIP?: number;
+    BLOCKED?: number;
+  };
+}
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -21,6 +40,7 @@ export interface ServerConfig {
   dataPath: string;
   scoring?: {
     weights?: Partial<ScoringWeights>;
+    biases?: Partial<ScoringBiases>;
   };
 }
 
@@ -48,6 +68,24 @@ export function getScoringWeights(config: ServerConfig): ScoringWeights {
   return {
     ...DEFAULT_SCORING_WEIGHTS,
     ...config.scoring?.weights,
+  };
+}
+
+/**
+ * Default scoring biases (empty - no biases by default).
+ */
+export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
+
+/**
+ * Get scoring biases from config, merging with defaults.
+ *
+ * @param config - Server configuration
+ * @returns Complete scoring biases with defaults applied
+ */
+export function getScoringBiases(config: ServerConfig): ScoringBiases {
+  return {
+    ...DEFAULT_SCORING_BIASES,
+    ...config.scoring?.biases,
   };
 }
 

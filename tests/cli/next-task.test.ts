@@ -7,11 +7,17 @@ import {
   calculateDependencyScore,
   calculatePriorityScore,
   calculateWorkloadScore,
+  calculateBiasScore,
   isTaskEligible,
   scoreTask,
 } from '../../src/cli/next-task.js';
 import type { ServerConfig } from '../../src/config.js';
-import { DEFAULT_SCORING_WEIGHTS, getScoringWeights } from '../../src/config.js';
+import {
+  DEFAULT_SCORING_WEIGHTS,
+  DEFAULT_SCORING_BIASES,
+  getScoringWeights,
+  getScoringBiases,
+} from '../../src/config.js';
 import type { ParsedAgentFile, AgentFrontmatter } from '../../src/agent-parser.js';
 
 describe('next-task', () => {
@@ -571,6 +577,359 @@ files: []
         expect(output).toContain('/100'); // total max (50+25+25)
         expect(output).toContain('/50'); // dependency max
         expect(output).toContain('/25'); // priority or workload max
+      });
+    });
+  });
+
+  describe('configurable biases', () => {
+    describe('getScoringBiases', () => {
+      it('returns defaults when no scoring config', () => {
+        const biases = getScoringBiases(config);
+
+        expect(biases).toEqual(DEFAULT_SCORING_BIASES);
+      });
+
+      it('applies custom biases from config', () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {
+            biases: {
+              plans: { '0004-test-plan': 20 },
+              personas: { coder: 10 },
+              statuses: { GAP: 5 },
+            },
+          },
+        };
+
+        const biases = getScoringBiases(customConfig);
+
+        expect(biases.plans?.['0004-test-plan']).toBe(20);
+        expect(biases.personas?.coder).toBe(10);
+        expect(biases.statuses?.GAP).toBe(5);
+      });
+
+      it('handles empty scoring object', () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {},
+        };
+
+        const biases = getScoringBiases(customConfig);
+
+        expect(biases).toEqual(DEFAULT_SCORING_BIASES);
+      });
+    });
+
+    describe('calculateBiasScore', () => {
+      it('returns 0 when no biases configured', () => {
+        const agent = createMockAgent();
+
+        const result = calculateBiasScore(agent, {});
+
+        expect(result.score).toBe(0);
+        expect(result.reasons).toHaveLength(0);
+      });
+
+      it('applies positive plan bias', () => {
+        const agent = createMockAgent({ planFolder: '0004-test-plan' });
+
+        const result = calculateBiasScore(agent, {
+          plans: { '0004-test-plan': 20 },
+        });
+
+        expect(result.score).toBe(20);
+        expect(result.reasons).toContain('Plan bias: +20');
+      });
+
+      it('applies negative plan bias', () => {
+        const agent = createMockAgent({ planFolder: '0004-test-plan' });
+
+        const result = calculateBiasScore(agent, {
+          plans: { '0004-test-plan': -15 },
+        });
+
+        expect(result.score).toBe(-15);
+        expect(result.reasons).toContain('Plan bias: -15');
+      });
+
+      it('ignores unknown plan', () => {
+        const agent = createMockAgent({ planFolder: '0004-test-plan' });
+
+        const result = calculateBiasScore(agent, {
+          plans: { '0005-other-plan': 20 },
+        });
+
+        expect(result.score).toBe(0);
+        expect(result.reasons).toHaveLength(0);
+      });
+
+      it('applies positive persona bias for coder', () => {
+        const agent = createMockAgent({
+          frontmatter: {
+            status: 'GAP',
+            persona: 'coder',
+            dependencies: [],
+            blocks: [],
+            files: [],
+          },
+        });
+
+        const result = calculateBiasScore(agent, {
+          personas: { coder: 15 },
+        });
+
+        expect(result.score).toBe(15);
+        expect(result.reasons).toContain('Persona bias (coder): +15');
+      });
+
+      it('applies negative persona bias for reviewer', () => {
+        const agent = createMockAgent({
+          frontmatter: {
+            status: 'GAP',
+            persona: 'reviewer',
+            dependencies: [],
+            blocks: [],
+            files: [],
+          },
+        });
+
+        const result = calculateBiasScore(agent, {
+          personas: { reviewer: -10 },
+        });
+
+        expect(result.score).toBe(-10);
+        expect(result.reasons).toContain('Persona bias (reviewer): -10');
+      });
+
+      it('ignores unknown persona', () => {
+        const agent = createMockAgent({
+          frontmatter: {
+            status: 'GAP',
+            persona: 'coder',
+            dependencies: [],
+            blocks: [],
+            files: [],
+          },
+        });
+
+        const result = calculateBiasScore(agent, {
+          personas: { reviewer: -10 },
+        });
+
+        expect(result.score).toBe(0);
+        expect(result.reasons).toHaveLength(0);
+      });
+
+      it('applies status bias for GAP', () => {
+        const agent = createMockAgent({
+          frontmatter: {
+            status: 'GAP',
+            persona: 'coder',
+            dependencies: [],
+            blocks: [],
+            files: [],
+          },
+        });
+
+        const result = calculateBiasScore(agent, {
+          statuses: { GAP: 5 },
+        });
+
+        expect(result.score).toBe(5);
+        expect(result.reasons).toContain('Status bias (GAP): +5');
+      });
+
+      it('combines multiple biases', () => {
+        const agent = createMockAgent({
+          planFolder: '0004-test-plan',
+          frontmatter: {
+            status: 'GAP',
+            persona: 'coder',
+            dependencies: [],
+            blocks: [],
+            files: [],
+          },
+        });
+
+        const result = calculateBiasScore(agent, {
+          plans: { '0004-test-plan': 20 },
+          personas: { coder: 10 },
+          statuses: { GAP: 5 },
+        });
+
+        expect(result.score).toBe(35); // 20 + 10 + 5
+        expect(result.reasons).toHaveLength(3);
+        expect(result.reasons).toContain('Plan bias: +20');
+        expect(result.reasons).toContain('Persona bias (coder): +10');
+        expect(result.reasons).toContain('Status bias (GAP): +5');
+      });
+    });
+
+    describe('scoreTask with biases', () => {
+      it('includes biasScore in result', () => {
+        const agent = createMockAgent({ planFolder: '0004-test-plan' });
+        const allAgents = [agent];
+        const biases = { plans: { '0004-test-plan': 10 } };
+
+        const result = scoreTask(agent, allAgents, undefined, biases);
+
+        expect(result).not.toBeNull();
+        expect(result!.biasScore).toBe(10);
+        expect(result!.totalScore).toBe(110); // 100 + 10
+      });
+
+      it('floors total score at 0 with negative bias', () => {
+        const agent = createMockAgent({ planFolder: '0004-test-plan' });
+        const allAgents = [agent];
+        const biases = { plans: { '0004-test-plan': -200 } };
+
+        const result = scoreTask(agent, allAgents, undefined, biases);
+
+        expect(result).not.toBeNull();
+        expect(result!.biasScore).toBe(-200);
+        expect(result!.totalScore).toBe(0); // floored at 0
+      });
+
+      it('includes bias reasons in result', () => {
+        const agent = createMockAgent({
+          planFolder: '0004-test-plan',
+          frontmatter: {
+            status: 'GAP',
+            persona: 'coder',
+            dependencies: [],
+            blocks: [],
+            files: [],
+          },
+        });
+        const allAgents = [agent];
+        const biases = {
+          plans: { '0004-test-plan': 20 },
+          personas: { coder: 10 },
+        };
+
+        const result = scoreTask(agent, allAgents, undefined, biases);
+
+        expect(result).not.toBeNull();
+        expect(result!.reasons).toContain('Plan bias: +20');
+        expect(result!.reasons).toContain('Persona bias (coder): +10');
+      });
+    });
+
+    describe('nextTask with biases', () => {
+      it('displays bias score in output when non-zero', async () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {
+            biases: {
+              plans: { '0006-bias-test': 15 },
+            },
+          },
+        };
+
+        const planDir = join(plansDir, '0006-bias-test');
+        const agentsDir = join(planDir, 'agents');
+        mkdirSync(agentsDir, { recursive: true });
+
+        writeFileSync(
+          join(agentsDir, '000_agent.agent.md'),
+          `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: Bias Test
+`,
+          'utf-8'
+        );
+
+        const output = await nextTask(customConfig, '6');
+
+        expect(output).toContain('Bias: +15');
+        expect(output).toContain('(with bias)');
+      });
+
+      it('does not display bias line when bias is zero', async () => {
+        const planDir = join(plansDir, '0007-no-bias');
+        const agentsDir = join(planDir, 'agents');
+        mkdirSync(agentsDir, { recursive: true });
+
+        writeFileSync(
+          join(agentsDir, '000_agent.agent.md'),
+          `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: No Bias Test
+`,
+          'utf-8'
+        );
+
+        const output = await nextTask(config, '7');
+
+        expect(output).not.toContain('Bias:');
+        expect(output).not.toContain('(with bias)');
+      });
+
+      it('affects task ranking with positive bias', async () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {
+            biases: {
+              personas: { reviewer: 50 },
+            },
+          },
+        };
+
+        const planDir = join(plansDir, '0008-ranking-test');
+        const agentsDir = join(planDir, 'agents');
+        mkdirSync(agentsDir, { recursive: true });
+
+        // Agent 0 - coder (no bias, higher priority)
+        writeFileSync(
+          join(agentsDir, '000_agent.agent.md'),
+          `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: Coder Task
+`,
+          'utf-8'
+        );
+
+        // Agent 1 - reviewer (with +50 bias, lower priority)
+        writeFileSync(
+          join(agentsDir, '001_agent.agent.md'),
+          `---
+status: GAP
+persona: reviewer
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 1: Reviewer Task
+`,
+          'utf-8'
+        );
+
+        const output = await nextTask(customConfig, '8');
+
+        // With +50 bias, reviewer (agent 1) should win:
+        // Agent 0: 40 + 30 + 30 + 0 = 100
+        // Agent 1: 40 + 27 + 30 + 50 = 147
+        expect(output).toContain('0008-ranking-test#001');
+        expect(output).toContain('Reviewer Task');
       });
     });
   });
