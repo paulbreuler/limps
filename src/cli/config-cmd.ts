@@ -435,10 +435,12 @@ export function generateMcpClientConfig(
 
   // Build servers configuration
   const servers: Record<string, McpServerConfig> = {};
+  const missingProjects: { name: string; path: string }[] = [];
 
   for (const project of projectsToAdd) {
     // Skip projects with missing config files
     if (!existsSync(project.configPath)) {
+      missingProjects.push({ name: project.name, path: project.configPath });
       continue;
     }
 
@@ -447,7 +449,13 @@ export function generateMcpClientConfig(
   }
 
   if (Object.keys(servers).length === 0) {
-    throw new Error('No valid projects to add. All projects have missing config files.');
+    const missingList =
+      missingProjects.length > 0
+        ? ` Missing config files: ${missingProjects.map((p) => `${p.name} (${p.path})`).join(', ')}`
+        : '';
+    throw new Error(
+      `No valid projects to add. All projects have missing config files.${missingList}`
+    );
   }
 
   // Build full config structure

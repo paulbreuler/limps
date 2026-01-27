@@ -594,7 +594,10 @@ describe('config-cmd', () => {
 
       // Filter to only the missing projects
       expect(() => configAddClaude(() => validConfig, ['missing-1', 'missing-2'])).toThrow(
-        'No valid projects to add'
+        'missing-1'
+      );
+      expect(() => configAddClaude(() => validConfig, ['missing-1', 'missing-2'])).toThrow(
+        'missing-2'
       );
     });
 
