@@ -152,6 +152,55 @@ describe('config-cmd', () => {
       expect(output).toContain('Config file not found');
       expect(output).toContain('limps init');
     });
+
+    it('shows scoring config when present', () => {
+      const configPath = join(configDir, 'scoring-config.json');
+      const config = {
+        plansPath: join(testDir, 'plans'),
+        dataPath: join(testDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 50,
+            priority: 25,
+            workload: 25,
+          },
+        },
+      };
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      const output = configShow(() => configPath);
+
+      expect(output).toContain('scoring:');
+      expect(output).toContain('weights:');
+      expect(output).toContain('dependency:');
+      expect(output).toContain('50');
+      expect(output).toContain('priority:');
+      expect(output).toContain('25');
+      expect(output).toContain('workload:');
+    });
+
+    it('shows partial scoring weights', () => {
+      const configPath = join(configDir, 'partial-scoring-config.json');
+      const config = {
+        plansPath: join(testDir, 'plans'),
+        dataPath: join(testDir, 'data'),
+        scoring: {
+          weights: {
+            dependency: 60,
+          },
+        },
+      };
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      const output = configShow(() => configPath);
+
+      expect(output).toContain('scoring:');
+      expect(output).toContain('dependency:');
+      expect(output).toContain('60');
+      // Should not show unset weights
+      expect(output).not.toContain('priority:');
+      expect(output).not.toContain('workload:');
+    });
   });
 
   describe('configPath', () => {
