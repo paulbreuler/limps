@@ -1,9 +1,9 @@
 ---
 title: Extension API & Scaffolding
-status: GAP
+status: PASS
 persona: coder
 dependencies: []
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#000", "Extension API Agent"]
 created: 2026-01-26
 updated: 2026-01-27
@@ -98,7 +98,7 @@ export * from './types/index.js';
 ### #0: limps Extension API
 
 TL;DR: Add extension loading to limps so limps-radix can register tools
-Status: `GAP`
+Status: `PASS`
 Repo: `limps`
 
 TDD:
@@ -115,7 +115,7 @@ Gotchas:
 ### #1: Project Scaffolding
 
 TL;DR: Create @sudosandwich/limps-radix npm package structure
-Status: `GAP`
+Status: `PASS`
 Repo: `limps-radix` (new)
 
 TDD:
@@ -145,10 +145,10 @@ Key package.json fields:
 
 ## Done
 
-- [ ] LimpsExtension interface added to limps
-- [ ] Extension loader implemented in limps
-- [ ] Extension config supported in limps.config.json
-- [ ] limps-radix package created
-- [ ] Default export is valid LimpsExtension
-- [ ] Build produces dist/index.js + .d.ts
-- [ ] Types re-exported
+- [x] LimpsExtension interface added to limps
+- [x] Extension loader implemented in limps
+- [x] Extension config supported in limps.config.json
+- [x] limps-radix package created
+- [x] Default export is valid LimpsExtension
+- [x] Build produces dist/index.js + .d.ts
+- [x] Types re-exported

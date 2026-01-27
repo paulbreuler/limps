@@ -17,6 +17,7 @@ vi.mock('os', async (importOriginal) => {
   };
 });
 
+import * as toml from '@iarna/toml';
 import {
   configList,
   configUse,
@@ -28,6 +29,8 @@ import {
   configDiscover,
   configAddClaude,
   configAddCursor,
+  configAddCodex,
+  generateChatGptInstructions,
   generateConfigForPrint,
   configUpdate,
 } from '../../src/cli/config-cmd.js';
@@ -695,6 +698,101 @@ describe('config-cmd', () => {
     });
   });
 
+  describe('configAddCodex', () => {
+    let codexConfigDir: string;
+    let codexConfigPath: string;
+
+    beforeEach(() => {
+      mockHomedirValue = testDir;
+      codexConfigDir = join(testDir, '.codex');
+      codexConfigPath = join(codexConfigDir, 'config.toml');
+      mkdirSync(codexConfigDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      mockHomedirValue = null;
+    });
+
+    it('adds limps servers to Codex TOML config', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const output = configAddCodex(() => configA);
+
+      expect(output).toContain('OpenAI Codex');
+      expect(output).toContain('config.toml');
+
+      const parsed = toml.parse(readFileSync(codexConfigPath, 'utf-8')) as Record<string, unknown>;
+      const servers = parsed.mcp_servers as Record<string, unknown>;
+      expect(servers).toBeDefined();
+      expect(servers['limps-planning-project-a']).toBeDefined();
+      expect(servers['limps-planning-project-b']).toBeDefined();
+      expect((servers['limps-planning-project-a'] as Record<string, unknown>).command).toBe(
+        'limps'
+      );
+      expect((servers['limps-planning-project-a'] as Record<string, unknown>).args).toEqual([
+        'serve',
+        '--config',
+        configA,
+      ]);
+    });
+
+    it('preserves existing Codex TOML settings', () => {
+      const existingToml = toml.stringify({
+        theme: 'dark',
+        mcp_servers: {
+          'other-server': {
+            command: 'other',
+            args: ['--flag'],
+          },
+        },
+      });
+      writeFileSync(codexConfigPath, existingToml, 'utf-8');
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      configAddCodex(() => configPath);
+
+      const parsed = toml.parse(readFileSync(codexConfigPath, 'utf-8')) as Record<string, unknown>;
+      expect(parsed.theme).toBe('dark');
+      const servers = parsed.mcp_servers as Record<string, unknown>;
+      expect(servers['other-server']).toBeDefined();
+      expect(servers['limps-planning-my-project']).toBeDefined();
+    });
+
+    it('throws when Codex mcp_servers is not an object', () => {
+      const existingToml = toml.stringify({
+        mcp_servers: 'invalid',
+      });
+      writeFileSync(codexConfigPath, existingToml, 'utf-8');
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      expect(() => configAddCodex(() => configPath)).toThrow('mcp_servers');
+    });
+  });
+
+  describe('generateChatGptInstructions', () => {
+    it('outputs ChatGPT connector instructions with project names', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const output = generateChatGptInstructions(() => configA);
+
+      expect(output).toContain('ChatGPT');
+      expect(output).toContain('project-a');
+      expect(output).toContain('project-b');
+      expect(output).toContain('Server URL');
+      expect(output).toContain('Authentication');
+    });
+  });
+
   describe('generateConfigForPrint', () => {
     it('generates config JSON for Claude Desktop', () => {
       const configA = createConfig('project-a');
@@ -738,6 +836,26 @@ describe('config-cmd', () => {
         const parsed = JSON.parse(jsonMatch[0]);
         expect(parsed['mcp.servers']).toBeDefined();
       }
+    });
+
+    it('generates config TOML for OpenAI Codex', () => {
+      const configA = createConfig('project-a');
+      registerProject('project-a', configA);
+
+      const adapter = getAdapter('codex');
+      const output = generateConfigForPrint(adapter, () => configA);
+
+      expect(output).toContain('OpenAI Codex Configuration');
+      expect(output).toContain('mcp_servers');
+      expect(output).toContain('limps-planning-project-a');
+      const marker = '\nAdd this to your OpenAI Codex config file:\n';
+      const startIndex = output.indexOf(marker);
+      expect(startIndex).toBeGreaterThanOrEqual(0);
+      const afterMarker = output.slice(startIndex + marker.length);
+      const tomlText = afterMarker.split('\nConfig file location:')[0].trim();
+      const parsed = toml.parse(tomlText) as Record<string, unknown>;
+      const servers = parsed.mcp_servers as Record<string, unknown>;
+      expect(servers['limps-planning-project-a']).toBeDefined();
     });
 
     it('filters projects when project list is provided', () => {

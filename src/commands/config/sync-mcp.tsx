@@ -5,6 +5,8 @@ import {
   configAddClaude,
   configAddCursor,
   configAddClaudeCode,
+  configAddCodex,
+  generateChatGptInstructions,
   generateConfigForPrint,
   previewMcpClientConfig,
 } from '../../cli/config-cmd.js';
@@ -26,10 +28,12 @@ export const options = z.object({
     .optional()
     .describe('Comma-separated list of project names to add (default: all registered projects)'),
   client: z
-    .enum(['claude', 'cursor', 'claude-code', 'all'])
+    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'all'])
     .optional()
     .default('all')
-    .describe('MCP client to configure (claude, cursor, claude-code, or all). Default: all'),
+    .describe(
+      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, or all). Default: all'
+    ),
   print: z
     .boolean()
     .optional()
@@ -113,11 +117,34 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
       }
     }
   }
+  if (options.client === 'codex' || options.client === 'all') {
+    clientsToShow.push('OpenAI Codex');
+    if (!options.force) {
+      try {
+        const adapter = getAdapter('codex');
+        const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+        if (preview.hasChanges) {
+          hasAnyChanges = true;
+          diffBlocks.push(`--- OpenAI Codex (${preview.configPath}) ---\n${preview.diffText}`);
+        }
+      } catch (err) {
+        diffBlocks.push(`--- OpenAI Codex ---\nError: ${(err as Error).message}`);
+      }
+    }
+  }
+  if (options.client === 'chatgpt' || options.client === 'all') {
+    clientsToShow.push('ChatGPT');
+  }
 
   const diffSection =
     diffBlocks.length > 0 ? `\n\nConfig diff (preview):\n${diffBlocks.join('\n\n')}` : '';
-  const changeNote = !options.force && !hasAnyChanges ? '\n\nNo config changes detected.' : '';
-  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} config files.${diffSection}${changeNote}`;
+  const includesChatGpt = options.client === 'chatgpt' || options.client === 'all';
+  const changeNote =
+    !options.force && !hasAnyChanges && !includesChatGpt ? '\n\nNo config changes detected.' : '';
+  const chatGptNote = includesChatGpt
+    ? '\n\nChatGPT uses manual connector setup; no local config files will be written.'
+    : '';
+  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} configuration outputs.${diffSection}${changeNote}${chatGptNote}`;
 
   // If --print, just output the JSON format (no confirmation needed)
   if (options.print) {
@@ -151,6 +178,25 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
           printResults.push(output);
         } catch (err) {
           printResults.push(`Claude Code: Error - ${(err as Error).message}`);
+        }
+      }
+
+      if (options.client === 'codex' || options.client === 'all') {
+        try {
+          const adapter = getAdapter('codex');
+          const output = generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+          printResults.push(output);
+        } catch (err) {
+          printResults.push(`OpenAI Codex: Error - ${(err as Error).message}`);
+        }
+      }
+
+      if (options.client === 'chatgpt' || options.client === 'all') {
+        try {
+          const output = generateChatGptInstructions(() => resolveConfigPath(), projectFilter);
+          printResults.push(output);
+        } catch (err) {
+          printResults.push(`ChatGPT: Error - ${(err as Error).message}`);
         }
       }
 
@@ -190,6 +236,24 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
             outputResults.push(output);
           } catch (err) {
             outputResults.push(`Claude Code: Error - ${(err as Error).message}`);
+          }
+        }
+
+        if (options.client === 'codex' || options.client === 'all') {
+          try {
+            const output = configAddCodex(() => resolveConfigPath(), projectFilter);
+            outputResults.push(output);
+          } catch (err) {
+            outputResults.push(`OpenAI Codex: Error - ${(err as Error).message}`);
+          }
+        }
+
+        if (options.client === 'chatgpt' || options.client === 'all') {
+          try {
+            const output = generateChatGptInstructions(() => resolveConfigPath(), projectFilter);
+            outputResults.push(output);
+          } catch (err) {
+            outputResults.push(`ChatGPT: Error - ${(err as Error).message}`);
           }
         }
 

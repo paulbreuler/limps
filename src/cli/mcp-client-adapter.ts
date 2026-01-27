@@ -6,6 +6,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
+import * as toml from '@iarna/toml';
 
 /**
  * MCP server configuration entry
@@ -281,9 +282,77 @@ export class ClaudeCodeAdapter implements McpClientAdapter {
 }
 
 /**
+ * OpenAI Codex adapter
+ * Uses: mcp_servers key, TOML config at ~/.codex/config.toml
+ */
+export class CodexAdapter implements McpClientAdapter {
+  getConfigPath(): string {
+    const home = homedir();
+    return join(home, '.codex', 'config.toml');
+  }
+
+  getServersKey(): string {
+    return 'mcp_servers';
+  }
+
+  readConfig(): McpClientConfig {
+    const configPath = this.getConfigPath();
+    const configDir = dirname(configPath);
+
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+
+    if (existsSync(configPath)) {
+      try {
+        const content = readFileSync(configPath, 'utf-8');
+        return toml.parse(content) as McpClientConfig;
+      } catch (error) {
+        throw new Error(
+          `Failed to parse Codex config: ${error instanceof Error ? error.message : 'unknown error'}`
+        );
+      }
+    }
+
+    return {};
+  }
+
+  writeConfig(config: McpClientConfig): void {
+    const configPath = this.getConfigPath();
+    const configDir = dirname(configPath);
+
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+
+    try {
+      const content = toml.stringify(config as unknown as toml.JsonMap);
+      writeFileSync(configPath, content, 'utf-8');
+    } catch (error) {
+      throw new Error(
+        `Failed to write Codex config: ${error instanceof Error ? error.message : 'unknown error'}`
+      );
+    }
+  }
+
+  createServerConfig(configPath: string): McpServerConfig {
+    return {
+      command: 'limps',
+      args: ['serve', '--config', configPath],
+    };
+  }
+
+  getDisplayName(): string {
+    return 'OpenAI Codex';
+  }
+}
+
+/**
  * Get adapter for a client type
  */
-export function getAdapter(clientType: 'claude' | 'cursor' | 'claude-code'): McpClientAdapter {
+export function getAdapter(
+  clientType: 'claude' | 'cursor' | 'claude-code' | 'codex'
+): McpClientAdapter {
   switch (clientType) {
     case 'claude':
       return new ClaudeDesktopAdapter();
@@ -291,6 +360,8 @@ export function getAdapter(clientType: 'claude' | 'cursor' | 'claude-code'): Mcp
       return new CursorAdapter();
     case 'claude-code':
       return new ClaudeCodeAdapter();
+    case 'codex':
+      return new CodexAdapter();
     default:
       throw new Error(`Unknown client type: ${clientType}`);
   }
