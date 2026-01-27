@@ -153,6 +153,8 @@ limps <command> --help    # Show command help
 | `limps config remove <name>` | Unregister a project |
 | `limps config set <path>` | Set current from config path |
 | `limps config discover` | Find configs in default locations |
+| `limps config update <name>` | Update project paths |
+| `limps config add-claude` | Add projects to MCP client configs |
 
 ### Multi-Project Workflow
 
@@ -231,8 +233,8 @@ The server finds configuration in this order:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `plansPath` | string | `./plans` | Primary directory for plan documents |
-| `docsPaths` | string[] | `[]` | Additional directories to index |
+| `plansPath` | string | `./plans` | Primary directory for structured plans (contains `NNNN-name/` directories with agents, tasks, status tracking) |
+| `docsPaths` | string[] | `[]` | Additional directories to index for search (any markdown, no structure required) |
 | `fileExtensions` | string[] | `[".md"]` | File types to index |
 | `dataPath` | string | `./data` | SQLite database location |
 
@@ -276,6 +278,41 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
     }
   }
 }
+```
+
+### Claude Code
+
+Add to `~/.claude/.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "limps": {
+      "command": "npx",
+      "args": ["-y", "@sudosandwich/limps", "serve", "--config", "/path/to/config.json"]
+    }
+  }
+}
+```
+
+### Automatic MCP Client Configuration
+
+Instead of manually editing config files, use the CLI:
+
+```bash
+# Add all registered projects to all MCP clients
+limps config add-claude
+
+# Add to specific client only
+limps config add-claude --client claude
+limps config add-claude --client cursor
+limps config add-claude --client claude-code
+
+# Add specific projects
+limps config add-claude --projects my-project,other-project
+
+# Preview without writing
+limps config add-claude --print
 ```
 
 ## Features
