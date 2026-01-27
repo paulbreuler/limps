@@ -1,0 +1,27 @@
+# Plan 0039: LLM Usage Improvements
+
+## Status Matrix
+
+| Feature | Status |
+| --- | --- |
+| #1 Composable Client Registry | GAP |
+| #2 Safer Config Writes | GAP |
+| #3 LLM Setup Guidance | GAP |
+
+## Dependency Graph
+
+```mermaid
+graph TD
+  F1[Feature 1: Client Registry]
+  F2[Feature 2: Config Safety]
+  F3[Feature 3: LLM Setup Guidance]
+
+  F1 --> F2
+  F1 --> F3
+```
+
+## Agents
+
+- Agent 000: Registry refactor
+- Agent 001: Config safety + error surfacing
+- Agent 002: Docs + CLI guidance
