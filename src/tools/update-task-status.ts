@@ -124,7 +124,7 @@ function findPlanDocument(db: DatabaseType, plansPath: string, planId: string): 
     SELECT path
     FROM documents
     WHERE path LIKE ?
-    AND path LIKE '%/plan.md'
+    AND (path LIKE '%-plan.md' OR path LIKE '%/plan.md')
   `
     )
     .all(`${plansPath}%${planId}%`) as { path: string }[];

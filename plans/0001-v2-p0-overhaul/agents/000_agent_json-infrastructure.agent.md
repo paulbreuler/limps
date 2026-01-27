@@ -1,7 +1,6 @@
 ---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: ["001", "002"]
 files:

@@ -20,6 +20,7 @@ import {
 import { ListPlansInputSchema, handleListPlans } from './list-plans.js';
 import { ListAgentsInputSchema, handleListAgents } from './list-agents.js';
 import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status.js';
+import { ManageTagsInputSchema, handleManageTags } from './manage-tags.js';
 
 /**
  * Register all MCP tools with the server.
@@ -141,7 +142,7 @@ Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(),
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
-  path: "plans/0009/plan.md"
+  path: "plans/0009-feature/0009-feature-plan.md"
   code: "extractFeatures(doc.content).filter(f => f.status === 'GAP')"
   
 To read full content: code: "doc.content"
@@ -161,7 +162,7 @@ Available helpers: extractSections(), extractFrontmatter(), extractCodeBlocks(),
 extractFeatures(), extractAgents(), findByPattern(), summarize()
 
 Example:
-  pattern: "plans/*/plan.md"
+  pattern: "plans/*/*-plan.md"
   code: "docs.map(d => ({ name: extractFrontmatter(d.content).meta.name, features: extractFeatures(d.content).length }))"`,
     ProcessDocsInputBaseSchema.shape,
     async (input: unknown) => {
@@ -240,6 +241,26 @@ Use this to understand overall progress and identify blockers.`,
     async (input) => {
       const parsed = GetPlanStatusInputSchema.parse(input);
       return handleGetPlanStatus(parsed, context);
+    }
+  );
+
+  // Tag Management Tool
+  server.registerTool(
+    'manage_tags',
+    {
+      description: `Add, remove, or list tags in a document. Tags can be in frontmatter (tags: [...]) or inline (#tag).
+
+Operations:
+- list: List all tags (from frontmatter and inline)
+- add: Add tags to the document (deduplicates automatically)
+- remove: Remove tags from the document
+
+Tags are stored in frontmatter. Inline tags (#tag) are detected but stored in frontmatter.`,
+      inputSchema: ManageTagsInputSchema.shape,
+    },
+    async (input) => {
+      const parsed = ManageTagsInputSchema.parse(input);
+      return handleManageTags(parsed, context);
     }
   );
 }

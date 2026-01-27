@@ -200,9 +200,16 @@ describe('paths.ts', () => {
   });
 
   describe('isProtectedPlanFile', () => {
-    it('identifies protected plan.md files', () => {
+    it('identifies protected plan files (legacy format)', () => {
       expect(isProtectedPlanFile('plans/0001-test/plan.md')).toBe(true);
       expect(isProtectedPlanFile('plans/0012-release-pipeline/plan.md')).toBe(true);
+    });
+
+    it('identifies protected plan files (new format)', () => {
+      expect(isProtectedPlanFile('plans/0001-test/0001-test-plan.md')).toBe(true);
+      expect(isProtectedPlanFile('plans/0012-release-pipeline/0012-release-pipeline-plan.md')).toBe(
+        true
+      );
     });
 
     it('does not identify non-plan.md files as protected', () => {

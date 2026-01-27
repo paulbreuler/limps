@@ -123,20 +123,20 @@ export function extractFrontmatter(content: string): {
     };
   }
 
-  // Find where frontmatter ends
-  const endIndex = content.indexOf('\n---\n', 4);
-  let bodyStart = 8; // Default: after "---\n---\n"
-
-  if (endIndex !== -1) {
-    bodyStart = endIndex + 5; // After "\n---\n"
-  } else if (content.slice(4, 8) === '---\n') {
-    // Empty frontmatter case
-    bodyStart = 8;
+  // Find where frontmatter ends using regex to handle edge cases
+  // Matches: ---\n(content)?\n---\n or ---\n---\n (empty frontmatter)
+  const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?\n)?---\s*\n/);
+  if (frontmatterMatch) {
+    return {
+      meta,
+      body: content.slice(frontmatterMatch[0].length),
+    };
   }
 
+  // Fallback: return content as body if frontmatter pattern not found
   return {
     meta,
-    body: content.slice(bodyStart),
+    body: content,
   };
 }
 

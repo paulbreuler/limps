@@ -1,10 +1,10 @@
 # limps
 
-**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver - AI agent plan management.
+**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver - limps your Local Intelligent MCP Planning Server across AI assistants. No subscriptions, no cloud—run it locally. Version control your planning docs in git. No more context drift—one shared source of truth for planning docs, tasks, and decisions across Claude Desktop, Cursor, GitHub Copilot, and any MCP tool.
 
 [![npm](https://img.shields.io/npm/v/@sudosandwich/limps)](https://www.npmjs.com/package/@sudosandwich/limps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Tests](https://img.shields.io/badge/Tests-692%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-817%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-%3E70%25-brightgreen)
 
 ![limps in action](https://github.com/paulbreuler/limps/blob/main/.github/assets/limps-in-action.gif?raw=true)
@@ -280,7 +280,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## Features
 
-### MCP Tools (14 Tools)
+### MCP Tools (15 Tools)
 
 #### Document Operations
 
@@ -289,10 +289,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | `process_doc` | Process a document with JavaScript code (read, filter, transform, extract) |
 | `process_docs` | Process multiple documents with JavaScript for cross-document analysis |
 | `create_doc` | Create new documents |
-| `update_doc` | Update with optimistic concurrency |
+| `update_doc` | Update with overwrite, append, or prepend modes |
 | `delete_doc` | Delete documents |
 | `list_docs` | List files and directories |
-| `search_docs` | Full-text search (SQLite FTS5) |
+| `search_docs` | Full-text search with frontmatter support, excerpts, and match counts |
+| `manage_tags` | Add, remove, or list tags (frontmatter and inline `#tag` format) |
 | `open_document_in_cursor` | Open files in Cursor editor |
 
 #### Plan Management
@@ -345,6 +346,66 @@ Implements the [RLM pattern from MIT CSAIL](https://arxiv.org/abs/2512.24601) fo
 - **Parallel execution** - Cross-document analysis
 - **Document extractors** - Markdown, YAML, Gherkin parsing
 
+### Obsidian Vault Compatibility
+
+limps is compatible with Obsidian vaults. Simply open your `plans/` directory as an Obsidian vault to get a visual editor for your planning documents:
+
+![Obsidian vault with limps plans](https://github.com/paulbreuler/limps/blob/main/.github/assets/obsidian-vault.png?raw=true)
+
+**Features:**
+- **Frontmatter parsing** - Full YAML frontmatter support via `gray-matter`
+- **Tag management** - Both frontmatter `tags:` arrays and inline `#tag` format
+- **Path filtering** - Automatically excludes `.obsidian/`, `.git/`, `node_modules/`
+- **Frontmatter search** - Search within YAML properties with `searchFrontmatter: true`
+
+> **Tip:** The `.obsidian/` folder is automatically excluded from indexing and should be added to `.gitignore` to keep local settings out of version control.
+
+#### Enhanced Search Features
+
+```typescript
+// Search with frontmatter and excerpts
+await search_docs({
+  query: 'status PASS',
+  searchFrontmatter: true,  // Search in YAML frontmatter
+  searchContent: true,       // Search in body content
+  caseSensitive: false,      // Case-insensitive (default)
+  prettyPrint: true          // Human-readable output
+});
+
+// Returns: path, title, excerpt (with context), matchCount, lineNumber
+```
+
+#### Write Modes for update_doc
+
+```typescript
+// Append content (preserves existing, merges frontmatter)
+await update_doc({
+  path: 'notes/meeting.md',
+  content: '\n## Action Items\n- Task 1',
+  mode: 'append'
+});
+
+// Prepend content
+await update_doc({
+  path: 'notes/log.md',
+  content: '## 2024-01-26\nNew entry\n',
+  mode: 'prepend'
+});
+```
+
+#### Tag Management
+
+```typescript
+// List all tags (frontmatter + inline #tags)
+await manage_tags({ path: 'notes/project.md', operation: 'list' });
+
+// Add tags to frontmatter
+await manage_tags({ path: 'notes/project.md', operation: 'add', tags: ['active', 'priority'] });
+
+// Remove tags
+await manage_tags({ path: 'notes/project.md', operation: 'remove', tags: ['draft'] });
+```
+
 ### Resources (Progressive Disclosure)
 
 - `plans://index` — List of all plans (minimal)
@@ -386,9 +447,10 @@ GitHub Actions automatically builds, tests, and creates releases with changelogs
 ![SQLite](https://img.shields.io/badge/SQLite-FTS5-003B57)
 ![Zod](https://img.shields.io/badge/Zod-4-3068b7)
 
-- Full-text search with auto-indexing
-- Real-time file watching (Chokidar)
+- Full-text search with auto-indexing and frontmatter support
+- Real-time file watching (Chokidar) with path filtering
 - RLM sandbox (QuickJS)
+- Obsidian-compatible frontmatter (gray-matter)
 
 ### Principles
 

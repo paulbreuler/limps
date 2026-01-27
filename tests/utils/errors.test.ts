@@ -103,10 +103,10 @@ describe('errors.ts', () => {
     });
 
     describe('permissionDenied', () => {
-      it('returns PERMISSION_DENIED error with path and reason', () => {
+      it('returns EACCES error with path and reason', () => {
         const error = permissionDenied('secret.md', 'Read-only file');
 
-        expect(error.code).toBe('PERMISSION_DENIED');
+        expect(error.code).toBe('EACCES');
         expect(error.path).toBe('secret.md');
         expect(error.message).toContain('Read-only file');
       });

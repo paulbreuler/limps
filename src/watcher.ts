@@ -1,4 +1,6 @@
 import chokidar, { type FSWatcher } from 'chokidar';
+import { PathFilter } from './utils/pathfilter.js';
+import { relative } from 'path';
 
 /**
  * Default file extensions to watch.
@@ -26,10 +28,22 @@ export function startWatcher(
   watchPaths: string | string[],
   onChange: (path: string, event: 'add' | 'change' | 'unlink') => Promise<void>,
   fileExtensions: string[] = DEFAULT_FILE_EXTENSIONS,
-  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp'],
+  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian'],
   debounceDelay = 200
 ): FSWatcher {
-  // Build ignore patterns for Chokidar
+  // Create PathFilter for consistent filtering
+  const pathFilter = new PathFilter({
+    ignoredPatterns: ignorePatterns.map((pattern) => {
+      // Convert simple patterns to glob patterns
+      if (pattern.includes('*')) {
+        return pattern;
+      }
+      return `**/${pattern}/**`;
+    }),
+    allowedExtensions: fileExtensions,
+  });
+
+  // Build ignore patterns for Chokidar (for initial filtering)
   const ignored = ignorePatterns.map((pattern) => {
     // Convert simple patterns to glob patterns
     if (pattern.includes('*')) {
@@ -80,33 +94,54 @@ export function startWatcher(
     debounceMap.set(path, timeout);
   };
 
-  // Watch for file additions (only files with matching extensions)
+  // Helper to get relative path for PathFilter
+  const getRelativePath = (absolutePath: string): string => {
+    // Try to get relative path from first watch path
+    const basePath = Array.isArray(watchPaths) ? watchPaths[0] : watchPaths;
+    try {
+      return relative(basePath, absolutePath);
+    } catch {
+      // Fallback to just the filename if relative fails
+      return absolutePath.split(/[/\\]/).pop() || absolutePath;
+    }
+  };
+
+  // Watch for file additions (only files with matching extensions and allowed by PathFilter)
   watcher.on('add', (path) => {
     if (matchesExtension(path, fileExtensions)) {
-      debouncedOnChange(path, 'add');
+      const relPath = getRelativePath(path);
+      if (pathFilter.isAllowed(relPath)) {
+        debouncedOnChange(path, 'add');
+      }
     }
   });
 
-  // Watch for file changes (only files with matching extensions)
+  // Watch for file changes (only files with matching extensions and allowed by PathFilter)
   watcher.on('change', (path) => {
     if (matchesExtension(path, fileExtensions)) {
-      debouncedOnChange(path, 'change');
+      const relPath = getRelativePath(path);
+      if (pathFilter.isAllowed(relPath)) {
+        debouncedOnChange(path, 'change');
+      }
     }
   });
 
-  // Watch for file deletions (only files with matching extensions)
+  // Watch for file deletions (only files with matching extensions and allowed by PathFilter)
   watcher.on('unlink', (path) => {
     if (matchesExtension(path, fileExtensions)) {
-      // Clear any pending debounce for this path
-      const existing = debounceMap.get(path);
-      if (existing) {
-        clearTimeout(existing);
-        debounceMap.delete(path);
+      const relPath = getRelativePath(path);
+      if (pathFilter.isAllowed(relPath)) {
+        // Clear any pending debounce for this path
+        const existing = debounceMap.get(path);
+        if (existing) {
+          clearTimeout(existing);
+          debounceMap.delete(path);
+        }
+        // Handle deletion immediately (no debounce needed)
+        onChange(path, 'unlink').catch((error) => {
+          console.error(`Error handling file deletion for ${path}:`, error);
+        });
       }
-      // Handle deletion immediately (no debounce needed)
-      onChange(path, 'unlink').catch((error) => {
-        console.error(`Error handling file deletion for ${path}:`, error);
-      });
     }
   });
 

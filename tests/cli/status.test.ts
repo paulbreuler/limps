@@ -38,7 +38,6 @@ describe('status', () => {
         `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -54,7 +53,6 @@ files: []
         `---
 status: WIP
 persona: reviewer
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -70,7 +68,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -108,7 +105,6 @@ files: []
         `---
 status: BLOCKED
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -137,7 +133,6 @@ files: []
         `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -153,7 +148,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -183,7 +177,6 @@ files: []
         `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -199,7 +192,6 @@ files: []
         `---
 status: PASS
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -228,7 +220,6 @@ files: []
         `---
 status: WIP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -255,7 +246,6 @@ files: []
         `---
 status: BLOCKED
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -282,7 +272,6 @@ files: []
         `---
 status: GAP
 persona: coder
-claimedBy: null
 dependencies: []
 blocks: []
 files: []
@@ -298,7 +287,6 @@ files: []
         `---
 status: GAP
 persona: reviewer
-claimedBy: null
 dependencies: []
 blocks: []
 files: []

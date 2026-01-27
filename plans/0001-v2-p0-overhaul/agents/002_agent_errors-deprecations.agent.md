@@ -1,8 +1,8 @@
 ---
 status: PASS
 persona: coder
-claimedBy: null
-dependencies: ["000"]
+dependencies:
+  - "000"
 blocks: []
 files:
   - src/utils/errors.ts

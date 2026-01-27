@@ -7,6 +7,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { ServerConfig } from '../config.js';
 import { stripMarkdown } from '../utils/markdown.js';
+import { findPlanFile } from '../utils/paths.js';
 
 /**
  * Plan entry for CLI output.
@@ -205,10 +206,11 @@ export function getPlansData(config: ServerConfig): ListPlansResult | { error: s
       continue;
     }
 
-    const planMdPath = join(plansPath, dir, 'plan.md');
+    const planDir = join(plansPath, dir);
+    const planMdPath = findPlanFile(planDir);
     let content = '';
 
-    if (existsSync(planMdPath)) {
+    if (planMdPath) {
       try {
         content = readFileSync(planMdPath, 'utf-8');
       } catch {

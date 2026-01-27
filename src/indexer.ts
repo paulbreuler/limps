@@ -1,7 +1,9 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
 import { readFileSync, statSync, existsSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { join, relative } from 'path';
 import { createHash } from 'crypto';
+import { FrontmatterHandler } from './utils/frontmatter.js';
+import { PathFilter } from './utils/pathfilter.js';
 
 /**
  * Document metadata interface.
@@ -68,81 +70,31 @@ export function createSchema(db: DatabaseType): void {
   `);
 }
 
+// Create a singleton FrontmatterHandler instance
+const frontmatterHandler = new FrontmatterHandler();
+
 /**
  * Parse YAML frontmatter from markdown content.
  * Returns parsed frontmatter and remaining content.
+ * Uses FrontmatterHandler for robust parsing (supports Obsidian properties).
  */
 function parseYamlFrontmatter(content: string): {
   frontmatter: Record<string, unknown>;
   body: string;
 } {
-  const yamlRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
-  const match = content.match(yamlRegex);
-
-  if (!match) {
+  try {
+    const parsed = frontmatterHandler.parse(content);
+    return {
+      frontmatter: parsed.frontmatter,
+      body: parsed.content,
+    };
+  } catch (error) {
+    // Log error but don't fail indexing - treat as no frontmatter
+    console.error(
+      `Failed to parse YAML frontmatter: ${error instanceof Error ? error.message : String(error)}`
+    );
     return { frontmatter: {}, body: content };
   }
-
-  const frontmatterText = match[1];
-  const body = match[2];
-  const frontmatter: Record<string, unknown> = {};
-
-  // Simple YAML parser for basic key-value pairs
-  const lines = frontmatterText.split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-
-    const colonIndex = trimmed.indexOf(':');
-    if (colonIndex === -1) continue;
-
-    const key = trimmed.slice(0, colonIndex).trim();
-    let value: unknown = trimmed.slice(colonIndex + 1).trim();
-
-    // Remove quotes if present
-    if (typeof value === 'string') {
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-    }
-
-    // Handle arrays (simple format: - item1, - item2)
-    if (trimmed.includes('-')) {
-      const arrayMatch = trimmed.match(/^-\s*(.+)$/);
-      if (arrayMatch) {
-        const arrayKey = key || 'items';
-        if (!frontmatter[arrayKey] || !Array.isArray(frontmatter[arrayKey])) {
-          frontmatter[arrayKey] = [];
-        }
-        (frontmatter[arrayKey] as unknown[]).push(arrayMatch[1].trim().replace(/^["']|["']$/g, ''));
-        continue;
-      }
-    }
-
-    // Handle nested arrays (dependencies: - item1)
-    if (key && value && typeof value === 'string' && value.startsWith('-')) {
-      const arrayKey = key;
-      if (!frontmatter[arrayKey] || !Array.isArray(frontmatter[arrayKey])) {
-        frontmatter[arrayKey] = [];
-      }
-      (frontmatter[arrayKey] as unknown[]).push(
-        value
-          .slice(1)
-          .trim()
-          .replace(/^["']|["']$/g, '')
-      );
-      continue;
-    }
-
-    if (key) {
-      frontmatter[key] = value;
-    }
-  }
-
-  return { frontmatter, body };
 }
 
 /**
@@ -387,40 +339,50 @@ export async function removeDocument(db: DatabaseType, filePath: string): Promis
 
 /**
  * Recursively find all files with specified extensions in a directory.
+ * Uses PathFilter for consistent filtering.
  *
  * @param dir - Directory to search
  * @param extensions - File extensions to match (e.g., ['.md', '.jsx', '.tsx'])
- * @param ignorePatterns - Patterns to ignore
+ * @param ignorePatterns - Patterns to ignore (legacy support, PathFilter handles this)
+ * @param baseDir - Base directory for relative path calculation (internal use)
  * @returns Array of file paths
  */
 function findFiles(
   dir: string,
   extensions: string[] = ['.md'],
-  ignorePatterns: string[] = []
+  ignorePatterns: string[] = [],
+  baseDir?: string
 ): string[] {
   const files: string[] = [];
   const entries = readdirSync(dir, { withFileTypes: true });
+  const searchBase = baseDir || dir;
+
+  // Create PathFilter with custom ignored patterns and allowed extensions
+  const pathFilter = new PathFilter({
+    ignoredPatterns: ignorePatterns.map((pattern) => {
+      // Convert simple patterns to glob patterns for PathFilter
+      if (pattern.includes('*')) {
+        return pattern;
+      }
+      return `**/${pattern}/**`;
+    }),
+    allowedExtensions: extensions,
+  });
 
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
+    // Get relative path from the search root for PathFilter
+    const relativePath = relative(searchBase, fullPath).replace(/\\/g, '/');
 
-    // Check ignore patterns
-    const shouldIgnore = ignorePatterns.some((pattern) => {
-      if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-        return regex.test(fullPath) || regex.test(entry.name);
-      }
-      return fullPath.includes(pattern) || entry.name.includes(pattern);
-    });
-
-    if (shouldIgnore) {
+    // Use PathFilter to check if path is allowed
+    if (!pathFilter.isAllowed(relativePath)) {
       continue;
     }
 
     if (entry.isDirectory()) {
-      files.push(...findFiles(fullPath, extensions, ignorePatterns));
+      files.push(...findFiles(fullPath, extensions, ignorePatterns, searchBase));
     } else if (entry.isFile()) {
-      // Check if file matches any of the extensions
+      // PathFilter already checked extension, but double-check for safety
       const matchesExtension = extensions.some((ext) => entry.name.endsWith(ext));
       if (matchesExtension) {
         files.push(fullPath);
@@ -450,7 +412,7 @@ function findMarkdownFiles(dir: string, ignorePatterns: string[] = []): string[]
 export async function indexAllDocuments(
   db: DatabaseType,
   plansPath: string,
-  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp']
+  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian']
 ): Promise<IndexingResult> {
   if (!existsSync(plansPath)) {
     throw new Error(`Directory not found: ${plansPath}`);
@@ -531,7 +493,7 @@ export async function indexAllPaths(
   db: DatabaseType,
   paths: string[],
   extensions: string[] = ['.md'],
-  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp']
+  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian']
 ): Promise<IndexingResult> {
   const result: IndexingResult = {
     indexed: 0,

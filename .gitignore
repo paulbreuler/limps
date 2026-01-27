@@ -42,6 +42,9 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+# Obsidian vault config (local settings)
+.obsidian/
+
 # Temporary files
 *.tmp
 .cache/

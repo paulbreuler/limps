@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { existsSync, writeFileSync, mkdirSync, statSync } from 'fs';
 import { dirname } from 'path';
 import { validatePath, isWritablePath, type DocType } from '../utils/paths.js';
-import { alreadyExists, restrictedPath } from '../utils/errors.js';
+import { alreadyExists, restrictedPath, permissionDenied, noSpaceError } from '../utils/errors.js';
 import { indexDocument } from '../indexer.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
@@ -20,6 +20,10 @@ export const CreateDocInputSchema = z.object({
     .enum(['addendum', 'research', 'example', 'none'])
     .default('none')
     .describe('Template to apply (adds frontmatter)'),
+  prettyPrint: z
+    .boolean()
+    .default(false)
+    .describe('Format JSON response with indentation (default: false)'),
 });
 
 export type CreateDocInput = z.infer<typeof CreateDocInputSchema>;
@@ -90,7 +94,7 @@ export async function handleCreateDoc(
   input: CreateDocInput,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { path, content, template } = input;
+  const { path, content, template, prettyPrint = false } = input;
   const repoRoot = getRepoRoot(context.config);
 
   try {
@@ -121,8 +125,20 @@ export async function handleCreateDoc(
       mkdirSync(parentDir, { recursive: true });
     }
 
-    // Write file
-    writeFileSync(validated.absolute, finalContent, 'utf-8');
+    // Write file with error handling
+    try {
+      writeFileSync(validated.absolute, finalContent, 'utf-8');
+    } catch (error) {
+      if (error instanceof Error && 'code' in error) {
+        if (error.code === 'EACCES' || error.code === 'EPERM') {
+          throw permissionDenied(validated.relative, undefined, 'write');
+        }
+        if (error.code === 'ENOSPC') {
+          throw noSpaceError(validated.relative);
+        }
+      }
+      throw error;
+    }
 
     // Get file size
     const stats = statSync(validated.absolute);
@@ -142,7 +158,7 @@ export async function handleCreateDoc(
       content: [
         {
           type: 'text',
-          text: JSON.stringify(output, null, 2),
+          text: JSON.stringify(output, null, prettyPrint ? 2 : undefined),
         },
       ],
     };
@@ -162,7 +178,7 @@ export async function handleCreateDoc(
               error: error instanceof Error ? error.message : String(error),
             },
             null,
-            2
+            prettyPrint ? 2 : undefined
           ),
         },
       ],

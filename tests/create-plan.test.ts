@@ -66,7 +66,8 @@ describe('create-plan-valid', () => {
     expect(planDir).toBeDefined();
 
     const planPath = join(plansDir, planDir!);
-    expect(existsSync(join(planPath, 'plan.md'))).toBe(true);
+    // New naming format: {dirName}-plan.md
+    expect(existsSync(join(planPath, `${planDir}-plan.md`))).toBe(true);
   });
 });
 
@@ -238,7 +239,8 @@ Description: {{DESCRIPTION}}
     expect(planDir).toBeDefined();
 
     const planPath = join(plansDir, planDir!);
-    const planContent = readFileSync(join(planPath, 'plan.md'), 'utf-8');
+    // New naming format: {dirName}-plan.md
+    const planContent = readFileSync(join(planPath, `${planDir}-plan.md`), 'utf-8');
     expect(planContent).toContain('template-test');
     expect(planContent).toContain('Test description');
     expect(planContent).not.toContain('{{PLAN_NAME}}');
