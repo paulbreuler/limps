@@ -182,6 +182,9 @@ export function getAgentStatusSummary(
     };
   });
 
+  // Normalize files to string[] (handle both string[] and object[] formats)
+  const normalizedFiles = frontmatter.files.map((f) => (typeof f === 'string' ? f : f.path));
+
   return {
     taskId: resolvedId.taskId,
     title: title || `Agent ${resolvedId.agentNumber}`,
@@ -191,7 +194,7 @@ export function getAgentStatusSummary(
     status: frontmatter.status,
     persona: frontmatter.persona,
     features,
-    files: frontmatter.files,
+    files: normalizedFiles,
     dependencies,
   };
 }
