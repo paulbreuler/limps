@@ -4,6 +4,10 @@ status: GAP
 persona: coder
 dependencies:
   - 001_agent_extraction.agent.md
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#002", "Signatures Agent"]
+created: 2026-01-26
+updated: 2026-01-27
 files:
   - path: src/signatures/inference.ts
     action: create

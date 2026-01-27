@@ -1,3 +1,10 @@
+---
+title: limps Radix Extension Interfaces
+tags: [limps/interfaces, limps/contract]
+created: 2026-01-26
+updated: 2026-01-27
+---
+
 # Interfaces - limps-radix-extension
 
 ## Core Types

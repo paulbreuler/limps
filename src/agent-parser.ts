@@ -15,11 +15,19 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
  * This is the authoritative source of truth for agent/task state.
  */
 export interface AgentFrontmatter {
+  // Core limps fields (required)
   status: 'GAP' | 'WIP' | 'PASS' | 'BLOCKED';
   persona: 'coder' | 'reviewer' | 'pm' | 'customer';
   dependencies: string[]; // Agent numbers this depends on (e.g., ["000", "001"])
   blocks: string[]; // Agent numbers this blocks
-  files: string[]; // Files this agent owns/modifies
+  files: string[] | { path: string; action?: string; repo?: string }[]; // Files this agent owns/modifies
+
+  // Obsidian-compatible fields (optional)
+  title?: string; // Display title for Obsidian graph view
+  tags?: string[]; // Hierarchical tags (e.g., ["limps/agent", "limps/status/gap"])
+  aliases?: string[]; // Alternative names for search (e.g., ["#000", "Agent 0"])
+  created?: string; // ISO date: YYYY-MM-DD
+  updated?: string; // ISO date: YYYY-MM-DD
 }
 
 /**

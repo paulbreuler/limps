@@ -1,3 +1,12 @@
+---
+title: limps Feature Roadmap
+status: active
+workType: docs
+tags: [limps/plan, limps/worktype/docs]
+created: 2026-01-26
+updated: 2026-01-27
+---
+
 # limps Feature Roadmap
 
 ## Vision

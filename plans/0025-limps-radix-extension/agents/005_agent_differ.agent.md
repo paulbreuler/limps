@@ -4,6 +4,10 @@ status: GAP
 persona: coder
 dependencies:
   - 002_agent_signatures.agent.md
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#005", "Differ Agent"]
+created: 2026-01-26
+updated: 2026-01-27
 files:
   - path: src/differ/props.ts
     action: create

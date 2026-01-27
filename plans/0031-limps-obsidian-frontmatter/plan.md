@@ -1,3 +1,12 @@
+---
+title: limps Obsidian Frontmatter
+status: active
+workType: feature
+tags: [limps/plan, limps/worktype/feature]
+created: 2026-01-26
+updated: 2026-01-27
+---
+
 # limps Obsidian Frontmatter
 
 ## Overview

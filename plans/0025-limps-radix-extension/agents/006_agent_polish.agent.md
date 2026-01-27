@@ -6,6 +6,10 @@ dependencies:
   - 003_agent_read-tools.agent.md
   - 004_agent_analyzer.agent.md
   - 005_agent_differ.agent.md
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#006", "Polish Agent"]
+created: 2026-01-26
+updated: 2026-01-27
 files:
   - path: src/providers/interface.ts
     action: create

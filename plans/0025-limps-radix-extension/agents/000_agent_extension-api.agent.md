@@ -3,6 +3,10 @@ title: Extension API & Scaffolding
 status: GAP
 persona: coder
 dependencies: []
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#000", "Extension API Agent"]
+created: 2026-01-26
+updated: 2026-01-27
 files:
   - path: src/extensions/types.ts
     action: create

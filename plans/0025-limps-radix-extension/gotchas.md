@@ -1,3 +1,10 @@
+---
+title: limps Radix Extension Gotchas
+tags: [limps/gotchas, limps/issues]
+created: 2026-01-26
+updated: 2026-01-27
+---
+
 # Gotchas - limps-radix-extension
 
 ## Format

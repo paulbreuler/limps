@@ -4,6 +4,10 @@ status: GAP
 persona: coder
 dependencies:
   - 002_agent_signatures.agent.md
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#003", "Read Tools Agent"]
+created: 2026-01-26
+updated: 2026-01-27
 files:
   - path: src/tools/list-primitives.ts
     action: create

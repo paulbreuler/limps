@@ -1,3 +1,10 @@
+---
+title: limps Radix Extension Index
+tags: [limps/index]
+created: 2026-01-26
+updated: 2026-01-27
+---
+
 # 0025-limps-radix-extension
 
 ## Overview

@@ -4,6 +4,10 @@ status: GAP
 persona: coder
 dependencies:
   - 000_agent_extension-api.agent.md
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#001", "Extraction Agent"]
+created: 2026-01-26
+updated: 2026-01-27
 files:
   - path: src/fetcher/npm-registry.ts
     action: create
