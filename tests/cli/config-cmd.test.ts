@@ -586,6 +586,18 @@ describe('config-cmd', () => {
       expect(claudeConfig.mcpServers['limps-planning-project-a'].args).toContain('serve');
     });
 
+    it('throws when Claude mcpServers is not an object', () => {
+      const existingConfig = {
+        mcpServers: 'invalid',
+      };
+      writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2));
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      expect(() => configAddClaude(() => configPath)).toThrow('mcpServers');
+    });
+
     it('throws error when all projects have missing config files', () => {
       // Create a valid config to pass the initial validation
       const validConfig = createConfig('temp-valid');
@@ -698,6 +710,18 @@ describe('config-cmd', () => {
       expect(cursorConfig['editor.formatOnSave']).toBe(true);
       expect(cursorConfig['mcp.servers']['other-server']).toBeDefined();
       expect(cursorConfig['mcp.servers']['limps-planning-my-project']).toBeDefined();
+    });
+
+    it('throws when Cursor mcp.servers is not an object', () => {
+      const existingConfig = {
+        'mcp.servers': 'invalid',
+      };
+      writeFileSync(cursorConfigPath, JSON.stringify(existingConfig, null, 2));
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      expect(() => configAddCursor(() => configPath)).toThrow('mcp.servers');
     });
   });
 
