@@ -17,7 +17,7 @@ Expand limps beyond planning documents. ADRs, runbooks, meeting notes - knowledg
 
 | Type | Purpose | Structure |
 |------|---------|-----------|
-| **Plans** | Feature planning (current) | plan.md + agents |
+| **Plans** | Feature planning (current) | {plan-name}-plan.md + agents |
 | **ADRs** | Architecture decisions | Single doc with status |
 | **Runbooks** | Operational procedures | Steps + automation |
 | **Meeting Notes** | Capture → action items | Template-driven |

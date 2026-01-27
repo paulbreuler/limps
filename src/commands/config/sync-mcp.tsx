@@ -36,7 +36,7 @@ interface Props {
   options: z.infer<typeof options>;
 }
 
-export default function ConfigAddClaudeCommand({ options }: Props): React.ReactNode {
+export default function ConfigSyncMcpCommand({ options }: Props): React.ReactNode {
   // If force is set, skip confirmation
   const [confirmed, setConfirmed] = useState<boolean | null>(options.force ? true : null);
   const [results, setResults] = useState<string[]>([]);

@@ -19,7 +19,7 @@ Common failure modes:
 1. **Stale plans** - Plan written 3 months ago, never updated, now irrelevant
 2. **Status lies** - Agent marked WIP for 2 weeks, actually abandoned
 3. **Code drift** - `files:` lists `auth.ts` but that file was renamed/deleted
-4. **Orphaned agents** - Agent completed but plan.md doesn't reflect it
+4. **Orphaned agents** - Agent completed but plan file doesn't reflect it
 5. **Zombie dependencies** - Depends on agent that's been BLOCKED forever
 
 ---

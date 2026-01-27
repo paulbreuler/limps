@@ -27,7 +27,7 @@ files:
 
 # Agent 005: Differ & Updates
 
-**Plan Location**: `plans/0025-limps-radix-extension/plan.md`
+**Plan Location**: `plans/0025-limps-radix-extension/0025-limps-radix-extension-plan.md`
 
 ## Scope
 

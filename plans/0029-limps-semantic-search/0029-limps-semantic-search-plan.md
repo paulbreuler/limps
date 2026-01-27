@@ -194,7 +194,7 @@ params: {
 
 ```bash
 limps search "authentication flow"     # Semantic search
-limps similar plans/0001/plan.md       # Find similar docs
+limps similar plans/0001-feature-name/0001-feature-name-plan.md       # Find similar docs
 limps reindex                          # Rebuild vector index
 limps index-status                     # Show indexing stats
 ```

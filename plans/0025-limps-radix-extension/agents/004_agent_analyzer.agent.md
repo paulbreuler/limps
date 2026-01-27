@@ -37,7 +37,7 @@ files:
 
 # Agent 004: Component Analyzer
 
-**Plan Location**: `plans/0025-limps-radix-extension/plan.md`
+**Plan Location**: `plans/0025-limps-radix-extension/0025-limps-radix-extension-plan.md`
 
 ## Scope
 

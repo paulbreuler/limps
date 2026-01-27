@@ -15,7 +15,7 @@ List all available feature plans with their work types, names, and overviews.
    - Include work type (Refactor/Overhaul/Feature)
    - Include plan names
    - Show overviews if available
-   - **Display clickable absolute file paths** for all files (plan.md, README.md, interfaces.md, gotchas.md, and all agent files)
+   - **Display clickable absolute file paths** for all files ({plan-name}-plan.md, README.md, interfaces.md, gotchas.md, and all agent files)
    - Paths are formatted without ANSI codes so they're clickable in Cursor terminal
 
 3. **Provide navigation help:**
@@ -36,9 +36,9 @@ The script displays each plan with:
 
 - Work type icon and label (🔧 Refactor, 🔄 Overhaul, ✨ Feature)
 - Plan name (human-readable)
-- Overview snippet (if available from plan.md)
+- Overview snippet (if available from plan file)
 - **Clickable absolute file paths** (one per line):
-  - `plan.md` - Full feature specifications
+  - `{plan-name}-plan.md` - Full feature specifications
   - `README.md` - Index and status (if exists)
   - `interfaces.md` - Interface contracts (if exists)
   - `gotchas.md` - Discovered issues (if exists)
@@ -59,7 +59,7 @@ The script displays each plan with:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔄 Overhaul  Feature Name
    Overview: Brief description of the plan...
-   plans/0004-feature-name/plan.md
+   plans/0004-feature-name/0004-feature-name-plan.md
    plans/0004-feature-name/README.md
    plans/0004-feature-name/interfaces.md
    plans/0004-feature-name/gotchas.md
@@ -70,7 +70,7 @@ The script displays each plan with:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔧 Refactor  Another Feature
    Overview: Brief description...
-   plans/0005-another-feature/plan.md
+   plans/0005-another-feature/0005-another-feature-plan.md
    plans/0005-another-feature/README.md
    plans/0005-another-feature/agents/000_agent_name.agent.md
    ...
@@ -88,7 +88,7 @@ After listing, you can:
 
 **Quick Navigation:**
 
-- Click on compact labels like `plan.md`, `README.md`, or `agents/agent_1.agent.md`
+- Click on compact labels like `{plan-name}-plan.md`, `README.md`, or `agents/agent_1.agent.md`
 - Files open directly in Cursor when clicked
 
 **Opening in Current Window:**

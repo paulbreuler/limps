@@ -154,7 +154,7 @@ limps <command> --help    # Show command help
 | `limps config set <path>` | Set current from config path |
 | `limps config discover` | Find configs in default locations |
 | `limps config update <name>` | Update project paths |
-| `limps config add-claude` | Add projects to MCP client configs |
+| `limps config sync-mcp` | Add projects to MCP client configs |
 
 ### Multi-Project Workflow
 
@@ -310,18 +310,18 @@ Instead of manually editing config files, use the CLI:
 
 ```bash
 # Add all registered projects to all MCP clients
-limps config add-claude
+limps config sync-mcp
 
 # Add to specific client only
-limps config add-claude --client claude
-limps config add-claude --client cursor
-limps config add-claude --client claude-code
+limps config sync-mcp --client claude
+limps config sync-mcp --client cursor
+limps config sync-mcp --client claude-code
 
 # Add specific projects
-limps config add-claude --projects my-project,other-project
+limps config sync-mcp --projects my-project,other-project
 
 # Preview without writing
-limps config add-claude --print
+limps config sync-mcp --print
 ```
 
 ## Features

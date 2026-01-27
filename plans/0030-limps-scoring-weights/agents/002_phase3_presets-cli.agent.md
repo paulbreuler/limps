@@ -23,7 +23,7 @@ files:
 
 # Agent 002: Presets & CLI
 
-**Plan Location**: `plans/0030-limps-scoring-weights/plan.md`
+**Plan Location**: `plans/0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md`
 
 ## Scope
 

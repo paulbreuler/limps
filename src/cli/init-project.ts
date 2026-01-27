@@ -59,6 +59,7 @@ export function initProject(projectName: string, docsPath?: string): string {
 
   // Create default config with absolute paths
   const config = {
+    configVersion: 1,
     plansPath: resolvedDocsPath
       ? resolve(resolvedDocsPath, 'plans')
       : resolve(defaultDocsPath, 'plans'),

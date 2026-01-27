@@ -34,6 +34,7 @@ export interface ScoringBiases {
  * Server configuration interface.
  */
 export interface ServerConfig {
+  configVersion?: number; // Config schema version for migrations
   plansPath: string;
   docsPaths?: string[]; // Additional paths to index
   fileExtensions?: string[]; // File types to index (default: ['.md'])
@@ -43,6 +44,12 @@ export interface ServerConfig {
     biases: ScoringBiases;
   };
 }
+
+/**
+ * Current config schema version.
+ * Increment when making breaking changes that require migration.
+ */
+export const CURRENT_CONFIG_VERSION = 1;
 
 /**
  * Default file extensions to index.
@@ -93,6 +100,7 @@ export const DEFAULT_DEBOUNCE_DELAY = 200;
  * Default server configuration.
  */
 const DEFAULT_CONFIG: ServerConfig = {
+  configVersion: CURRENT_CONFIG_VERSION,
   plansPath: './plans',
   docsPaths: undefined,
   fileExtensions: undefined,
@@ -142,6 +150,29 @@ export function loadConfig(configPath: string): ServerConfig {
   const content = readFileSync(configPath, 'utf-8');
   const config = JSON.parse(content) as Partial<ServerConfig>;
 
+  // Migration: add scoring if missing (pre-v1 configs)
+  let needsSave = false;
+  let scoring = config.scoring;
+  if (!scoring?.weights || !scoring?.biases) {
+    scoring = {
+      weights: DEFAULT_SCORING_WEIGHTS,
+      biases: DEFAULT_SCORING_BIASES,
+    };
+    config.scoring = scoring;
+    needsSave = true;
+  }
+
+  // Migration: add configVersion if missing
+  if (config.configVersion === undefined) {
+    config.configVersion = CURRENT_CONFIG_VERSION;
+    needsSave = true;
+  }
+
+  // Save migrated config back to disk
+  if (needsSave) {
+    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
   // Helper to resolve path with tilde expansion
   const resolvePath = (p: string): string => {
     const expanded = expandTilde(p);
@@ -155,17 +186,14 @@ export function loadConfig(configPath: string): ServerConfig {
   // Resolve docsPaths relative to config file (with tilde expansion)
   const resolvedDocsPaths = config.docsPaths ? config.docsPaths.map(resolvePath) : undefined;
 
-  if (!config.scoring?.weights || !config.scoring?.biases) {
-    throw new Error('Config missing required scoring settings.');
-  }
-
   // Merge with defaults and resolve paths (with tilde expansion)
   const mergedConfig: ServerConfig = {
+    configVersion: config.configVersion,
     plansPath: resolvePath(config.plansPath || DEFAULT_CONFIG.plansPath),
     docsPaths: resolvedDocsPaths,
     fileExtensions: config.fileExtensions,
     dataPath: resolvePath(config.dataPath || DEFAULT_CONFIG.dataPath),
-    scoring: config.scoring,
+    scoring,
   };
 
   return mergedConfig;

@@ -141,7 +141,7 @@ function calculateScore(task: Task, weights: ScoringWeights, biases: ScoringBias
 }
 ```
 
-### Plan-Level Override (plan.md frontmatter)
+### Plan-Level Override (plan file frontmatter)
 
 ```yaml
 ---
