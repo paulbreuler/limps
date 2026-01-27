@@ -106,6 +106,44 @@ And suggests next steps (restart/apply)
 
 ---
 
+## Feature 4: Agent Close Workflow Alignment
+
+### User Story
+
+As a maintainer, I want close-feature-agent to work with agent-based plans without requiring feature IDs.
+
+### Gherkin
+
+Scenario: Agent close works without feature IDs
+Given an agent file with status PASS
+When I run /close-feature-agent
+Then README status matrix updates
+And no MCP task status update is attempted
+
+Scenario: Explicit message for unsupported task status updates
+Given plan uses agent IDs only
+When I run /close-feature-agent
+Then a note explains that update_task_status requires feature IDs
+
+Scenario: run-agent validates agent file paths
+Given an invalid --agent path
+When I run /run-agent --agent <path>
+Then an error explains the file was not found
+
+Scenario: run-agent prints a short checklist
+Given an agent file with Files and Tests sections
+When I run /run-agent --agent <path>
+Then the output includes a brief checklist for LLM execution
+
+### TDD Cycles
+
+1. `close-feature-agent skips update_task_status for agent-only plans` → impl → refactor
+2. `close-feature-agent emits note for agent-only status` → impl → refactor
+3. `run-agent validates agent path` → impl → refactor
+4. `run-agent prints checklist` → impl → refactor
+
+---
+
 ## Running List: LLM Usage Issues & Improvements
 
 1. **Sync-mcp branching logic** makes new client support error-prone → registry-driven hooks.
@@ -114,6 +152,7 @@ And suggests next steps (restart/apply)
 4. **CLI flag mismatch** (`-f` not recognized) → add alias support for force.
 5. **Tooling bug**: `create_plan` created double-prefixed directories (e.g., `0038-0038-*`) → investigate MCP tool output handling.
 6. **Run-agent workflow references claim_task** but orchestration is manual → remove claim_task from docs/workflow.
+7. **update_task_status expects feature IDs** while agents are manual tasks → clarify close-feature-agent workflow or add agent-aware status updates.
 
 ---
 

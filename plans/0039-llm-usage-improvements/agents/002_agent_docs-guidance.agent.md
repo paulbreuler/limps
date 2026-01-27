@@ -30,7 +30,7 @@ Block: none
 ### #3: LLM-Focused Setup Guidance
 
 TL;DR: Keep docs/CLI concise and explicit about client constraints.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `README includes client constraints`, `sync output mentions print-only clients`
 Files: `README.md` (modify), `src/commands/config/index.tsx` (modify)
 

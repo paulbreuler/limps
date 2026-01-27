@@ -29,7 +29,7 @@ export function getSyncClients(): McpSyncClient[];
 ### #1: Composable Client Registry
 
 TL;DR: Replace sync-mcp conditionals with a registry-driven flow.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `sync-mcp uses registry for iteration`, `print-only client does not write files`
 Files: `src/cli/mcp-clients.ts` (create), `src/commands/config/sync-mcp.tsx` (modify)
 

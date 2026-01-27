@@ -30,7 +30,7 @@ export interface PreviewResult { ... }
 ### #2: Safer Config Writes + Better Errors
 
 TL;DR: Fail safely on invalid server sections and surface missing configs.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `reject non-object servers section`, `missing config files are listed in errors`
 Files: `src/cli/config-cmd.ts` (modify), `tests/cli/config-cmd.test.ts` (modify)
 
