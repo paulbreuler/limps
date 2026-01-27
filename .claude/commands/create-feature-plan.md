@@ -15,7 +15,7 @@ This command uses limps MCP tools for document management:
 - **Server**: `limps`
 - **Tools**:
   - `create_plan` - Create the plan structure
-  - `create_doc` - Create planning documents (plan.md, interfaces.md, README.md, gotchas.md)
+  - `create_doc` - Create planning documents ({plan-name}-plan.md, interfaces.md, README.md, gotchas.md)
   - `list_docs` - List existing plans to determine next plan number
   - `process_doc` - Process documents with JavaScript (read, filter, transform, extract)
   - `process_docs` - Process multiple documents with JavaScript (analyze patterns across plans)
@@ -51,13 +51,13 @@ Ask user for:
    - Description: Brief overview of the plan
 
 3. **Create planning documents** using `create_doc` (server: `limps`):
-   - Use template `none` for plan.md, interfaces.md, README.md
+   - Use template `none` for plan file, interfaces.md, README.md
    - Use template `addendum` for gotchas.md (if template available)
    - Path format: `plans/NNNN-descriptive-name/filename.md`
 
 **Plan Number Format**: Zero-padded to 4 digits (0001, 0002, ..., 0007, 0008, ...) for proper lexicographical ordering. Scripts support both padded and unpadded formats for backward compatibility.
 
-**1. plan.md** - Full feature specifications
+**1. Plan File ({plan-name}-plan.md)** - Full feature specifications
 
 - Complete Gherkin scenarios (all paths)
 - Detailed TDD cycles with test code
@@ -161,7 +161,7 @@ For each agent, create `agents/<NNN>_agent_<descriptive-name>.agent.md` where NN
 ```text
 NNNN-descriptive-name/
 ├── README.md              # Index, graph, status
-├── plan.md                # Full specs (verbose, ~1000+ lines OK)
+├── {plan-name}-plan.md                # Full specs (verbose, ~1000+ lines OK)
 ├── interfaces.md          # Contracts (~200-500 lines)
 ├── gotchas.md             # Empty template
 └── agents/
@@ -179,7 +179,7 @@ NNNN-descriptive-name/
 ````markdown
 # Agent <N>: [Descriptive Name]
 
-**Plan Location**: `plans/[plan-name]/plan.md`
+**Plan Location**: `plans/[plan-name]/[plan-name]-plan.md`
 
 ## Scope
 
@@ -242,7 +242,7 @@ Gotchas:
 
 ## Distillation Rules
 
-| plan.md (verbose)        | agent.md (distilled)     |
+| Plan file (verbose)        | agent.md (distilled)     |
 | ------------------------ | ------------------------ |
 | Full Gherkin scenario    | One-line TL;DR           |
 | Detailed TDD with code   | `test → impl → refactor` |
@@ -256,19 +256,19 @@ Gotchas:
 
 - Emphasize: behavior preservation tests
 - Agent files include: migration paths
-- Extra in plan.md: before/after comparisons
+- Extra in plan file: before/after comparisons
 
 ### Overhaul
 
 - Emphasize: rollback checkpoints
 - Agent files include: rollback commit hashes
-- Extra in plan.md: breaking changes, migration guide
+- Extra in plan file: breaking changes, migration guide
 
 ### Feature Development
 
 - Emphasize: integration points
 - Agent files include: dependency status clearly marked
-- Extra in plan.md: user stories, acceptance criteria
+- Extra in plan file: user stories, acceptance criteria
 
 ## Validation Checklist
 
@@ -327,12 +327,12 @@ await call_mcp_tool({
   },
 });
 
-// 3. Create plan.md
+// 3. Create plan file
 await call_mcp_tool({
   server: 'limps',
   toolName: 'create_doc',
   arguments: {
-    path: 'plans/0008-feature-name/plan.md',
+    path: 'plans/0008-feature-name/0008-feature-name-plan.md',
     content: '...', // Full verbose specs
     template: 'none',
   },
@@ -391,7 +391,7 @@ const existingPlan = await call_mcp_tool({
   server: 'limps',
   toolName: 'process_doc',
   arguments: {
-    path: 'plans/0005-feature-name/plan.md',
+    path: 'plans/0005-feature-name/0005-feature-name-plan.md',
     code: 'doc.content',
   },
 });
@@ -411,7 +411,7 @@ const gapFeatures = await call_mcp_tool({
   server: 'limps',
   toolName: 'process_doc',
   arguments: {
-    path: 'plans/0008-feature-name/plan.md',
+    path: 'plans/0008-feature-name/0008-feature-name-plan.md',
     code: `
       const features = extractFeatures(doc.content);
       return features.filter(f => f.status === 'GAP');
@@ -424,7 +424,7 @@ const planSummary = await call_mcp_tool({
   server: 'limps',
   toolName: 'process_docs',
   arguments: {
-    pattern: 'plans/*/plan.md',
+    pattern: 'plans/*/*-plan.md',
     code: `
       return docs.map(doc => {
         const features = extractFeatures(doc.content);

@@ -49,14 +49,14 @@ Generate `llms.txt` at the root of the plans directory:
 
 ## Plan Structure
 Each plan contains:
-- `plan.md` - Full specifications and requirements
+- `{plan-name}-plan.md` - Full specifications and requirements
 - `interfaces.md` - API contracts and type definitions
 - `gotchas.md` - Known issues and edge cases
 - `agents/` - Task breakdown with status tracking
 
 ## Key Files
-- [0027-limps-roadmap](/plans/0027-limps-roadmap/plan.md): Product roadmap
-- [0030-limps-scoring-weights](/plans/0030-limps-scoring-weights/plan.md): Priority system
+- [0027-limps-roadmap](/plans/0027-limps-roadmap/0027-limps-roadmap-plan.md): Product roadmap
+- [0030-limps-scoring-weights](/plans/0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md): Priority system
 
 ## Status Legend
 - GAP: Not started
@@ -76,7 +76,7 @@ Total documents: 45
 Total tokens: ~50,000
 
 ---
-## plans/0027-limps-roadmap/plan.md
+## plans/0027-limps-roadmap/0027-limps-roadmap-plan.md
 [full content]
 
 ---
@@ -157,7 +157,7 @@ function buildContext(budget: TokenBudget, planId: string): string {
   let context = "";
   let used = 0;
   
-  // 1. Always include: plan.md summary
+  // 1. Always include: plan file summary
   // 2. Add: relevant agents (GAP/WIP first)
   // 3. Add: interfaces.md if space
   // 4. Add: gotchas.md if space
@@ -238,7 +238,7 @@ limps llms generate --full
 limps llms generate --output ./docs/llms.txt
 
 # Estimate tokens
-limps tokens plans/0027-limps-roadmap/plan.md
+limps tokens plans/0027-limps-roadmap/0027-limps-roadmap-plan.md
 limps tokens --plan 0027
 
 # Get optimized context
@@ -257,7 +257,7 @@ limps context --plan 0027 --max-tokens 8000
     "defaultMaxTokens": 8000,
     "tokenizer": "cl100k_base",  // OpenAI tokenizer
     "priorityDefaults": {
-      "plan.md": "high",
+      "{plan-name}-plan.md": "high",
       "interfaces.md": "high",
       "agents/*.md": "medium",
       "gotchas.md": "low",

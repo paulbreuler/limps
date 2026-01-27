@@ -73,7 +73,7 @@ limps is an MCP (Model Context Protocol) server for AI agent plan management. It
 ```text
 plans/
   0001-feature-name/
-    plan.md           # Main plan with overview
+    0001-feature-name-plan.md           # Main plan with overview
     interfaces.md     # Interface contracts
     README.md         # Status index
     agents/           # Agent task files (000-title.md, 001-title.md)

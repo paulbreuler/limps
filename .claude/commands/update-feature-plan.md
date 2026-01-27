@@ -23,7 +23,7 @@ Agent files are **distilled**, not copied. When plan changes, affected agent fil
 3. Read current state
 4. Analyze & propose changes
 5. User approves
-6. Apply to plan.md, interfaces.md
+6. Apply to plan file, interfaces.md
 7. Identify affected agents
 8. Regenerate affected agent files (distill, don't copy)
 9. Verify consistency
@@ -70,7 +70,7 @@ Parse feedback for:
 ```
 [plan-name]/
 ├── README.md
-├── plan.md           # Full verbose specs
+├── {plan-name}-plan.md           # Full verbose specs
 ├── interfaces.md     # Contract source of truth
 ├── gotchas.md
 └── agents/
@@ -131,14 +131,14 @@ For each feedback item, classify:
 ### 6. Apply Changes (After Approval)
 
 **Planning docs** (verbose):
-- Update `plan.md` with full feature specs using limps MCP `update_doc` tool
+- Update plan file (`{plan-name}-plan.md`) with full feature specs using limps MCP `update_doc` tool
 - Update `interfaces.md` if contracts change using `update_doc`
 - Update `README.md` status matrix using `update_doc`
 - Append to `gotchas.md` if new issues using `update_doc`
 
 **Agent files** (distilled):
 - **Regenerate** affected agent files using limps MCP `create_doc` or `update_doc` tool, don't patch
-- Distill from updated plan.md
+- Distill from updated plan file
 - Target ~200-400 lines per agent
 
 ### 7. Identify Affected Agents
@@ -172,8 +172,8 @@ Target: ~200-400 lines for 2-4 features.
 
 ### 9. Verify Consistency
 
-- [ ] All features in plan.md have an assigned agent
-- [ ] All agent files reflect current plan.md
+- [ ] All features in plan file have an assigned agent
+- [ ] All agent files reflect current plan file
 - [ ] interfaces.md matches agent exports/receives
 - [ ] README.md status matrix is current
 - [ ] Dependency graph is accurate
@@ -192,7 +192,7 @@ git commit -m "update(plans): [plan-name] - [description]"
 
 ### Adding a Feature
 
-1. Add to `plan.md` (verbose spec)
+1. Add to plan file (verbose spec)
 2. Add to `interfaces.md` if it exports anything
 3. Assign to an agent
 4. Regenerate that agent's file
@@ -200,7 +200,7 @@ git commit -m "update(plans): [plan-name] - [description]"
 
 ### Modifying a Feature
 
-1. Update in `plan.md`
+1. Update in plan file
 2. Update `interfaces.md` if exports changed
 3. Regenerate owning agent's file
 4. If interface changed: regenerate dependent agents
@@ -210,7 +210,7 @@ git commit -m "update(plans): [plan-name] - [description]"
 Most impactful change—affects downstream agents.
 
 1. Update `interfaces.md` (source of truth)
-2. Update `plan.md` feature spec
+2. Update plan file feature spec
 3. Identify all agents that receive this interface
 4. Regenerate ALL affected agent files
 5. Mark downstream features as potentially BLOCKED if breaking
@@ -234,13 +234,13 @@ Example:
 
 ### Status Update
 
-1. Update feature status in `plan.md`
+1. Update feature status in plan file
 2. Update README.md status matrix
 3. **Don't regenerate agent files** (status is in agent's own file)
 
 ### Dependency Change
 
-1. Update `plan.md` feature dependencies
+1. Update plan file feature dependencies
 2. Update `parallelization.md` if exists
 3. Regenerate affected agent files
 4. Update README.md graph
@@ -248,7 +248,7 @@ Example:
 ### Gotcha Discovered
 
 1. Append to `gotchas.md`
-2. Add to affected features in `plan.md`
+2. Add to affected features in plan file
 3. Regenerate agent files that need to know
 
 ## Plan Analysis with limps MCP Tools
@@ -261,7 +261,7 @@ const affectedFeatures = await call_mcp_tool({
   server: 'limps',
   toolName: 'process_doc',
   arguments: {
-    path: 'plans/[plan-name]/plan.md',
+    path: 'plans/[plan-name]/[plan-name]-plan.md',
     code: `
       const features = extractFeatures(doc.content);
       const interface = extractInterfaces(doc.content).find(i => i.name === 'useColumnHeader');
@@ -275,7 +275,7 @@ const statusDiff = await call_mcp_tool({
   server: 'limps',
   toolName: 'process_doc',
   arguments: {
-    path: 'plans/[plan-name]/plan.md',
+    path: 'plans/[plan-name]/[plan-name]-plan.md',
     code: `
       const features = extractFeatures(doc.content);
       return {
@@ -297,14 +297,14 @@ const statusDiff = await call_mcp_tool({
 
 | File                    | Changes               | Lines |
 | ----------------------- | --------------------- | ----- |
-| plan.md                 | +1 feature, ~50 lines | +50   |
+| Plan file                 | +1 feature, ~50 lines | +50   |
 | interfaces.md           | +1 interface          | +15   |
 | agents/columns.agent.md | Regenerate            | ~220  |
 | README.md               | Status update         | +1    |
 
 ### Details
 
-#### plan.md
+#### Plan File
 
 **Add Feature #7: Accessibility**
 

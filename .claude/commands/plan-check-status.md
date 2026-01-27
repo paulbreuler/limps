@@ -107,7 +107,7 @@ Score: 78/100
   3. Run: limps list-plans (view all plans)
 
 Quick Links:
-  plan.md
+  {plan-name}-plan.md
   README.md
   interfaces.md
   gotchas.md

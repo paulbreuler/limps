@@ -123,7 +123,7 @@ graph TD
 
 ## File Links
 
-- [plan.md](./plan.md) - Full specifications
+- [0025-limps-radix-extension-plan.md](./0025-limps-radix-extension-plan.md) - Full specifications
 - [interfaces.md](./interfaces.md) - TypeScript contracts
 - [gotchas.md](./gotchas.md) - Discovered issues
 

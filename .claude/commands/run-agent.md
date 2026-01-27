@@ -158,7 +158,7 @@ The command outputs:
 - **Context Display**:
   - Agent name and features
   - Dependencies status
-  - Clickable links to plan.md, interfaces.md, gotchas.md, README.md
+  - Clickable links to plan file, interfaces.md, gotchas.md, README.md
   - Instructions for next steps
 
 ## Example Output
@@ -181,7 +181,7 @@ Features: #4, #5, #6
 Dependencies: All satisfied ✓
 
 Quick Links:
-  plan.md
+  {plan-name}-plan.md
   interfaces.md
   gotchas.md
   README.md

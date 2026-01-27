@@ -214,13 +214,12 @@ export class CursorAdapter implements McpClientAdapter {
 
 /**
  * Claude Code adapter
- * Uses: mcpServers key, npx command, ~/.claude/.mcp.json (user scope)
- * See: https://code.claude.com/docs/en/mcp
+ * Uses: mcpServers key, npx command, ~/.claude.json (user scope)
  */
 export class ClaudeCodeAdapter implements McpClientAdapter {
   getConfigPath(): string {
     const home = homedir();
-    return join(home, '.claude', '.mcp.json');
+    return join(home, '.claude.json');
   }
 
   getServersKey(): string {

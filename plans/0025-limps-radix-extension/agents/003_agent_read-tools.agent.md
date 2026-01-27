@@ -19,7 +19,7 @@ files:
 
 # Agent 003: Read MCP Tools
 
-**Plan Location**: `plans/0025-limps-radix-extension/plan.md`
+**Plan Location**: `plans/0025-limps-radix-extension/0025-limps-radix-extension-plan.md`
 
 ## Scope
 

@@ -81,7 +81,7 @@ A plugin gets you:
 #### F1.1: Plan Dashboard View
 - Custom leaf view showing all plans
 - Status counts (GAP/WIP/PASS/BLOCKED)
-- Click to open plan.md
+- Click to open plan file
 - Quick-filter by status
 
 #### F1.2: Agent Status Board
@@ -121,7 +121,7 @@ A plugin gets you:
 ### Phase 3: Advanced Features
 
 #### F3.1: Embedded Agent Blocks
-- Render agent status inline in plan.md
+- Render agent status inline in plan file
 - Live-updating status badges
 - Click to jump to agent file
 

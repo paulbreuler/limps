@@ -211,7 +211,7 @@ export function updatePlanFrontmatter(content: string, updates: Partial<PlanFron
 Add frontmatter to all generated files:
 
 ```typescript
-// plan.md
+// {plan-name}-plan.md
 const planContent = `---
 title: "${planName}"
 status: draft
@@ -259,7 +259,7 @@ updated: ${today}
 ```typescript
 async function migrateFrontmatter(plansPath: string) {
   // Find all plan directories
-  // For each: add frontmatter to plan.md, README.md, interfaces.md, gotchas.md
+  // For each: add frontmatter to plan file, README.md, interfaces.md, gotchas.md
   // For agents: add title, tags, aliases, created, updated
   // Preserve existing content
   // Log changes
