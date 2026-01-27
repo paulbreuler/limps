@@ -5,7 +5,7 @@
 ## Scope
 
 Features: #4
-Own: `src/commands/close-feature-agent.tsx` (or command impl file), `tests/cli/commands.test.tsx`
+Own: `.claude/commands/close-feature-agent.md`, `.claude/commands/run-agent.md`
 Depend on: none
 Block: none
 
@@ -29,9 +29,9 @@ Block: none
 ### #4: Agent Close Workflow Alignment
 
 TL;DR: Align close-feature-agent and run-agent workflows for agent-only plans.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `close-feature-agent skips update_task_status for agent-only plans`, `close-feature-agent emits note for agent-only status`, `run-agent validates agent path`, `run-agent prints checklist`
-Files: `src/commands/close-feature-agent.tsx` (modify), `src/commands/run-agent.tsx` (modify), `tests/cli/commands.test.tsx` (modify)
+Files: `.claude/commands/close-feature-agent.md` (modify), `.claude/commands/run-agent.md` (modify)
 
 TDD:
 

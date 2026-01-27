@@ -8,6 +8,7 @@ Select the next best agent task from a plan and open it in Cursor, or run a spec
 /run-agent [plan-name]
 /run-agent --agent [agent-path]
 /run-agent --assess [plan-name]
+/run-agent --agent [agent-path] --open-only
 ```
 
 ## What This Command Does
@@ -21,9 +22,13 @@ Select the next best agent task from a plan and open it in Cursor, or run a spec
 
 3. **Assesses agent status** - Checks completion state and file organization
 
-4. **Opens agent file in Cursor** - Opens the selected or specified agent file with context
+4. **Validates agent path** (when `--agent` provided) - Errors if file does not exist
 
-5. **Displays instructions** - Shows quick links and next steps
+5. **Opens agent file in Cursor** - Opens the selected or specified agent file with context
+
+6. **Displays instructions** - Shows quick links and next steps
+
+7. **Prints a brief checklist** - Extracts Files/Tests sections when present (LLM-focused)
 
 ## Usage Examples
 
@@ -68,20 +73,30 @@ Assesses all agents in the plan for completion status and file organization.
    - If `--agent` provided: Use the specified agent file path
    - If `--assess` provided: Use `limps status <plan-name>` to assess plan status
 
-2. **Open agent file:**
+2. **Validate agent path (if --agent):**
+   - If the agent file does not exist, return a clear error and stop
+   - Suggest using `/plan-list-agents <plan>` to find valid paths
+
+3. **Open agent file:**
    - Use `open_document_in_cursor` MCP tool to open the agent file in Cursor
    - Or use `cursor` CLI command if MCP tool not available
 
-3. **Display output:**
+4. **Display output:**
    - Show task selection results (if applicable)
    - Show agent status assessment
    - Show context and instructions
    - Display clickable file links
 
-4. **Provide guidance:**
+5. **Provide guidance:**
    - Explain next steps for the agent
    - Reference related commands (`/close-feature-agent`, `limps status`, `limps next-task`)
    - Show how to verify completion
+
+6. **Checklist (LLM-focused):**
+   - If agent file includes Files or Tests sections, print a short checklist:
+     - Files to create/modify
+     - Tests to run (or test IDs)
+   - Keep it concise to avoid token waste
 
 ## Integration with Other Commands
 
@@ -174,6 +189,7 @@ Instructions:
 - **Agent file missing**: Reports error with suggestions
 - **Plan not found**: Suggests using `/list-feature-plans` to find correct plan name
 - **Cursor CLI not found**: Shows installation instructions
+- **Agent file missing**: Return a clear error with suggestions to use `/plan-list-agents`
 
 ## Notes
 
@@ -182,3 +198,9 @@ Instructions:
 - Status assessment uses `limps status` to check plan progress
 - Scoring algorithm prioritizes unblocked tasks to maximize parallel work
 - For best results, use `limps next-task <plan-name>` first to get the next task, then use `/run-agent <plan-name>` to start it
+
+## Additional Flags
+
+```
+/run-agent --agent [path] --open-only   # Open agent file only (skip selection/assessment output)
+```
