@@ -21,8 +21,9 @@ import {
   indexDocument,
   removeDocument,
 } from './indexer.js';
-import { startWatcher, stopWatcher } from './watcher.js';
+import { startWatcher, stopWatcher, DEFAULT_SETTLE_DELAY, type SettledChange } from './watcher.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
+import { healAgentFrontmatter } from './utils/agent-heal.js';
 
 // Global references for graceful shutdown
 let watcher: FSWatcher | null = null;
@@ -85,7 +86,24 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
     },
     fileExtensions,
     ignorePatterns,
-    DEFAULT_DEBOUNCE_DELAY
+    DEFAULT_DEBOUNCE_DELAY,
+    DEFAULT_SETTLE_DELAY,
+    async (changes: SettledChange[]) => {
+      for (const change of changes) {
+        if (change.event === 'unlink') {
+          continue;
+        }
+
+        const isAgentFile = /[/\\]agents[/\\].+\.agent\.md$/i.test(change.path);
+        if (isAgentFile) {
+          const { changed } = healAgentFrontmatter(change.path);
+          if (changed) {
+            await indexDocument(dbRef, change.path);
+            console.error(`Healed agent frontmatter: ${change.path}`);
+          }
+        }
+      }
+    }
   );
   console.error(`File watcher started for ${docsPaths.length} path(s)`);
 

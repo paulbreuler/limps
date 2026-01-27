@@ -168,6 +168,27 @@ describe('debouncing', () => {
     const calls = onChange.mock.calls;
     expect(calls.length).toBeGreaterThan(0);
   });
+
+  it('should run settled processing after quiet period', async () => {
+    const onChange = vi.fn().mockResolvedValue(undefined);
+    const onSettled = vi.fn().mockResolvedValue(undefined);
+    watcher = startWatcher(testDir, onChange, ['.md'], [], 50, 200, onSettled);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const testFile = join(testDir, 'settled.md');
+    writeFileSync(testFile, '# Test\n\nContent 1.', 'utf-8');
+
+    writeFileSync(testFile, '# Test\n\nContent 2.', 'utf-8');
+    writeFileSync(testFile, '# Test\n\nContent 3.', 'utf-8');
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(onSettled).toHaveBeenCalled();
+    const [changes] = onSettled.mock.calls[0] || [];
+    expect(Array.isArray(changes)).toBe(true);
+    expect(changes.some((c: { path: string }) => c.path === testFile)).toBe(true);
+  });
 });
 
 describe('file-deletion', () => {
