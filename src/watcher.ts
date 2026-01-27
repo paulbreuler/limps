@@ -7,6 +7,16 @@ import { relative } from 'path';
  */
 const DEFAULT_FILE_EXTENSIONS = ['.md'];
 
+export interface SettledChange {
+  path: string;
+  event: 'add' | 'change' | 'unlink';
+}
+
+/**
+ * Default delay for settled processing (ms).
+ */
+export const DEFAULT_SETTLE_DELAY = 1500;
+
 /**
  * Check if a file path matches any of the given extensions.
  */
@@ -29,7 +39,9 @@ export function startWatcher(
   onChange: (path: string, event: 'add' | 'change' | 'unlink') => Promise<void>,
   fileExtensions: string[] = DEFAULT_FILE_EXTENSIONS,
   ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian'],
-  debounceDelay = 200
+  debounceDelay = 200,
+  settleDelay = DEFAULT_SETTLE_DELAY,
+  onSettled?: (changes: SettledChange[]) => Promise<void>
 ): FSWatcher {
   // Create PathFilter for consistent filtering
   const pathFilter = new PathFilter({
@@ -72,6 +84,8 @@ export function startWatcher(
 
   // Debounce map to track pending callbacks
   const debounceMap = new Map<string, NodeJS.Timeout>();
+  const settledChanges = new Map<string, SettledChange>();
+  let settledTimer: NodeJS.Timeout | null = null;
 
   const debouncedOnChange = (path: string, event: 'add' | 'change' | 'unlink'): void => {
     // Clear existing timeout for this path
@@ -94,6 +108,30 @@ export function startWatcher(
     debounceMap.set(path, timeout);
   };
 
+  const scheduleSettled = (path: string, event: 'add' | 'change' | 'unlink'): void => {
+    if (!onSettled) {
+      return;
+    }
+
+    settledChanges.set(path, { path, event });
+
+    if (settledTimer) {
+      clearTimeout(settledTimer);
+    }
+
+    settledTimer = setTimeout(async () => {
+      const changes = Array.from(settledChanges.values());
+      settledChanges.clear();
+      settledTimer = null;
+
+      try {
+        await onSettled(changes);
+      } catch (error) {
+        console.error('Error in onSettled callback:', error);
+      }
+    }, settleDelay);
+  };
+
   // Helper to get relative path for PathFilter
   const getRelativePath = (absolutePath: string): string => {
     // Try to get relative path from first watch path
@@ -112,6 +150,7 @@ export function startWatcher(
       const relPath = getRelativePath(path);
       if (pathFilter.isAllowed(relPath)) {
         debouncedOnChange(path, 'add');
+        scheduleSettled(path, 'add');
       }
     }
   });
@@ -122,6 +161,7 @@ export function startWatcher(
       const relPath = getRelativePath(path);
       if (pathFilter.isAllowed(relPath)) {
         debouncedOnChange(path, 'change');
+        scheduleSettled(path, 'change');
       }
     }
   });
@@ -137,6 +177,7 @@ export function startWatcher(
           clearTimeout(existing);
           debounceMap.delete(path);
         }
+        scheduleSettled(path, 'unlink');
         // Handle deletion immediately (no debounce needed)
         onChange(path, 'unlink').catch((error) => {
           console.error(`Error handling file deletion for ${path}:`, error);

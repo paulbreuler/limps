@@ -65,6 +65,14 @@ export function initProject(projectName: string, docsPath?: string): string {
     docsPaths: [resolvedDocsPath || defaultDocsPath],
     fileExtensions: ['.md'],
     dataPath: dataPath,
+    scoring: {
+      weights: {
+        dependency: 40,
+        priority: 30,
+        workload: 30,
+      },
+      biases: {},
+    },
   };
 
   writeFileSync(configPath, JSON.stringify(config, null, 2));

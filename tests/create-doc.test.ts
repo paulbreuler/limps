@@ -37,6 +37,14 @@ describe('create-doc.ts', () => {
       docsPaths: [TEST_REPO_ROOT],
       fileExtensions: ['.md', '.jsx'],
       dataPath: TEST_DATA_DIR,
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     // Initialize database

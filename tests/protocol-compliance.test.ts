@@ -29,6 +29,14 @@ describe('protocol-compliance', () => {
     config = {
       plansPath: join(testDir, 'plans'),
       dataPath: join(testDir, 'data'),
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 

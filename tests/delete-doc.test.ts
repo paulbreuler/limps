@@ -39,6 +39,14 @@ describe('delete-doc.ts', () => {
     const config: ServerConfig = {
       plansPath: join(testDir, 'plans'),
       dataPath: join(testDir, 'data'),
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     context = {

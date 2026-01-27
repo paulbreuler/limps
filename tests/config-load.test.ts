@@ -31,6 +31,14 @@ describe('config-load', () => {
     const configData: ServerConfig = {
       plansPath: join(configDir, 'plans'),
       dataPath: join(configDir, 'data'),
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
@@ -51,6 +59,14 @@ describe('config-load', () => {
     const configData: ServerConfig = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
@@ -65,6 +81,14 @@ describe('config-load', () => {
     const configData = {
       plansPath: '~/Documents/plans',
       dataPath: '~/Library/limps/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
@@ -80,6 +104,14 @@ describe('config-load', () => {
       plansPath: '~/plans',
       docsPaths: ['~/Documents/docs1', '~/Documents/docs2'],
       dataPath: '~/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 

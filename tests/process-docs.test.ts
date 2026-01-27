@@ -260,4 +260,47 @@ describe('process-docs', () => {
       expect(results[0].wordCount).toBeGreaterThan(0);
     });
   });
+
+  describe('multi-subcall', () => {
+    it('should skip sub_query when allow_llm is false', async () => {
+      writeFileSync(join(repoRoot, 'doc1.md'), 'Content 1', 'utf-8');
+
+      const result = await handleProcessDocs(
+        {
+          paths: ['doc1.md'],
+          code: "['item1']",
+          sub_query: 'Summarize',
+        },
+        context
+      );
+
+      expect(result.isError).toBeFalsy();
+      const resultText = result.content[0].text;
+      const output = JSON.parse(resultText);
+      expect(output.sub_results).toBeUndefined();
+      expect(output.sub_query_skipped).toBe(true);
+      expect(output.sub_query_reason).toContain('allow_llm=true');
+    });
+
+    it('should skip sub_query in auto mode for small results', async () => {
+      writeFileSync(join(repoRoot, 'doc1.md'), 'Content 1', 'utf-8');
+
+      const result = await handleProcessDocs(
+        {
+          paths: ['doc1.md'],
+          code: "['item1']",
+          sub_query: 'Summarize',
+          allow_llm: true,
+        },
+        context
+      );
+
+      expect(result.isError).toBeFalsy();
+      const resultText = result.content[0].text;
+      const output = JSON.parse(resultText);
+      expect(output.sub_results).toBeUndefined();
+      expect(output.sub_query_skipped).toBe(true);
+      expect(output.sub_query_reason).toContain('llm_policy=force');
+    });
+  });
 });

@@ -157,18 +157,65 @@ export function configShow(resolveConfigPathFn: () => string): string {
     lines.push(`  fileExtensions:     ${config.fileExtensions.join(', ')}`);
   }
 
-  if (config.scoring?.weights) {
+  if (config.scoring?.weights || config.scoring?.biases) {
     lines.push(`  scoring:`);
-    lines.push(`    weights:`);
-    const weights = config.scoring.weights;
-    if (weights.dependency !== undefined) {
-      lines.push(`      dependency:     ${weights.dependency}`);
+
+    if (config.scoring.weights) {
+      lines.push(`    weights:`);
+      const weights = config.scoring.weights;
+      if (weights.dependency !== undefined) {
+        lines.push(`      dependency:     ${weights.dependency}`);
+      }
+      if (weights.priority !== undefined) {
+        lines.push(`      priority:       ${weights.priority}`);
+      }
+      if (weights.workload !== undefined) {
+        lines.push(`      workload:       ${weights.workload}`);
+      }
     }
-    if (weights.priority !== undefined) {
-      lines.push(`      priority:       ${weights.priority}`);
-    }
-    if (weights.workload !== undefined) {
-      lines.push(`      workload:       ${weights.workload}`);
+
+    if (config.scoring.biases) {
+      lines.push(`    biases:`);
+      const biases = config.scoring.biases;
+      if (biases.plans && Object.keys(biases.plans).length > 0) {
+        lines.push(`      plans:`);
+        for (const [plan, value] of Object.entries(biases.plans)) {
+          lines.push(`        ${plan}: ${value > 0 ? '+' : ''}${value}`);
+        }
+      }
+      if (biases.personas) {
+        lines.push(`      personas:`);
+        const personas = biases.personas;
+        if (personas.coder !== undefined) {
+          lines.push(`        coder:        ${personas.coder > 0 ? '+' : ''}${personas.coder}`);
+        }
+        if (personas.reviewer !== undefined) {
+          lines.push(
+            `        reviewer:     ${personas.reviewer > 0 ? '+' : ''}${personas.reviewer}`
+          );
+        }
+        if (personas.pm !== undefined) {
+          lines.push(`        pm:           ${personas.pm > 0 ? '+' : ''}${personas.pm}`);
+        }
+        if (personas.customer !== undefined) {
+          lines.push(
+            `        customer:     ${personas.customer > 0 ? '+' : ''}${personas.customer}`
+          );
+        }
+      }
+      if (biases.statuses) {
+        lines.push(`      statuses:`);
+        const statuses = biases.statuses;
+        if (statuses.GAP !== undefined) {
+          lines.push(`        GAP:          ${statuses.GAP > 0 ? '+' : ''}${statuses.GAP}`);
+        }
+        if (statuses.WIP !== undefined) {
+          lines.push(`        WIP:          ${statuses.WIP > 0 ? '+' : ''}${statuses.WIP}`);
+        }
+        if (statuses.BLOCKED !== undefined) {
+          lines.push(`        BLOCKED:      ${statuses.BLOCKED > 0 ? '+' : ''}${statuses.BLOCKED}`);
+        }
+      }
     }
   }
 

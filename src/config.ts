@@ -6,9 +6,28 @@ import { homedir } from 'os';
  * Scoring weights for task prioritization.
  */
 export interface ScoringWeights {
-  dependency: number; // default: 40
-  priority: number; // default: 30
-  workload: number; // default: 30
+  dependency: number;
+  priority: number;
+  workload: number;
+}
+
+/**
+ * Scoring biases for task prioritization.
+ * Biases add/subtract from the weighted score (-50 to +50 range recommended).
+ */
+export interface ScoringBiases {
+  plans?: Record<string, number>;
+  personas?: {
+    coder?: number;
+    reviewer?: number;
+    pm?: number;
+    customer?: number;
+  };
+  statuses?: {
+    GAP?: number;
+    WIP?: number;
+    BLOCKED?: number;
+  };
 }
 
 /**
@@ -19,8 +38,9 @@ export interface ServerConfig {
   docsPaths?: string[]; // Additional paths to index
   fileExtensions?: string[]; // File types to index (default: ['.md'])
   dataPath: string;
-  scoring?: {
-    weights?: Partial<ScoringWeights>;
+  scoring: {
+    weights: ScoringWeights;
+    biases: ScoringBiases;
   };
 }
 
@@ -30,7 +50,7 @@ export interface ServerConfig {
 const DEFAULT_FILE_EXTENSIONS = ['.md'];
 
 /**
- * Default scoring weights for task prioritization.
+ * Default scoring weights for task prioritization (initial config values).
  */
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
   dependency: 40,
@@ -39,16 +59,28 @@ export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
 };
 
 /**
- * Get scoring weights from config, merging with defaults.
+ * Get scoring weights from config.
  *
  * @param config - Server configuration
- * @returns Complete scoring weights with defaults applied
+ * @returns Scoring weights
  */
 export function getScoringWeights(config: ServerConfig): ScoringWeights {
-  return {
-    ...DEFAULT_SCORING_WEIGHTS,
-    ...config.scoring?.weights,
-  };
+  return config.scoring.weights;
+}
+
+/**
+ * Default scoring biases (initial config values).
+ */
+export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
+
+/**
+ * Get scoring biases from config.
+ *
+ * @param config - Server configuration
+ * @returns Scoring biases
+ */
+export function getScoringBiases(config: ServerConfig): ScoringBiases {
+  return config.scoring.biases;
 }
 
 /**
@@ -65,6 +97,10 @@ const DEFAULT_CONFIG: ServerConfig = {
   docsPaths: undefined,
   fileExtensions: undefined,
   dataPath: './data',
+  scoring: {
+    weights: DEFAULT_SCORING_WEIGHTS,
+    biases: DEFAULT_SCORING_BIASES,
+  },
 };
 
 /**
@@ -119,6 +155,10 @@ export function loadConfig(configPath: string): ServerConfig {
   // Resolve docsPaths relative to config file (with tilde expansion)
   const resolvedDocsPaths = config.docsPaths ? config.docsPaths.map(resolvePath) : undefined;
 
+  if (!config.scoring?.weights || !config.scoring?.biases) {
+    throw new Error('Config missing required scoring settings.');
+  }
+
   // Merge with defaults and resolve paths (with tilde expansion)
   const mergedConfig: ServerConfig = {
     plansPath: resolvePath(config.plansPath || DEFAULT_CONFIG.plansPath),
@@ -162,6 +202,22 @@ export function validateConfig(config: unknown): config is ServerConfig {
     if (!Array.isArray(c.fileExtensions) || !c.fileExtensions.every((e) => typeof e === 'string')) {
       return false;
     }
+  }
+
+  if (!c.scoring || typeof c.scoring !== 'object') {
+    return false;
+  }
+
+  const scoring = c.scoring as Partial<ServerConfig['scoring']>;
+  if (!scoring.weights || !scoring.biases) {
+    return false;
+  }
+  if (
+    typeof scoring.weights.dependency !== 'number' ||
+    typeof scoring.weights.priority !== 'number' ||
+    typeof scoring.weights.workload !== 'number'
+  ) {
+    return false;
   }
 
   return true;

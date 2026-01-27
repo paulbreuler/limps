@@ -15,6 +15,7 @@ import { notFound } from '../utils/errors.js';
 import { createEnvironment, type DocVariable } from '../rlm/sandbox.js';
 import { validateCode } from '../rlm/security.js';
 import { processSubCalls } from '../rlm/recursion.js';
+import { decideSubQueryExecution } from '../utils/llm-policy.js';
 import type { SamplingClient } from '../rlm/sampling.js';
 
 /**
@@ -24,6 +25,11 @@ export const ProcessDocInputSchema = z.object({
   path: z.string().min(1).describe('Document path relative to repo root'),
   code: z.string().min(1).describe('JavaScript code to execute (doc variable available)'),
   sub_query: z.string().optional().describe('Prompt for recursive LLM processing of results'),
+  allow_llm: z.boolean().default(false).describe('Allow LLM sub_query execution (default: false)'),
+  llm_policy: z
+    .enum(['auto', 'force'])
+    .default('auto')
+    .describe('LLM sub_query policy (default: auto)'),
   timeout: z.number().int().min(100).max(30000).default(5000).describe('Execution timeout in ms'),
   max_depth: z
     .number()
@@ -46,6 +52,8 @@ export type ProcessDocInput = z.infer<typeof ProcessDocInputSchema>;
 export interface ProcessDocOutput {
   result: unknown; // Code execution result
   sub_results?: unknown[]; // Results from sub_query processing (Agent 3 will implement)
+  sub_query_skipped?: boolean; // Whether sub_query was skipped
+  sub_query_reason?: string; // Reason sub_query was skipped
   execution_time_ms: number;
   tokens_saved?: number; // Estimated tokens avoided by filtering
   metadata: {
@@ -86,7 +94,15 @@ export async function handleProcessDoc(
   input: ProcessDocInput,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { path, code, sub_query, timeout = 5000, prettyPrint = false } = input;
+  const {
+    path,
+    code,
+    sub_query,
+    allow_llm = false,
+    llm_policy = 'auto',
+    timeout = 5000,
+    prettyPrint = false,
+  } = input;
   const { config } = context;
 
   try {
@@ -150,34 +166,47 @@ export async function handleProcessDoc(
 
       // Handle sub_query (Agent 3 implementation)
       if (sub_query) {
-        try {
-          // Get sampling client from context (if available)
-          // For now, this will be undefined in real server, but tests can provide mock client
-          const samplingClient = (context as ToolContext & { samplingClient?: SamplingClient })
-            .samplingClient;
+        const decision = decideSubQueryExecution({
+          allowLlm: allow_llm,
+          policy: llm_policy,
+          resultSizeBytes: resultSize,
+        });
 
-          // Normalize items to array
-          const items = Array.isArray(execResult.result) ? execResult.result : [execResult.result];
+        if (!decision.shouldRun) {
+          output.sub_query_skipped = true;
+          output.sub_query_reason = decision.reason;
+        } else {
+          try {
+            // Get sampling client from context (if available)
+            // For now, this will be undefined in real server, but tests can provide mock client
+            const samplingClient = (context as ToolContext & { samplingClient?: SamplingClient })
+              .samplingClient;
 
-          // Process sub-calls
-          const subResults = await processSubCalls(items, sub_query, {
-            maxDepth: input.max_depth ?? 1,
-            concurrency: 5,
-            timeout: timeout,
-            samplingClient,
-          });
+            // Normalize items to array
+            const items = Array.isArray(execResult.result)
+              ? execResult.result
+              : [execResult.result];
 
-          // Map results to output format
-          output.sub_results = subResults.map((r) => (r.success ? r.result : { error: r.error }));
-          output.metadata.depth = 1; // Update depth after processing sub-calls
-        } catch (error) {
-          // If sub-call processing fails, include error in sub_results
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          output.sub_results = [
-            {
-              error: `Sub-call processing failed: ${errorMessage}`,
-            },
-          ];
+            // Process sub-calls
+            const subResults = await processSubCalls(items, sub_query, {
+              maxDepth: input.max_depth ?? 1,
+              concurrency: 5,
+              timeout: timeout,
+              samplingClient,
+            });
+
+            // Map results to output format
+            output.sub_results = subResults.map((r) => (r.success ? r.result : { error: r.error }));
+            output.metadata.depth = 1; // Update depth after processing sub-calls
+          } catch (error) {
+            // If sub-call processing fails, include error in sub_results
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            output.sub_results = [
+              {
+                error: `Sub-call processing failed: ${errorMessage}`,
+              },
+            ];
+          }
         }
       }
 

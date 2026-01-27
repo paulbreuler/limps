@@ -3,6 +3,14 @@
   "docsPaths": ["/path/to/your/planning/documents"],
   "fileExtensions": [".md"],
   "dataPath": "./data",
+  "scoring": {
+    "weights": {
+      "dependency": 40,
+      "priority": 30,
+      "workload": 30
+    },
+    "biases": {}
+  },
   "coordinationPath": "./data/coordination.json",
   "heartbeatTimeout": 300000,
   "debounceDelay": 200,

@@ -33,6 +33,14 @@ describe('tool-registration-context', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     toolContext = {
@@ -83,6 +91,14 @@ describe('tool-registration-tools-list', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     toolContext = {
@@ -161,6 +177,14 @@ describe('tool-registration-names', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     toolContext = {
@@ -218,6 +242,14 @@ describe('tool-registration-no-duplicate', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     toolContext = {

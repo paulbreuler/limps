@@ -11,6 +11,14 @@ describe('config-validation', () => {
     const config: ServerConfig = {
       plansPath: '/path/to/plans',
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     expect(validateConfig(config)).toBe(true);
@@ -27,6 +35,12 @@ describe('config-validation', () => {
   it('should reject missing required fields', () => {
     expect(validateConfig({ plansPath: '/path' } as unknown as ServerConfig)).toBe(false);
     expect(validateConfig({ dataPath: '/path' } as unknown as ServerConfig)).toBe(false);
+    expect(
+      validateConfig({
+        plansPath: '/path',
+        dataPath: '/path',
+      } as unknown as ServerConfig)
+    ).toBe(false);
   });
 
   it('should validate config with optional docsPaths', () => {
@@ -34,6 +48,14 @@ describe('config-validation', () => {
       plansPath: '/path/to/plans',
       docsPaths: ['/path/to/docs', '/path/to/more'],
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     expect(validateConfig(config)).toBe(true);
@@ -44,6 +66,14 @@ describe('config-validation', () => {
       plansPath: '/path/to/plans',
       fileExtensions: ['.md', '.jsx', '.tsx'],
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     expect(validateConfig(config)).toBe(true);
@@ -55,6 +85,14 @@ describe('config-validation', () => {
         plansPath: '/path',
         docsPaths: 'not-an-array',
         dataPath: '/path',
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       })
     ).toBe(false);
   });
@@ -65,6 +103,14 @@ describe('config-validation', () => {
         plansPath: '/path',
         fileExtensions: '.md',
         dataPath: '/path',
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       })
     ).toBe(false);
   });
@@ -75,6 +121,14 @@ describe('config-validation', () => {
         plansPath: '/path',
         docsPaths: ['/valid', 123, '/also-valid'],
         dataPath: '/path',
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
       })
     ).toBe(false);
   });
@@ -85,6 +139,14 @@ describe('getAllDocsPaths', () => {
     const config: ServerConfig = {
       plansPath: '/path/to/plans',
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     const paths = getAllDocsPaths(config);
@@ -96,6 +158,14 @@ describe('getAllDocsPaths', () => {
       plansPath: '/path/to/plans',
       docsPaths: ['/path/to/docs', '/path/to/more'],
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     const paths = getAllDocsPaths(config);
@@ -110,6 +180,14 @@ describe('getAllDocsPaths', () => {
       plansPath: '/path/to/plans',
       docsPaths: ['/path/to/plans', '/path/to/docs'], // plansPath is duplicated
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     const paths = getAllDocsPaths(config);
@@ -123,6 +201,14 @@ describe('getFileExtensions', () => {
     const config: ServerConfig = {
       plansPath: '/path/to/plans',
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     const extensions = getFileExtensions(config);
@@ -134,6 +220,14 @@ describe('getFileExtensions', () => {
       plansPath: '/path/to/plans',
       fileExtensions: ['.md', '.jsx', '.tsx'],
       dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
 
     const extensions = getFileExtensions(config);

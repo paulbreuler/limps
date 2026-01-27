@@ -25,6 +25,14 @@ describe('server-initialize', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 
@@ -69,6 +77,14 @@ describe('server-error-handling', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 
@@ -160,6 +176,14 @@ describe('server-context-storage', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 
@@ -211,6 +235,14 @@ describe('tools-registered', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 
@@ -271,6 +303,14 @@ describe('resources-registered', () => {
     config = {
       plansPath: './plans',
       dataPath: './data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
     };
   });
 

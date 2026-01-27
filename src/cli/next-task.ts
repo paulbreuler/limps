@@ -3,7 +3,13 @@
  * Get the next best task with scoring breakdown.
  */
 
-import { type ServerConfig, type ScoringWeights, getScoringWeights } from '../config.js';
+import {
+  type ServerConfig,
+  type ScoringWeights,
+  type ScoringBiases,
+  getScoringWeights,
+  getScoringBiases,
+} from '../config.js';
 import { type ParsedAgentFile } from '../agent-parser.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 
@@ -18,6 +24,7 @@ export interface TaskScoreBreakdown {
   dependencyScore: number;
   priorityScore: number;
   workloadScore: number;
+  biasScore: number;
   reasons: string[];
 }
 
@@ -107,6 +114,48 @@ function calculateWorkloadScore(
 }
 
 /**
+ * Calculate bias score.
+ * Biases add or subtract from the total score based on plan, persona, or status.
+ *
+ * @param agent - Agent to score
+ * @param biases - Scoring biases configuration
+ */
+function calculateBiasScore(
+  agent: ParsedAgentFile,
+  biases: ScoringBiases
+): { score: number; reasons: string[] } {
+  let score = 0;
+  const reasons: string[] = [];
+
+  // Plan bias
+  if (biases.plans?.[agent.planFolder]) {
+    const bias = biases.plans[agent.planFolder];
+    score += bias;
+    reasons.push(`Plan bias: ${bias > 0 ? '+' : ''}${bias}`);
+  }
+
+  // Persona bias
+  const persona = agent.frontmatter.persona;
+  const personaBias = persona
+    ? biases.personas?.[persona as keyof typeof biases.personas]
+    : undefined;
+  if (personaBias !== undefined) {
+    score += personaBias;
+    reasons.push(`Persona bias (${persona}): ${personaBias > 0 ? '+' : ''}${personaBias}`);
+  }
+
+  // Status bias (mainly for GAP tasks)
+  const status = agent.frontmatter.status;
+  const statusBias = biases.statuses?.[status as keyof typeof biases.statuses];
+  if (statusBias !== undefined) {
+    score += statusBias;
+    reasons.push(`Status bias (${status}): ${statusBias > 0 ? '+' : ''}${statusBias}`);
+  }
+
+  return { score, reasons };
+}
+
+/**
  * Check if task is eligible (GAP status, dependencies satisfied).
  */
 function isTaskEligible(
@@ -141,22 +190,27 @@ function isTaskEligible(
  * @param agent - Agent to score
  * @param allAgents - All agents in the plan
  * @param weights - Scoring weights configuration
+ * @param biases - Scoring biases configuration
  */
 function scoreTask(
   agent: ParsedAgentFile,
   allAgents: ParsedAgentFile[],
-  weights?: ScoringWeights
+  weights: ScoringWeights,
+  biases: ScoringBiases
 ): TaskScoreBreakdown | null {
   const eligibility = isTaskEligible(agent, allAgents);
   if (!eligibility.eligible) {
     return null;
   }
 
-  const depResult = calculateDependencyScore(agent, allAgents, weights?.dependency);
-  const priorityResult = calculatePriorityScore(agent, weights?.priority);
-  const workloadResult = calculateWorkloadScore(agent, weights?.workload);
+  const depResult = calculateDependencyScore(agent, allAgents, weights.dependency);
+  const priorityResult = calculatePriorityScore(agent, weights.priority);
+  const workloadResult = calculateWorkloadScore(agent, weights.workload);
+  const biasResult = calculateBiasScore(agent, biases);
 
-  const totalScore = depResult.score + priorityResult.score + workloadResult.score;
+  const baseScore = depResult.score + priorityResult.score + workloadResult.score;
+  // Floor total at 0 (no negative scores)
+  const totalScore = Math.max(0, baseScore + biasResult.score);
 
   return {
     taskId: agent.taskId,
@@ -166,7 +220,13 @@ function scoreTask(
     dependencyScore: depResult.score,
     priorityScore: priorityResult.score,
     workloadScore: workloadResult.score,
-    reasons: [...depResult.reasons, ...priorityResult.reasons, ...workloadResult.reasons],
+    biasScore: biasResult.score,
+    reasons: [
+      ...depResult.reasons,
+      ...priorityResult.reasons,
+      ...workloadResult.reasons,
+      ...biasResult.reasons,
+    ],
   };
 }
 
@@ -202,14 +262,15 @@ export async function getNextTaskData(
     return { error: 'No agents found' };
   }
 
-  // Get scoring weights from config
+  // Get scoring weights and biases from config
   const weights = getScoringWeights(config);
+  const biases = getScoringBiases(config);
 
   // Score all eligible tasks
   const scoredTasks: TaskScoreBreakdown[] = [];
 
   for (const agent of agents) {
-    const score = scoreTask(agent, agents, weights);
+    const score = scoreTask(agent, agents, weights, biases);
     if (score) {
       scoredTasks.push(score);
     }
@@ -260,10 +321,15 @@ export async function nextTask(config: ServerConfig, planId: string): Promise<st
   lines.push(`  Title: ${best.title}`);
   lines.push('');
   lines.push('Score Breakdown:');
-  lines.push(`  Total Score: ${best.totalScore}/${totalMax}`);
+  lines.push(
+    `  Total Score: ${best.totalScore}/${totalMax}${best.biasScore !== 0 ? ' (with bias)' : ''}`
+  );
   lines.push(`  Dependencies: ${best.dependencyScore}/${weights.dependency}`);
   lines.push(`  Priority: ${best.priorityScore}/${weights.priority}`);
   lines.push(`  Workload: ${best.workloadScore}/${weights.workload}`);
+  if (best.biasScore !== 0) {
+    lines.push(`  Bias: ${best.biasScore > 0 ? '+' : ''}${best.biasScore}`);
+  }
   lines.push('');
   lines.push('Scoring Reasons:');
   for (const reason of best.reasons) {
@@ -283,6 +349,7 @@ export {
   calculateDependencyScore,
   calculatePriorityScore,
   calculateWorkloadScore,
+  calculateBiasScore,
   isTaskEligible,
   scoreTask,
 };
