@@ -47,8 +47,10 @@ interface Props {
 }
 
 export default function ConfigSyncMcpCommand({ args, options }: Props): React.ReactNode {
+  // Support short flag alias "-f" in addition to "--force"
+  const force = options.force || process.argv.includes('-f');
   // If force is set, skip confirmation
-  const [confirmed, setConfirmed] = useState<boolean | null>(options.force ? true : null);
+  const [confirmed, setConfirmed] = useState<boolean | null>(force ? true : null);
   const [results, setResults] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,7 +76,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   let hasAnyChanges = false;
   if (options.client === 'claude' || options.client === 'all') {
     clientsToShow.push('Claude Desktop');
-    if (!options.force) {
+    if (!force) {
       try {
         const adapter = getAdapter('claude');
         const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
@@ -89,7 +91,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   }
   if (options.client === 'cursor' || options.client === 'all') {
     clientsToShow.push('Cursor');
-    if (!options.force) {
+    if (!force) {
       try {
         const adapter = getAdapter('cursor');
         const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
@@ -104,7 +106,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   }
   if (options.client === 'claude-code' || options.client === 'all') {
     clientsToShow.push('Claude Code');
-    if (!options.force) {
+    if (!force) {
       try {
         const adapter = getAdapter('claude-code');
         const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
@@ -119,7 +121,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   }
   if (options.client === 'codex' || options.client === 'all') {
     clientsToShow.push('OpenAI Codex');
-    if (!options.force) {
+    if (!force) {
       try {
         const adapter = getAdapter('codex');
         const preview = previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
@@ -140,7 +142,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
     diffBlocks.length > 0 ? `\n\nConfig diff (preview):\n${diffBlocks.join('\n\n')}` : '';
   const includesChatGpt = options.client === 'chatgpt' || options.client === 'all';
   const changeNote =
-    !options.force && !hasAnyChanges && !includesChatGpt ? '\n\nNo config changes detected.' : '';
+    !force && !hasAnyChanges && !includesChatGpt ? '\n\nNo config changes detected.' : '';
   const chatGptNote = includesChatGpt
     ? '\n\nChatGPT uses manual connector setup; no local config files will be written.'
     : '';
@@ -208,7 +210,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
 
   // Execute the operation when confirmed or forced
   useEffect(() => {
-    if ((confirmed === true || options.force) && results.length === 0 && error === null) {
+    if ((confirmed === true || force) && results.length === 0 && error === null) {
       try {
         const outputResults: string[] = [];
 
@@ -262,7 +264,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
         setError((err as Error).message);
       }
     }
-  }, [confirmed, options.force, options.client, projectFilter]);
+  }, [confirmed, force, options.client, projectFilter]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;
@@ -281,7 +283,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   }
 
   // Show confirmation prompt (unless force flag is set)
-  if (!options.force) {
+  if (!force) {
     return (
       <Confirm
         message={warningMessage}
