@@ -182,7 +182,7 @@ describe('debouncing', () => {
     writeFileSync(testFile, '# Test\n\nContent 2.', 'utf-8');
     writeFileSync(testFile, '# Test\n\nContent 3.', 'utf-8');
 
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     expect(onSettled).toHaveBeenCalled();
     const [changes] = onSettled.mock.calls[0] || [];
