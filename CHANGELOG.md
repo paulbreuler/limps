@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/paulbreuler/limps/compare/v2.4.0...v2.5.0) (2026-01-27)
+
+
+### Features
+
+* extension support and safer config sync ([#27](https://github.com/paulbreuler/limps/issues/27)) ([c1d393a](https://github.com/paulbreuler/limps/commit/c1d393af6a6d511c6e051040f52e08c617af267c))
+
 ## [2.4.0](https://github.com/paulbreuler/limps/compare/v2.3.0...v2.4.0) (2026-01-27)
 
 
