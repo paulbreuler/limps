@@ -483,10 +483,14 @@ describe('config-cmd', () => {
   describe('configAddCursor', () => {
     let cursorConfigDir: string;
     let cursorConfigPath: string;
+    let originalXdgConfigHome: string | undefined;
 
     beforeEach(() => {
       // Mock homedir to use test directory
       mockHomedirValue = testDir;
+      // Clear XDG_CONFIG_HOME to ensure consistent behavior across CI environments
+      originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
+      delete process.env.XDG_CONFIG_HOME;
       // Cursor uses VS Code settings.json location
       if (process.platform === 'darwin') {
         cursorConfigDir = join(testDir, 'Library', 'Application Support', 'Cursor', 'User');
@@ -501,6 +505,10 @@ describe('config-cmd', () => {
 
     afterEach(() => {
       mockHomedirValue = null;
+      // Restore XDG_CONFIG_HOME
+      if (originalXdgConfigHome !== undefined) {
+        process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
+      }
     });
 
     it('adds all registered projects to Cursor config', () => {
