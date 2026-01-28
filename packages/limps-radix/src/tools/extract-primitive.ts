@@ -66,37 +66,49 @@ export interface ExtractPrimitiveOutput {
  * @param input - Tool input parameters
  * @returns Full primitive contract with behavioral classification
  */
+/**
+ * Convert kebab-case or lowercase primitive name to PascalCase.
+ * @example "dialog" -> "Dialog", "alert-dialog" -> "AlertDialog"
+ */
+function toPascalCase(name: string): string {
+  return name
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+}
+
 export async function handleExtractPrimitive(
   input: unknown
 ): Promise<{ content: { type: 'text'; text: string }[] }> {
   const parsed = extractPrimitiveInputSchema.parse(input);
-  const primitiveName = parsed.primitive.toLowerCase();
+  const primitiveSlug = parsed.primitive.toLowerCase();
+  const primitiveName = toPascalCase(parsed.primitive); // PascalCase for extractor/cache
   const versionHint = parsed.version || 'latest';
 
-  // Resolve package source and version
-  const resolved = await resolvePackage(primitiveName, versionHint);
+  // Resolve package source and version (use slug for fetcher)
+  const resolved = await resolvePackage(primitiveSlug, versionHint);
   let resolvedContent: Awaited<
     ReturnType<typeof fetchTypesWithFallback>
   > | null = null;
 
-  // Try cache first
+  // Try cache first (use PascalCase for cache keys)
   let extracted = await getFromCache(primitiveName, resolved.version);
   let signature = await getSignatureFromCache(primitiveName, resolved.version);
 
   if (!extracted) {
-    // Fetch and extract
+    // Fetch and extract (use slug for fetcher)
     resolvedContent = await fetchTypesWithFallback(
-      primitiveName,
+      primitiveSlug,
       versionHint
     );
     extracted = extractPrimitive(
       resolvedContent.content,
-      resolvedContent.resolved.primitive,
+      primitiveName, // Use PascalCase for extractor
       resolvedContent.resolved.version,
       resolvedContent.resolved.packageName
     );
 
-    // Save to cache
+    // Save to cache (use PascalCase for cache keys)
     await saveToCache(
       primitiveName,
       resolvedContent.resolved.version,
@@ -108,7 +120,7 @@ export async function handleExtractPrimitive(
     // Generate signature
     signature = generateSignature(extracted);
 
-    // Save to cache
+    // Save to cache (use PascalCase for cache keys)
     const resolvedVersion =
       resolvedContent?.resolved.version ?? resolved.version;
     await saveSignatureToCache(primitiveName, resolvedVersion, signature);

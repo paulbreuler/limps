@@ -108,8 +108,8 @@ graph TD
 | 16 | Provider Architecture | 006 | GAP | 17 |
 | 17 | CLI Commands | 006 | GAP | 18 |
 | 18 | Documentation | 006 | GAP | - |
-| 19 | Unified Package (GTC-004) | 007 | GAP | - |
-| 20 | Complex Parsing (GTC-005) | 008 | GAP | - |
+| 19 | Unified Package (GTC-004) | 007 | PASS | - |
+| 20 | Complex Parsing (GTC-005) | 008 | PASS | - |
 
 ## Agent Assignments
 
@@ -142,5 +142,5 @@ graph TD
 | 004 | [analyzer](./agents/004_agent_analyzer.agent.md) | Component Analyzer, Scorer, Disambiguator | GAP | 12 |
 | 005 | [differ](./agents/005_agent_differ.agent.md) | Contract Differ, radix_diff_versions | GAP | 7 |
 | 006 | [polish](./agents/006_agent_polish.agent.md) | Provider arch, CLI, Documentation | GAP | 14 |
-| 007 | [unified-package](./agents/007_agent_unified-package.agent.md) | Unified Package (GTC-004) | GAP | 4 |
-| 008 | [complex-parsing](./agents/008_agent_complex-parsing.agent.md) | Complex Parsing (GTC-005) | GAP | 5 |
+| 007 | [unified-package](./agents/007_agent_unified-package.agent.md) | Unified Package (GTC-004) | PASS | 4 |
+| 008 | [complex-parsing](./agents/008_agent_complex-parsing.agent.md) | Complex Parsing (GTC-005) | PASS | 5 |

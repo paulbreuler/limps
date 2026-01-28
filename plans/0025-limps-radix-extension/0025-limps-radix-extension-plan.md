@@ -1155,7 +1155,7 @@ Feature: Documentation
 
 ## Feature 19: Unified Package Support (GTC-004)
 
-**Status:** GAP
+**Status:** PASS
 
 ### Description
 
@@ -1220,7 +1220,7 @@ Feature: Unified radix-ui package support
 
 ## Feature 20: Complex Type Parsing (GTC-005)
 
-**Status:** GAP
+**Status:** PASS
 
 ### Description
 

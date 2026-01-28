@@ -2,7 +2,7 @@
 title: limps Radix Extension Gotchas
 tags: [limps/gotchas, limps/issues]
 created: 2026-01-26
-updated: 2026-01-27
+updated: 2026-01-28
 ---
 
 # Gotchas - limps-radix-extension
@@ -92,7 +92,7 @@ updated: 2026-01-27
 ### [GTC-005] Type extractor doesn't parse complex npm .d.ts files
 **Discovered**: 2026-01-28
 **Severity**: Medium
-**Status**: In Progress (Agent 008)
+**Status**: Resolved (Agent 008)
 
 **Problem**: The type extractor returns minimal data when parsing real npm type definitions that include:
 - Complex imports (`import * as React from 'react'`)

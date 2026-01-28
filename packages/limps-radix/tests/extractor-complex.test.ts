@@ -308,7 +308,15 @@ export const Separator: React.FC<SeparatorProps>;
     const sourceFile = parseTypes(simpleTypes);
     const subComponents = extractSubComponentsEnhanced(sourceFile, 'Separator');
 
-    // Should still work via interface fallback
-    expect(subComponents.length).toBeGreaterThanOrEqual(0);
+    // Separator is a simple component with no sub-components
+    // Should extract Root component via interface fallback
+    expect(subComponents.length).toBe(1);
+    expect(subComponents[0].name).toBe('Root');
+    expect(subComponents[0].props).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'orientation' }),
+        expect.objectContaining({ name: 'decorative' }),
+      ])
+    );
   });
 });

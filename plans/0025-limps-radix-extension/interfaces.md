@@ -427,15 +427,19 @@ export async function resolvePackage(primitive: string, versionHint: string): Pr
  * ForwardRef and type alias resolution
  */
 export function extractPropsFromForwardRef(
-  decl: TypeAliasDeclaration | VariableDeclaration
+  sourceFile: SourceFile,
+  decl: ForwardRefDeclaration
 ): RawProp[] | null;
 
 export function resolveTypeAlias(
   sourceFile: SourceFile,
   aliasName: string
-): InterfaceDeclaration | TypeLiteralNode | null;
+): RawProp[] | null;
 
-export function mergeIntersectionTypes(types: Type[]): RawProp[];
+export function mergeIntersectionTypes(
+  sourceFile: SourceFile,
+  typeAlias: TypeAliasDeclaration
+): RawProp[];
 
 export function filterReactInternals(props: RawProp[]): RawProp[];
 ```

@@ -43,9 +43,10 @@ export async function handleListPrimitives(
   const parsed = listPrimitivesInputSchema.parse(input);
   const versionHint = parsed.version || 'latest';
 
-  // Resolve the version for a reference primitive (dialog is a good baseline)
+  // Detect if unified package is available for this version
   const resolved = await resolvePackage('dialog', versionHint);
   const resolvedVersion = resolved.version;
+  const useUnified = resolved.source === 'unified';
 
   // Get all primitives
   const primitives = await listPrimitives(resolvedVersion);
@@ -54,7 +55,8 @@ export async function handleListPrimitives(
     version: resolvedVersion,
     primitives: primitives.map((p) => ({
       name: p.name,
-      package: p.package,
+      // Use unified package name if available, otherwise individual package
+      package: useUnified ? 'radix-ui' : p.package,
       description: p.description,
     })),
   };
