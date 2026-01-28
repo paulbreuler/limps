@@ -4,6 +4,7 @@
 
 export {
   resolveVersion,
+  resolvePackageVersion,
   listPrimitives,
   primitiveToPackage,
   packageToPrimitive,
@@ -12,4 +13,17 @@ export {
   type KnownPrimitive,
 } from './npm-registry.js';
 
-export { fetchTypes, buildTypesUrl, fetchPackageFile } from './unpkg.js';
+export {
+  detectPackageSource,
+  resolvePackage,
+  fetchTypesWithFallback,
+  type PackageSource,
+  type ResolvedPackage,
+} from './unified-package.js';
+
+export {
+  fetchTypes,
+  fetchFromUnifiedPackage,
+  buildTypesUrl,
+  fetchPackageFile,
+} from './unpkg.js';

@@ -10,6 +10,12 @@ import type {
 } from '../types/index.js';
 import { extractPropsFromInterface, isPropsInterface } from './props.js';
 import { classifyProp } from './classifier.js';
+import {
+  findForwardRefDeclarations,
+  extractPropsFromForwardRef,
+  getSubComponentSuffix,
+} from './forward-ref.js';
+import { filterReactInternals } from './type-resolver.js';
 
 /**
  * Pattern for Radix sub-component naming.
@@ -91,6 +97,110 @@ export function extractSubComponents(
 }
 
 /**
+ * Enhanced sub-component extraction that also handles ForwardRefExoticComponent.
+ * This function combines interface-based extraction with ForwardRef detection.
+ */
+export function extractSubComponentsEnhanced(
+  sourceFile: SourceFile,
+  primitiveName: string
+): SubComponentDefinition[] {
+  const subComponents: SubComponentDefinition[] = [];
+  const seenNames = new Set<string>();
+  const requiredSubs = REQUIRED_SUB_COMPONENTS[primitiveName] || [];
+
+  // First, try ForwardRef declarations (more common in real .d.ts files)
+  const forwardRefDecls = findForwardRefDeclarations(sourceFile);
+
+  for (const decl of forwardRefDecls) {
+    const suffix = getSubComponentSuffix(decl.name, primitiveName);
+    if (!suffix && decl.name !== primitiveName) continue;
+
+    const subName = suffix || 'Root';
+    if (seenNames.has(subName)) continue;
+    seenNames.add(subName);
+
+    const rawProps = extractPropsFromForwardRef(sourceFile, decl);
+    const filteredProps = rawProps ? filterReactInternals(rawProps) : [];
+    const props: PropDefinition[] = filteredProps.map(classifyProp);
+
+    subComponents.push({
+      name: subName,
+      props,
+      isRequired: requiredSubs.includes(subName),
+    });
+  }
+
+  // Also check for React.FC exports (like DialogPortal)
+  const fcDecls = findFCDeclarations(sourceFile, primitiveName);
+  for (const { name, propsTypeName } of fcDecls) {
+    const suffix = getSubComponentSuffix(name, primitiveName);
+    if (!suffix && name !== primitiveName) continue;
+
+    const subName = suffix || 'Root';
+    if (seenNames.has(subName)) continue;
+    seenNames.add(subName);
+
+    // Try to get props from the interface
+    let props: PropDefinition[] = [];
+    if (propsTypeName) {
+      const propsInterface = sourceFile.getInterface(propsTypeName);
+      if (propsInterface) {
+        const rawProps = extractPropsFromInterface(propsInterface);
+        props = filterReactInternals(rawProps).map(classifyProp);
+      }
+    }
+
+    subComponents.push({
+      name: subName,
+      props,
+      isRequired: requiredSubs.includes(subName),
+    });
+  }
+
+  // Fallback: use interface-based extraction if no ForwardRef found
+  if (subComponents.length === 0) {
+    return extractSubComponents(sourceFile, primitiveName);
+  }
+
+  return subComponents;
+}
+
+/**
+ * Find React.FC variable declarations for a primitive.
+ */
+function findFCDeclarations(
+  sourceFile: SourceFile,
+  primitiveName: string
+): { name: string; propsTypeName: string | null }[] {
+  const results: { name: string; propsTypeName: string | null }[] = [];
+
+  for (const statement of sourceFile.getVariableStatements()) {
+    for (const decl of statement.getDeclarations()) {
+      const typeNode = decl.getTypeNode();
+      if (!typeNode) continue;
+
+      const typeText = typeNode.getText();
+      const name = decl.getName();
+
+      // Check if it's React.FC and matches our primitive
+      if (
+        (typeText.includes('React.FC') || typeText.includes('FC<')) &&
+        name.startsWith(primitiveName)
+      ) {
+        // Extract props type from FC<PropsType>
+        const match = typeText.match(/(?:React\.)?FC<(\w+)>/);
+        results.push({
+          name,
+          propsTypeName: match ? match[1] : null,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
  * Find exported names from a source file.
  */
 export function findExports(sourceFile: SourceFile): string[] {
@@ -158,6 +268,7 @@ export function extractContextShape(
 
 /**
  * Extract a complete primitive from a source file.
+ * Uses enhanced extraction with ForwardRef support for real .d.ts files.
  */
 export function extractPrimitiveFromSource(
   sourceFile: SourceFile,
@@ -165,7 +276,13 @@ export function extractPrimitiveFromSource(
   packageName: string,
   version: string
 ): ExtractedPrimitive {
-  const subComponents = extractSubComponents(sourceFile, primitiveName);
+  // Try enhanced extraction first (handles ForwardRefExoticComponent)
+  let subComponents = extractSubComponentsEnhanced(sourceFile, primitiveName);
+
+  // Fallback to standard extraction if enhanced returns empty
+  if (subComponents.length === 0) {
+    subComponents = extractSubComponents(sourceFile, primitiveName);
+  }
 
   // Find root props (either from XxxProps or from Root sub-component)
   const rootSubComponent = subComponents.find((s) => s.name === 'Root');

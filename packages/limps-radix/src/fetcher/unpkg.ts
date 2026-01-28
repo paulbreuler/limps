@@ -6,6 +6,34 @@ import { primitiveToPackage } from './npm-registry.js';
 
 const UNPKG_URL = 'https://unpkg.com';
 
+async function fetchTypeDefinition(
+  packageName: string,
+  version: string,
+  typesPath: string,
+  fallbackPath?: string
+): Promise<string> {
+  const url = `${UNPKG_URL}/${packageName}@${version}/${typesPath}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    if (response.status === 404 && fallbackPath) {
+      const fallbackUrl = `${UNPKG_URL}/${packageName}@${version}/${fallbackPath}`;
+      const fallbackResponse = await fetch(fallbackUrl);
+      if (fallbackResponse.ok) {
+        return fallbackResponse.text();
+      }
+      throw new Error(
+        `Type definitions not found for ${packageName}@${version}`
+      );
+    }
+    throw new Error(
+      `Failed to fetch types: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.text();
+}
+
 /**
  * Build the URL for a package's type definitions on unpkg.
  */
@@ -21,30 +49,34 @@ export async function fetchTypes(
   version: string
 ): Promise<string> {
   const packageName = primitiveToPackage(primitive);
-  const url = buildTypesUrl(packageName, version);
+  return fetchTypeDefinition(
+    packageName,
+    version,
+    'dist/index.d.ts',
+    'dist/index.d.mts'
+  );
+}
 
-  const response = await fetch(url);
+/**
+ * Fetch type definitions from the unified radix-ui package.
+ */
+export async function fetchFromUnifiedPackage(
+  primitive: string,
+  version: string,
+  typesPath?: string
+): Promise<string> {
+  const normalized = primitive.toLowerCase().replace(/\s+/g, '-');
+  const resolvedPath = typesPath ?? `dist/${normalized}.d.ts`;
+  const fallbackPath = resolvedPath.endsWith('.d.ts')
+    ? resolvedPath.replace(/\.d\.ts$/, '.d.mts')
+    : undefined;
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      // Try alternate path for some packages
-      const altUrl = `${UNPKG_URL}/${packageName}@${version}/dist/index.d.mts`;
-      const altResponse = await fetch(altUrl);
-
-      if (altResponse.ok) {
-        return altResponse.text();
-      }
-
-      throw new Error(
-        `Type definitions not found for ${packageName}@${version}`
-      );
-    }
-    throw new Error(
-      `Failed to fetch types: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.text();
+  return fetchTypeDefinition(
+    'radix-ui',
+    version,
+    resolvedPath,
+    fallbackPath
+  );
 }
 
 /**

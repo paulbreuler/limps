@@ -400,11 +400,118 @@ interface ProviderRegistry {
 }
 ```
 
+## Unified Package Support (Agent 007)
+
+```typescript
+/**
+ * Package source detection for unified vs individual packages
+ */
+export type PackageSource = 'individual' | 'unified';
+
+export interface ResolvedPackage {
+  source: PackageSource;
+  packageName: string;
+  primitive: string;
+  version: string;
+  typesPath: string;
+}
+
+export async function detectPackageSource(primitive: string): Promise<PackageSource>;
+export async function resolvePackage(primitive: string, versionHint: string): Promise<ResolvedPackage>;
+```
+
+## Complex Type Parsing (Agent 008)
+
+```typescript
+/**
+ * ForwardRef and type alias resolution
+ */
+export function extractPropsFromForwardRef(
+  sourceFile: SourceFile,
+  decl: ForwardRefDeclaration
+): RawProp[] | null;
+
+export function resolveTypeAlias(
+  sourceFile: SourceFile,
+  aliasName: string
+): RawProp[] | null;
+
+export function mergeIntersectionTypes(
+  sourceFile: SourceFile,
+  typeAlias: TypeAliasDeclaration
+): RawProp[];
+
+export function filterReactInternals(props: RawProp[]): RawProp[];
+```
+
+## Audit Report Pipeline (Agent 009)
+
+```typescript
+// radix_run_audit
+interface RunAuditInput {
+  scope?: {
+    files?: string[];
+    primitives?: string[];
+    provider?: string;           // Default: "radix"
+  };
+  radixVersion?: string;         // Default: "latest"
+  outputDir?: string;            // Default: ".limps-radix/reports"
+  format?: 'json' | 'markdown' | 'both';
+}
+
+// radix_generate_report
+interface GenerateReportInput {
+  inputs: {
+    analysis: string;            // Path to analysis JSON
+    diff?: string;               // Optional path to diff JSON
+    checkUpdates?: string;       // Optional path to update JSON
+  };
+  outputDir?: string;
+  format?: 'json' | 'markdown' | 'both';
+  title?: string;
+}
+
+interface AuditReport {
+  metadata: {
+    version: string;
+    generatedAt: string;
+    generatedBy: string;
+  };
+  summary: {
+    totalComponents: number;
+    issuesByPriority: Record<'critical'|'high'|'medium'|'low', number>;
+    contraventions: number;
+  };
+  contraventions: {
+    id: string;
+    type: string;                // legacy-package-usage, non-tree-shaking, etc.
+    severity: 'high' | 'medium' | 'low';
+    description: string;
+    recommendation: string;
+    location?: string;
+  }[];
+  issues: {
+    id: string;
+    category: string;
+    priority: 'critical' | 'high' | 'medium' | 'low';
+    description: string;
+    recommendation: string;
+    location?: string;
+  }[];
+  recommendations: string[];
+}
+```
+
+Report files (when format is `both`):
+- `AUDIT_REPORT.md`
+- `audit-report.json`
+- `summary.json`
+
 ## External Dependencies
 
 ```typescript
 // ts-morph - Type extraction
-import { Project, SourceFile, InterfaceDeclaration, Type } from 'ts-morph';
+import { Project, SourceFile, InterfaceDeclaration, Type, TypeAliasDeclaration, VariableDeclaration, TypeLiteralNode } from 'ts-morph';
 
 // MCP SDK
 import { Tool, Resource } from '@modelcontextprotocol/sdk/types.js';

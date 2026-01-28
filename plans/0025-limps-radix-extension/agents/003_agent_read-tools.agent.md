@@ -1,10 +1,10 @@
 ---
 title: Read MCP Tools
-status: GAP
+status: PASS
 persona: coder
 dependencies:
   - "002"
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#003", "Read Tools Agent"]
 created: 2026-01-26
 updated: 2026-01-27
@@ -164,13 +164,13 @@ Output shape:
 
 ## Done
 
-- [ ] radix_list_primitives tool defined
-- [ ] Tool registered in extension tools array
-- [ ] Lists primitives with package names
-- [ ] Supports version parameter
-- [ ] radix_extract_primitive tool defined
-- [ ] Returns sub-components with typed props
-- [ ] Props categorized (state/event/config/composition)
-- [ ] Behavioral classification included
-- [ ] Disambiguation info included
-- [ ] Uses cache, falls back to fetch
+- [x] radix_list_primitives tool defined
+- [x] Tool registered in extension tools array
+- [x] Lists primitives with package names
+- [x] Supports version parameter
+- [x] radix_extract_primitive tool defined
+- [x] Returns sub-components with typed props
+- [x] Props categorized (state/event/config/composition)
+- [x] Behavioral classification included
+- [x] Disambiguation info included
+- [x] Uses cache, falls back to fetch

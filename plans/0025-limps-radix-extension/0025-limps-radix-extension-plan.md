@@ -1153,6 +1153,200 @@ Feature: Documentation
 
 ---
 
+## Feature 19: Unified Package Support (GTC-004)
+
+**Status:** PASS
+
+### Description
+
+Extend fetcher to support unified `radix-ui` package (v1.4.3+). Modern projects use the unified package instead of individual `@radix-ui/react-*` packages.
+
+### Gherkin
+
+```gherkin
+Feature: Unified radix-ui package support
+
+  Scenario: Detect unified package
+    Given radix-ui@1.4.3+ is available on npm
+    When detecting package source
+    Then returns "unified"
+
+  Scenario: Fetch from unified package
+    Given unified package is available
+    When fetching dialog types
+    Then fetches from radix-ui/dist/dialog.d.ts
+
+  Scenario: Fallback to individual packages
+    Given unified package fetch fails
+    When fetching dialog types
+    Then falls back to @radix-ui/react-dialog
+```
+
+### TDD Cycles
+
+1. **Detect unified package test**
+   - Test: detectPackageSource returns "unified" when radix-ui >= 1.4.3
+   - Impl: Query npm registry for radix-ui version
+   - Refactor: Cache detection result
+
+2. **Map primitive to unified path test**
+   - Test: resolvePackage maps dialog to correct unified path
+   - Impl: Map primitive names to unified exports
+   - Refactor: Handle naming differences
+
+3. **Fetch from unified test**
+   - Test: fetchTypes uses unified package when available
+   - Impl: Construct correct unpkg URL
+   - Refactor: Handle 404 gracefully
+
+4. **Fallback test**
+   - Test: Falls back to individual on unified failure
+   - Impl: Try unified first, then individual
+   - Refactor: Log which source was used
+
+5. **Cache detection test**
+   - Test: Detection is cached
+   - Impl: Module-level cache with 1h TTL
+   - Refactor: Only query npm once
+
+### Files
+
+- `src/fetcher/unified-package.ts` (create)
+- `src/fetcher/npm-registry.ts` (modify)
+- `src/fetcher/unpkg.ts` (modify)
+- `tests/fetcher-unified.test.ts` (create)
+
+---
+
+## Feature 20: Complex Type Parsing (GTC-005)
+
+**Status:** PASS
+
+### Description
+
+Improve extractor to handle real npm .d.ts patterns including ForwardRefExoticComponent, type aliases, and intersection types.
+
+### Gherkin
+
+```gherkin
+Feature: Complex .d.ts parsing
+
+  Scenario: Extract from ForwardRefExoticComponent
+    Given type uses ForwardRefExoticComponent pattern
+    When extracting props
+    Then extracts props from type parameter
+
+  Scenario: Resolve type aliases
+    Given props are defined via type alias
+    When extracting
+    Then resolves alias to underlying interface
+
+  Scenario: Handle intersection types
+    Given props are intersection of multiple types
+    When extracting
+    Then merges all type members
+
+  Scenario: Detect sub-components
+    Given primitive has multiple exports (DialogRoot, DialogTrigger, etc)
+    When extracting
+    Then subComponents array is populated
+```
+
+### TDD Cycles
+
+1. **Find ForwardRef declarations test**
+   - Test: Finds ForwardRefExoticComponent type declarations
+   - Impl: Find variable declarations with ForwardRef type
+   - Refactor: Handle export patterns
+
+2. **Extract props from ForwardRef test**
+   - Test: Extracts props from type parameter
+   - Impl: Parse type argument, find props interface
+   - Refactor: Handle intersection in type argument
+
+3. **Resolve type aliases test**
+   - Test: Resolves alias to interface
+   - Impl: Follow type alias chain
+   - Refactor: Handle re-exports
+
+4. **Merge intersection types test**
+   - Test: Merges all members from intersection
+   - Impl: Recursively resolve each part
+   - Refactor: Filter React internals (ref, key)
+
+5. **Detect sub-components test**
+   - Test: Detects sub-components from exports
+   - Impl: Find exports matching primitive name pattern
+   - Refactor: Handle various export syntaxes
+
+### Files
+
+- `src/extractor/type-resolver.ts` (create)
+- `src/extractor/forward-ref.ts` (create)
+- `src/extractor/interface.ts` (modify)
+- `src/extractor/props.ts` (modify)
+- `tests/extractor-complex.test.ts` (create)
+
+---
+
+## Feature 21: Audit Report Pipeline (LLM + Human Outputs)
+
+**Status:** GAP
+
+### Description
+
+Add an audit orchestration pipeline and report generator for limps-radix that produces actionable, LLM-friendly JSON and human-friendly Markdown reports (plus optional summary metadata). This enables downstream consumption in planning docs, Obsidian, and VS Code.
+
+### Gherkin
+
+```gherkin
+Feature: Radix audit report pipeline
+
+  Scenario: Run full audit and generate report
+    Given a project with Radix-like components
+    When calling radix_run_audit with default options
+    Then analysis runs and report files are written
+    And report includes issues and contraventions
+
+  Scenario: Generate report from precomputed inputs
+    Given analysis and diff JSON files
+    When calling radix_generate_report with input paths
+    Then markdown and JSON reports are generated
+
+  Scenario: Contravention detection
+    Given legacy package usage is detected
+    When generating a report
+    Then contraventions include legacy-package-usage entries
+```
+
+### TDD Cycles
+
+1. **Report output test**
+   - Test: generate-report writes markdown + JSON
+   - Impl: Create audit report generator
+   - Refactor: Add summary.json for dashboards
+
+2. **Run audit orchestration test**
+   - Test: run-audit orchestrates analyzer/differ outputs
+   - Impl: Pipe tool outputs into report generator
+   - Refactor: Allow scoped runs by files/primitives
+
+3. **Contraventions detection test**
+   - Test: legacy package usage flagged
+   - Impl: Add rule-based contravention scanning
+   - Refactor: Allow custom rule registry
+
+### Files
+
+- `src/audit/types.ts` (create)
+- `src/audit/run-audit.ts` (create)
+- `src/audit/generate-report.ts` (create)
+- `src/tools/run-audit.ts` (create)
+- `src/tools/generate-report.ts` (create)
+- `tests/audit-report.test.ts` (create)
+
+---
+
 ## Status
 
 Status: Planning
