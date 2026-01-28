@@ -1,0 +1,46 @@
+{
+  "name": "@sudosandwich/limps-radix",
+  "version": "0.1.0",
+  "description": "limps extension for Radix UI contract extraction, semantic analysis, and drift detection",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "limps",
+    "radix-ui",
+    "mcp",
+    "extension"
+  ],
+  "author": "Paul Breuler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulbreuler/limps.git",
+    "directory": "packages/limps-radix"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@sudosandwich/limps": "^2.0.0"
+  },
+  "devDependencies": {
+    "@sudosandwich/limps": "*",
+    "@types/node": "^25.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  },
+  "dependencies": {
+    "ts-morph": "^24.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

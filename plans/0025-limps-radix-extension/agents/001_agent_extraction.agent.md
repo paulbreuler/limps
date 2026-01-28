@@ -1,10 +1,10 @@
 ---
 title: Type Fetcher & Extractor
-status: GAP
+status: PASS
 persona: coder
 dependencies:
   - 000_agent_extension-api.agent.md
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#001", "Extraction Agent"]
 created: 2026-01-26
 updated: 2026-01-27
@@ -71,7 +71,7 @@ import type { ExtractedPrimitive, PropDefinition } from '../types/index.js';
 ### #2: Type Fetcher
 
 TL;DR: Fetch Radix .d.ts from npm/unpkg CDN
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `resolveVersion("dialog", "latest") returns semver` → fetch registry.npmjs.org → parse dist-tags
@@ -91,7 +91,7 @@ Gotchas:
 ### #3: Type Extractor (ts-morph)
 
 TL;DR: Parse .d.ts to extract component contracts
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `ts-morph Project parses string` → create with in-memory file → verify AST
@@ -115,7 +115,7 @@ interface.getProperties().forEach(prop => {
 ### #4: Semantic Props Classifier
 
 TL;DR: Classify props as state/event/config/composition
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `"open" → isStateControl` → pattern match → true
@@ -133,11 +133,11 @@ Patterns:
 
 ## Done
 
-- [ ] resolveVersion fetches from npm registry
-- [ ] fetchTypes fetches from unpkg
-- [ ] listPrimitives returns all Radix primitives
-- [ ] ts-morph extracts interfaces from .d.ts
-- [ ] Props extracted with name, type, required
-- [ ] JSDoc @default values extracted
-- [ ] Sub-components detected by naming pattern
-- [ ] Props classified semantically
+- [x] resolveVersion fetches from npm registry
+- [x] fetchTypes fetches from unpkg
+- [x] listPrimitives returns all Radix primitives
+- [x] ts-morph extracts interfaces from .d.ts
+- [x] Props extracted with name, type, required
+- [x] JSDoc @default values extracted
+- [x] Sub-components detected by naming pattern
+- [x] Props classified semantically
