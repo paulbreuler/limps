@@ -892,23 +892,30 @@ export function configAddCodex(
 }
 
 /**
- * Add/update limps server configuration to local workspace .mcp.json file.
+ * Add/update limps server configuration to local workspace MCP config file.
  * Creates the config file if it doesn't exist, or merges with existing config.
  * Adds all registered projects as separate MCP servers.
  *
  * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
  * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @param mcpJsonPath - Optional path to .mcp.json (defaults to .mcp.json in current directory)
+ * @param adapterOrPath - Optional LocalMcpAdapter instance or path to the config file
  * @returns Success message listing all added servers
- * @throws Error if .mcp.json directory doesn't exist or can't be written
+ * @throws Error if config directory doesn't exist or can't be written
  */
 export function configAddLocalMcp(
   resolveConfigPathFn: () => string,
   projectFilter?: string[],
-  mcpJsonPath?: string
+  adapterOrPath?: LocalMcpAdapter | string
 ): string {
-  // Create adapter with custom path if provided, otherwise use default
-  const adapter = mcpJsonPath ? new LocalMcpAdapter(mcpJsonPath) : getAdapter('local');
+  // Use provided adapter, or create one from path, or use default (claude-code style .mcp.json)
+  let adapter: LocalMcpAdapter;
+  if (adapterOrPath instanceof LocalMcpAdapter) {
+    adapter = adapterOrPath;
+  } else if (typeof adapterOrPath === 'string') {
+    adapter = new LocalMcpAdapter('custom', adapterOrPath);
+  } else {
+    adapter = new LocalMcpAdapter('claude-code');
+  }
   return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
 }
 
