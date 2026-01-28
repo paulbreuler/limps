@@ -2,7 +2,6 @@
 name: branch-code-review
 description: Review changes on the current branch versus main for design, maintainability, and correctness. Use when a general code review is requested.
 argument-hint: "[scope | base..head]"
-disable-model-invocation: true
 allowed-tools: Bash(git *), Read, Grep, Glob
 ---
 # Branch Code Review (General)

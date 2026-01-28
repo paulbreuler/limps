@@ -1,7 +1,6 @@
 ---
 name: mcp-code-review
 description: Review code for correctness, security, and LLM/MCP safety in this repo. Use when a code review, security review, or MCP/LLM audit is requested.
-disable-model-invocation: true
 ---
 # MCP + LLM Code Review (limps)
 
