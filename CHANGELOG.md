@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.0](https://github.com/paulbreuler/limps/compare/v2.5.0...v3.0.0) (2026-01-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sync-mcp:** Default behavior changed from global to local/project config
+
+### Features
+
+* **limps:** support directory path in config add command ([#33](https://github.com/paulbreuler/limps/issues/33)) ([615eac4](https://github.com/paulbreuler/limps/commit/615eac4b9daee6d2fc0018fcb56818156bc7b1f9))
+* **sync-mcp:** Update local .mcp.json files in addition to global settings ([#35](https://github.com/paulbreuler/limps/issues/35)) ([a04db3c](https://github.com/paulbreuler/limps/commit/a04db3ccee5033bc3eaa27b684b7e396358f104a))
+
+
+### Bug Fixes
+
+* regenerate package-lock.json for rollup optional deps ([#31](https://github.com/paulbreuler/limps/issues/31)) ([a133c95](https://github.com/paulbreuler/limps/commit/a133c956f60839bd6a1600518cff98440ff030a6))
+
 ## [2.5.0](https://github.com/paulbreuler/limps/compare/v2.4.0...v2.5.0) (2026-01-27)
 
 
