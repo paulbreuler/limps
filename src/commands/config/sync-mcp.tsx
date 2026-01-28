@@ -87,6 +87,28 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
         diffBlocks.push(`--- ${client.displayName} ---\nError: ${(err as Error).message}`);
       }
     }
+
+    // Also preview local .mcp.json if it exists and wasn't already in selectedClients
+    const hasLocalClient = selectedClients.some((c) => c.id === 'local');
+    if (!hasLocalClient) {
+      const allClients = getSyncClients();
+      const localClient = allClients.find((c) => c.id === 'local');
+      if (localClient && localClient.supportsPreview && localClient.runPreview) {
+        try {
+          const preview = localClient.runPreview(projectFilter);
+          if (preview.hasChanges) {
+            hasAnyChanges = true;
+            diffBlocks.push(
+              `--- ${localClient.displayName} (${preview.configPath}) ---\n${preview.diffText}`
+            );
+            // Add to clientsToShow for the confirmation message
+            clientsToShow.push(localClient.displayName);
+          }
+        } catch (_err) {
+          // Silently skip if local .mcp.json doesn't exist or can't be read
+        }
+      }
+    }
   }
 
   const diffSection =
@@ -153,6 +175,21 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
           }
 
           outputResults.push(`${client.displayName}: Error - write not supported.`);
+        }
+
+        // Also update local .mcp.json if it exists and wasn't already in selectedClients
+        const hasLocalClient = selectedClients.some((c) => c.id === 'local');
+        if (!hasLocalClient) {
+          const allClients = getSyncClients();
+          const localClient = allClients.find((c) => c.id === 'local');
+          if (localClient && localClient.supportsWrite && localClient.runWrite) {
+            try {
+              const output = localClient.runWrite(projectFilter);
+              outputResults.push(output);
+            } catch (err) {
+              outputResults.push(`${localClient.displayName}: Error - ${(err as Error).message}`);
+            }
+          }
         }
 
         setResults(outputResults);
