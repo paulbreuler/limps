@@ -1289,6 +1289,64 @@ Feature: Complex .d.ts parsing
 
 ---
 
+## Feature 21: Audit Report Pipeline (LLM + Human Outputs)
+
+**Status:** GAP
+
+### Description
+
+Add an audit orchestration pipeline and report generator for limps-radix that produces actionable, LLM-friendly JSON and human-friendly Markdown reports (plus optional summary metadata). This enables downstream consumption in planning docs, Obsidian, and VS Code.
+
+### Gherkin
+
+```gherkin
+Feature: Radix audit report pipeline
+
+  Scenario: Run full audit and generate report
+    Given a project with Radix-like components
+    When calling radix_run_audit with default options
+    Then analysis runs and report files are written
+    And report includes issues and contraventions
+
+  Scenario: Generate report from precomputed inputs
+    Given analysis and diff JSON files
+    When calling radix_generate_report with input paths
+    Then markdown and JSON reports are generated
+
+  Scenario: Contravention detection
+    Given legacy package usage is detected
+    When generating a report
+    Then contraventions include legacy-package-usage entries
+```
+
+### TDD Cycles
+
+1. **Report output test**
+   - Test: generate-report writes markdown + JSON
+   - Impl: Create audit report generator
+   - Refactor: Add summary.json for dashboards
+
+2. **Run audit orchestration test**
+   - Test: run-audit orchestrates analyzer/differ outputs
+   - Impl: Pipe tool outputs into report generator
+   - Refactor: Allow scoped runs by files/primitives
+
+3. **Contraventions detection test**
+   - Test: legacy package usage flagged
+   - Impl: Add rule-based contravention scanning
+   - Refactor: Allow custom rule registry
+
+### Files
+
+- `src/audit/types.ts` (create)
+- `src/audit/run-audit.ts` (create)
+- `src/audit/generate-report.ts` (create)
+- `src/tools/run-audit.ts` (create)
+- `src/tools/generate-report.ts` (create)
+- `tests/audit-report.test.ts` (create)
+
+---
+
 ## Status
 
 Status: Planning

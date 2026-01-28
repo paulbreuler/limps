@@ -1,10 +1,10 @@
 ---
 title: Complex Type Parsing
-status: GAP
+status: PASS
 persona: coder
 dependencies:
   - "001"
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#008", "Complex Parsing Agent"]
 created: 2026-01-28
 updated: 2026-01-28

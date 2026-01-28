@@ -76,7 +76,7 @@ updated: 2026-01-27
 ### [GTC-004] Unified radix-ui package not supported
 **Discovered**: 2026-01-28
 **Severity**: High
-**Status**: In Progress (Agent 007)
+**Status**: Resolved
 
 **Problem**: limps-radix targets individual `@radix-ui/react-*` packages (e.g., `@radix-ui/react-dialog`), but modern projects like runi use the unified `radix-ui` package (v1.4.3+). The unified package has a different structure and export pattern.
 

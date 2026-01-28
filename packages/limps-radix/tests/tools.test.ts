@@ -12,12 +12,27 @@ import {
 
 // Mock the fetcher module
 vi.mock('../src/fetcher/index.js', () => ({
-  resolveVersion: vi.fn().mockResolvedValue('1.1.2'),
+  resolvePackage: vi.fn().mockResolvedValue({
+    source: 'individual',
+    packageName: '@radix-ui/react-dialog',
+    primitive: 'dialog',
+    version: '1.1.2',
+    typesPath: 'dist/index.d.ts',
+  }),
   listPrimitives: vi.fn().mockResolvedValue([
     { name: 'dialog', package: '@radix-ui/react-dialog', description: 'A modal dialog overlay' },
     { name: 'popover', package: '@radix-ui/react-popover', description: 'A popup that appears from a trigger' },
   ]),
-  fetchTypes: vi.fn().mockResolvedValue('export interface DialogProps { open?: boolean; }'),
+  fetchTypesWithFallback: vi.fn().mockResolvedValue({
+    resolved: {
+      source: 'individual',
+      packageName: '@radix-ui/react-dialog',
+      primitive: 'dialog',
+      version: '1.1.2',
+      typesPath: 'dist/index.d.ts',
+    },
+    content: 'export interface DialogProps { open?: boolean; }',
+  }),
   primitiveToPackage: vi.fn().mockImplementation((p: string) => `@radix-ui/react-${p}`),
 }));
 

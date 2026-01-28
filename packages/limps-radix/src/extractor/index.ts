@@ -13,11 +13,23 @@ export {
   findInterfaces,
   findPropsInterfaces,
   extractSubComponents,
+  extractSubComponentsEnhanced,
   findExports,
   detectContextUsage,
   extractContextShape,
   extractPrimitiveFromSource,
 } from './interface.js';
+export {
+  findForwardRefDeclarations,
+  extractPropsFromForwardRef,
+  getSubComponentSuffix,
+} from './forward-ref.js';
+export {
+  resolveTypeAlias,
+  mergeIntersectionTypes,
+  filterReactInternals,
+  resolveTypeReference,
+} from './type-resolver.js';
 export {
   extractPropsFromInterface,
   extractProp,
@@ -45,15 +57,17 @@ export {
 export function extractPrimitive(
   typeContent: string,
   primitiveName: string,
-  version: string = 'unknown'
+  version: string = 'unknown',
+  packageName?: string
 ): ExtractedPrimitive {
   const sourceFile = parseTypes(typeContent);
-  const packageName = primitiveToPackage(primitiveName.toLowerCase());
+  const resolvedPackageName =
+    packageName ?? primitiveToPackage(primitiveName.toLowerCase());
 
   return extractPrimitiveFromSource(
     sourceFile,
     primitiveName,
-    packageName,
+    resolvedPackageName,
     version
   );
 }

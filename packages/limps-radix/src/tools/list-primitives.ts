@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
-import { listPrimitives, resolveVersion } from '../fetcher/index.js';
+import { listPrimitives, resolvePackage } from '../fetcher/index.js';
 
 /**
  * Input schema for radix_list_primitives tool.
@@ -44,7 +44,8 @@ export async function handleListPrimitives(
   const versionHint = parsed.version || 'latest';
 
   // Resolve the version for a reference primitive (dialog is a good baseline)
-  const resolvedVersion = await resolveVersion('dialog', versionHint);
+  const resolved = await resolvePackage('dialog', versionHint);
+  const resolvedVersion = resolved.version;
 
   // Get all primitives
   const primitives = await listPrimitives(resolvedVersion);

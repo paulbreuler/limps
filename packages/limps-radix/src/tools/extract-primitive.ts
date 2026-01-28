@@ -4,7 +4,10 @@
 
 import { z } from 'zod';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
-import { resolveVersion, fetchTypes, primitiveToPackage } from '../fetcher/index.js';
+import {
+  resolvePackage,
+  fetchTypesWithFallback,
+} from '../fetcher/index.js';
 import { extractPrimitive, getPropCategory } from '../extractor/index.js';
 import { generateSignature } from '../signatures/index.js';
 import {
@@ -70,21 +73,35 @@ export async function handleExtractPrimitive(
   const primitiveName = parsed.primitive.toLowerCase();
   const versionHint = parsed.version || 'latest';
 
-  // Resolve version
-  const version = await resolveVersion(primitiveName, versionHint);
-  const packageName = primitiveToPackage(primitiveName);
+  // Resolve package source and version
+  const resolved = await resolvePackage(primitiveName, versionHint);
+  let resolvedContent: Awaited<
+    ReturnType<typeof fetchTypesWithFallback>
+  > | null = null;
 
   // Try cache first
-  let extracted = await getFromCache(primitiveName, version);
-  let signature = await getSignatureFromCache(primitiveName, version);
+  let extracted = await getFromCache(primitiveName, resolved.version);
+  let signature = await getSignatureFromCache(primitiveName, resolved.version);
 
   if (!extracted) {
     // Fetch and extract
-    const typeContent = await fetchTypes(primitiveName, version);
-    extracted = extractPrimitive(typeContent, primitiveName, version);
+    resolvedContent = await fetchTypesWithFallback(
+      primitiveName,
+      versionHint
+    );
+    extracted = extractPrimitive(
+      resolvedContent.content,
+      resolvedContent.resolved.primitive,
+      resolvedContent.resolved.version,
+      resolvedContent.resolved.packageName
+    );
 
     // Save to cache
-    await saveToCache(primitiveName, version, extracted);
+    await saveToCache(
+      primitiveName,
+      resolvedContent.resolved.version,
+      extracted
+    );
   }
 
   if (!signature) {
@@ -92,14 +109,23 @@ export async function handleExtractPrimitive(
     signature = generateSignature(extracted);
 
     // Save to cache
-    await saveSignatureToCache(primitiveName, version, signature);
+    const resolvedVersion =
+      resolvedContent?.resolved.version ?? resolved.version;
+    await saveSignatureToCache(primitiveName, resolvedVersion, signature);
   }
 
   // Format output
+  const resolvedPackage =
+    resolvedContent?.resolved ??
+    ({
+      packageName: extracted.package,
+      version: extracted.version,
+    } as { packageName: string; version: string });
+
   const output: ExtractPrimitiveOutput = {
     primitive: extracted.name,
-    package: packageName,
-    version,
+    package: resolvedPackage.packageName,
+    version: resolvedPackage.version,
 
     behavior: {
       statePattern: signature.statePattern,
