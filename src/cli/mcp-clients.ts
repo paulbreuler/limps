@@ -3,6 +3,8 @@ import {
   configAddClaudeCode,
   configAddCodex,
   configAddCursor,
+  configAddLocalMcp,
+  hasLocalMcpJson,
   generateChatGptInstructions,
   generateConfigForPrint,
   previewMcpClientConfig,
@@ -10,7 +12,7 @@ import {
 import { getAdapter } from './mcp-client-adapter.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 
-export type McpSyncClientId = 'claude' | 'cursor' | 'claude-code' | 'codex' | 'chatgpt';
+export type McpSyncClientId = 'claude' | 'cursor' | 'claude-code' | 'codex' | 'chatgpt' | 'local';
 export type McpAdapterId = Exclude<McpSyncClientId, 'chatgpt'>;
 
 export interface PreviewResult {
@@ -62,7 +64,7 @@ function createFileClient(params: {
 }
 
 export function getSyncClients(): McpSyncClient[] {
-  return [
+  const clients: McpSyncClient[] = [
     createFileClient({
       id: 'claude',
       displayName: 'Claude Desktop',
@@ -94,4 +96,17 @@ export function getSyncClients(): McpSyncClient[] {
         generateChatGptInstructions(() => resolveConfigPath(), projectFilter),
     },
   ];
+
+  // Add local .mcp.json client if file exists in current directory
+  if (hasLocalMcpJson()) {
+    clients.push(
+      createFileClient({
+        id: 'local',
+        displayName: 'Local .mcp.json',
+        writeFn: configAddLocalMcp,
+      })
+    );
+  }
+
+  return clients;
 }
