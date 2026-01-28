@@ -393,6 +393,7 @@ export function configSet(configFilePath: string): string {
 
 import {
   getAdapter,
+  LocalMcpAdapter,
   type McpClientAdapter,
   type McpClientConfig,
   type McpServerConfig,
@@ -888,6 +889,38 @@ export function configAddCodex(
 ): string {
   const adapter = getAdapter('codex');
   return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Add/update limps server configuration to local workspace .mcp.json file.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @param mcpJsonPath - Optional path to .mcp.json (defaults to .mcp.json in current directory)
+ * @returns Success message listing all added servers
+ * @throws Error if .mcp.json directory doesn't exist or can't be written
+ */
+export function configAddLocalMcp(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[],
+  mcpJsonPath?: string
+): string {
+  // Create adapter with custom path if provided, otherwise use default
+  const adapter = mcpJsonPath ? new LocalMcpAdapter(mcpJsonPath) : getAdapter('local');
+  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Check if a local .mcp.json file exists in the current directory or specified path.
+ *
+ * @param mcpJsonPath - Optional path to .mcp.json (defaults to .mcp.json in current directory)
+ * @returns True if the file exists, false otherwise
+ */
+export function hasLocalMcpJson(mcpJsonPath?: string): boolean {
+  const path = mcpJsonPath || join(process.cwd(), '.mcp.json');
+  return existsSync(path);
 }
 
 /**

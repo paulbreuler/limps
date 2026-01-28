@@ -348,10 +348,78 @@ export class CodexAdapter implements McpClientAdapter {
 }
 
 /**
+ * Local workspace .mcp.json adapter
+ * Uses: mcpServers key, limps command, local workspace .mcp.json file
+ */
+export class LocalMcpAdapter implements McpClientAdapter {
+  private configPath: string;
+
+  constructor(configPath: string = join(process.cwd(), '.mcp.json')) {
+    this.configPath = configPath;
+  }
+
+  getConfigPath(): string {
+    return this.configPath;
+  }
+
+  getServersKey(): string {
+    return 'mcpServers';
+  }
+
+  readConfig(): McpClientConfig {
+    const configPath = this.getConfigPath();
+
+    // Read existing config or return empty
+    if (existsSync(configPath)) {
+      try {
+        const content = readFileSync(configPath, 'utf-8');
+        return JSON.parse(content) as McpClientConfig;
+      } catch (error) {
+        throw new Error(
+          `Failed to parse local .mcp.json: ${error instanceof Error ? error.message : 'unknown error'}`
+        );
+      }
+    }
+
+    return {};
+  }
+
+  writeConfig(config: McpClientConfig): void {
+    const configPath = this.getConfigPath();
+    const configDir = dirname(configPath);
+
+    // Ensure directory exists
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+
+    try {
+      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    } catch (error) {
+      throw new Error(
+        `Failed to write local .mcp.json: ${error instanceof Error ? error.message : 'unknown error'}`
+      );
+    }
+  }
+
+  createServerConfig(configPath: string): McpServerConfig {
+    // Local .mcp.json can use the global limps command
+    return {
+      command: 'limps',
+      args: ['serve', '--config', configPath],
+    };
+  }
+
+  getDisplayName(): string {
+    return 'Local .mcp.json';
+  }
+}
+
+/**
  * Get adapter for a client type
  */
 export function getAdapter(
-  clientType: 'claude' | 'cursor' | 'claude-code' | 'codex'
+  clientType: 'claude' | 'cursor' | 'claude-code' | 'codex' | 'local'
 ): McpClientAdapter {
   switch (clientType) {
     case 'claude':
@@ -362,6 +430,8 @@ export function getAdapter(
       return new ClaudeCodeAdapter();
     case 'codex':
       return new CodexAdapter();
+    case 'local':
+      return new LocalMcpAdapter();
     default:
       throw new Error(`Unknown client type: ${clientType}`);
   }
