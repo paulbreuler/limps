@@ -3,9 +3,9 @@
  * Provides commands to manage the project registry and view configuration.
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync, statSync, mkdirSync } from 'fs';
 import * as jsonpatch from 'fast-json-patch';
-import { resolve, dirname, basename } from 'path';
+import { resolve, dirname, basename, join } from 'path';
 import * as toml from '@iarna/toml';
 import {
   registerProject,
@@ -15,6 +15,7 @@ import {
   loadRegistry,
 } from './registry.js';
 import { loadConfig } from '../config.js';
+import { getOSBasePath, getOSConfigPath, getOSDataPath } from '../utils/os-paths.js';
 
 /**
  * Project data for JSON output.
@@ -235,21 +236,90 @@ export function configPath(resolveConfigPathFn: () => string): string {
 }
 
 /**
- * Add/register an existing config file to the registry.
+ * Add/register an existing config file or directory to the registry.
+ * If a directory is provided, looks for config.json inside it or creates one
+ * in the OS standard location (e.g., ~/Library/Application Support/limps/).
  *
  * @param name - Project name to use
- * @param configFilePath - Path to the config file
+ * @param configFileOrDirPath - Path to the config file or directory containing plans
  * @returns Success message
- * @throws Error if config file doesn't exist
+ * @throws Error if path doesn't exist
  */
-export function configAdd(name: string, configFilePath: string): string {
-  const absolutePath = resolve(configFilePath);
+export function configAdd(name: string, configFileOrDirPath: string): string {
+  const absolutePath = resolve(configFileOrDirPath);
 
   if (!existsSync(absolutePath)) {
-    throw new Error(`Config file not found: ${absolutePath}`);
+    throw new Error(`Path not found: ${absolutePath}`);
   }
 
-  // Validate it's a valid config file
+  const stats = statSync(absolutePath);
+
+  // If it's a directory, look for config.json or create one in OS standard location
+  if (stats.isDirectory()) {
+    const configInDir = join(absolutePath, 'config.json');
+
+    if (existsSync(configInDir)) {
+      // Found existing config.json in directory
+      try {
+        loadConfig(configInDir);
+      } catch (error) {
+        throw new Error(
+          `Invalid config file: ${error instanceof Error ? error.message : 'unknown error'}`
+        );
+      }
+      registerProject(name, configInDir);
+      return `Registered project "${name}" with config: ${configInDir}`;
+    }
+
+    // No config.json found - create one in OS standard location
+    const basePath = getOSBasePath(name);
+    const configPath = getOSConfigPath(name);
+    const dataPath = getOSDataPath(name);
+
+    // Check if config already exists in OS location
+    if (existsSync(configPath)) {
+      throw new Error(
+        `Config already exists at: ${configPath}\nTo reconfigure, delete the existing config file first.`
+      );
+    }
+
+    // Create base and data directories
+    mkdirSync(basePath, { recursive: true });
+    mkdirSync(dirname(dataPath), { recursive: true });
+
+    // Determine plans path - use <dir>/plans if it exists, otherwise use <dir>
+    const plansSubdir = join(absolutePath, 'plans');
+    const plansPath = existsSync(plansSubdir) ? plansSubdir : absolutePath;
+
+    const config = {
+      configVersion: 1,
+      plansPath: plansPath,
+      docsPaths: [absolutePath],
+      fileExtensions: ['.md'],
+      dataPath: dataPath,
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
+    };
+
+    writeFileSync(configPath, JSON.stringify(config, null, 2));
+    registerProject(name, configPath);
+
+    const lines: string[] = [];
+    lines.push(`Created config and registered project "${name}"`);
+    lines.push(`  Config:     ${configPath}`);
+    lines.push(`  Plans path: ${plansPath}`);
+    lines.push(`  Docs path:  ${absolutePath}`);
+    lines.push(`  Data path:  ${dataPath}`);
+    return lines.join('\n');
+  }
+
+  // It's a file - validate it's a valid config file
   try {
     loadConfig(absolutePath);
   } catch (error) {
@@ -321,7 +391,6 @@ export function configSet(configFilePath: string): string {
   return `Registered and switched to project "${projectName}"`;
 }
 
-import { getOSBasePath } from '../utils/os-paths.js';
 import {
   getAdapter,
   type McpClientAdapter,
