@@ -73,4 +73,40 @@ updated: 2026-01-27
 
 ## Discovered During Development
 
-<!-- Add gotchas here as they're discovered -->
+### [GTC-004] Unified radix-ui package not supported
+**Discovered**: 2026-01-28
+**Severity**: High
+**Status**: In Progress (Agent 007)
+
+**Problem**: limps-radix targets individual `@radix-ui/react-*` packages (e.g., `@radix-ui/react-dialog`), but modern projects like runi use the unified `radix-ui` package (v1.4.3+). The unified package has a different structure and export pattern.
+
+**Solution**: Update the type fetcher to:
+1. Detect which package structure is in use (`radix-ui` vs `@radix-ui/react-*`)
+2. Fetch types from the unified package when applicable
+3. Map primitive names to the unified package's export structure
+
+**Affected**: #2 Type Fetcher, #7 radix_list_primitives, #8 radix_extract_primitive
+
+---
+
+### [GTC-005] Type extractor doesn't parse complex npm .d.ts files
+**Discovered**: 2026-01-28
+**Severity**: Medium
+**Status**: In Progress (Agent 008)
+
+**Problem**: The type extractor returns minimal data when parsing real npm type definitions that include:
+- Complex imports (`import * as React from 'react'`)
+- Type aliases and intersections
+- Re-exported types from other packages
+- JSDoc comments with `@default` values
+
+Example: `radix_extract_primitive({ primitive: 'dialog' })` returns empty `subComponents: []` instead of Root, Trigger, Content, etc.
+
+**Solution**: Improve the extractor to:
+1. Resolve imported types (at least React types)
+2. Follow type aliases to find the actual interface
+3. Extract props from `ForwardRefExoticComponent` and similar patterns
+
+**Affected**: #3 Extractor, #8 radix_extract_primitive
+
+---

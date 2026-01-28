@@ -108,6 +108,8 @@ graph TD
 | 16 | Provider Architecture | 006 | GAP | 17 |
 | 17 | CLI Commands | 006 | GAP | 18 |
 | 18 | Documentation | 006 | GAP | - |
+| 19 | Unified Package (GTC-004) | 007 | GAP | - |
+| 20 | Complex Parsing (GTC-005) | 008 | GAP | - |
 
 ## Agent Assignments
 
@@ -120,6 +122,8 @@ graph TD
 | 004 | #9, #10, #11, #12 | `packages/limps-radix/src/analyzer/`, `packages/limps-radix/src/tools/analyze-component.ts` |
 | 005 | #13, #14, #15 | `packages/limps-radix/src/differ/`, `packages/limps-radix/src/tools/diff-versions.ts`, `packages/limps-radix/src/tools/check-updates.ts` |
 | 006 | #16, #17, #18 | `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/` |
+| 007 | #19 | `packages/limps-radix/src/fetcher/unified-package.ts` |
+| 008 | #20 | `packages/limps-radix/src/extractor/type-resolver.ts`, `packages/limps-radix/src/extractor/forward-ref.ts` |
 
 ## File Links
 
@@ -138,3 +142,5 @@ graph TD
 | 004 | [analyzer](./agents/004_agent_analyzer.agent.md) | Component Analyzer, Scorer, Disambiguator | GAP | 12 |
 | 005 | [differ](./agents/005_agent_differ.agent.md) | Contract Differ, radix_diff_versions | GAP | 7 |
 | 006 | [polish](./agents/006_agent_polish.agent.md) | Provider arch, CLI, Documentation | GAP | 14 |
+| 007 | [unified-package](./agents/007_agent_unified-package.agent.md) | Unified Package (GTC-004) | GAP | 4 |
+| 008 | [complex-parsing](./agents/008_agent_complex-parsing.agent.md) | Complex Parsing (GTC-005) | GAP | 5 |

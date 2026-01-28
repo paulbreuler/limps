@@ -400,11 +400,51 @@ interface ProviderRegistry {
 }
 ```
 
+## Unified Package Support (Agent 007)
+
+```typescript
+/**
+ * Package source detection for unified vs individual packages
+ */
+export type PackageSource = 'individual' | 'unified';
+
+export interface ResolvedPackage {
+  source: PackageSource;
+  packageName: string;
+  primitive: string;
+  version: string;
+  typesPath: string;
+}
+
+export async function detectPackageSource(primitive: string): Promise<PackageSource>;
+export async function resolvePackage(primitive: string, versionHint: string): Promise<ResolvedPackage>;
+```
+
+## Complex Type Parsing (Agent 008)
+
+```typescript
+/**
+ * ForwardRef and type alias resolution
+ */
+export function extractPropsFromForwardRef(
+  decl: TypeAliasDeclaration | VariableDeclaration
+): RawProp[] | null;
+
+export function resolveTypeAlias(
+  sourceFile: SourceFile,
+  aliasName: string
+): InterfaceDeclaration | TypeLiteralNode | null;
+
+export function mergeIntersectionTypes(types: Type[]): RawProp[];
+
+export function filterReactInternals(props: RawProp[]): RawProp[];
+```
+
 ## External Dependencies
 
 ```typescript
 // ts-morph - Type extraction
-import { Project, SourceFile, InterfaceDeclaration, Type } from 'ts-morph';
+import { Project, SourceFile, InterfaceDeclaration, Type, TypeAliasDeclaration, VariableDeclaration, TypeLiteralNode } from 'ts-morph';
 
 // MCP SDK
 import { Tool, Resource } from '@modelcontextprotocol/sdk/types.js';
