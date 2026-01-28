@@ -18,11 +18,11 @@ export const options = z.object({
     .optional()
     .describe('Comma-separated list of project names to add (default: all registered projects)'),
   client: z
-    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'all'])
+    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'local', 'all'])
     .optional()
     .default('all')
     .describe(
-      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, or all). Default: all'
+      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, local, or all). Default: all'
     ),
   print: z
     .boolean()
@@ -91,7 +91,6 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
     // Also preview local .mcp.json if it exists and wasn't already in selectedClients
     const hasLocalClient = selectedClients.some((c) => c.id === 'local');
     if (!hasLocalClient) {
-      const allClients = getSyncClients();
       const localClient = allClients.find((c) => c.id === 'local');
       if (localClient && localClient.supportsPreview && localClient.runPreview) {
         try {
@@ -180,7 +179,6 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
         // Also update local .mcp.json if it exists and wasn't already in selectedClients
         const hasLocalClient = selectedClients.some((c) => c.id === 'local');
         if (!hasLocalClient) {
-          const allClients = getSyncClients();
           const localClient = allClients.find((c) => c.id === 'local');
           if (localClient && localClient.supportsWrite && localClient.runWrite) {
             try {
