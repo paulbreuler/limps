@@ -1,6 +1,6 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import { PathFilter } from './utils/pathfilter.js';
-import { relative } from 'path';
+import { relative, sep } from 'path';
 
 /**
  * Default file extensions to watch.
@@ -137,12 +137,16 @@ export function startWatcher(
 
   // Helper to get relative path for PathFilter
   const getRelativePath = (absolutePath: string): string => {
-    // Try to get relative path from first watch path
-    const basePath = Array.isArray(watchPaths) ? watchPaths[0] : watchPaths;
+    const basePaths = Array.isArray(watchPaths) ? watchPaths : [watchPaths];
+    const matchedBase =
+      basePaths.find((base) => {
+        const prefix = base.endsWith(sep) ? base : base + sep;
+        return absolutePath === base || absolutePath.startsWith(prefix);
+      }) ?? basePaths[0];
+
     try {
-      return relative(basePath, absolutePath);
+      return relative(matchedBase, absolutePath);
     } catch {
-      // Fallback to just the filename if relative fails
       return absolutePath.split(/[/\\]/).pop() || absolutePath;
     }
   };

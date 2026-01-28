@@ -8,28 +8,28 @@ aliases: ["#000", "Extension API Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: src/extensions/types.ts
+  - path: packages/limps/src/extensions/types.ts
     action: create
     repo: limps
-  - path: src/extensions/loader.ts
+  - path: packages/limps/src/extensions/loader.ts
     action: create
     repo: limps
-  - path: src/extensions/context.ts
+  - path: packages/limps/src/extensions/context.ts
     action: create
     repo: limps
-  - path: src/server.ts
+  - path: packages/limps/src/server.ts
     action: modify
     repo: limps
-  - path: package.json
+  - path: packages/limps-radix/package.json
     action: create
     repo: limps-radix
-  - path: tsconfig.json
+  - path: packages/limps-radix/tsconfig.json
     action: create
     repo: limps-radix
-  - path: src/index.ts
+  - path: packages/limps-radix/src/index.ts
     action: create
     repo: limps-radix
-  - path: src/types/index.ts
+  - path: packages/limps-radix/src/types/index.ts
     action: create
     repo: limps-radix
 ---
@@ -56,7 +56,7 @@ This agent works in TWO repos:
 ### Export (to limps)
 
 ```typescript
-// src/extensions/types.ts
+// packages/limps/src/extensions/types.ts
 export interface LimpsExtension {
   name: string;
   version: string;

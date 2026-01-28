@@ -114,12 +114,12 @@ graph TD
 | Agent | Features | Owns |
 |-------|----------|------|
 | 000 | #0, #1 | limps extension API, package setup |
-| 001 | #2, #3, #4 | `src/fetcher/`, `src/extractor/` |
-| 002 | #5, #6 | `src/signatures/`, `src/cache/` |
-| 003 | #7, #8 | `src/tools/list.ts`, `src/tools/extract.ts` |
-| 004 | #9, #10, #11, #12 | `src/analyzer/`, `src/tools/analyze.ts` |
-| 005 | #13, #14, #15 | `src/differ/`, `src/tools/diff.ts`, `src/tools/updates.ts` |
-| 006 | #16, #17, #18 | `src/providers/`, `src/cli/`, `docs/` |
+| 001 | #2, #3, #4 | `packages/limps-radix/src/fetcher/`, `packages/limps-radix/src/extractor/` |
+| 002 | #5, #6 | `packages/limps-radix/src/signatures/`, `packages/limps-radix/src/cache/` |
+| 003 | #7, #8 | `packages/limps-radix/src/tools/list-primitives.ts`, `packages/limps-radix/src/tools/extract-primitive.ts` |
+| 004 | #9, #10, #11, #12 | `packages/limps-radix/src/analyzer/`, `packages/limps-radix/src/tools/analyze-component.ts` |
+| 005 | #13, #14, #15 | `packages/limps-radix/src/differ/`, `packages/limps-radix/src/tools/diff-versions.ts`, `packages/limps-radix/src/tools/check-updates.ts` |
+| 006 | #16, #17, #18 | `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/` |
 
 ## File Links
 

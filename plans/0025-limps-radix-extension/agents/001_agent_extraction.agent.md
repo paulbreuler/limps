@@ -9,23 +9,23 @@ aliases: ["#001", "Extraction Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: src/fetcher/npm-registry.ts
+  - path: packages/limps-radix/src/fetcher/npm-registry.ts
     action: create
-  - path: src/fetcher/unpkg.ts
+  - path: packages/limps-radix/src/fetcher/unpkg.ts
     action: create
-  - path: src/fetcher/index.ts
+  - path: packages/limps-radix/src/fetcher/index.ts
     action: create
-  - path: src/extractor/project.ts
+  - path: packages/limps-radix/src/extractor/project.ts
     action: create
-  - path: src/extractor/interface.ts
+  - path: packages/limps-radix/src/extractor/interface.ts
     action: create
-  - path: src/extractor/props.ts
+  - path: packages/limps-radix/src/extractor/props.ts
     action: create
-  - path: src/extractor/jsdoc.ts
+  - path: packages/limps-radix/src/extractor/jsdoc.ts
     action: create
-  - path: src/extractor/classifier.ts
+  - path: packages/limps-radix/src/extractor/classifier.ts
     action: create
-  - path: src/extractor/index.ts
+  - path: packages/limps-radix/src/extractor/index.ts
     action: create
 ---
 
@@ -36,7 +36,7 @@ files:
 ## Scope
 
 Features: #2 (Type Fetcher), #3 (Type Extractor), #4 (Props Classifier)
-Own: `src/fetcher/`, `src/extractor/`
+Own: `packages/limps-radix/src/fetcher/`, `packages/limps-radix/src/extractor/`
 Depend on: Agent 000 for package structure
 Block: Agent 002 (Signature Generator)
 
@@ -45,15 +45,15 @@ Block: Agent 002 (Signature Generator)
 ### Export
 
 ```typescript
-// src/fetcher/index.ts
+// packages/limps-radix/src/fetcher/index.ts
 export async function resolveVersion(primitive: string, versionHint: string): Promise<string>;
 export async function fetchTypes(primitive: string, version: string): Promise<string>;
 export async function listPrimitives(version?: string): Promise<string[]>;
 
-// src/extractor/index.ts
+// packages/limps-radix/src/extractor/index.ts
 export function extractPrimitive(typeContent: string, primitiveName: string): ExtractedPrimitive;
 
-// src/extractor/classifier.ts
+// packages/limps-radix/src/extractor/classifier.ts
 export function classifyProp(prop: RawProp): PropDefinition;
 ```
 

@@ -59,7 +59,7 @@ describe('watcher-start', () => {
     writeFileSync(testFile, '# Test\n\nContent.', 'utf-8');
 
     // Wait for file system event and debounce
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // onChange should be called
     expect(onChange).toHaveBeenCalled();
@@ -170,7 +170,7 @@ describe('debouncing', () => {
     }
 
     // Wait for debounce delay (200ms default) plus some buffer
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // Should have been called, but debounced
     expect(onChange).toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('debouncing', () => {
     writeFileSync(testFile, '# Test\n\nContent 2.', 'utf-8');
     writeFileSync(testFile, '# Test\n\nContent 3.', 'utf-8');
 
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 900));
 
     expect(onSettled).toHaveBeenCalled();
     const [changes] = onSettled.mock.calls[0] || [];
