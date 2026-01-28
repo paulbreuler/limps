@@ -54,9 +54,15 @@ describe('config-cmd', () => {
     configDir = join(testDir, 'configs');
     mkdirSync(configDir, { recursive: true });
 
-    // Mock getOSBasePath to use test directory
+    // Mock OS path functions to use test directory
     vi.spyOn(osPaths, 'getOSBasePath').mockImplementation((appName?: string) => {
       return join(testDir, appName || 'limps');
+    });
+    vi.spyOn(osPaths, 'getOSConfigPath').mockImplementation((appName?: string) => {
+      return join(testDir, appName || 'limps', 'config.json');
+    });
+    vi.spyOn(osPaths, 'getOSDataPath').mockImplementation((appName?: string) => {
+      return join(testDir, appName || 'limps', 'data');
     });
   });
 
@@ -281,8 +287,8 @@ describe('config-cmd', () => {
       expect(registry.projects['legacy-project'].configPath).toBe(existingConfig);
     });
 
-    it('throws error when config file does not exist', () => {
-      expect(() => configAdd('bad', '/nonexistent/config.json')).toThrow('Config file not found');
+    it('throws error when path does not exist', () => {
+      expect(() => configAdd('bad', '/nonexistent/config.json')).toThrow('Path not found');
     });
 
     it('throws error when config file is invalid', () => {
@@ -290,6 +296,77 @@ describe('config-cmd', () => {
       writeFileSync(invalidConfig, 'not json');
 
       expect(() => configAdd('invalid', invalidConfig)).toThrow('Invalid config file');
+    });
+
+    it('creates config in OS location when given a directory without config.json', () => {
+      const projectDir = join(configDir, 'dir-project');
+      mkdirSync(projectDir, { recursive: true });
+      mkdirSync(join(projectDir, 'plans'), { recursive: true });
+
+      const result = configAdd('dir-proj', projectDir);
+
+      expect(result).toContain('Created config and registered project "dir-proj"');
+      expect(result).toContain('Config:');
+      expect(result).toContain('Plans path:');
+      expect(result).toContain('Data path:');
+      expect(result).toContain('Docs path:');
+
+      // Check config was created in OS location (mocked to testDir)
+      const expectedConfigPath = join(testDir, 'dir-proj', 'config.json');
+      expect(existsSync(expectedConfigPath)).toBe(true);
+
+      // Check registry was updated with OS config path
+      const registry = loadRegistry();
+      expect(registry.projects['dir-proj']).toBeDefined();
+      expect(registry.projects['dir-proj'].configPath).toBe(expectedConfigPath);
+
+      // Check config content points to the user's directory
+      const config = JSON.parse(readFileSync(expectedConfigPath, 'utf-8'));
+      expect(config.plansPath).toBe(join(projectDir, 'plans'));
+      expect(config.docsPaths).toEqual([projectDir]);
+      expect(config.dataPath).toBe(join(testDir, 'dir-proj', 'data'));
+    });
+
+    it('uses directory as plansPath when no plans subdirectory exists', () => {
+      const projectDir = join(configDir, 'flat-dir');
+      mkdirSync(projectDir, { recursive: true });
+      // No plans subdirectory
+
+      const result = configAdd('flat-proj', projectDir);
+
+      expect(result).toContain('Created config and registered project "flat-proj"');
+
+      // Check config content - plansPath should be the directory itself
+      const expectedConfigPath = join(testDir, 'flat-proj', 'config.json');
+      const config = JSON.parse(readFileSync(expectedConfigPath, 'utf-8'));
+      expect(config.plansPath).toBe(projectDir); // Uses the directory directly
+      expect(config.docsPaths).toEqual([projectDir]);
+    });
+
+    it('uses existing config.json when given a directory with config', () => {
+      const projectDir = join(configDir, 'dir-with-config');
+      mkdirSync(projectDir, { recursive: true });
+
+      // Create a config file in the directory
+      const existingConfig = join(projectDir, 'config.json');
+      writeFileSync(
+        existingConfig,
+        JSON.stringify({
+          configVersion: 1,
+          plansPath: './my-plans',
+          dataPath: './my-data',
+          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
+        })
+      );
+
+      const result = configAdd('dir-existing', projectDir);
+
+      expect(result).toContain('Registered project "dir-existing" with config:');
+      expect(result).toContain(existingConfig);
+
+      const registry = loadRegistry();
+      expect(registry.projects['dir-existing']).toBeDefined();
+      expect(registry.projects['dir-existing'].configPath).toBe(existingConfig);
     });
   });
 
