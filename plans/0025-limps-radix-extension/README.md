@@ -91,11 +91,11 @@ graph TD
 |---|---------|-------|--------|--------|
 | 0 | limps extension API | 000 | PASS | All |
 | 1 | Project Scaffolding | 000 | PASS | 2-18 |
-| 2 | Type Fetcher | 001 | GAP | 3 |
-| 3 | Type Extractor | 001 | GAP | 4 |
-| 4 | Props Classifier | 001 | GAP | 5 |
-| 5 | Signature Generator | 002 | GAP | 6-9, 13 |
-| 6 | Cache System | 002 | GAP | 7-8, 12, 15 |
+| 2 | Type Fetcher | 001 | PASS | 3 |
+| 3 | Type Extractor | 001 | PASS | 4 |
+| 4 | Props Classifier | 001 | PASS | 5 |
+| 5 | Signature Generator | 002 | PASS | 6-9, 13 |
+| 6 | Cache System | 002 | PASS | 7-8, 12, 15 |
 | 7 | radix_list_primitives | 003 | GAP | - |
 | 8 | radix_extract_primitive | 003 | GAP | - |
 | 9 | Component Analyzer | 004 | GAP | 10 |
@@ -114,12 +114,12 @@ graph TD
 | Agent | Features | Owns |
 |-------|----------|------|
 | 000 | #0, #1 | limps extension API, package setup |
-| 001 | #2, #3, #4 | `src/fetcher/`, `src/extractor/` |
-| 002 | #5, #6 | `src/signatures/`, `src/cache/` |
-| 003 | #7, #8 | `src/tools/list.ts`, `src/tools/extract.ts` |
-| 004 | #9, #10, #11, #12 | `src/analyzer/`, `src/tools/analyze.ts` |
-| 005 | #13, #14, #15 | `src/differ/`, `src/tools/diff.ts`, `src/tools/updates.ts` |
-| 006 | #16, #17, #18 | `src/providers/`, `src/cli/`, `docs/` |
+| 001 | #2, #3, #4 | `packages/limps-radix/src/fetcher/`, `packages/limps-radix/src/extractor/` |
+| 002 | #5, #6 | `packages/limps-radix/src/signatures/`, `packages/limps-radix/src/cache/` |
+| 003 | #7, #8 | `packages/limps-radix/src/tools/list-primitives.ts`, `packages/limps-radix/src/tools/extract-primitive.ts` |
+| 004 | #9, #10, #11, #12 | `packages/limps-radix/src/analyzer/`, `packages/limps-radix/src/tools/analyze-component.ts` |
+| 005 | #13, #14, #15 | `packages/limps-radix/src/differ/`, `packages/limps-radix/src/tools/diff-versions.ts`, `packages/limps-radix/src/tools/check-updates.ts` |
+| 006 | #16, #17, #18 | `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/` |
 
 ## File Links
 
@@ -132,8 +132,8 @@ graph TD
 | # | Agent | Features | Status | Files |
 |---|-------|----------|--------|-------|
 | 000 | [extension-api](./agents/000_agent_extension-api.agent.md) | limps extension API, package scaffolding | PASS | 8 |
-| 001 | [extraction](./agents/001_agent_extraction.agent.md) | Type Fetcher, Extractor, Classifier | GAP | 9 |
-| 002 | [signatures](./agents/002_agent_signatures.agent.md) | Signature Generator, Cache | GAP | 8 |
+| 001 | [extraction](./agents/001_agent_extraction.agent.md) | Type Fetcher, Extractor, Classifier | PASS | 9 |
+| 002 | [signatures](./agents/002_agent_signatures.agent.md) | Signature Generator, Cache | PASS | 8 |
 | 003 | [read-tools](./agents/003_agent_read-tools.agent.md) | radix_list_primitives, radix_extract_primitive | GAP | 3 |
 | 004 | [analyzer](./agents/004_agent_analyzer.agent.md) | Component Analyzer, Scorer, Disambiguator | GAP | 12 |
 | 005 | [differ](./agents/005_agent_differ.agent.md) | Contract Differ, radix_diff_versions | GAP | 7 |

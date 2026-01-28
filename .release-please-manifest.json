@@ -1,3 +1,4 @@
 {
-  ".": "2.5.0"
+  "packages/limps": "2.5.0",
+  "packages/limps-radix": "0.1.0"
 }

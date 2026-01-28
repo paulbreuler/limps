@@ -3,25 +3,25 @@ title: Differ & Updates
 status: GAP
 persona: coder
 dependencies:
-  - 002_agent_signatures.agent.md
+  - "002"
 tags: [limps/agent, limps/status/gap, limps/persona/coder]
 aliases: ["#005", "Differ Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: src/differ/props.ts
+  - path: packages/limps-radix/src/differ/props.ts
     action: create
-  - path: src/differ/types.ts
+  - path: packages/limps-radix/src/differ/types.ts
     action: create
-  - path: src/differ/severity.ts
+  - path: packages/limps-radix/src/differ/severity.ts
     action: create
-  - path: src/differ/hints.ts
+  - path: packages/limps-radix/src/differ/hints.ts
     action: create
-  - path: src/differ/index.ts
+  - path: packages/limps-radix/src/differ/index.ts
     action: create
-  - path: src/tools/diff-versions.ts
+  - path: packages/limps-radix/src/tools/diff-versions.ts
     action: create
-  - path: src/tools/check-updates.ts
+  - path: packages/limps-radix/src/tools/check-updates.ts
     action: create
 ---
 
@@ -32,7 +32,7 @@ files:
 ## Scope
 
 Features: #13 (Contract Differ), #14 (radix_diff_versions), #15 (radix_check_updates)
-Own: `src/differ/`, `src/tools/diff-versions.ts`, `src/tools/check-updates.ts`
+Own: `packages/limps-radix/src/differ/`, `packages/limps-radix/src/tools/diff-versions.ts`, `packages/limps-radix/src/tools/check-updates.ts`
 Depend on: Agent 002 for extraction/cache
 Block: None
 
@@ -41,14 +41,14 @@ Block: None
 ### Export
 
 ```typescript
-// src/differ/index.ts
+// packages/limps-radix/src/differ/index.ts
 export function diffContracts(before: ExtractedPrimitive, after: ExtractedPrimitive): RadixChange[];
 export function diffVersions(fromVersion: string, toVersion: string, primitives?: string[]): Promise<RadixDiff>;
 
-// src/tools/diff-versions.ts
+// packages/limps-radix/src/tools/diff-versions.ts
 export const diffVersionsTool: Tool;
 
-// src/tools/check-updates.ts
+// packages/limps-radix/src/tools/check-updates.ts
 export const checkUpdatesTool: Tool;
 ```
 
