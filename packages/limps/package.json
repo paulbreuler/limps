@@ -1,0 +1,107 @@
+{
+  "name": "@sudosandwich/limps",
+  "version": "2.5.0",
+  "description": "Local Intelligent MCP Planning Server - AI agent plan management and coordination",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./extensions": "./dist/extensions/index.js"
+  },
+  "bin": {
+    "limps": "dist/cli.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/ tests/ --max-warnings 0",
+    "lint:fix": "eslint src/ tests/ --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
+    "ci": "npm run validate"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "planning",
+    "document-management",
+    "ai",
+    "cursor",
+    "claude",
+    "anthropic",
+    "ai-agent",
+    "local-first",
+    "llm",
+    "mcp-server",
+    "rlm",
+    "recursive-language-model"
+  ],
+  "author": "Paul Breuler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulbreuler/limps.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@iarna/toml": "^3.0.0",
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "better-sqlite3": "^12.6.2",
+    "chokidar": "^5.0.0",
+    "fast-json-patch": "^3.1.1",
+    "gray-matter": "^4.0.3",
+    "ink": "^6.6.0",
+    "micromatch": "^4.0.8",
+    "open": "^11.0.0",
+    "pastel": "^4.0.0",
+    "quickjs-emscripten": "^0.31.0",
+    "react": "^19.2.3",
+    "remove-markdown": "^0.6.3",
+    "update-notifier": "^7.3.1",
+    "which": "^6.0.0",
+    "yaml": "^2.7.0",
+    "zod": "^4.3.6"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix",
+      "eslint"
+    ],
+    "tests/**/*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix",
+      "eslint"
+    ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/micromatch": "^4.0.10",
+    "@types/node": "^25.0.10",
+    "@types/react": "^19.2.9",
+    "@types/update-notifier": "^6.0.8",
+    "@types/which": "^3.0.4",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^9.39.2",
+    "husky": "^9.1.7",
+    "ink-testing-library": "^4.0.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.1",
+    "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "hono": "^4.11.7"
+  }
+}

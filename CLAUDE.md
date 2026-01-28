@@ -2,23 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Monorepo Structure
+
+This is an npm workspaces monorepo with two packages:
+
+- `packages/limps` - @sudosandwich/limps - The main MCP planning server
+- `packages/limps-radix` - @sudosandwich/limps-radix - Radix UI extension for limps
+
 ## Build and Development Commands
 
 ```bash
-npm run build          # Compile TypeScript to dist/
-npm run dev            # Watch mode for development
-npm test               # Run all tests (vitest)
-npm run test:watch     # Run tests in watch mode
-npm run test:coverage  # Run tests with coverage report
-npm run lint           # ESLint check (src/ and tests/)
-npm run lint:fix       # Auto-fix ESLint issues
-npm run format         # Prettier format all files
+# Root-level commands (run across all workspaces)
+npm run build          # Compile TypeScript to dist/ in all packages
+npm test               # Run all tests across workspaces
+npm run lint           # ESLint check across workspaces
 npm run validate       # Full validation: format + lint + type-check + build + test
+
+# Single package commands
+npm run build -w packages/limps           # Build only limps
+npm run test -w packages/limps            # Test only limps
+npm run build -w packages/limps-radix     # Build only limps-radix
+
+# Development
+npm run dev -w packages/limps             # Watch mode for limps
 ```
 
 ### Running a Single Test
 
 ```bash
+cd packages/limps
 npx vitest run tests/path/to/file.test.ts
 npx vitest run -t "test name pattern"
 ```
@@ -27,7 +39,7 @@ npx vitest run -t "test name pattern"
 
 limps is an MCP (Model Context Protocol) server for AI agent plan management. It provides tools and resources that AI assistants (Claude Desktop, Cursor, etc.) can use to manage planning documents and tasks.
 
-### Core Components
+### Core Components (packages/limps)
 
 **Entry Points:**
 
@@ -40,6 +52,12 @@ limps is an MCP (Model Context Protocol) server for AI agent plan management. It
 - `src/server.ts` - Creates MCP server instance with `@modelcontextprotocol/sdk`
 - `src/tools/index.ts` - Registers 14 MCP tools (document CRUD, plan management, task status)
 - `src/resources/index.ts` - Registers 5 MCP resources (plans://index, plans://summary/*, plans://full/*, decisions://log, agents://status)
+
+**Extension System:**
+
+- `src/extensions/types.ts` - LimpsExtension interface for building extensions
+- `src/extensions/loader.ts` - Dynamic extension loading from config
+- `src/extensions/context.ts` - ExtensionContext provided to extensions
 
 **Data Layer:**
 
@@ -81,4 +99,4 @@ plans/
 
 ### Test Organization
 
-Tests mirror the source structure in `tests/`. Tests run sequentially (`fileParallelism: false`) to avoid SQLite locking issues. Coverage threshold is 70% for all metrics.
+Tests mirror the source structure in `packages/limps/tests/`. Tests run sequentially (`fileParallelism: false`) to avoid SQLite locking issues. Coverage threshold is 70% for all metrics.

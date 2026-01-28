@@ -5,6 +5,19 @@ import { tmpdir } from 'os';
 import type { FSWatcher } from 'chokidar';
 import { startWatcher, stopWatcher } from '../src/watcher.js';
 
+const waitForReady = (watcher: FSWatcher, timeoutMs = 1000): Promise<void> =>
+  new Promise((resolve) => {
+    const onReady = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      watcher.off('ready', onReady);
+      resolve();
+    }, timeoutMs);
+    watcher.once('ready', onReady);
+  });
+
 describe('watcher-start', () => {
   let testDir: string;
   let watcher: FSWatcher | null = null;
@@ -30,8 +43,7 @@ describe('watcher-start', () => {
 
     expect(watcher).toBeDefined();
 
-    // Wait a bit for watcher to initialize
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitForReady(watcher);
 
     expect(watcher).toBeTruthy();
   });
@@ -40,8 +52,7 @@ describe('watcher-start', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md']);
 
-    // Wait for watcher to be ready
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     // Create a markdown file
     const testFile = join(testDir, 'test.md');
@@ -82,6 +93,7 @@ describe('file-change-trigger', () => {
   it('should trigger reindex on file change', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md']);
+    await waitForReady(watcher);
 
     const testFile = join(testDir, 'test.md');
     writeFileSync(testFile, '# Test\n\nInitial content.', 'utf-8');
@@ -109,7 +121,7 @@ describe('file-change-trigger', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md']);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     const testFile = join(testDir, 'new.md');
     writeFileSync(testFile, '# New\n\nContent.', 'utf-8');
@@ -146,7 +158,7 @@ describe('debouncing', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md'], []);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     const testFile = join(testDir, 'test.md');
     writeFileSync(testFile, '# Test\n\nContent 1.', 'utf-8');
@@ -174,7 +186,7 @@ describe('debouncing', () => {
     const onSettled = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md'], [], 50, 200, onSettled);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     const testFile = join(testDir, 'settled.md');
     writeFileSync(testFile, '# Test\n\nContent 1.', 'utf-8');
@@ -214,7 +226,7 @@ describe('file-deletion', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md']);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     const testFile = join(testDir, 'test.md');
     writeFileSync(testFile, '# Test\n\nContent.', 'utf-8');
@@ -236,7 +248,7 @@ describe('file-deletion', () => {
     const onChange = vi.fn();
     watcher = startWatcher(testDir, onChange, ['.md']);
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitForReady(watcher);
 
     await stopWatcher(watcher);
     watcher = null;
@@ -269,7 +281,7 @@ describe('multi-extension-watcher', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md', '.jsx', '.tsx']);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     // Create files with different extensions
     writeFileSync(join(testDir, 'readme.md'), '# README', 'utf-8');
@@ -291,7 +303,7 @@ describe('multi-extension-watcher', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.jsx']);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     writeFileSync(join(testDir, 'comp.jsx'), 'export const Comp = () => null;', 'utf-8');
     writeFileSync(join(testDir, 'readme.md'), '# Ignored', 'utf-8');
@@ -333,7 +345,7 @@ describe('multi-path-watcher', () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher([testDir1, testDir2], onChange, ['.md']);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForReady(watcher);
 
     // Create files in both directories
     writeFileSync(join(testDir1, 'doc1.md'), '# Doc 1', 'utf-8');
