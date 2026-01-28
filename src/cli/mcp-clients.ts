@@ -3,11 +3,20 @@ import {
   configAddClaudeCode,
   configAddCodex,
   configAddCursor,
+  configAddLocalMcp,
   generateChatGptInstructions,
   generateConfigForPrint,
   previewMcpClientConfig,
 } from './config-cmd.js';
-import { getAdapter } from './mcp-client-adapter.js';
+import {
+  getAdapter,
+  getLocalAdapter,
+  supportsLocalConfig,
+  type LocalMcpClientType,
+} from './mcp-client-adapter.js';
+
+// Re-export LocalMcpClientType for consumers
+export type { LocalMcpClientType } from './mcp-client-adapter.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 
 export type McpSyncClientId = 'claude' | 'cursor' | 'claude-code' | 'codex' | 'chatgpt';
@@ -29,6 +38,8 @@ export interface McpSyncClient {
   supportsWrite: boolean;
   supportsPrint: boolean;
   printOnly?: boolean;
+  /** Whether this client supports local workspace configs */
+  supportsLocalConfig: boolean;
   runPreview?: (projectFilter?: string[]) => PreviewResult;
   runWrite?: (projectFilter?: string[]) => string;
   runPrint?: (projectFilter?: string[]) => string;
@@ -48,6 +59,7 @@ function createFileClient(params: {
     supportsPreview: true,
     supportsWrite: true,
     supportsPrint: true,
+    supportsLocalConfig: supportsLocalConfig(id),
     runPreview: (projectFilter?: string[]): PreviewResult => {
       const adapter = getAdapter(id);
       return previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
@@ -61,8 +73,12 @@ function createFileClient(params: {
   };
 }
 
+/**
+ * Get all available global sync clients.
+ * These write to global/user-level config files.
+ */
 export function getSyncClients(): McpSyncClient[] {
-  return [
+  const clients: McpSyncClient[] = [
     createFileClient({
       id: 'claude',
       displayName: 'Claude Desktop',
@@ -89,9 +105,61 @@ export function getSyncClients(): McpSyncClient[] {
       supportsPreview: false,
       supportsWrite: false,
       supportsPrint: true,
+      supportsLocalConfig: false,
       printOnly: true,
       runPrint: (projectFilter?: string[]) =>
         generateChatGptInstructions(() => resolveConfigPath(), projectFilter),
     },
   ];
+
+  return clients;
+}
+
+/**
+ * Create a local config client for a specific MCP client type.
+ * This writes to workspace-level config files (e.g., .cursor/mcp.json, .mcp.json).
+ *
+ * @param clientType - The client type to create a local adapter for
+ * @param customPath - Optional custom path for the config file
+ */
+export function createLocalClient(
+  clientType: LocalMcpClientType,
+  customPath?: string
+): {
+  adapter: ReturnType<typeof getLocalAdapter>;
+  displayName: string;
+  runPreview: (projectFilter?: string[]) => PreviewResult;
+  runWrite: (projectFilter?: string[]) => string;
+  runPrint: (projectFilter?: string[]) => string;
+} {
+  const adapter = getLocalAdapter(clientType, customPath);
+
+  return {
+    adapter,
+    displayName: adapter.getDisplayName(),
+    runPreview: (projectFilter?: string[]): PreviewResult => {
+      return previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+    },
+    runWrite: (projectFilter?: string[]): string => {
+      // Pass the adapter directly to preserve display name and settings
+      return configAddLocalMcp(() => resolveConfigPath(), projectFilter, adapter);
+    },
+    runPrint: (projectFilter?: string[]): string => {
+      return generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+    },
+  };
+}
+
+/**
+ * Map sync client ID to local client type (for clients that support local configs)
+ */
+export function getLocalClientType(clientId: McpSyncClientId): LocalMcpClientType | null {
+  switch (clientId) {
+    case 'cursor':
+      return 'cursor';
+    case 'claude-code':
+      return 'claude-code';
+    default:
+      return null;
+  }
 }

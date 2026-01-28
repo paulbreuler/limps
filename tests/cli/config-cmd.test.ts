@@ -30,6 +30,8 @@ import {
   configAddClaude,
   configAddCursor,
   configAddCodex,
+  configAddLocalMcp,
+  hasLocalMcpJson,
   generateChatGptInstructions,
   generateConfigForPrint,
   configUpdate,
@@ -877,6 +879,109 @@ describe('config-cmd', () => {
       registerProject('my-project', configPath);
 
       expect(() => configAddCodex(() => configPath)).toThrow('mcp_servers');
+    });
+  });
+
+  describe('configAddLocalMcp', () => {
+    let localMcpPath: string;
+    let originalCwd: string;
+
+    beforeEach(() => {
+      // Save original cwd
+      originalCwd = process.cwd();
+      // Change to test directory
+      process.chdir(testDir);
+      localMcpPath = join(testDir, '.mcp.json');
+    });
+
+    afterEach(() => {
+      // Restore original cwd
+      process.chdir(originalCwd);
+    });
+
+    it('creates local .mcp.json if it does not exist', () => {
+      const configPath = createConfig('new-project');
+      registerProject('new-project', configPath);
+
+      const output = configAddLocalMcp(() => configPath);
+
+      expect(output).toContain('.mcp.json');
+      expect(output).toContain('Added');
+      expect(existsSync(localMcpPath)).toBe(true);
+      const localConfig = JSON.parse(readFileSync(localMcpPath, 'utf-8'));
+      expect(localConfig.mcpServers).toBeDefined();
+      expect(localConfig.mcpServers['limps-planning-new-project']).toBeDefined();
+    });
+
+    it('adds all registered projects to local .mcp.json', () => {
+      const configA = createConfig('project-a');
+      const configB = createConfig('project-b');
+      registerProject('project-a', configA);
+      registerProject('project-b', configB);
+
+      const output = configAddLocalMcp(() => configA);
+
+      expect(output).toContain('Added');
+      expect(output).toContain('.mcp.json');
+
+      const localConfig = JSON.parse(readFileSync(localMcpPath, 'utf-8'));
+      expect(localConfig.mcpServers).toBeDefined();
+      expect(localConfig.mcpServers['limps-planning-project-a']).toBeDefined();
+      expect(localConfig.mcpServers['limps-planning-project-b']).toBeDefined();
+      expect(localConfig.mcpServers['limps-planning-project-a'].command).toBe('limps');
+      expect(localConfig.mcpServers['limps-planning-project-a'].args).toEqual([
+        'serve',
+        '--config',
+        configA,
+      ]);
+    });
+
+    it('preserves existing settings in local .mcp.json', () => {
+      const existingConfig = {
+        mcpServers: {
+          'other-server': {
+            command: 'other-command',
+            args: ['arg1'],
+          },
+        },
+      };
+      writeFileSync(localMcpPath, JSON.stringify(existingConfig, null, 2));
+
+      const configPath = createConfig('my-project');
+      registerProject('my-project', configPath);
+
+      configAddLocalMcp(() => configPath);
+
+      const localConfig = JSON.parse(readFileSync(localMcpPath, 'utf-8'));
+      expect(localConfig.mcpServers['other-server']).toBeDefined();
+      expect(localConfig.mcpServers['limps-planning-my-project']).toBeDefined();
+    });
+
+    it('detects local .mcp.json existence', () => {
+      // Initially should not exist
+      expect(hasLocalMcpJson()).toBe(false);
+
+      // Create the file
+      writeFileSync(localMcpPath, JSON.stringify({ mcpServers: {} }, null, 2));
+
+      // Now should exist
+      expect(hasLocalMcpJson()).toBe(true);
+    });
+
+    it('handles custom path for .mcp.json', () => {
+      const customPath = join(testDir, 'custom', '.mcp.json');
+      mkdirSync(dirname(customPath), { recursive: true });
+
+      const configPath = createConfig('custom-project');
+      registerProject('custom-project', configPath);
+
+      const output = configAddLocalMcp(() => configPath, undefined, customPath);
+
+      expect(output).toContain('Added');
+      expect(output).toContain(customPath);
+      expect(existsSync(customPath)).toBe(true);
+      const localConfig = JSON.parse(readFileSync(customPath, 'utf-8'));
+      expect(localConfig.mcpServers['limps-planning-custom-project']).toBeDefined();
     });
   });
 

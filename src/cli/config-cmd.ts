@@ -393,6 +393,7 @@ export function configSet(configFilePath: string): string {
 
 import {
   getAdapter,
+  LocalMcpAdapter,
   type McpClientAdapter,
   type McpClientConfig,
   type McpServerConfig,
@@ -888,6 +889,45 @@ export function configAddCodex(
 ): string {
   const adapter = getAdapter('codex');
   return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Add/update limps server configuration to local workspace MCP config file.
+ * Creates the config file if it doesn't exist, or merges with existing config.
+ * Adds all registered projects as separate MCP servers.
+ *
+ * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
+ * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @param adapterOrPath - Optional LocalMcpAdapter instance or path to the config file
+ * @returns Success message listing all added servers
+ * @throws Error if config directory doesn't exist or can't be written
+ */
+export function configAddLocalMcp(
+  resolveConfigPathFn: () => string,
+  projectFilter?: string[],
+  adapterOrPath?: LocalMcpAdapter | string
+): string {
+  // Use provided adapter, or create one from path, or use default (claude-code style .mcp.json)
+  let adapter: LocalMcpAdapter;
+  if (adapterOrPath instanceof LocalMcpAdapter) {
+    adapter = adapterOrPath;
+  } else if (typeof adapterOrPath === 'string') {
+    adapter = new LocalMcpAdapter('custom', adapterOrPath);
+  } else {
+    adapter = new LocalMcpAdapter('claude-code');
+  }
+  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+}
+
+/**
+ * Check if a local .mcp.json file exists in the current directory or specified path.
+ *
+ * @param mcpJsonPath - Optional path to .mcp.json (defaults to .mcp.json in current directory)
+ * @returns True if the file exists, false otherwise
+ */
+export function hasLocalMcpJson(mcpJsonPath?: string): boolean {
+  const path = mcpJsonPath || join(process.cwd(), '.mcp.json');
+  return existsSync(path);
 }
 
 /**
