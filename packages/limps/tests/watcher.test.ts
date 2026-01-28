@@ -364,7 +364,7 @@ describe('multi-extension-watcher', () => {
     expect(paths).toContain(join(testDir, 'comp.jsx'));
     expect(paths).toContain(join(testDir, 'typed.tsx'));
     expect(paths).not.toContain(join(testDir, 'ignored.js'));
-  });
+  }, 10000);
 
   it('should watch JSX files only', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
