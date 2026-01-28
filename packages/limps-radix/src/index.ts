@@ -17,3 +17,9 @@ export default limpsRadix;
 
 // Re-export types
 export * from './types/index.js';
+
+// Re-export signatures module
+export * from './signatures/index.js';
+
+// Re-export cache module
+export * from './cache/index.js';

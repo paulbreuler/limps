@@ -133,7 +133,11 @@ export async function resolveVersion(
   } else {
     // Assume it's a semver - just return as-is for now
     // In a full implementation, we'd validate against available versions
-    version = versionHint.replace(/^[^~]/, '');
+    if (versionHint.startsWith('^') || versionHint.startsWith('~')) {
+      version = versionHint.slice(1);
+    } else {
+      version = versionHint;
+    }
   }
 
   // Update cache

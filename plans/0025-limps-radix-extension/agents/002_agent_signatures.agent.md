@@ -1,10 +1,10 @@
 ---
 title: Signature Generator & Cache
-status: GAP
+status: PASS
 persona: coder
 dependencies:
   - 001_agent_extraction.agent.md
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#002", "Signatures Agent"]
 created: 2026-01-26
 updated: 2026-01-27
@@ -70,7 +70,7 @@ import type { ExtractedPrimitive, PropDefinition } from '../types/index.js';
 ### #5: Behavior Signature Generator
 
 TL;DR: Transform ExtractedPrimitive → BehaviorSignature
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `inferStatePattern: open/onOpenChange → "binary"` → check prop patterns → return type
@@ -102,7 +102,7 @@ const DISTINGUISHING = {
 ### #6: Cache System
 
 TL;DR: Version-aware caching with TTL
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `getFromCache returns null if missing` → check file exists → return null
@@ -130,11 +130,11 @@ TTL strategy:
 
 ## Done
 
-- [ ] inferStatePattern classifies state props
-- [ ] inferCompositionPattern detects compound/monolithic/provider
-- [ ] inferRenderingPattern detects portal/inline/conditional
-- [ ] Distinguishing props identified for each primitive
-- [ ] Disambiguation rules encoded
-- [ ] Cache reads/writes to .limps-radix/{version}/
-- [ ] TTL expiration works
-- [ ] Force refresh bypasses cache
+- [x] inferStatePattern classifies state props
+- [x] inferCompositionPattern detects compound/monolithic/provider
+- [x] inferRenderingPattern detects portal/inline/conditional
+- [x] Distinguishing props identified for each primitive
+- [x] Disambiguation rules encoded
+- [x] Cache reads/writes to .limps-radix/{version}/
+- [x] TTL expiration works
+- [x] Force refresh bypasses cache (via ignoreExpired option)

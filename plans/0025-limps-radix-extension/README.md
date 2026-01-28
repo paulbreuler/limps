@@ -94,8 +94,8 @@ graph TD
 | 2 | Type Fetcher | 001 | PASS | 3 |
 | 3 | Type Extractor | 001 | PASS | 4 |
 | 4 | Props Classifier | 001 | PASS | 5 |
-| 5 | Signature Generator | 002 | GAP | 6-9, 13 |
-| 6 | Cache System | 002 | GAP | 7-8, 12, 15 |
+| 5 | Signature Generator | 002 | PASS | 6-9, 13 |
+| 6 | Cache System | 002 | PASS | 7-8, 12, 15 |
 | 7 | radix_list_primitives | 003 | GAP | - |
 | 8 | radix_extract_primitive | 003 | GAP | - |
 | 9 | Component Analyzer | 004 | GAP | 10 |
@@ -133,7 +133,7 @@ graph TD
 |---|-------|----------|--------|-------|
 | 000 | [extension-api](./agents/000_agent_extension-api.agent.md) | limps extension API, package scaffolding | PASS | 8 |
 | 001 | [extraction](./agents/001_agent_extraction.agent.md) | Type Fetcher, Extractor, Classifier | PASS | 9 |
-| 002 | [signatures](./agents/002_agent_signatures.agent.md) | Signature Generator, Cache | GAP | 8 |
+| 002 | [signatures](./agents/002_agent_signatures.agent.md) | Signature Generator, Cache | PASS | 8 |
 | 003 | [read-tools](./agents/003_agent_read-tools.agent.md) | radix_list_primitives, radix_extract_primitive | GAP | 3 |
 | 004 | [analyzer](./agents/004_agent_analyzer.agent.md) | Component Analyzer, Scorer, Disambiguator | GAP | 12 |
 | 005 | [differ](./agents/005_agent_differ.agent.md) | Contract Differ, radix_diff_versions | GAP | 7 |
