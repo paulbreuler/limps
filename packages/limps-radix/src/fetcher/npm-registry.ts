@@ -6,6 +6,8 @@ import type { PackageInfo, PrimitiveInfo } from '../types/index.js';
 
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org';
 const RADIX_SCOPE = '@radix-ui';
+const UNIFIED_PACKAGE_NAME = 'radix-ui';
+const UNIFIED_MIN_VERSION = '1.4.3';
 
 // Cache for version resolution (short TTL in memory)
 const versionCache = new Map<string, { version: string; timestamp: number }>();
@@ -48,6 +50,41 @@ export const KNOWN_PRIMITIVES = [
 ] as const;
 
 export type KnownPrimitive = (typeof KNOWN_PRIMITIVES)[number];
+
+interface ParsedVersion {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease?: string;
+}
+
+function parseVersion(version: string): ParsedVersion {
+  const [core, prerelease] = version.split('-');
+  const [major, minor, patch] = core.split('.').map((part) => Number(part));
+  return {
+    major: Number.isFinite(major) ? major : 0,
+    minor: Number.isFinite(minor) ? minor : 0,
+    patch: Number.isFinite(patch) ? patch : 0,
+    prerelease,
+  };
+}
+
+function compareVersions(a: string, b: string): number {
+  const left = parseVersion(a);
+  const right = parseVersion(b);
+
+  if (left.major !== right.major) return left.major > right.major ? 1 : -1;
+  if (left.minor !== right.minor) return left.minor > right.minor ? 1 : -1;
+  if (left.patch !== right.patch) return left.patch > right.patch ? 1 : -1;
+
+  if (left.prerelease && !right.prerelease) return -1;
+  if (!left.prerelease && right.prerelease) return 1;
+  return 0;
+}
+
+export function isVersionAtLeast(version: string, minVersion: string): boolean {
+  return compareVersions(version, minVersion) >= 0;
+}
 
 /**
  * Convert primitive name to package name.
@@ -106,6 +143,43 @@ export async function fetchPackageInfo(
   };
 }
 
+function resolveVersionFromPackageInfo(
+  packageInfo: PackageInfo,
+  versionHint: string
+): string {
+  if (versionHint === 'latest' || versionHint === '*') {
+    return packageInfo.distTags.latest;
+  }
+  if (packageInfo.distTags[versionHint]) {
+    return packageInfo.distTags[versionHint];
+  }
+  if (versionHint.startsWith('^') || versionHint.startsWith('~')) {
+    return versionHint.slice(1);
+  }
+  return versionHint;
+}
+
+/**
+ * Resolve a version hint for a specific package.
+ */
+export async function resolvePackageVersion(
+  packageName: string,
+  versionHint: string = 'latest'
+): Promise<string> {
+  const cacheKey = `${packageName}@${versionHint}`;
+
+  const cached = versionCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < VERSION_CACHE_TTL_MS) {
+    return cached.version;
+  }
+
+  const packageInfo = await fetchPackageInfo(packageName);
+  const version = resolveVersionFromPackageInfo(packageInfo, versionHint);
+
+  versionCache.set(cacheKey, { version, timestamp: Date.now() });
+  return version;
+}
+
 /**
  * Resolve a version hint (e.g., "latest", "^1.0.0") to an actual version.
  */
@@ -114,36 +188,7 @@ export async function resolveVersion(
   versionHint: string = 'latest'
 ): Promise<string> {
   const packageName = primitiveToPackage(primitive);
-  const cacheKey = `${packageName}@${versionHint}`;
-
-  // Check cache
-  const cached = versionCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < VERSION_CACHE_TTL_MS) {
-    return cached.version;
-  }
-
-  const packageInfo = await fetchPackageInfo(packageName);
-
-  let version: string;
-  if (versionHint === 'latest' || versionHint === '*') {
-    version = packageInfo.distTags.latest;
-  } else if (packageInfo.distTags[versionHint]) {
-    // dist-tag like "next", "beta"
-    version = packageInfo.distTags[versionHint];
-  } else {
-    // Assume it's a semver - just return as-is for now
-    // In a full implementation, we'd validate against available versions
-    if (versionHint.startsWith('^') || versionHint.startsWith('~')) {
-      version = versionHint.slice(1);
-    } else {
-      version = versionHint;
-    }
-  }
-
-  // Update cache
-  versionCache.set(cacheKey, { version, timestamp: Date.now() });
-
-  return version;
+  return resolvePackageVersion(packageName, versionHint);
 }
 
 /**
@@ -162,6 +207,24 @@ export async function listPrimitives(
     package: primitiveToPackage(name),
     description: getPrimitiveDescription(name),
   }));
+}
+
+/**
+ * Check if the unified "radix-ui" package is available and meets the minimum version.
+ */
+export async function queryUnifiedPackage(
+  minVersion: string = UNIFIED_MIN_VERSION
+): Promise<{ available: boolean; version?: string }> {
+  try {
+    const packageInfo = await fetchPackageInfo(UNIFIED_PACKAGE_NAME);
+    const version = resolveVersionFromPackageInfo(packageInfo, 'latest');
+    return {
+      available: isVersionAtLeast(version, minVersion),
+      version,
+    };
+  } catch (error) {
+    return { available: false };
+  }
 }
 
 /**
