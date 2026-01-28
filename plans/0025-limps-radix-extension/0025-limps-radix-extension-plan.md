@@ -1347,6 +1347,115 @@ Feature: Radix audit report pipeline
 
 ---
 
+## Feature 22: MVP Release Documentation
+
+**Status:** GAP
+
+### Description
+
+Create comprehensive README.md for @sudosandwich/limps-radix v0.1.0 release. Documentation must cover installation, usage, MCP tool reference, configuration, and examples.
+
+### Gherkin
+
+```gherkin
+Feature: Package documentation
+
+  Scenario: README includes installation
+    Given a user wants to install limps-radix
+    When they read README.md
+    Then they see npm install command
+    And they see peer dependency requirements
+
+  Scenario: README includes usage examples
+    Given a user wants to use limps-radix
+    When they read README.md
+    Then they see MCP tool examples
+    And they see configuration examples
+
+  Scenario: README includes API reference
+    Given a developer wants to integrate
+    When they read README.md
+    Then they see exported types
+    And they see extension interface
+```
+
+### TDD Cycles
+
+1. **Installation section test**
+   - Test: README has installation instructions
+   - Impl: Add installation section with npm command
+   - Refactor: Include peer dependency note
+
+2. **Usage examples test**
+   - Test: README has MCP tool examples
+   - Impl: Add examples for radix_list_primitives and radix_extract_primitive
+   - Refactor: Include JSON output examples
+
+3. **API reference test**
+   - Test: README documents exported types
+   - Impl: Add API section with type exports
+   - Refactor: Link to source code
+
+4. **Configuration test**
+   - Test: README explains extension config
+   - Impl: Add configuration section
+   - Refactor: Include example config
+
+### Files
+
+- `packages/limps-radix/README.md` (create)
+
+---
+
+## Feature 23: MVP Release Artifacts
+
+**Status:** GAP
+
+### Description
+
+Add required release artifacts for npm publication: LICENSE file and release verification.
+
+### Gherkin
+
+```gherkin
+Feature: Release artifacts
+
+  Scenario: LICENSE file exists
+    Given package.json specifies LICENSE in files array
+    When building package
+    Then LICENSE file is included
+    And LICENSE matches root LICENSE (MIT)
+
+  Scenario: Package verification
+    Given all release artifacts are ready
+    When running npm pack --dry-run
+    Then package includes dist/, README.md, LICENSE
+    And no unexpected files included
+```
+
+### TDD Cycles
+
+1. **LICENSE file test**
+   - Test: LICENSE file exists in package directory
+   - Impl: Copy LICENSE from root to packages/limps-radix/
+   - Refactor: Verify MIT license content
+
+2. **Package verification test**
+   - Test: npm pack includes required files
+   - Impl: Run npm pack --dry-run, verify contents
+   - Refactor: Check files array matches actual files
+
+3. **Build verification test**
+   - Test: dist/ directory has all compiled files
+   - Impl: Verify dist/ structure matches source
+   - Refactor: Check type definitions included
+
+### Files
+
+- `packages/limps-radix/LICENSE` (create - copy from root)
+
+---
+
 ## Status
 
 Status: Planning

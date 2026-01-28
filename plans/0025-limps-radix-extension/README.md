@@ -110,6 +110,9 @@ graph TD
 | 18 | Documentation | 006 | GAP | - |
 | 19 | Unified Package (GTC-004) | 007 | PASS | - |
 | 20 | Complex Parsing (GTC-005) | 008 | PASS | - |
+| 21 | Audit Report Pipeline | 009 | GAP | - |
+| 22 | MVP Release Documentation | 010 | GAP | - |
+| 23 | MVP Release Artifacts | 011 | GAP | - |
 
 ## Agent Assignments
 
@@ -124,6 +127,8 @@ graph TD
 | 006 | #16, #17, #18 | `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/` |
 | 007 | #19 | `packages/limps-radix/src/fetcher/unified-package.ts` |
 | 008 | #20 | `packages/limps-radix/src/extractor/type-resolver.ts`, `packages/limps-radix/src/extractor/forward-ref.ts` |
+| 010 | #22 | `packages/limps-radix/README.md` |
+| 011 | #23 | `packages/limps-radix/LICENSE` |
 
 ## File Links
 
@@ -144,3 +149,5 @@ graph TD
 | 006 | [polish](./agents/006_agent_polish.agent.md) | Provider arch, CLI, Documentation | GAP | 14 |
 | 007 | [unified-package](./agents/007_agent_unified-package.agent.md) | Unified Package (GTC-004) | PASS | 4 |
 | 008 | [complex-parsing](./agents/008_agent_complex-parsing.agent.md) | Complex Parsing (GTC-005) | PASS | 5 |
+| 010 | [release-docs](./agents/010_agent_release-docs.agent.md) | MVP Release Documentation | GAP | 1 |
+| 011 | [release-artifacts](./agents/011_agent_release-artifacts.agent.md) | MVP Release Artifacts | GAP | 1 |
