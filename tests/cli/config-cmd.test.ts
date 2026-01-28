@@ -905,7 +905,8 @@ describe('config-cmd', () => {
 
       const output = configAddLocalMcp(() => configPath);
 
-      expect(output).toContain('Local .mcp.json');
+      expect(output).toContain('.mcp.json');
+      expect(output).toContain('Added');
       expect(existsSync(localMcpPath)).toBe(true);
       const localConfig = JSON.parse(readFileSync(localMcpPath, 'utf-8'));
       expect(localConfig.mcpServers).toBeDefined();
@@ -976,7 +977,8 @@ describe('config-cmd', () => {
 
       const output = configAddLocalMcp(() => configPath, undefined, customPath);
 
-      expect(output).toContain('Local .mcp.json');
+      expect(output).toContain('Added');
+      expect(output).toContain(customPath);
       expect(existsSync(customPath)).toBe(true);
       const localConfig = JSON.parse(readFileSync(customPath, 'utf-8'));
       expect(localConfig.mcpServers['limps-planning-custom-project']).toBeDefined();

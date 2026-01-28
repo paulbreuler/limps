@@ -1,12 +1,17 @@
 import { Text, Box } from 'ink';
 import { z } from 'zod';
 import { useState, useEffect } from 'react';
-import { getSyncClients, type McpSyncClient } from '../../cli/mcp-clients.js';
+import {
+  getSyncClients,
+  createLocalClient,
+  getLocalClientType,
+  type McpSyncClient,
+} from '../../cli/mcp-clients.js';
 import { Confirm } from '../../components/Confirm.js';
 import { listProjects } from '../../cli/registry.js';
 
 export const description =
-  'Add or update all registered limps projects in MCP client configs (default: all projects, all clients)';
+  'Add or update limps projects in MCP client configs (default: local/project config)';
 
 export const args = z.tuple([
   z.string().describe('Project name (optional, overrides --projects)').optional(),
@@ -18,12 +23,20 @@ export const options = z.object({
     .optional()
     .describe('Comma-separated list of project names to add (default: all registered projects)'),
   client: z
-    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'local', 'all'])
+    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'all'])
     .optional()
     .default('all')
     .describe(
-      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, local, or all). Default: all'
+      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, or all). Default: all'
     ),
+  global: z
+    .boolean()
+    .optional()
+    .describe('Write to global/user config instead of local project config'),
+  path: z
+    .string()
+    .optional()
+    .describe('Custom path for local config file (overrides default client-specific path)'),
   print: z
     .boolean()
     .optional()
@@ -55,56 +68,94 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
           .filter((p) => p.length > 0)
       : undefined;
 
-  // Build warning message
+  // Build list of projects to show
   const allProjects = listProjects();
   const projectsToShow = projectFilter
     ? allProjects.filter((p) => projectFilter.includes(p.name))
     : allProjects;
 
+  // Get all available global clients
   const allClients = getSyncClients();
   const selectedClients: McpSyncClient[] =
     options.client === 'all'
       ? allClients
       : allClients.filter((client) => client.id === options.client);
 
-  const clientsToShow: string[] = selectedClients.map((client) => client.displayName);
-  const diffBlocks: string[] = [];
-  let hasAnyChanges = false;
-  if (!force) {
-    for (const client of selectedClients) {
-      if (!client.supportsPreview || !client.runPreview) {
-        continue;
-      }
-      try {
-        const preview = client.runPreview(projectFilter);
-        if (preview.hasChanges) {
-          hasAnyChanges = true;
-          diffBlocks.push(
-            `--- ${client.displayName} (${preview.configPath}) ---\n${preview.diffText}`
-          );
+  // Determine if we're writing to global or local configs
+  const useGlobal = options.global === true;
+
+  // Build list of local clients to update (when not using --global)
+  interface LocalClientInfo {
+    clientType: ReturnType<typeof getLocalClientType>;
+    client: ReturnType<typeof createLocalClient>;
+  }
+  const localClients: LocalClientInfo[] = [];
+
+  if (!useGlobal) {
+    // When a custom path is provided, use it for all clients that support local configs
+    if (options.path) {
+      // Use custom path with 'custom' client type
+      const localClient = createLocalClient('custom', options.path);
+      localClients.push({ clientType: 'custom', client: localClient });
+    } else {
+      // Create local clients for each selected client that supports local configs
+      for (const client of selectedClients) {
+        const localType = getLocalClientType(client.id);
+        if (localType) {
+          const localClient = createLocalClient(localType);
+          localClients.push({ clientType: localType, client: localClient });
         }
-      } catch (err) {
-        diffBlocks.push(`--- ${client.displayName} ---\nError: ${(err as Error).message}`);
       }
     }
+  }
 
-    // Also preview local .mcp.json if it exists and wasn't already in selectedClients
-    const hasLocalClient = selectedClients.some((c) => c.id === 'local');
-    if (!hasLocalClient) {
-      const localClient = allClients.find((c) => c.id === 'local');
-      if (localClient && localClient.supportsPreview && localClient.runPreview) {
+  // Build display names for confirmation message
+  const clientsToShow: string[] = [];
+  if (useGlobal) {
+    clientsToShow.push(...selectedClients.map((client) => `${client.displayName} (global)`));
+  } else {
+    clientsToShow.push(...localClients.map((lc) => lc.client.displayName));
+    // Also show print-only clients
+    const printOnlyClients = selectedClients.filter((client) => client.printOnly);
+    clientsToShow.push(...printOnlyClients.map((client) => client.displayName));
+  }
+
+  // Preview changes
+  const diffBlocks: string[] = [];
+  let hasAnyChanges = false;
+
+  if (!force) {
+    if (useGlobal) {
+      // Preview global client changes
+      for (const client of selectedClients) {
+        if (!client.supportsPreview || !client.runPreview) {
+          continue;
+        }
         try {
-          const preview = localClient.runPreview(projectFilter);
+          const preview = client.runPreview(projectFilter);
           if (preview.hasChanges) {
             hasAnyChanges = true;
             diffBlocks.push(
-              `--- ${localClient.displayName} (${preview.configPath}) ---\n${preview.diffText}`
+              `--- ${client.displayName} (${preview.configPath}) ---\n${preview.diffText}`
             );
-            // Add to clientsToShow for the confirmation message
-            clientsToShow.push(localClient.displayName);
           }
-        } catch (_err) {
-          // Silently skip if local .mcp.json doesn't exist or can't be read
+        } catch (err) {
+          diffBlocks.push(`--- ${client.displayName} ---\nError: ${(err as Error).message}`);
+        }
+      }
+    } else {
+      // Preview local client changes
+      for (const { client } of localClients) {
+        try {
+          const preview = client.runPreview(projectFilter);
+          if (preview.hasChanges) {
+            hasAnyChanges = true;
+            diffBlocks.push(
+              `--- ${client.displayName} (${preview.configPath}) ---\n${preview.diffText}`
+            );
+          }
+        } catch (err) {
+          diffBlocks.push(`--- ${client.displayName} ---\nError: ${(err as Error).message}`);
         }
       }
     }
@@ -120,23 +171,38 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
   const printOnlyNote = includesPrintOnly
     ? `\n\nPrint-only clients (${printOnlyNames}) will not write local config files.`
     : '';
-  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')} configuration outputs.${diffSection}${changeNote}${printOnlyNote}`;
+
+  const scopeNote = useGlobal ? ' (global configs)' : ' (local/project configs)';
+  const warningMessage = `This will add/update ${projectsToShow.length} project(s) (${projectsToShow.map((p) => p.name).join(', ')}) in ${clientsToShow.join(', ')}${scopeNote}.${diffSection}${changeNote}${printOnlyNote}`;
 
   // If --print, just output the JSON format (no confirmation needed)
   if (options.print) {
     try {
       const printResults: string[] = [];
 
-      for (const client of selectedClients) {
-        if (!client.supportsPrint || !client.runPrint) {
-          printResults.push(`${client.displayName}: Error - print not supported.`);
-          continue;
+      if (useGlobal) {
+        // Print global configs
+        for (const client of selectedClients) {
+          if (!client.supportsPrint || !client.runPrint) {
+            printResults.push(`${client.displayName}: Error - print not supported.`);
+            continue;
+          }
+          try {
+            const output = client.runPrint(projectFilter);
+            printResults.push(output);
+          } catch (err) {
+            printResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+          }
         }
-        try {
-          const output = client.runPrint(projectFilter);
-          printResults.push(output);
-        } catch (err) {
-          printResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+      } else {
+        // Print local configs
+        for (const { client } of localClients) {
+          try {
+            const output = client.runPrint(projectFilter);
+            printResults.push(output);
+          } catch (err) {
+            printResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+          }
         }
       }
 
@@ -152,40 +218,51 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
       try {
         const outputResults: string[] = [];
 
-        for (const client of selectedClients) {
-          if (client.supportsWrite && client.runWrite) {
+        if (useGlobal) {
+          // Write to global configs
+          for (const client of selectedClients) {
+            if (client.supportsWrite && client.runWrite) {
+              try {
+                const output = client.runWrite(projectFilter);
+                outputResults.push(output);
+              } catch (err) {
+                outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+              }
+              continue;
+            }
+
+            if (client.printOnly && client.runPrint) {
+              try {
+                const output = client.runPrint(projectFilter);
+                outputResults.push(output);
+              } catch (err) {
+                outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+              }
+              continue;
+            }
+
+            outputResults.push(`${client.displayName}: Error - write not supported.`);
+          }
+        } else {
+          // Write to local configs
+          for (const { client } of localClients) {
             try {
               const output = client.runWrite(projectFilter);
               outputResults.push(output);
             } catch (err) {
               outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
             }
-            continue;
           }
 
-          if (client.printOnly && client.runPrint) {
-            try {
-              const output = client.runPrint(projectFilter);
-              outputResults.push(output);
-            } catch (err) {
-              outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
-            }
-            continue;
-          }
-
-          outputResults.push(`${client.displayName}: Error - write not supported.`);
-        }
-
-        // Also update local .mcp.json if it exists and wasn't already in selectedClients
-        const hasLocalClient = selectedClients.some((c) => c.id === 'local');
-        if (!hasLocalClient) {
-          const localClient = allClients.find((c) => c.id === 'local');
-          if (localClient && localClient.supportsWrite && localClient.runWrite) {
-            try {
-              const output = localClient.runWrite(projectFilter);
-              outputResults.push(output);
-            } catch (err) {
-              outputResults.push(`${localClient.displayName}: Error - ${(err as Error).message}`);
+          // Also handle print-only clients
+          for (const client of printOnlyClients) {
+            if (client.runPrint) {
+              try {
+                const output = client.runPrint(projectFilter);
+                outputResults.push(output);
+              } catch (err) {
+                outputResults.push(`${client.displayName}: Error - ${(err as Error).message}`);
+              }
             }
           }
         }
@@ -195,7 +272,7 @@ export default function ConfigSyncMcpCommand({ args, options }: Props): React.Re
         setError((err as Error).message);
       }
     }
-  }, [confirmed, force, options.client, projectFilter]);
+  }, [confirmed, force, options.client, projectFilter, useGlobal]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

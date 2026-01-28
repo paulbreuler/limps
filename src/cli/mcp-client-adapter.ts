@@ -348,14 +348,62 @@ export class CodexAdapter implements McpClientAdapter {
 }
 
 /**
- * Local workspace .mcp.json adapter
- * Uses: mcpServers key, limps command, local workspace .mcp.json file
+ * Supported MCP client types for local workspace configs
+ */
+export type LocalMcpClientType = 'cursor' | 'claude-code' | 'custom';
+
+/**
+ * Get the default local config path for a given client type
+ */
+export function getLocalConfigPath(clientType: LocalMcpClientType, customPath?: string): string {
+  if (customPath) {
+    return customPath;
+  }
+
+  switch (clientType) {
+    case 'cursor':
+      return join(process.cwd(), '.cursor', 'mcp.json');
+    case 'claude-code':
+      return join(process.cwd(), '.mcp.json');
+    case 'custom':
+      return join(process.cwd(), '.mcp.json');
+    default:
+      return join(process.cwd(), '.mcp.json');
+  }
+}
+
+/**
+ * Get the display name for a local config client type
+ */
+export function getLocalConfigDisplayName(clientType: LocalMcpClientType): string {
+  switch (clientType) {
+    case 'cursor':
+      return 'Cursor Local (.cursor/mcp.json)';
+    case 'claude-code':
+      return 'Claude Code Local (.mcp.json)';
+    case 'custom':
+      return 'Local MCP Config';
+    default:
+      return 'Local MCP Config';
+  }
+}
+
+/**
+ * Local workspace MCP config adapter
+ * Uses: mcpServers key, limps command, client-specific local config paths
+ *
+ * Default paths by client:
+ * - Cursor: .cursor/mcp.json
+ * - Claude Code: .mcp.json
+ * - Custom: user-specified path
  */
 export class LocalMcpAdapter implements McpClientAdapter {
   private configPath: string;
+  private clientType: LocalMcpClientType;
 
-  constructor(configPath: string = join(process.cwd(), '.mcp.json')) {
-    this.configPath = configPath;
+  constructor(clientType: LocalMcpClientType = 'claude-code', customPath?: string) {
+    this.clientType = clientType;
+    this.configPath = getLocalConfigPath(clientType, customPath);
   }
 
   getConfigPath(): string {
@@ -376,7 +424,7 @@ export class LocalMcpAdapter implements McpClientAdapter {
         return JSON.parse(content) as McpClientConfig;
       } catch (error) {
         throw new Error(
-          `Failed to parse local .mcp.json: ${error instanceof Error ? error.message : 'unknown error'}`
+          `Failed to parse ${this.getDisplayName()}: ${error instanceof Error ? error.message : 'unknown error'}`
         );
       }
     }
@@ -397,13 +445,13 @@ export class LocalMcpAdapter implements McpClientAdapter {
       writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
     } catch (error) {
       throw new Error(
-        `Failed to write local .mcp.json: ${error instanceof Error ? error.message : 'unknown error'}`
+        `Failed to write ${this.getDisplayName()}: ${error instanceof Error ? error.message : 'unknown error'}`
       );
     }
   }
 
   createServerConfig(configPath: string): McpServerConfig {
-    // Local .mcp.json can use the global limps command
+    // Local configs can use the global limps command
     return {
       command: 'limps',
       args: ['serve', '--config', configPath],
@@ -411,16 +459,28 @@ export class LocalMcpAdapter implements McpClientAdapter {
   }
 
   getDisplayName(): string {
-    return 'Local .mcp.json';
+    return getLocalConfigDisplayName(this.clientType);
+  }
+
+  getClientType(): LocalMcpClientType {
+    return this.clientType;
   }
 }
 
 /**
- * Get adapter for a client type
+ * Global adapter client types (write to global config locations)
  */
-export function getAdapter(
-  clientType: 'claude' | 'cursor' | 'claude-code' | 'codex' | 'local'
-): McpClientAdapter {
+export type GlobalAdapterClientType = 'claude' | 'cursor' | 'claude-code' | 'codex';
+
+/**
+ * All adapter client types including local
+ */
+export type AdapterClientType = GlobalAdapterClientType | 'local';
+
+/**
+ * Get adapter for a global client type
+ */
+export function getAdapter(clientType: GlobalAdapterClientType): McpClientAdapter {
   switch (clientType) {
     case 'claude':
       return new ClaudeDesktopAdapter();
@@ -430,9 +490,24 @@ export function getAdapter(
       return new ClaudeCodeAdapter();
     case 'codex':
       return new CodexAdapter();
-    case 'local':
-      return new LocalMcpAdapter();
     default:
       throw new Error(`Unknown client type: ${clientType}`);
   }
+}
+
+/**
+ * Get a local adapter for a specific client type
+ */
+export function getLocalAdapter(
+  clientType: LocalMcpClientType,
+  customPath?: string
+): LocalMcpAdapter {
+  return new LocalMcpAdapter(clientType, customPath);
+}
+
+/**
+ * Check if a client type supports local workspace configs
+ */
+export function supportsLocalConfig(clientType: string): clientType is 'cursor' | 'claude-code' {
+  return clientType === 'cursor' || clientType === 'claude-code';
 }
