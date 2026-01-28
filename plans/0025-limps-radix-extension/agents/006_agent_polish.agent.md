@@ -3,9 +3,9 @@ title: Provider Architecture & Polish
 status: GAP
 persona: coder
 dependencies:
-  - 003_agent_read-tools.agent.md
-  - 004_agent_analyzer.agent.md
-  - 005_agent_differ.agent.md
+  - "003"
+  - "004"
+  - "005"
 tags: [limps/agent, limps/status/gap, limps/persona/coder]
 aliases: ["#006", "Polish Agent"]
 created: 2026-01-26

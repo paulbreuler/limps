@@ -3,7 +3,7 @@ title: Type Fetcher & Extractor
 status: PASS
 persona: coder
 dependencies:
-  - 000_agent_extension-api.agent.md
+  - "000"
 tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#001", "Extraction Agent"]
 created: 2026-01-26

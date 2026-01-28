@@ -3,7 +3,7 @@ title: Differ & Updates
 status: GAP
 persona: coder
 dependencies:
-  - 002_agent_signatures.agent.md
+  - "002"
 tags: [limps/agent, limps/status/gap, limps/persona/coder]
 aliases: ["#005", "Differ Agent"]
 created: 2026-01-26
