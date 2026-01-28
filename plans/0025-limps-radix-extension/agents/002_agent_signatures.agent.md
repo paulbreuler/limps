@@ -3,7 +3,7 @@ title: Signature Generator & Cache
 status: PASS
 persona: coder
 dependencies:
-  - 001_agent_extraction.agent.md
+  - "001"
 tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#002", "Signatures Agent"]
 created: 2026-01-26
