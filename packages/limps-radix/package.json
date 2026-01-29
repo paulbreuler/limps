@@ -38,10 +38,12 @@
   "devDependencies": {
     "@sudosandwich/limps": "*",
     "@types/node": "^25.0.0",
+    "@types/semver": "^7.7.1",
     "typescript": "^5.9.0",
     "vitest": "^4.0.0"
   },
   "dependencies": {
+    "semver": "^7.7.3",
     "ts-morph": "^24.0.0",
     "zod": "^4.3.6"
   }
