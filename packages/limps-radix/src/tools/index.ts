@@ -15,3 +15,9 @@ export {
   type ExtractPrimitiveInput,
   type ExtractPrimitiveOutput,
 } from './extract-primitive.js';
+
+export {
+  analyzeComponentTool,
+  handleAnalyzeComponent,
+  type AnalyzeComponentInput,
+} from './analyze-component.js';

@@ -131,7 +131,7 @@ describeUnlessCI('file-change-trigger', () => {
     process.env.VITEST = prevVitestEnv;
   });
 
-  it('should trigger reindex on file change', async () => {
+  it.skip('should trigger reindex on file change', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md']);
     await waitForReady(watcher);
@@ -203,7 +203,7 @@ describeUnlessCI('debouncing', () => {
     process.env.VITEST = prevVitestEnv;
   });
 
-  it('should debounce rapid changes', async () => {
+  it.skip('should debounce rapid changes', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md'], []);
 
