@@ -37,3 +37,17 @@ export {
   type CheckUpdatesInput,
   type CheckUpdatesOutput,
 } from './check-updates.js';
+
+export {
+  runAuditTool,
+  runAuditInputSchema,
+  handleRunAudit,
+  type RunAuditInput,
+} from './run-audit.js';
+
+export {
+  generateReportTool,
+  generateReportInputSchema,
+  handleGenerateReport,
+  type GenerateReportInput,
+} from './generate-report.js';

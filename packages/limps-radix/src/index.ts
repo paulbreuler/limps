@@ -7,6 +7,8 @@ import {
   extractPrimitiveTool,
   diffVersionsTool,
   checkUpdatesTool,
+  runAuditTool,
+  generateReportTool,
 } from './tools/index.js';
 
 /**
@@ -20,6 +22,8 @@ const limpsRadix: LimpsExtension = {
     extractPrimitiveTool,
     diffVersionsTool,
     checkUpdatesTool,
+    runAuditTool,
+    generateReportTool,
   ],
   async onInit(_context: ExtensionContext) {
     // Initialize cache directory
@@ -38,8 +42,11 @@ export * from './signatures/index.js';
 // Re-export cache module
 export * from './cache/index.js';
 
+// Re-export providers module
+export * from './providers/index.js';
+
 // Re-export differ module
 export * from './differ/index.js';
 
-// Re-export tools module
+// Re-export tools module (includes audit tool handlers and schemas)
 export * from './tools/index.js';
