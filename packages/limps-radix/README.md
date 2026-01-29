@@ -24,7 +24,23 @@ Example `limps.config.json`:
 }
 ```
 
+## CLI
+
+You can use the standalone CLI for local workflows:
+
+```bash
+limps-radix list --version latest
+limps-radix extract dialog
+limps-radix analyze path/to/component.tsx
+limps-radix diff 1.0.0 --to latest --breaking-only
+limps-radix check-updates --refresh
+```
+
+Pass `--json` to any command for raw JSON output.
+
 ## MCP Tools
+
+Tool reference: see `docs/tools.md` for detailed schemas and examples.
 
 ### `radix_list_primitives`
 
@@ -34,7 +50,8 @@ List all available Radix UI primitives with package names and descriptions.
 
 ```json
 {
-  "version": "latest"
+  "version": "latest",
+  "provider": "radix"
 }
 ```
 
@@ -67,7 +84,8 @@ Extract the behavioral contract for a single Radix primitive, including sub-comp
 ```json
 {
   "primitive": "dialog",
-  "version": "latest"
+  "version": "latest",
+  "provider": "radix"
 }
 ```
 
@@ -118,6 +136,49 @@ Extract the behavioral contract for a single Radix primitive, including sub-comp
 }
 ```
 
+### `radix_analyze_component`
+
+Analyze a local component file and recommend a Radix primitive.
+
+**Input**
+
+```json
+{
+  "filePath": "src/components/MyDialog.tsx",
+  "radixVersion": "latest",
+  "threshold": 40,
+  "provider": "radix"
+}
+```
+
+### `radix_diff_versions`
+
+Compare two versions of Radix for breaking changes and warnings.
+
+**Input**
+
+```json
+{
+  "fromVersion": "1.0.0",
+  "toVersion": "latest",
+  "breakingOnly": false,
+  "provider": "radix"
+}
+```
+
+### `radix_check_updates`
+
+Check for a newer Radix version and show changes since the last check.
+
+**Input**
+
+```json
+{
+  "refreshCache": false,
+  "provider": "radix"
+}
+```
+
 ## API Reference
 
 This package re-exports its core types, signatures, cache helpers, and tool definitions from `src/index.ts`.
@@ -137,7 +198,8 @@ This package re-exports its core types, signatures, cache helpers, and tool defi
 
 - `cache` — File-based cache helpers for extracted data and signatures.
 - `signatures` — Behavior signature generation utilities.
-- `tools` — MCP tool definitions (`radix_list_primitives`, `radix_extract_primitive`).
+- `providers` — Provider registry for component libraries.
+- `tools` — MCP tool definitions (`radix_list_primitives`, `radix_extract_primitive`, `radix_analyze_component`, `radix_diff_versions`, `radix_check_updates`).
 
 ## Configuration
 
@@ -194,7 +256,8 @@ limps supports extension-specific config via a top-level key in `limps.config.js
 
 ```json
 {
-  "primitive": "dialog"
+  "primitive": "dialog",
+  "provider": "radix"
 }
 ```
 
@@ -249,6 +312,13 @@ limps supports extension-specific config via a top-level key in `limps.config.js
 
 - If the unified `radix-ui` package is available for a version, the tools may return `radix-ui` as the package name instead of individual `@radix-ui/react-*` packages.
 - Cache entries are stored by version and primitive name to speed up repeated tool calls.
+- Provider support is pluggable, but non-Radix providers may not support every tool yet.
+
+## Links
+
+- [Tool Reference](./docs/tools.md)
+- [Architecture](./docs/architecture.md)
+- [Providers](./docs/providers.md)
 
 ## License
 

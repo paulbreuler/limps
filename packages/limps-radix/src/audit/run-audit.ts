@@ -142,8 +142,10 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
           isAmbiguous: ambiguous,
         };
         results.push(result);
-      } catch {
-        // Skip files that fail to parse
+      } catch (err) {
+        console.warn(
+          `[run-audit] Skipped ${relative}: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     }
 

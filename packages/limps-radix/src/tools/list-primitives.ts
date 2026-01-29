@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
 import { listPrimitives, resolvePackage } from '../fetcher/index.js';
+import { getProvider } from '../providers/registry.js';
 
 /**
  * Input schema for radix_list_primitives tool.
@@ -15,6 +16,11 @@ export const listPrimitivesInputSchema = z.object({
     .optional()
     .default('latest')
     .describe('Radix version (default: latest)'),
+  provider: z
+    .string()
+    .optional()
+    .default('radix')
+    .describe('Component library provider (default: radix)'),
 });
 
 export type ListPrimitivesInput = z.infer<typeof listPrimitivesInputSchema>;
@@ -42,6 +48,24 @@ export async function handleListPrimitives(
 ): Promise<{ content: { type: 'text'; text: string }[] }> {
   const parsed = listPrimitivesInputSchema.parse(input);
   const versionHint = parsed.version || 'latest';
+  const provider = getProvider(parsed.provider);
+
+  if (provider.name !== 'radix') {
+    const resolvedVersion = await provider.resolveVersion(versionHint);
+    const primitives = await provider.listPrimitives(resolvedVersion);
+
+    const output: ListPrimitivesOutput = {
+      version: resolvedVersion,
+      primitives: primitives.map((name) => ({
+        name,
+        package: provider.name,
+      })),
+    };
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+    };
+  }
 
   // Detect if unified package is available for this version
   const resolved = await resolvePackage('dialog', versionHint);

@@ -11,6 +11,7 @@ import {
   clearCache,
 } from '../cache/index.js';
 import { resolvePackageVersion } from '../fetcher/npm-registry.js';
+import { getProvider } from '../providers/registry.js';
 
 /**
  * Input schema for radix_check_updates tool.
@@ -25,6 +26,11 @@ export const checkUpdatesInputSchema = z.object({
     .array(z.string())
     .optional()
     .describe('Optional list of primitives to check (default: all)'),
+  provider: z
+    .string()
+    .optional()
+    .default('radix')
+    .describe('Component library provider (default: radix)'),
 });
 
 export type CheckUpdatesInput = z.infer<typeof checkUpdatesInputSchema>;
@@ -47,6 +53,12 @@ export async function handleCheckUpdates(
   input: unknown
 ): Promise<{ content: { type: 'text'; text: string }[] }> {
   const parsed = checkUpdatesInputSchema.parse(input);
+  const provider = getProvider(parsed.provider);
+  if (provider.name !== 'radix') {
+    throw new Error(
+      `Provider "${provider.name}" is not supported for update checks yet`
+    );
+  }
 
   // If refresh requested, clear the cache first
   if (parsed.refreshCache) {

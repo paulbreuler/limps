@@ -93,14 +93,16 @@ function contraventionsFromDiffAndUpdates(
   updates: UpdateCheckResult | null
 ): Contravention[] {
   const out: Contravention[] = [];
+  // Single contravention when behind latest and diff has breaking changes (avoid duplicate)
   if (updates?.hasUpdate && updates.diff?.hasBreakingChanges) {
     out.push({
       id: 'contravention-legacy-version',
       type: 'legacy-package-usage',
       severity: 'high',
-      description: `Current cached version ${updates.currentVersion} is behind latest ${updates.latestVersion}. Breaking changes exist.`,
+      description: `Current cached version ${updates.currentVersion} is behind latest ${updates.latestVersion}. ${updates.diff.summary.breaking} breaking change(s) exist.`,
       recommendation: 'Upgrade Radix dependencies and run radix_diff_versions to plan migration.',
     });
+    return out;
   }
   if (diff?.hasBreakingChanges && diff.summary.breaking > 0) {
     out.push({

@@ -13,6 +13,9 @@ import {
   isWidening,
   getSeverity,
   isBreaking,
+  isWarning,
+  isInfo,
+  getBreakingTypes,
   sortBySeverity,
   generateHint,
   generateDescription,
@@ -178,6 +181,7 @@ describe('isWidening', () => {
   });
 });
 
+// Severity taxonomy: change types map to breaking/warning/info; sort order breaking first.
 describe('getSeverity', () => {
   it('classifies breaking changes', () => {
     expect(getSeverity('prop_removed')).toBe('breaking');
@@ -208,6 +212,41 @@ describe('isBreaking', () => {
   it('returns false for non-breaking change types', () => {
     expect(isBreaking('prop_added')).toBe(false);
     expect(isBreaking('type_widened')).toBe(false);
+  });
+});
+
+describe('isWarning', () => {
+  it('returns true for warning change types', () => {
+    expect(isWarning('prop_deprecated')).toBe(true);
+    expect(isWarning('type_changed')).toBe(true);
+  });
+
+  it('returns false for non-warning change types', () => {
+    expect(isWarning('prop_added')).toBe(false);
+    expect(isWarning('prop_removed')).toBe(false);
+  });
+});
+
+describe('isInfo', () => {
+  it('returns true for info change types', () => {
+    expect(isInfo('prop_added')).toBe(true);
+    expect(isInfo('type_widened')).toBe(true);
+  });
+
+  it('returns false for non-info change types', () => {
+    expect(isInfo('prop_removed')).toBe(false);
+    expect(isInfo('prop_deprecated')).toBe(false);
+  });
+});
+
+describe('getBreakingTypes', () => {
+  it('returns all breaking change types', () => {
+    const types = getBreakingTypes();
+    expect(types).toContain('prop_removed');
+    expect(types).toContain('prop_required');
+    expect(types).toContain('subcomponent_removed');
+    expect(types).toContain('type_narrowed');
+    expect(types).toHaveLength(4);
   });
 });
 

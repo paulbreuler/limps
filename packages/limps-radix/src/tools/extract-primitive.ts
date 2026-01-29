@@ -16,6 +16,7 @@ import {
   getSignatureFromCache,
   saveSignatureToCache,
 } from '../cache/index.js';
+import { getProvider } from '../providers/registry.js';
 
 /**
  * Input schema for radix_extract_primitive tool.
@@ -27,6 +28,11 @@ export const extractPrimitiveInputSchema = z.object({
     .optional()
     .default('latest')
     .describe('Radix version (default: latest)'),
+  provider: z
+    .string()
+    .optional()
+    .default('radix')
+    .describe('Component library provider (default: radix)'),
 });
 
 export type ExtractPrimitiveInput = z.infer<typeof extractPrimitiveInputSchema>;
@@ -84,6 +90,50 @@ export async function handleExtractPrimitive(
   const primitiveSlug = parsed.primitive.toLowerCase();
   const primitiveName = toPascalCase(parsed.primitive); // PascalCase for extractor/cache
   const versionHint = parsed.version || 'latest';
+  const provider = getProvider(parsed.provider);
+
+  if (provider.name !== 'radix') {
+    const resolvedVersion = await provider.resolveVersion(versionHint);
+    const typeContent = await provider.fetchTypes(primitiveSlug, resolvedVersion);
+    const extracted = provider.extract
+      ? provider.extract(typeContent)
+      : extractPrimitive(
+          typeContent,
+          primitiveName,
+          resolvedVersion,
+          provider.displayName
+        );
+    const signature = provider.generateSignature
+      ? provider.generateSignature(extracted)
+      : generateSignature(extracted);
+
+    const output: ExtractPrimitiveOutput = {
+      primitive: extracted.name,
+      package: provider.name,
+      version: resolvedVersion,
+      behavior: {
+        statePattern: signature.statePattern,
+        compositionPattern: signature.compositionPattern,
+        renderingPattern: signature.renderingPattern,
+      },
+      subComponents: extracted.subComponents.map((sc) => ({
+        name: sc.name,
+        props: sc.props.map((p) => ({
+          name: p.name,
+          type: p.type,
+          required: p.required,
+          default: p.defaultValue,
+          category: getPropCategory(p.name),
+        })),
+      })),
+      similarTo: signature.similarTo,
+      disambiguationRule: signature.disambiguationRule,
+    };
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+    };
+  }
 
   // Resolve package source and version (use slug for fetcher)
   const resolved = await resolvePackage(primitiveSlug, versionHint);

@@ -10,6 +10,7 @@ import { analyzeComponent, scoreAgainstSignatures, disambiguate, isAmbiguous } f
 import { getSignatureFromCache, getLatestResolution } from '../cache/index.js';
 import { listCachedPrimitives, listCachedVersions } from '../cache/storage.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
+import { getProvider } from '../providers/registry.js';
 
 /**
  * Input schema for radix_analyze_component tool.
@@ -26,6 +27,11 @@ export const analyzeComponentInputSchema = z.object({
     .optional()
     .default(40)
     .describe('Minimum confidence score to include in results (default: 40)'),
+  provider: z
+    .string()
+    .optional()
+    .default('radix')
+    .describe('Component library provider (default: radix)'),
 });
 
 export type AnalyzeComponentInput = z.infer<typeof analyzeComponentInputSchema>;
@@ -64,7 +70,12 @@ export async function handleAnalyzeComponent(
 ): Promise<{ content: { type: 'text'; text: string }[] }> {
   const parsed = analyzeComponentInputSchema.parse(input);
   const { filePath, radixVersion, threshold } = parsed;
+  const provider = getProvider(parsed.provider);
   const { absolute, relative } = resolveAndValidatePath(filePath);
+
+  if (provider.name !== 'radix') {
+    throw new Error(`Provider "${provider.name}" is not supported for analysis yet`);
+  }
 
   // Analyze the component
   const analysis = await analyzeComponent(absolute);

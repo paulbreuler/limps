@@ -1,5 +1,10 @@
 /**
- * Tests for MCP tools.
+ * Tests for radix_list_primitives and radix_extract_primitive.
+ *
+ * We test:
+ * - Happy path: radix provider returns version and primitives; extract returns contract.
+ * - Expected behavior: unified package name when source is unified; custom provider path.
+ * - Failure modes: custom provider resolveVersion or listPrimitives throws (propagates).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -9,20 +14,15 @@ import {
   extractPrimitiveTool,
   handleExtractPrimitive,
 } from '../src/tools/index.js';
+import { registerProvider } from '../src/providers/registry.js';
+
+const mockResolvePackage = vi.fn();
+const mockListPrimitives = vi.fn();
 
 // Mock the fetcher module
 vi.mock('../src/fetcher/index.js', () => ({
-  resolvePackage: vi.fn().mockResolvedValue({
-    source: 'individual',
-    packageName: '@radix-ui/react-dialog',
-    primitive: 'dialog',
-    version: '1.1.2',
-    typesPath: 'dist/index.d.ts',
-  }),
-  listPrimitives: vi.fn().mockResolvedValue([
-    { name: 'dialog', package: '@radix-ui/react-dialog', description: 'A modal dialog overlay' },
-    { name: 'popover', package: '@radix-ui/react-popover', description: 'A popup that appears from a trigger' },
-  ]),
+  resolvePackage: (...args: unknown[]) => mockResolvePackage(...args),
+  listPrimitives: (...args: unknown[]) => mockListPrimitives(...args),
   fetchTypesWithFallback: vi.fn().mockResolvedValue({
     resolved: {
       source: 'individual',
@@ -101,6 +101,25 @@ vi.mock('../src/cache/index.js', () => ({
 describe('tools', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolvePackage.mockResolvedValue({
+      source: 'individual',
+      packageName: '@radix-ui/react-dialog',
+      primitive: 'dialog',
+      version: '1.1.2',
+      typesPath: 'dist/index.d.ts',
+    });
+    mockListPrimitives.mockResolvedValue([
+      {
+        name: 'dialog',
+        package: '@radix-ui/react-dialog',
+        description: 'A modal dialog overlay',
+      },
+      {
+        name: 'popover',
+        package: '@radix-ui/react-popover',
+        description: 'A popup that appears from a trigger',
+      },
+    ]);
   });
 
   describe('listPrimitivesTool', () => {
@@ -130,6 +149,80 @@ describe('tools', () => {
       expect(parsed.version).toBe('1.1.2');
       expect(parsed.primitives).toHaveLength(2);
       expect(parsed.primitives[0].name).toBe('dialog');
+    });
+
+    it('uses unified package name when source is unified', async () => {
+      mockResolvePackage.mockResolvedValue({
+        source: 'unified',
+        packageName: 'radix-ui',
+        primitive: 'dialog',
+        version: '1.1.2',
+        typesPath: 'dist/index.d.ts',
+      });
+      mockListPrimitives.mockResolvedValue([
+        { name: 'dialog', package: '@radix-ui/react-dialog', description: '' },
+      ]);
+
+      const result = await handleListPrimitives({});
+      const parsed = JSON.parse(result.content[0].text);
+
+      expect(parsed.primitives[0].package).toBe('radix-ui');
+    });
+
+    it('uses custom provider: resolveVersion and listPrimitives shape output', async () => {
+      const customProvider = {
+        name: 'list-primitives-custom',
+        displayName: 'Custom UI',
+        listPrimitives: async () => ['button', 'input'],
+        resolveVersion: async () => '1.0.0',
+        fetchTypes: async () => '',
+      };
+      registerProvider(customProvider);
+
+      const result = await handleListPrimitives({
+        provider: 'list-primitives-custom',
+      });
+      const parsed = JSON.parse(result.content[0].text);
+
+      expect(parsed.version).toBe('1.0.0');
+      expect(parsed.primitives).toEqual([
+        { name: 'button', package: 'list-primitives-custom' },
+        { name: 'input', package: 'list-primitives-custom' },
+      ]);
+    });
+
+    it('propagates error when custom provider resolveVersion throws', async () => {
+      const failingProvider = {
+        name: 'list-primitives-failing',
+        displayName: 'Failing UI',
+        listPrimitives: async () => [],
+        resolveVersion: async () => {
+          throw new Error('Version resolution failed');
+        },
+        fetchTypes: async () => '',
+      };
+      registerProvider(failingProvider);
+
+      await expect(
+        handleListPrimitives({ provider: 'list-primitives-failing' })
+      ).rejects.toThrow('Version resolution failed');
+    });
+
+    it('propagates error when custom provider listPrimitives throws', async () => {
+      const failingProvider = {
+        name: 'list-primitives-failing-list',
+        displayName: 'Failing UI',
+        listPrimitives: async () => {
+          throw new Error('List primitives failed');
+        },
+        resolveVersion: async () => '1.0.0',
+        fetchTypes: async () => '',
+      };
+      registerProvider(failingProvider);
+
+      await expect(
+        handleListPrimitives({ provider: 'list-primitives-failing-list' })
+      ).rejects.toThrow('List primitives failed');
     });
   });
 

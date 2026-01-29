@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
 import { diffVersions, type RadixDiff } from '../differ/index.js';
+import { getProvider } from '../providers/registry.js';
 
 /**
  * Input schema for radix_diff_versions tool.
@@ -27,6 +28,11 @@ export const diffVersionsInputSchema = z.object({
     .optional()
     .default(false)
     .describe('Only show breaking changes (default: false)'),
+  provider: z
+    .string()
+    .optional()
+    .default('radix')
+    .describe('Component library provider (default: radix)'),
 });
 
 export type DiffVersionsInput = z.infer<typeof diffVersionsInputSchema>;
@@ -43,6 +49,10 @@ export async function handleDiffVersions(
   input: unknown
 ): Promise<{ content: { type: 'text'; text: string }[] }> {
   const parsed = diffVersionsInputSchema.parse(input);
+  const provider = getProvider(parsed.provider);
+  if (provider.name !== 'radix') {
+    throw new Error(`Provider "${provider.name}" is not supported for diffing yet`);
+  }
 
   // Perform the diff
   const diff = await diffVersions(
@@ -61,6 +71,7 @@ export async function handleDiffVersions(
       summary: {
         ...diff.summary,
         totalChanges: breakingChanges.length,
+        breaking: breakingChanges.length,
         warnings: 0,
         info: 0,
       },

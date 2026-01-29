@@ -17,7 +17,14 @@ import { listPrimitives } from '../fetcher/npm-registry.js';
 // Re-export types and utilities
 export * from './types.js';
 export { diffContracts, diffProps, diffSubComponents } from './props.js';
-export { getSeverity, isBreaking, sortBySeverity } from './severity.js';
+export {
+  getSeverity,
+  isBreaking,
+  isWarning,
+  isInfo,
+  getBreakingTypes,
+  sortBySeverity,
+} from './severity.js';
 export { generateHint, generateDescription } from './hints.js';
 export { parseUnionMembers, isNarrowing, isWidening } from './props.js';
 
@@ -94,6 +101,8 @@ export async function diffPrimitive(
 
 /**
  * Diff all primitives (or a subset) between two Radix versions.
+ * Version resolution (fromVersion/toVersion) is based on the first primitive
+ * in the list; all primitives are assumed to share the same Radix version.
  *
  * @param fromVersion - Starting version
  * @param toVersion - Ending version (default: 'latest')
@@ -114,7 +123,11 @@ export async function diffVersions(
     primitivesToDiff = allPrimitives.map((p) => p.name);
   }
 
-  // Resolve actual versions
+  if (primitivesToDiff.length === 0) {
+    throw new Error('No primitives to diff (list is empty)');
+  }
+
+  // Resolve actual versions (using first primitive as reference)
   const resolvedFrom = await resolvePackage(primitivesToDiff[0], fromVersion);
   const resolvedTo = await resolvePackage(primitivesToDiff[0], toVersion);
 
