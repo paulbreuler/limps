@@ -2,7 +2,7 @@
  * Tests for the differ tools.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { diffVersionsInputSchema, checkUpdatesInputSchema } from '../src/tools/index.js';
 
 describe('diffVersionsInputSchema', () => {
