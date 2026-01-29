@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "limps-planning-limps": {
+      "command": "limps",
+      "args": [
+        "serve",
+        "--config",
+        "/Users/paul/Library/Application Support/limps/config.json"
+      ]
+    },
+    "limps-planning-runi-planning-docs": {
+      "command": "limps",
+      "args": [
+        "serve",
+        "--config",
+        "/Users/paul/Library/Application Support/runi-planning-docs/config.json"
+      ]
+    }
+  }
+}

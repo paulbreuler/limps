@@ -1,8 +1,13 @@
 ---
 title: Add Codex + ChatGPT MCP Setup Support
-status: draft
+status: PASS
 workType: feature
-tags: [limps/plan, limps/worktype/feature, mcp, codex, chatgpt]
+tags:
+  - limps/plan
+  - limps/worktype/feature
+  - mcp
+  - codex
+  - chatgpt
 created: 2026-01-27
 updated: 2026-01-27
 ---
