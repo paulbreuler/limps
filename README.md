@@ -23,7 +23,7 @@ limps config sync-mcp --client cursor
 limps config sync-mcp --client claude-code
 ```
 
-Run this in the folder where you want to keep the docs and that's it. Your AI assistant now has access to your documents and nothing else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
+That's it. Your AI assistant now has access to your documents. The `--docs-path` can point to any folder—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory. Note: `limps init` writes config to your OS config location, while `limps config sync-mcp` writes to local workspace configs (use `--global` for user-level configs).
 
 ### What to know before you start
 
