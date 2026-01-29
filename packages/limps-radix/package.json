@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "cp ../../LICENSE ."
+    "prepublishOnly": "npm run build && node -e \"const fs=require('fs');fs.copyFileSync('../../LICENSE','LICENSE')\"",
+    "postpublish": "node -e \"const fs=require('fs');try{fs.unlinkSync('LICENSE');}catch(e){}\""
   },
   "keywords": [
     "limps",
