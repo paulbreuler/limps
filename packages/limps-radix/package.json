@@ -10,7 +10,8 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "cp ../../LICENSE ."
   },
   "keywords": [
     "limps",

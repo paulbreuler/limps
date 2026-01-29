@@ -23,7 +23,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
-    "ci": "npm run validate"
+    "ci": "npm run validate",
+    "prepublishOnly": "cp ../../README.md . && cp ../../LICENSE ."
   },
   "keywords": [
     "mcp",
