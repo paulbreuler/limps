@@ -23,7 +23,7 @@ limps config sync-mcp --client cursor
 limps config sync-mcp --client claude-code
 ```
 
-Ran in the folder you want to keep the docs and that's it. Your AI assistant now has access to your documents and nothign else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
+Run this in the folder where you want to keep the docs and that's it. Your AI assistant now has access to your documents and nothing else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
 
 ### What to know before you start
 
@@ -353,7 +353,7 @@ limps manages planning for [runi](https://github.com/paulbreuler/runi), using a 
 
 ## Creating a feature plan
 
-This flow is used by the **create-feature-plan** command you can find in [claude/commande](/.claude/commands/) along with other useful commands and skills. These can be followed manually with MCP tools. The docs path is whatever folder limps is pointed at (any directory, not necessarily a repo).
+This flow is used by the **create-feature-plan** command you can find in [claude/commands](/.claude/commands/) along with other useful commands and skills. These can be followed manually with MCP tools. The docs path is whatever folder limps is pointed at (any directory, not necessarily a repo).
 
 1. **Gather context** — Project name and scope, work type (`refactor` | `overhaul` | `features`), tech stack, prototype/reference docs, known gotchas.
 2. **Create planning docs** — Use MCP:
