@@ -16,7 +16,7 @@ npm install @sudosandwich/limps-radix
 2. Restart your limps MCP server.
 3. Use the MCP tools from your client (Cursor, Claude Desktop, etc.).
 
-Example `config.json`:
+Example `limps.config.json`:
 
 ```json
 {
@@ -141,12 +141,12 @@ This package re-exports its core types, signatures, cache helpers, and tool defi
 
 ## Configuration
 
-limps supports extension-specific config via a top-level key in `config.json`.
+limps supports extension-specific config via a top-level key in `limps.config.json`.
 
 ```json
 {
   "extensions": ["@sudosandwich/limps-radix"],
-  "@sudosandwich/limps-radix": {
+  "radix": {
     "cacheDir": "~/Library/Application Support/limps-radix"
   }
 }

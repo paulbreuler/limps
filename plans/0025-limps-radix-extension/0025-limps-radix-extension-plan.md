@@ -1349,7 +1349,7 @@ Feature: Radix audit report pipeline
 
 ## Feature 22: MVP Release Documentation
 
-**Status:** GAP
+**Status:** PASS
 
 ### Description
 
@@ -1409,7 +1409,7 @@ Feature: Package documentation
 
 ## Feature 23: MVP Release Artifacts
 
-**Status:** GAP
+**Status:** PASS
 
 ### Description
 
