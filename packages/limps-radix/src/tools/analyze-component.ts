@@ -15,7 +15,7 @@ import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
  * Input schema for radix_analyze_component tool.
  */
 export const analyzeComponentInputSchema = z.object({
-  filePath: z.string().describe('Path to .tsx component file'),
+  filePath: z.string().describe('Path to .ts/.tsx component file'),
   radixVersion: z
     .string()
     .optional()
@@ -46,8 +46,8 @@ function resolveAndValidatePath(filePath: string): { absolute: string; relative:
     throw new Error('filePath must be within the project directory');
   }
 
-  if (!resolved.endsWith('.tsx')) {
-    throw new Error('filePath must point to a .tsx file');
+  if (resolved.endsWith('.d.ts') || !/\.(ts|tsx)$/.test(resolved)) {
+    throw new Error('filePath must point to a .ts or .tsx file');
   }
 
   return { absolute: resolved, relative };

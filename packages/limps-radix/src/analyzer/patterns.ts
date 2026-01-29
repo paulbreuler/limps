@@ -4,7 +4,7 @@
  * and infers state/composition/rendering patterns.
  */
 
-import type { SourceFile } from 'ts-morph';
+import { SyntaxKind, type SourceFile } from 'ts-morph';
 import type {
   StatePattern,
   CompositionPattern,
@@ -27,12 +27,13 @@ export function detectSubComponents(
 ): string[] {
   const subComponents: string[] = [];
   const text = sourceFile.getFullText();
+  const escapedComponentName = escapeRegExp(componentName);
 
   // Look for property assignments: ComponentName.SubName = ...
   // Pattern: Modal.Root = function Root() { ... }
   // or: Modal.Root = () => { ... }
   const propertyAssignmentRegex = new RegExp(
-    `${componentName}\\.(\\w+)\\s*=`,
+    `${escapedComponentName}\\.(\\w+)\\s*=`,
     'g'
   );
   let match;
@@ -106,12 +107,46 @@ export function detectSubComponents(
  * Detect if component uses forwardRef.
  */
 export function detectForwardRef(sourceFile: SourceFile): boolean {
-  const text = sourceFile.getFullText();
-  return (
-    text.includes('forwardRef') ||
-    text.includes('ForwardRefExoticComponent') ||
-    text.includes('React.forwardRef')
+  const callExpressions = sourceFile.getDescendantsOfKind(
+    SyntaxKind.CallExpression
   );
+
+  for (const call of callExpressions) {
+    const expression = call.getExpression();
+    if (
+      expression.getKind() === SyntaxKind.Identifier &&
+      expression.getText() === 'forwardRef'
+    ) {
+      return true;
+    }
+
+    if (expression.getKind() === SyntaxKind.PropertyAccessExpression) {
+      const property = expression.asKindOrThrow(
+        SyntaxKind.PropertyAccessExpression
+      );
+      if (
+        property.getName() === 'forwardRef' &&
+        property.getExpression().getText() === 'React'
+      ) {
+        return true;
+      }
+    }
+  }
+
+  const typeReferences = sourceFile.getDescendantsOfKind(
+    SyntaxKind.TypeReference
+  );
+  for (const typeRef of typeReferences) {
+    const typeName = typeRef.getTypeName().getText();
+    if (
+      typeName === 'ForwardRefExoticComponent' ||
+      typeName.endsWith('.ForwardRefExoticComponent')
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -121,14 +156,21 @@ export function detectAsChild(
   sourceFile: SourceFile,
   props: Map<string, PropDefinition>
 ): boolean {
-  // Check props map first
   if (props.has('asChild')) {
     return true;
   }
 
-  // Check in JSX attributes
-  const text = sourceFile.getFullText();
-  return text.includes('asChild') || text.includes('as-child');
+  const jsxAttributes = sourceFile.getDescendantsOfKind(
+    SyntaxKind.JsxAttribute
+  );
+  for (const attr of jsxAttributes) {
+    const name = attr.getNameNode().getText();
+    if (name === 'asChild' || name === 'as-child') {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -224,4 +266,8 @@ export function inferRenderingPatternFromAnalysis(
 
   const propsArray = Array.from(props.values());
   return inferRenderingPattern(subComponentDefs, propsArray);
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

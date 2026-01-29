@@ -137,8 +137,8 @@ function scorePropsSignature(
 ): number {
   const distinguishingProps = signature.distinguishingProps;
   if (distinguishingProps.length === 0) {
-    // No distinguishing props to check, give full score
-    return maxScore;
+    // No distinguishing props to check, return neutral score
+    return 0;
   }
 
   let matchedCount = 0;
@@ -169,10 +169,7 @@ function scoreAccessibility(
     return Math.round(maxScore * 0.5);
   }
 
-  // Check if signature expects accessibility features
-  // If it does and we don't have them, give lower score
-  // For now, give minimal score if no accessibility features detected
-  return Math.round(maxScore * 0.2);
+  return 0;
 }
 
 /**

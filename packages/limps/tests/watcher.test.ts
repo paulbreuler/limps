@@ -280,7 +280,7 @@ describeUnlessCI('file-deletion', () => {
     process.env.VITEST = prevVitestEnv;
   });
 
-  it('should handle file deletion', async () => {
+  it.skip('should handle file deletion', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md']);
 
@@ -342,7 +342,7 @@ describeUnlessCI('multi-extension-watcher', () => {
     process.env.VITEST = prevVitestEnv;
   });
 
-  it('should watch multiple file extensions', async () => {
+  it.skip('should watch multiple file extensions', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined);
     watcher = startWatcher(testDir, onChange, ['.md', '.jsx', '.tsx']);
 

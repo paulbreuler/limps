@@ -3,25 +3,17 @@
  * TDD tests from agent 004 plan.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import {
-  parseComponent,
-  getComponentNameFromPath,
-  createLocalProject,
-} from '../src/analyzer/parser.js';
+import { parseComponent, getComponentNameFromPath } from '../src/analyzer/parser.js';
 import { extractProps } from '../src/analyzer/props.js';
 import {
   detectSubComponents,
   detectForwardRef,
   detectAsChild,
-  detectAriaRoles,
-  detectDataAttributes,
   inferStatePatternFromProps,
-  inferCompositionPatternFromSubComponents,
-  inferRenderingPatternFromAnalysis,
 } from '../src/analyzer/patterns.js';
 import { analyzeComponent } from '../src/analyzer/index.js';
 import { scoreAgainstSignatures } from '../src/analyzer/scorer.js';
@@ -38,6 +30,10 @@ const TEST_DIR = path.join(os.tmpdir(), 'limps-radix-analyzer-test');
 beforeEach(async () => {
   // Ensure test directory exists
   await fs.promises.mkdir(TEST_DIR, { recursive: true });
+});
+
+afterEach(async () => {
+  await fs.promises.rm(TEST_DIR, { recursive: true, force: true });
 });
 
 describe('analyzer/parser', () => {
@@ -822,18 +818,21 @@ describe('tools/analyze-component', () => {
     await fs.promises.unlink(outsidePath);
   });
 
-  it('rejects non-.tsx files', async () => {
+  it('rejects non-.ts/.tsx files', async () => {
     const { handleAnalyzeComponent } = await import('../src/tools/analyze-component.js');
     const testDir = path.join(process.cwd(), 'tests', 'tmp-analyze');
     await fs.promises.mkdir(testDir, { recursive: true });
-    const testFile = path.join(testDir, 'Component.ts');
+    const testFile = path.join(testDir, 'Component.js');
     await fs.promises.writeFile(testFile, 'export const x = 1;', 'utf-8');
 
-    await expect(
-      handleAnalyzeComponent({ filePath: testFile })
-    ).rejects.toThrow('filePath must point to a .tsx file');
-
-    await fs.promises.unlink(testFile);
+    try {
+      await expect(
+        handleAnalyzeComponent({ filePath: testFile })
+      ).rejects.toThrow('filePath must point to a .ts or .tsx file');
+    } finally {
+      await fs.promises.unlink(testFile).catch(() => undefined);
+      await fs.promises.rm(testDir, { recursive: true, force: true }).catch(() => undefined);
+    }
   });
 });
 
