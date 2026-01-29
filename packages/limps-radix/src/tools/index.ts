@@ -21,3 +21,19 @@ export {
   handleAnalyzeComponent,
   type AnalyzeComponentInput,
 } from './analyze-component.js';
+
+export {
+  diffVersionsTool,
+  diffVersionsInputSchema,
+  handleDiffVersions,
+  type DiffVersionsInput,
+  type DiffVersionsOutput,
+} from './diff-versions.js';
+
+export {
+  checkUpdatesTool,
+  checkUpdatesInputSchema,
+  handleCheckUpdates,
+  type CheckUpdatesInput,
+  type CheckUpdatesOutput,
+} from './check-updates.js';
