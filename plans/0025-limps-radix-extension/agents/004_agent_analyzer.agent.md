@@ -1,13 +1,13 @@
 ---
 title: Component Analyzer
-status: GAP
+status: PASS
 persona: coder
 dependencies:
   - "002"
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#004", "Analyzer Agent"]
 created: 2026-01-26
-updated: 2026-01-27
+updated: 2026-01-29
 files:
   - path: packages/limps-radix/src/analyzer/parser.ts
     action: create
@@ -78,7 +78,7 @@ import { getSignatureFromCache } from '../cache/index.js';
 ### #9: Component Analyzer
 
 TL;DR: Parse local .tsx to extract behavioral contract
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `parseComponent loads .tsx` → ts-morph Project → return AST
@@ -109,7 +109,7 @@ export { Root, Content, Trigger }
 ### #10: Confidence Scorer
 
 TL;DR: Score component against Radix signatures
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `statePatternScore: binary match → 35` → compare patterns → weighted
@@ -128,7 +128,7 @@ Scoring weights (see interfaces.md):
 ### #11: Disambiguator
 
 TL;DR: Resolve ambiguous matches using domain rules
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `isAmbiguous: top 2 within 10 points → true` → compare scores
@@ -158,7 +158,7 @@ const RULES = {
 ### #12: radix_analyze_component
 
 TL;DR: MCP tool wrapping the analyzer pipeline
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `returns ADOPT_RADIX for 70+` → high score → action
@@ -188,17 +188,17 @@ Tool Schema:
 
 ## Done
 
-- [ ] parseComponent extracts AST from .tsx
-- [ ] Props interface found regardless of pattern
-- [ ] Sub-components detected (Component.Sub pattern)
-- [ ] State/composition/rendering patterns inferred
-- [ ] forwardRef, asChild detected
-- [ ] Scoring produces 0-100 with breakdown
-- [ ] All 5 scoring dimensions work
-- [ ] Anti-pattern penalty applied
-- [ ] Ambiguity detection (top 2 within 10)
-- [ ] Dialog/Popover disambiguation
-- [ ] Tooltip/HoverCard disambiguation
-- [ ] Checkbox/Switch/Toggle disambiguation
-- [ ] radix_analyze_component tool registered
-- [ ] Returns recommendation with action
+- [x] parseComponent extracts AST from .tsx
+- [x] Props interface found regardless of pattern
+- [x] Sub-components detected (Component.Sub pattern)
+- [x] State/composition/rendering patterns inferred
+- [x] forwardRef, asChild detected
+- [x] Scoring produces 0-100 with breakdown
+- [x] All 5 scoring dimensions work
+- [x] Anti-pattern penalty applied
+- [x] Ambiguity detection (top 2 within 10)
+- [x] Dialog/Popover disambiguation
+- [x] Tooltip/HoverCard disambiguation
+- [x] Checkbox/Switch/Toggle disambiguation
+- [x] radix_analyze_component tool registered
+- [x] Returns recommendation with action

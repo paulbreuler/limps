@@ -1,13 +1,13 @@
 ---
 title: Differ & Updates
-status: GAP
+status: PASS
 persona: coder
 dependencies:
   - "002"
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#005", "Differ Agent"]
 created: 2026-01-26
-updated: 2026-01-27
+updated: 2026-01-29
 files:
   - path: packages/limps-radix/src/differ/props.ts
     action: create
@@ -70,7 +70,7 @@ import { getFromCache, saveToCache } from '../cache/index.js';
 ### #13: Contract Differ
 
 TL;DR: Detect changes between two ExtractedPrimitive versions
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `detectAddedProps: new prop → info` → set difference → change
@@ -113,7 +113,7 @@ function isNarrowing(before: string, after: string): boolean {
 ### #14: radix_diff_versions
 
 TL;DR: Compare two Radix versions
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `diffs all primitives` → loop list → aggregate changes
@@ -164,7 +164,7 @@ Output shape:
 ### #15: radix_check_updates
 
 TL;DR: Check for new Radix version, auto-diff if found
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `detects update available` → compare cached vs npm → hasUpdate
@@ -200,16 +200,16 @@ Output shape:
 
 ## Done
 
-- [ ] diffContracts detects added/removed props
-- [ ] Required changes detected (optional → required)
-- [ ] Type narrowing detected as breaking
-- [ ] Type widening detected as info
-- [ ] Migration hints generated
-- [ ] radix_diff_versions tool registered
-- [ ] All/specific primitives supported
-- [ ] breakingOnly filter works
-- [ ] Summary counts accurate
-- [ ] radix_check_updates tool registered
-- [ ] Detects when update available
-- [ ] Auto-diffs when update found
-- [ ] refreshCache forces re-extraction
+- [x] diffContracts detects added/removed props
+- [x] Required changes detected (optional → required)
+- [x] Type narrowing detected as breaking
+- [x] Type widening detected as info
+- [x] Migration hints generated
+- [x] radix_diff_versions tool registered
+- [x] All/specific primitives supported
+- [x] breakingOnly filter works
+- [x] Summary counts accurate
+- [x] radix_check_updates tool registered
+- [x] Detects when update available
+- [x] Auto-diffs when update found
+- [x] refreshCache forces re-extraction

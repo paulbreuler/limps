@@ -156,7 +156,7 @@ Status: `GAP`
 ### #5: Documentation Updates
 
 TL;DR: Document semantic setup, query tools, config options, and troubleshooting.
-Status: `GAP`
+Status: `PASS`
 
 **Gherkin**
 - Scenario: README reflects local-only semantics
