@@ -15,10 +15,10 @@
 
 ```mermaid
 flowchart TD
-  f1[Feature1] --> f3[Feature3]
-  f2[Feature2] --> f3
-  f3 --> f4
-  f5 --> f6
+  f1[Feature 1: Semantic config + storage] --> f3[Feature 3: Semantic search tools]
+  f2[Feature 2: Embedding pipeline + chunker] --> f3
+  f3 --> f4[Feature 4: Query improvements + query_docs]
+  f5[Feature 5: AI requirements generation] --> f6[Feature 6: Docs updates]
   f4 --> f6
 ```
 

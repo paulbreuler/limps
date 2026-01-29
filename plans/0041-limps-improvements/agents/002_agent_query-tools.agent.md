@@ -1,3 +1,22 @@
+---
+title: Query Improvements
+status: GAP
+persona: coder
+dependencies: []
+blocks: ["003"]
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#002", "Query Improvements Agent"]
+created: 2026-01-28
+updated: 2026-01-28
+files:
+  - path: packages/limps/src/tools/search-docs.ts
+    action: modify
+  - path: packages/limps/src/tools/query-docs.ts
+    action: add
+  - path: packages/limps/src/tools/index.ts
+    action: modify
+---
+
 # Agent 2: Query Improvements
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`

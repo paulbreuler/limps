@@ -1,3 +1,28 @@
+---
+title: Semantic Infra
+status: GAP
+persona: coder
+dependencies: []
+blocks: ["001"]
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#000", "Semantic Infra Agent"]
+created: 2026-01-28
+updated: 2026-01-28
+files:
+  - path: packages/limps/src/config.ts
+    action: modify
+  - path: packages/limps/src/indexer.ts
+    action: modify
+  - path: packages/limps/src/semantic/chunker.ts
+    action: add
+  - path: packages/limps/src/semantic/embedder.ts
+    action: add
+  - path: packages/limps/src/semantic/storage.ts
+    action: add
+  - path: packages/limps/src/server-main.ts
+    action: modify
+---
+
 # Agent 0: Semantic Infra
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`
