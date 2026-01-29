@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/paulbreuler/limps/compare/limps-radix-v0.1.1...limps-radix-v0.1.2) (2026-01-29)
+
+
+### Bug Fixes
+
+* **packages:** add prepublishOnly to copy README and LICENSE ([#45](https://github.com/paulbreuler/limps/issues/45)) ([11f0001](https://github.com/paulbreuler/limps/commit/11f000170908d776e0e432417c70a4d57f64e552))
+
 ## [0.1.1](https://github.com/paulbreuler/limps/compare/limps-radix-v0.1.0...limps-radix-v0.1.1) (2026-01-29)
 
 
