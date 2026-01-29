@@ -7,7 +7,7 @@
 ![Tests](https://img.shields.io/badge/Tests-899%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-%3E70%25-brightgreen)
 
-![limps in action](https://github.com/paulbreuler/limps/blob/main/.github/assets/limps-in-action.gif?raw=true)
+![limps in action](https://github.com/paulbreuler/limps/blob/main/.github/assets/limps-a-lol-longer.gif?raw=true)
 
 ## Quick Start
 
@@ -158,6 +158,7 @@ Add to `.cursor/mcp.json` in your project:
   }
 }
 ```
+
 </details>
 
 <details>
@@ -175,6 +176,7 @@ Add to `.mcp.json` in your project root:
   }
 }
 ```
+
 </details>
 
 <details>
@@ -194,6 +196,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   }
 }
 ```
+
 </details>
 
 <details>
@@ -206,6 +209,7 @@ Add to `~/.codex/config.toml`:
 command = "limps"
 args = ["serve", "--config", "/path/to/config.json"]
 ```
+
 </details>
 
 <details>
@@ -214,13 +218,16 @@ args = ["serve", "--config", "/path/to/config.json"]
 ChatGPT requires a remote MCP server over HTTPS. Deploy limps behind an MCP-compatible HTTP/SSE proxy.
 
 In ChatGPT → Settings → Connectors → Add custom connector:
+
 - **Server URL**: `https://your-domain.example/mcp`
 - **Authentication**: Configure as needed
 
 Print setup instructions:
+
 ```bash
 limps config sync-mcp --client chatgpt --print
 ```
+
 </details>
 
 ## CLI Commands
@@ -310,6 +317,7 @@ Add to config:
 ```
 
 **Available extensions:**
+
 - `@sudosandwich/limps-radix` — Radix UI contract extraction and semantic analysis
 
 ## Obsidian Compatibility
@@ -333,6 +341,7 @@ npm test
 ```
 
 This is a monorepo with:
+
 - `packages/limps` — Core MCP server
 - `packages/limps-radix` — Radix UI extension
 
@@ -371,7 +380,7 @@ NNNN-descriptive-name/
 
 ### Why the prefixes?
 
-In my case I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan 25", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
+I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan 25", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
 
 ## Deep Dive
 
@@ -403,6 +412,7 @@ files:
   - src/components/Feature.tsx
 ---
 ```
+
 </details>
 
 <details>
@@ -429,6 +439,7 @@ files:
   }
 }
 ```
+
 </details>
 
 <details>
@@ -447,6 +458,7 @@ await process_doc({
 ```
 
 **Available extractors:**
+
 - `extractSections()` — Markdown headings
 - `extractFrontmatter()` — YAML frontmatter
 - `extractFeatures()` — Plan features with status
@@ -464,6 +476,7 @@ await process_doc({
   llm_policy: 'force'  // or 'auto' (skips small results)
 });
 ```
+
 </details>
 
 <details>
@@ -478,6 +491,7 @@ Progressive disclosure via resources:
 | `plans://full` | Full plan documents |
 | `decisions://log` | Decision log entries |
 | `agents://status` | Agent status and tasks |
+
 </details>
 
 <details>
