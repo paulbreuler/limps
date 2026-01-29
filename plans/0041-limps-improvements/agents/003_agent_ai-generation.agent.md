@@ -1,38 +1,22 @@
-# Agent 3: AI Generation
+# Agent 3: AI Generation — MOVED TO PLAN 0042
 
-**Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`
+**This feature has been moved to a separate plan for cleaner scope separation.**
 
-## Scope
+See: `plans/0042-ai-requirements-generation/` (to be created)
 
-Features: #5
-Own: `packages/limps/src/tools/generate-requirements.ts`, `packages/limps/src/tools/index.ts`
-Depend on: none
-Block: Agent 4 needs docs for AI_DRAFT
+## Rationale
 
-## Interfaces
+AI-assisted requirements generation is conceptually independent from semantic search infrastructure. Bundling unrelated features into a "grab bag" plan obscures scope and complicates dependency tracking.
 
-### Export
+The semantic search features (Agents 0-2) form a coherent unit. AI generation deserves its own plan with proper acceptance criteria.
+
+## Original Scope (Preserved for Reference)
 
 - generate_requirements MCP tool
+- AI_DRAFT status marker
+- Review checklist generation
+- Optional LLM sub-query
 
-### Receive
+---
 
-- None
-
-## Features
-
-### #5: AI-Assisted Requirements Generation
-
-TL;DR: Generate requirements artifacts with AI_DRAFT status.
-Status: `GAP`
-Test IDs: `generate-requirements-template`, `generate-requirements-llm-optional`
-Files: `packages/limps/src/tools/generate-requirements.ts`
-
-TDD:
-1. `generate-requirements-template` → impl → refactor
-2. `generate-requirements-llm-optional` → impl → refactor
-
-## Done
-
-- [ ] Draft output with checklist
-- [ ] Optional LLM sub-query is explicit
+**Status: MOVED — Do not implement in this plan**
