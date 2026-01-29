@@ -1,3 +1,24 @@
+---
+title: Semantic Tools
+status: GAP
+persona: coder
+dependencies: ["000"]
+blocks: []
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#001", "Semantic Tools Agent"]
+created: 2026-01-28
+updated: 2026-01-28
+files:
+  - path: packages/limps/src/tools/semantic-search.ts
+    action: add
+  - path: packages/limps/src/tools/find-similar.ts
+    action: add
+  - path: packages/limps/src/tools/reindex-vectors.ts
+    action: add
+  - path: packages/limps/src/tools/index.ts
+    action: modify
+---
+
 # Agent 1: Semantic Tools
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`

@@ -1,3 +1,12 @@
+---
+title: limps Improvements
+status: draft
+workType: feature
+tags: [limps/plan, limps/worktype/feature]
+created: 2026-01-28
+updated: 2026-01-28
+---
+
 # limps Improvements — Full Feature Plan
 
 ## Overview

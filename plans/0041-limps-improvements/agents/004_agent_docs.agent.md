@@ -1,3 +1,22 @@
+---
+title: Docs
+status: GAP
+persona: coder
+dependencies: ["000", "001", "002"]
+blocks: []
+tags: [limps/agent, limps/status/gap, limps/persona/coder]
+aliases: ["#004", "Docs Agent"]
+created: 2026-01-28
+updated: 2026-01-28
+files:
+  - path: README.md
+    action: modify
+  - path: docs/semantic-setup.md
+    action: add
+  - path: config.json.example
+    action: modify
+---
+
 # Agent 4: Docs
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`

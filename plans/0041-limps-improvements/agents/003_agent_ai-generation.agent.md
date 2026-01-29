@@ -1,3 +1,16 @@
+---
+title: AI Generation (Moved)
+status: BLOCKED
+persona: coder
+dependencies: []
+blocks: []
+tags: [limps/agent, limps/status/blocked, limps/persona/coder]
+aliases: ["#003", "AI Generation Agent"]
+created: 2026-01-28
+updated: 2026-01-28
+files: []
+---
+
 # Agent 3: AI Generation — MOVED TO PLAN 0042
 
 **This feature has been moved to a separate plan for cleaner scope separation.**
