@@ -36,8 +36,10 @@ function printJson(text: string, json: boolean): void {
 export function registerAnalyzeCommand(program: Command): void {
   program
     .command('analyze')
-    .description('Analyze a React component for Radix adoption')
-    .argument('<file>', 'Path to a .ts/.tsx component')
+    .description(
+      'Analyze a React component for Radix adoption (run from project dir; path is relative to cwd)'
+    )
+    .argument('<file>', 'Path to a .ts/.tsx component (relative to cwd)')
     .option('-v, --version <version>', 'Radix version to compare against', 'latest')
     .option('-t, --threshold <number>', 'Minimum confidence threshold', '40')
     .option('-p, --provider <provider>', 'Component library provider', 'radix')

@@ -59,7 +59,7 @@ Extract a full primitive contract.
 
 ## radix_analyze_component
 
-Analyze a local component and recommend a Radix primitive.
+Analyze a local component and recommend a Radix primitive. **filePath** is resolved relative to the current working directory (MCP server cwd or, when using the CLI, the directory you run `limps-radix` from—so run from your project root).
 
 **Input**
 ```json

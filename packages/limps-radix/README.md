@@ -26,12 +26,13 @@ Example `limps.config.json`:
 
 ## CLI
 
-You can use the standalone CLI for local workflows:
+You can use the standalone CLI for local workflows. **Run from your project directory** so that `analyze` can resolve file paths (paths are relative to the current working directory):
 
 ```bash
+cd /path/to/your/react-app
 limps-radix list --version latest
 limps-radix extract dialog
-limps-radix analyze path/to/component.tsx
+limps-radix analyze src/components/ui/button.tsx
 limps-radix diff 1.0.0 --to latest --breaking-only
 limps-radix check-updates --refresh
 ```
