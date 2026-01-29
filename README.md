@@ -1,6 +1,6 @@
 # limps
 
-**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver — A unified planning layer for AI assistants. No subscriptions, no cloud. Version control your planning docs in git. One shared source of truth across Claude, Cursor, Codex, and any MCP-compatible tool.
+**L**ocal **I**ntelligent **M**CP **P**lanning **S**erver — A document and planning layer for AI assistants. No subscriptions, no cloud. Point limps at **any folder** (local, synced, or in git). One shared source of truth across Claude, Cursor, Codex, and any MCP-compatible tool.
 
 [![npm](https://img.shields.io/npm/v/@sudosandwich/limps)](https://www.npmjs.com/package/@sudosandwich/limps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -23,13 +23,55 @@ limps config sync-mcp --client cursor
 limps config sync-mcp --client claude-code
 ```
 
-That's it. Your AI assistant now has access to your planning documents.
+Ran in the folder you want to keep the docs and that's it. Your AI assistant now has access to your documents and nothign else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
+
+### What to know before you start
+
+- **Local only** — Your data stays on disk (SQLite index + your files). No cloud, no subscription.
+- **Restart after changes** — If you change the indexed folder or config, restart the MCP server (or rely on the file watcher) so the index and tools reflect the current state.
+- **Sandboxed user code** — `process_doc` and `process_docs` run your JavaScript in a QuickJS sandbox with time and memory limits; no network or Node APIs.
+- **One optional network call** — `limps version --check` fetches from the npm registry to compare versions. All other commands (serve, init, list, search, create/update/delete docs, process_doc, etc.) do **not** contact the internet. Omit `version --check` if you want zero external calls.
+
+## How I Use limps
+
+I use `limps` as a local planning layer across multiple AI tools, focused on **create → read → update → closure** for plans and tasks. The MCP server points at whatever directory I want (not necessarily a git repo), so any client reads and updates the same source of truth.
+
+Typical flow:
+
+1. Point limps at a docs directory (any folder, local or synced).
+2. Use CLI + MCP tools to create plans/docs, read the current status, update tasks, and close work when done.
+3. Sync MCP configs so Cursor/Claude/Codex all see the same plans.
+
+Commands and tools I use most often:
+
+- **Create**: `limps init`, `create_plan`, `create_doc`
+- **Read**: `list_plans`, `list_agents`, `list_docs`, `search_docs`, `get_plan_status`
+- **Update**: `update_doc`, `update_task_status`, `manage_tags`
+- **Close**: `update_task_status` (e.g., `PASS`), `delete_doc` if needed
+
+Full lists are below in "CLI Commands" and "MCP Tools."
+
+## How You Can Use It
+
+`limps` is designed to be generic and portable. Point it at **any folder** with Markdown files and use it from any MCP-compatible client. **No git repo required.** **Not limited to planning**—planning (plans, agents, task status) is one use case; the same layer gives you document CRUD, full-text search, and programmable processing on any indexed folder.
+
+Common setups:
+
+- **Single project**: One docs folder for a product.
+- **Multi-project**: Register multiple folders and switch with `limps config use`.
+- **Shared team folder**: Put plans in a shared location and review changes like code.
+- **Local-first**: Keep everything on disk, no hosted service required.
+
+Key ideas:
+
+- **Any folder** — You choose the path; if there’s no `plans/` subdir, the whole directory is indexed. Use generic tools (`list_docs`, `search_docs`, `create_doc`, `update_doc`, `delete_doc`, `process_doc`, `process_docs`) or plan-specific ones (`create_plan`, `list_plans`, `list_agents`, `get_plan_status`, `update_task_status`, `get_next_task`).
+- **One source of truth** — MCP tools give structured access; multiple clients share the same docs.
 
 ## Why limps?
 
 **The problem:** Each AI assistant maintains its own context. Planning documents, task status, and decisions get fragmented across Claude, Cursor, ChatGPT, and Copilot conversations.
 
-**The solution:** limps provides a standardized MCP interface that any tool can access. Your planning docs live in one place—a git repo you control.
+**The solution:** limps provides a standardized MCP interface that any tool can access. Your docs live in one place—a folder you choose. Use git (or any sync) if you want version control; limps is not tied to a repository.
 
 ### Supported Clients
 
@@ -296,9 +338,40 @@ This is a monorepo with:
 
 ## Used in Production
 
-limps manages planning for [runi](https://github.com/paulbreuler/runi), using a [separate git repo](https://github.com/paulbreuler/runi-planning-docs) for version-controlled plans.
+limps manages planning for [runi](https://github.com/paulbreuler/runi), using a separate folder (in this case a git repo) for plans.
 
 ---
+
+## Creating a feature plan
+
+This flow is used by the **create-feature-plan** command you can find in [claude/commande](/.claude/commands/) along with other useful commands and skills. These can be followed manually with MCP tools. The docs path is whatever folder limps is pointed at (any directory, not necessarily a repo).
+
+1. **Gather context** — Project name and scope, work type (`refactor` | `overhaul` | `features`), tech stack, prototype/reference docs, known gotchas.
+2. **Create planning docs** — Use MCP:
+   - `list_docs` on `plans/` to get the next plan number (max existing + 1).
+   - `create_plan` with name `NNNN-descriptive-name` and a short description.
+   - `create_doc` for: `{plan-name}-plan.md` (full specs), `interfaces.md`, `README.md`, `gotchas.md` (template). Use template `none` for plan/interfaces/README, `addendum` for gotchas if available.
+3. **Assign features to agents** — Group by file ownership and dependencies; 2–4 features per agent; minimize cross-agent conflicts.
+4. **Distill agent files** — For each agent, `create_doc` at `plans/NNNN-name/agents/NNN_agent_descriptive-name.agent.md` (template `none`). Extract from the plan: feature IDs + TL;DRs, interface contracts, files to create/modify, test IDs, TDD one-liners, brief gotchas. Target ~200–400 lines per agent.
+5. **Validate** — Agent files self-contained; interfaces consistent; dependency graph and file ownership correct; each agent file <500 lines.
+
+Resulting layout:
+
+```
+NNNN-descriptive-name/
+├── README.md
+├── {plan-name}-plan.md
+├── interfaces.md
+├── gotchas.md
+└── agents/
+    ├── 000_agent_infrastructure.agent.md
+    ├── 001_agent_....agent.md
+    └── ...
+```
+
+### Why the prefixes?
+
+In my case I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan 25", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
 
 ## Deep Dive
 
@@ -361,7 +434,7 @@ files:
 <details>
 <summary><b>RLM (Recursive Language Model) Support</b></summary>
 
-`process_doc` and `process_docs` execute JavaScript in a secure QuickJS sandbox:
+`process_doc` and `process_docs` execute JavaScript in a secure QuickJS sandbox. User-provided code is statically validated and cannot use `require`, `import`, `eval`, `fetch`, `XMLHttpRequest`, `WebSocket`, `process`, timers, or other host/network APIs—so it cannot make external calls or access the host.
 
 ```typescript
 await process_doc({
