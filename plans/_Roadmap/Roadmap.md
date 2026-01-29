@@ -123,7 +123,7 @@ Both are optimizing for **human readers discovering docs via AI**. limps should 
 > Beyond keyword matching
 
 **Plans:**
-- [0029-limps-semantic-search](./0029-limps-semantic-search/0029-limps-semantic-search-plan.md) - sqlite-vec + ollama local embeddings
+- [0041-limps-improvements](../0041-limps-improvements/0041-limps-improvements-plan.md) - semantic search, query improvements, AI-assisted generation (supersedes 0029)
 - [0030-limps-scoring-weights](./0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md) - Configurable task prioritization
 
 | Feature | Priority | Description |

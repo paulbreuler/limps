@@ -44,6 +44,8 @@ This helps ensure the plan is in a good state after updates and ready for contin
 
 ### 1. Identify the Plan
 
+**Use `/limps-plan-operations identify-plan` skill** for consistent plan identification:
+
 - Ask: "Which plan to update?"
 - If unsure: Use `limps list-plans` or limps MCP `list_plans` tool
 - Confirm plan directory exists
@@ -67,6 +69,8 @@ Parse feedback for:
 
 ### 3. Read Current State
 
+**Use `/limps-plan-operations load-artifacts` skill** for consistent artifact loading:
+
 ```
 [plan-name]/
 ├── README.md
@@ -77,7 +81,7 @@ Parse feedback for:
     └── *.agent.md    # Minimal execution files
 ```
 
-Read all files using limps MCP `process_doc` tool to understand current state.
+Read all files using limps MCP `process_doc` and `process_docs` tools to understand current state.
 
 ### 4. Analyze & Propose Changes
 

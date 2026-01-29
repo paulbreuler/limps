@@ -1,13 +1,17 @@
 ---
 title: limps Semantic Search
-status: draft
+status: superseded
+superseded_by: 0041-limps-improvements
 workType: feature
 tags: [limps/plan, limps/worktype/feature]
 created: 2026-01-26
 updated: 2026-01-27
 ---
 
-# limps Semantic Search
+# limps Semantic Search (Superseded)
+
+> Superseded by `plans/0041-limps-improvements/0041-limps-improvements-plan.md`.
+
 
 ## Overview
 
