@@ -1,6 +1,6 @@
 {
   "name": "@sudosandwich/limps-radix",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "limps extension for Radix UI contract extraction, semantic analysis, and drift detection",
   "type": "module",
   "main": "dist/index.js",
