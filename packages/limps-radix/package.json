@@ -10,7 +10,9 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
+    "postpublish": "node scripts/cleanup-publish.cjs"
   },
   "keywords": [
     "limps",

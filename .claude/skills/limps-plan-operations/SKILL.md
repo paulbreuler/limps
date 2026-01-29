@@ -36,7 +36,7 @@ When a command needs to identify which plan to work with:
 ### Input Handling
 
 1. **User provides plan name or path**:
-   - Examples: `plan 41`0041-limps-improvements`, `plans/0041-limps-improvements`, `0041-limps-improvements/`
+   - Examples: `plan 41`, `plan 0041`, `0041-limps-improvements`, `plans/0041-limps-improvements`, `0041-limps-improvements/`
    - Accept any of these formats
 
 2. **No plan provided**:
