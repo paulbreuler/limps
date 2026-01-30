@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { discoverComponents } from '../src/audit/discover-components.js';
+import { copyFixture } from './fixtures/loader.js';
 
 function mkdtemp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'limps-headless-discovery-'));
@@ -254,6 +255,74 @@ export function CustomButton({ onClick, children }) {
       expect(custom?.mixedUsage).toBe(false);
     } finally {
       process.chdir(cwd);
+    }
+  });
+});
+
+// Test ID: fixture-radix
+describe('fixture-radix', () => {
+  it('discovers Radix backend from fixture (import + JSX evidence)', async () => {
+    const dir = copyFixture('radix');
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const components = await discoverComponents();
+      expect(components.length).toBeGreaterThanOrEqual(1);
+      const dialog = components.find((c) => c.name === 'DialogFixture' || c.path.includes('Dialog'));
+      expect(dialog).toBeDefined();
+      expect(dialog?.backend).toBe('radix');
+      expect(dialog?.mixedUsage).toBe(false);
+      expect(dialog?.importSources).toContain('@radix-ui/react-dialog');
+      expect(dialog?.evidence).toContain('asChild');
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// Test ID: fixture-base
+describe('fixture-base', () => {
+  it('discovers Base UI backend from fixture (import + JSX evidence)', async () => {
+    const dir = copyFixture('base');
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const components = await discoverComponents();
+      expect(components.length).toBeGreaterThanOrEqual(1);
+      const select = components.find((c) => c.name === 'SelectFixture' || c.path.includes('Select'));
+      expect(select).toBeDefined();
+      expect(select?.backend).toBe('base');
+      expect(select?.mixedUsage).toBe(false);
+      expect(select?.importSources).toContain('@base-ui-components/react');
+      expect(select?.evidence).toContain('render');
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// Test ID: fixture-mixed
+describe('fixture-mixed', () => {
+  it('discovers mixed backend from fixture (import + JSX evidence)', async () => {
+    const dir = copyFixture('mixed');
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const components = await discoverComponents();
+      expect(components.length).toBeGreaterThanOrEqual(1);
+      const mixed = components.find(
+        (c) => c.name === 'MixedWidgetFixture' || c.path.includes('MixedWidget')
+      );
+      expect(mixed).toBeDefined();
+      expect(mixed?.backend).toBe('mixed');
+      expect(mixed?.mixedUsage).toBe(true);
+      expect(mixed?.importSources).toContain('@radix-ui/react-dialog');
+      expect(mixed?.importSources).toContain('@base-ui-components/react');
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });

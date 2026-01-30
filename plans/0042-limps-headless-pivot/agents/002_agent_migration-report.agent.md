@@ -43,7 +43,7 @@ export interface ComponentInventory {
 ### #3: Migration Analysis
 
 TL;DR: Flag Radix usage and mixed backends; compute readiness.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `migration-radix`, `migration-mixed`, `migration-readiness`
 Files: `packages/limps-headless/src/audit/analyses/migration.ts` (create)
 
@@ -60,7 +60,7 @@ Gotchas:
 ### #4: Report + CLI Output Updates
 
 TL;DR: Add backend summary + migration category to report.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `report-backend-summary`, `report-migration-section`
 Files: `packages/limps-headless/src/audit/generate-report.ts` (update)
 
@@ -76,6 +76,6 @@ Gotchas:
 
 ## Done
 
-- [ ] Migration issues appear in report
-- [ ] Summary includes backend counts
-- [ ] Status → PASS
+- [x] Migration issues appear in report
+- [x] Summary includes backend counts
+- [x] Status → PASS
