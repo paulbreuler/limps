@@ -7,6 +7,8 @@ import type { ComponentMetadata, Issue } from '../audit/types.js';
 
 /** Import patterns for Base UI packages. */
 const BASE_IMPORT_PATTERNS = [
+  /^@base-ui\/react/,
+  /^@base-ui\//,
   /^@base-ui-components\//,
   /^@base_ui\//,
 ];

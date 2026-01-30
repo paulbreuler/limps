@@ -10,6 +10,7 @@ import type {
   ComponentInventory,
   ComponentMetadata,
   Contravention,
+  HeadlessBackend,
   IssuePriority,
   RunAuditOptions,
 } from './types.js';
@@ -29,7 +30,10 @@ interface SerializedAnalysisResult {
     primitive: string | null;
     package: string | null;
     confidence: number;
-    action: 'ADOPT_RADIX' | 'CONSIDER_RADIX' | 'CUSTOM_OK';
+    action:
+      | 'LEGACY_RADIX_MATCH_STRONG'
+      | 'LEGACY_RADIX_MATCH_POSSIBLE'
+      | 'NO_LEGACY_RADIX_MATCH';
     reason?: string;
   };
   matches: unknown[];
@@ -72,30 +76,40 @@ function normalizeInventoryInput(
 /**
  * Derive issues from analysis results.
  */
-function issuesFromAnalysis(results: SerializedAnalysisResult[]): AuditIssue[] {
+function issuesFromAnalysis(
+  results: SerializedAnalysisResult[],
+  backendByPath?: Map<string, HeadlessBackend>
+): AuditIssue[] {
   const issues: AuditIssue[] = [];
   let id = 0;
   for (const r of results) {
     const loc = r.filePath;
     const rec = r.recommendation;
-    if (rec.action === 'CUSTOM_OK' && (rec.confidence > 0 || rec.reason)) {
-      const priority: IssuePriority =
-        rec.confidence >= 30 ? 'low' : rec.confidence >= 10 ? 'medium' : 'high';
+    const backend = backendByPath?.get(r.filePath);
+    const isBase = backend === 'base';
+    const isRadixOrMixed = backend === 'radix' || backend === 'mixed';
+    const isUnknown = backend === 'unknown' || backend === undefined;
+
+    if (rec.action === 'LEGACY_RADIX_MATCH_STRONG') {
+      if (isBase) continue;
+      const priority: IssuePriority = 'high';
       issues.push({
         id: `analysis-${++id}`,
-        category: 'adoption',
+        category: 'migration',
         priority,
-        description: rec.reason ?? 'No Radix primitive match',
-        recommendation: 'Consider adopting a Radix primitive or document custom component.',
+        description: rec.reason ?? `Strong legacy Radix match to ${rec.primitive ?? 'component'}`,
+        recommendation: `Migrate ${rec.primitive ?? 'this component'} to Base UI and remove legacy Radix usage.`,
         location: loc,
       });
-    } else if (rec.action === 'CONSIDER_RADIX' && rec.confidence < 70) {
+    } else if (rec.action === 'LEGACY_RADIX_MATCH_POSSIBLE' && rec.confidence < 70) {
+      if (isBase) continue;
+      if (!isRadixOrMixed && !isUnknown) continue;
       issues.push({
         id: `analysis-${++id}`,
-        category: 'adoption',
+        category: 'migration',
         priority: 'medium',
         description: rec.reason ?? `Moderate match to ${rec.primitive}`,
-        recommendation: `Review and consider adopting @radix-ui/react-${rec.primitive?.toLowerCase() ?? 'primitive'}.`,
+        recommendation: `Review legacy Radix match and plan Base UI migration for ${rec.primitive ?? 'this component'}.`,
         location: loc,
       });
     }
@@ -111,12 +125,12 @@ function complianceFromAnalysis(
 ): NonNullable<AuditReport['compliance']> {
   return results.map((r) => {
     let status: 'pass' | 'partial' | 'fail';
-    if (r.recommendation.action === 'ADOPT_RADIX') {
-      status = 'pass';
-    } else if (r.recommendation.action === 'CONSIDER_RADIX') {
+    if (r.recommendation.action === 'LEGACY_RADIX_MATCH_STRONG') {
+      status = 'fail';
+    } else if (r.recommendation.action === 'LEGACY_RADIX_MATCH_POSSIBLE') {
       status = 'partial';
     } else {
-      status = 'fail';
+      status = 'pass';
     }
     return {
       path: r.filePath,
@@ -263,7 +277,10 @@ export function generateReport(input: GenerateReportInput): GenerateReportResult
     inventory = normalizeInventoryInput(inventoryData);
   }
 
-  const issues = issuesFromAnalysis(results);
+  const backendByPath = inventory
+    ? new Map(inventory.map((component) => [component.path, component.backend]))
+    : undefined;
+  const issues = issuesFromAnalysis(results, backendByPath);
 
   // Add migration issues from inventory if available
   if (inventory && inventory.length > 0) {

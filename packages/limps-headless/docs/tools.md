@@ -59,7 +59,7 @@ Extract a full primitive contract.
 
 ## headless_analyze_component
 
-Analyze a local component and recommend a Radix primitive. **filePath** is resolved relative to the current working directory (MCP server cwd or, when using the CLI, the directory you run `limps-headless` from—so run from your project root).
+Analyze a local component and detect legacy Radix matches to inform Base UI migration. **filePath** is resolved relative to the current working directory (MCP server cwd or, when using the CLI, the directory you run `limps-headless` from—so run from your project root).
 
 **Input**
 ```json
@@ -80,8 +80,8 @@ Analyze a local component and recommend a Radix primitive. **filePath** is resol
     "primitive": "Dialog",
     "package": "@radix-ui/react-dialog",
     "confidence": 78,
-    "action": "ADOPT_RADIX",
-    "reason": "High confidence match (78) - strongly recommend adopting Dialog"
+    "action": "LEGACY_RADIX_MATCH_STRONG",
+    "reason": "High confidence legacy Radix match (78) - prioritize Base UI migration"
   },
   "isAmbiguous": false
 }

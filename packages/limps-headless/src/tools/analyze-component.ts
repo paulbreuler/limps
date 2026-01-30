@@ -99,7 +99,7 @@ export async function handleAnalyzeComponent(
           resolvedVersion = versions.sort().reverse()[0];
         }
       } else {
-        // No cached versions - return early
+    // No cached versions - return early
         const result: AnalysisResult = {
           component: analysis.name,
           filePath: relative,
@@ -107,8 +107,9 @@ export async function handleAnalyzeComponent(
             primitive: null,
             package: null,
             confidence: 0,
-            action: 'CUSTOM_OK',
-            reason: 'No Radix signatures cached. Run headless_extract_primitive first.',
+            action: 'NO_LEGACY_RADIX_MATCH',
+            reason:
+              'No legacy Radix signatures cached. Run headless_extract_primitive to enable migration detection.',
           },
           matches: [],
           analysis,
@@ -136,7 +137,7 @@ export async function handleAnalyzeComponent(
     }
   }
 
-  // If no signatures found, return early with CUSTOM_OK
+  // If no signatures found, return early with NO_LEGACY_RADIX_MATCH
   if (signatures.length === 0) {
     const result: AnalysisResult = {
       component: analysis.name,
@@ -145,8 +146,8 @@ export async function handleAnalyzeComponent(
         primitive: null,
         package: null,
         confidence: 0,
-        action: 'CUSTOM_OK',
-        reason: 'No Radix signatures available for comparison',
+        action: 'NO_LEGACY_RADIX_MATCH',
+        reason: 'No legacy Radix signatures available for comparison',
       },
       matches: [],
       analysis,
@@ -181,26 +182,26 @@ export async function handleAnalyzeComponent(
       primitive: null,
       package: null,
       confidence: bestMatch?.confidence ?? 0,
-      action: 'CUSTOM_OK',
+      action: 'NO_LEGACY_RADIX_MATCH',
       reason: bestMatch
-        ? `Low confidence (${bestMatch.confidence}) - component likely custom`
-        : 'No matches found',
+        ? `Low confidence (${bestMatch.confidence}) - likely custom or already Base UI`
+        : 'No legacy Radix match detected',
     };
   } else if (bestMatch.confidence >= 70) {
     recommendation = {
       primitive: bestMatch.primitive,
       package: bestMatch.package,
       confidence: bestMatch.confidence,
-      action: 'ADOPT_RADIX',
-      reason: `High confidence match (${bestMatch.confidence}) - strongly recommend adopting ${bestMatch.primitive}`,
+      action: 'LEGACY_RADIX_MATCH_STRONG',
+      reason: `High confidence legacy Radix match (${bestMatch.confidence}) - prioritize Base UI migration`,
     };
   } else {
     recommendation = {
       primitive: bestMatch.primitive,
       package: bestMatch.package,
       confidence: bestMatch.confidence,
-      action: 'CONSIDER_RADIX',
-      reason: `Moderate confidence match (${bestMatch.confidence}) - consider adopting ${bestMatch.primitive}`,
+      action: 'LEGACY_RADIX_MATCH_POSSIBLE',
+      reason: `Moderate confidence legacy Radix match (${bestMatch.confidence}) - review for Base UI migration`,
     };
   }
 
@@ -229,7 +230,7 @@ export async function handleAnalyzeComponent(
 export const analyzeComponentTool: ExtensionTool = {
   name: 'headless_analyze_component',
   description:
-    'Analyze a React component file for Radix primitive adoption. Returns confidence scores, matches, and recommendations.',
+    'Analyze a React component file for legacy Radix signature matches to inform Base UI migration.',
   inputSchema: analyzeComponentInputSchema,
   handler: handleAnalyzeComponent,
 };

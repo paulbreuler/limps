@@ -10,6 +10,8 @@ import type { ComponentMetadata, Issue } from '../audit/types.js';
 const RADIX_IMPORT_PATTERNS = [
   /^@radix-ui\/react-/,
   /^@radix-ui\/primitive/,
+  /^radix-ui$/,
+  /^radix-ui\//,
 ];
 
 /** JSX attribute patterns that indicate Radix UI usage. */

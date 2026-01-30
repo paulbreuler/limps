@@ -12,10 +12,14 @@ import type { ComponentMetadata, DiscoveryOptions, HeadlessBackend } from './typ
 const RADIX_IMPORT_PATTERNS = [
   /^@radix-ui\/react-/,
   /^@radix-ui\/primitive/,
+  /^radix-ui$/,
+  /^radix-ui\//,
 ];
 
 /** Import patterns for Base UI packages. */
 const BASE_IMPORT_PATTERNS = [
+  /^@base-ui\/react/,
+  /^@base-ui\//,
   /^@base-ui-components\//,
   /^@base_ui\//,
 ];
@@ -23,8 +27,32 @@ const BASE_IMPORT_PATTERNS = [
 /** JSX attribute patterns that indicate Radix usage. */
 const RADIX_EVIDENCE_PATTERNS = ['asChild'];
 
+/** JSX role values that map to headless primitives (Base UI overlap). */
+const BASE_ROLE_EVIDENCE = new Set([
+  'alertdialog',
+  'checkbox',
+  'combobox',
+  'dialog',
+  'listbox',
+  'menu',
+  'menubar',
+  'menuitem',
+  'option',
+  'radio',
+  'radiogroup',
+  'slider',
+  'switch',
+  'tab',
+  'tablist',
+  'tabpanel',
+  'tooltip',
+]);
+
 /** JSX attribute patterns that indicate Base UI usage. */
-const BASE_EVIDENCE_PATTERNS = ['render'];
+const BASE_EVIDENCE_PATTERNS = [
+  'render',
+  ...Array.from(BASE_ROLE_EVIDENCE).map((role) => `role:${role}`),
+];
 
 const DEFAULT_OPTIONS: Required<DiscoveryOptions> = {
   rootDir: 'src/components',
@@ -37,11 +65,18 @@ function normalizePath(value: string): string {
 }
 
 function globToRegExp(glob: string): RegExp {
+  const globstarSlash = '__GLOBSTAR_SLASH__';
+  const globstar = '__GLOBSTAR__';
+  const star = '__STAR__';
+
   const escaped = glob
+    .replace(/\*\*\//g, globstarSlash)
+    .replace(/\*\*/g, globstar)
+    .replace(/\*/g, star)
     .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*\//g, '(?:.*/)?')
-    .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*');
+    .replace(new RegExp(globstarSlash, 'g'), '(?:.*/)?')
+    .replace(new RegExp(globstar, 'g'), '.*')
+    .replace(new RegExp(star, 'g'), '[^/]*');
   return new RegExp(`^${escaped}$`);
 }
 
@@ -235,6 +270,26 @@ function extractPatternEvidence(sourceFile: ts.SourceFile): string[] {
           }
         }
       }
+
+      if (attrName === 'role' && node.initializer) {
+        let roleValue: string | undefined;
+        if (ts.isStringLiteral(node.initializer)) {
+          roleValue = node.initializer.text;
+        } else if (
+          ts.isJsxExpression(node.initializer) &&
+          node.initializer.expression &&
+          ts.isStringLiteral(node.initializer.expression)
+        ) {
+          roleValue = node.initializer.expression.text;
+        }
+
+        if (roleValue) {
+          const normalized = roleValue.toLowerCase();
+          if (BASE_ROLE_EVIDENCE.has(normalized)) {
+            evidence.add(`role:${normalized}`);
+          }
+        }
+      }
     }
     ts.forEachChild(node, visit);
   };
@@ -370,6 +425,40 @@ async function walkFiles(rootDir: string): Promise<string[]> {
   return results;
 }
 
+function resolveLocalImport(
+  fromFilePath: string,
+  specifier: string
+): string | undefined {
+  const cwd = process.cwd();
+  let basePath: string | undefined;
+
+  if (specifier.startsWith('@/')) {
+    basePath = path.join(cwd, 'src', specifier.slice(2));
+  } else if (specifier.startsWith('./') || specifier.startsWith('../')) {
+    basePath = path.resolve(path.dirname(fromFilePath), specifier);
+  } else {
+    return undefined;
+  }
+
+  if (basePath.endsWith('.ts') || basePath.endsWith('.tsx')) {
+    return fs.existsSync(basePath) ? basePath : undefined;
+  }
+
+  for (const ext of ['.ts', '.tsx']) {
+    const withExt = `${basePath}${ext}`;
+    if (fs.existsSync(withExt)) return withExt;
+  }
+
+  if (fs.existsSync(basePath) && fs.statSync(basePath).isDirectory()) {
+    for (const ext of ['.ts', '.tsx']) {
+      const indexPath = path.join(basePath, `index${ext}`);
+      if (fs.existsSync(indexPath)) return indexPath;
+    }
+  }
+
+  return undefined;
+}
+
 export async function discoverComponents(
   options: DiscoveryOptions = {}
 ): Promise<ComponentMetadata[]> {
@@ -385,6 +474,17 @@ export async function discoverComponents(
   const excludePatterns = opts.excludePatterns.map(normalizePath);
   const files = await walkFiles(rootDir);
   const results: ComponentMetadata[] = [];
+  const fileInfoByPath = new Map<
+    string,
+    {
+      filePath: string;
+      relativePath: string;
+      sourceFile: ts.SourceFile;
+      importSources: string[];
+      evidence: string[];
+      exportedNames: string[];
+    }
+  >();
 
   for (const filePath of files) {
     const normalized = normalizePath(path.relative(rootDir, filePath));
@@ -400,24 +500,80 @@ export async function discoverComponents(
       filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
     );
 
-    const name = extractComponentName(sourceFile, filePath);
     const importSources = extractImportSources(sourceFile);
     const evidence = extractPatternEvidence(sourceFile);
     const exportedNames = extractExportedNames(sourceFile);
-    const { backend, mixedUsage, matchedImports } = determineBackend(importSources, evidence);
 
-    results.push({
-      path: normalizePath(path.relative(process.cwd(), filePath)),
-      name,
-      exportType: detectExportType(sourceFile),
-      propsInterface: extractPropsInterface(sourceFile),
-      dependencies: extractDependencies(sourceFile),
-      backend,
-      mixedUsage,
-      importSources: matchedImports,
+    fileInfoByPath.set(filePath, {
+      filePath,
+      relativePath: normalizePath(path.relative(process.cwd(), filePath)),
+      sourceFile,
+      importSources,
       evidence,
-      exportsComponent: detectExportsComponent(exportedNames),
       exportedNames,
+    });
+  }
+
+  const directBackendByPath = new Map<string, HeadlessBackend>();
+  const matchedImportsByPath = new Map<string, string[]>();
+
+  for (const info of fileInfoByPath.values()) {
+    const { backend, matchedImports } = determineBackend(info.importSources, info.evidence);
+    directBackendByPath.set(info.filePath, backend);
+    matchedImportsByPath.set(info.filePath, matchedImports);
+  }
+
+  const inferredBackendByPath = new Map<string, HeadlessBackend>();
+  const visiting = new Set<string>();
+
+  const inferBackend = (filePath: string): HeadlessBackend => {
+    const cached = inferredBackendByPath.get(filePath);
+    if (cached) return cached;
+    if (visiting.has(filePath)) return 'unknown';
+    visiting.add(filePath);
+
+    const direct = directBackendByPath.get(filePath) ?? 'unknown';
+    let hasBase = direct === 'base' || direct === 'mixed';
+    let hasRadix = direct === 'radix' || direct === 'mixed';
+
+    const info = fileInfoByPath.get(filePath);
+    if (info) {
+      for (const specifier of info.importSources) {
+        const resolved = resolveLocalImport(info.filePath, specifier);
+        if (!resolved || !fileInfoByPath.has(resolved)) continue;
+        const depBackend = inferBackend(resolved);
+        if (depBackend === 'base' || depBackend === 'mixed') hasBase = true;
+        if (depBackend === 'radix' || depBackend === 'mixed') hasRadix = true;
+      }
+    }
+
+    visiting.delete(filePath);
+
+    let result: HeadlessBackend = 'unknown';
+    if (hasBase && hasRadix) result = 'mixed';
+    else if (hasBase) result = 'base';
+    else if (hasRadix) result = 'radix';
+
+    inferredBackendByPath.set(filePath, result);
+    return result;
+  };
+
+  for (const info of fileInfoByPath.values()) {
+    const backend = inferBackend(info.filePath);
+    const name = extractComponentName(info.sourceFile, info.filePath);
+    const matchedImports = matchedImportsByPath.get(info.filePath) ?? [];
+    results.push({
+      path: info.relativePath,
+      name,
+      exportType: detectExportType(info.sourceFile),
+      propsInterface: extractPropsInterface(info.sourceFile),
+      dependencies: extractDependencies(info.sourceFile),
+      backend,
+      mixedUsage: backend === 'mixed',
+      importSources: matchedImports,
+      evidence: info.evidence,
+      exportsComponent: detectExportsComponent(info.exportedNames),
+      exportedNames: info.exportedNames,
     });
   }
 

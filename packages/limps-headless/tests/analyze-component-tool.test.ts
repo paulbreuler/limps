@@ -79,7 +79,7 @@ describe('headless_analyze_component tool', () => {
     setupDefaults();
   });
 
-  it('returns ADOPT_RADIX for 70+', async () => {
+  it('returns LEGACY_RADIX_MATCH_STRONG for 70+', async () => {
     mocks.scoreAgainstSignatures.mockReturnValue([
       {
         primitive: 'Dialog',
@@ -100,11 +100,11 @@ describe('headless_analyze_component tool', () => {
       filePath: './tests/tmp-analyze/Modal.tsx',
     });
     const parsed = JSON.parse(result.content[0].text) as AnalysisResult;
-    expect(parsed.recommendation.action).toBe('ADOPT_RADIX');
+    expect(parsed.recommendation.action).toBe('LEGACY_RADIX_MATCH_STRONG');
     expect(parsed.recommendation.confidence).toBeGreaterThanOrEqual(70);
   });
 
-  it('returns CONSIDER_RADIX for 50-69', async () => {
+  it('returns LEGACY_RADIX_MATCH_POSSIBLE for 50-69', async () => {
     mocks.scoreAgainstSignatures.mockReturnValue([
       {
         primitive: 'Dialog',
@@ -125,10 +125,10 @@ describe('headless_analyze_component tool', () => {
       filePath: './tests/tmp-analyze/Modal.tsx',
     });
     const parsed = JSON.parse(result.content[0].text) as AnalysisResult;
-    expect(parsed.recommendation.action).toBe('CONSIDER_RADIX');
+    expect(parsed.recommendation.action).toBe('LEGACY_RADIX_MATCH_POSSIBLE');
   });
 
-  it('returns CUSTOM_OK for <50', async () => {
+  it('returns NO_LEGACY_RADIX_MATCH for <50', async () => {
     mocks.scoreAgainstSignatures.mockReturnValue([
       {
         primitive: 'Dialog',
@@ -149,7 +149,7 @@ describe('headless_analyze_component tool', () => {
       filePath: './tests/tmp-analyze/Modal.tsx',
     });
     const parsed = JSON.parse(result.content[0].text) as AnalysisResult;
-    expect(parsed.recommendation.action).toBe('CUSTOM_OK');
+    expect(parsed.recommendation.action).toBe('NO_LEGACY_RADIX_MATCH');
   });
 
   it('flags ambiguous matches', async () => {

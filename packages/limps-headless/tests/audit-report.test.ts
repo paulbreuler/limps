@@ -36,7 +36,7 @@ describe('generateReport', () => {
               primitive: null,
               package: null,
               confidence: 0,
-              action: 'CUSTOM_OK',
+              action: 'NO_LEGACY_RADIX_MATCH',
               reason: 'No Radix signatures cached.',
             },
             matches: [],
@@ -131,6 +131,100 @@ describe('generateReport', () => {
 
     expect(result.report.contraventions.length).toBeGreaterThanOrEqual(0);
     expect(result.report.summary.contraventions).toBeDefined();
+  });
+
+  it('respects backend classification when creating analysis issues', () => {
+    const dir = mkdtemp();
+    const analysisPath = path.join(dir, 'analysis.json');
+    fs.writeFileSync(
+      analysisPath,
+      JSON.stringify({
+        results: [
+          {
+            component: 'BaseDialog',
+            filePath: 'src/BaseDialog.tsx',
+            recommendation: {
+              primitive: 'Dialog',
+              package: '@radix-ui/react-dialog',
+              confidence: 90,
+              action: 'LEGACY_RADIX_MATCH_STRONG',
+              reason: 'Strong legacy Radix match',
+            },
+            matches: [],
+            analysis: {},
+            isAmbiguous: false,
+          },
+          {
+            component: 'UnknownPopover',
+            filePath: 'src/UnknownPopover.tsx',
+            recommendation: {
+              primitive: 'Popover',
+              package: '@radix-ui/react-popover',
+              confidence: 60,
+              action: 'LEGACY_RADIX_MATCH_POSSIBLE',
+              reason: 'Moderate legacy Radix match',
+            },
+            matches: [],
+            analysis: {},
+            isAmbiguous: false,
+          },
+          {
+            component: 'RadixDialog',
+            filePath: 'src/RadixDialog.tsx',
+            recommendation: {
+              primitive: 'Dialog',
+              package: '@radix-ui/react-dialog',
+              confidence: 85,
+              action: 'LEGACY_RADIX_MATCH_STRONG',
+              reason: 'Strong legacy Radix match',
+            },
+            matches: [],
+            analysis: {},
+            isAmbiguous: false,
+          },
+          {
+            component: 'CustomWidget',
+            filePath: 'src/CustomWidget.tsx',
+            recommendation: {
+              primitive: null,
+              package: null,
+              confidence: 0,
+              action: 'NO_LEGACY_RADIX_MATCH',
+              reason: 'No legacy Radix match detected',
+            },
+            matches: [],
+            analysis: {},
+            isAmbiguous: false,
+          },
+        ],
+      }),
+      'utf-8'
+    );
+    const inventoryPath = path.join(dir, 'inventory.json');
+    fs.writeFileSync(
+      inventoryPath,
+      JSON.stringify({
+        components: [
+          { path: 'src/BaseDialog.tsx', name: 'BaseDialog', backend: 'base', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['BaseDialog'] },
+          { path: 'src/UnknownPopover.tsx', name: 'UnknownPopover', backend: 'unknown', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['UnknownPopover'] },
+          { path: 'src/RadixDialog.tsx', name: 'RadixDialog', backend: 'radix', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['RadixDialog'] },
+          { path: 'src/CustomWidget.tsx', name: 'CustomWidget', backend: 'unknown', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['CustomWidget'] },
+        ],
+      }),
+      'utf-8'
+    );
+
+    const result = generateReport({
+      inputs: { analysis: analysisPath, inventory: inventoryPath },
+      outputDir: dir,
+      format: 'json',
+    });
+
+    const migrationIssues = result.report.issues.filter(
+      (issue) => issue.category === 'migration'
+    );
+    const issueLocations = migrationIssues.map((issue) => issue.location).sort();
+    expect(issueLocations).toEqual(['src/RadixDialog.tsx', 'src/UnknownPopover.tsx']);
   });
 
   it('works with no analysis path (empty results)', () => {

@@ -144,7 +144,7 @@ Extract the behavioral contract for a single Radix primitive, including sub-comp
 
 ### `headless_analyze_component`
 
-Analyze a local component file and recommend a Radix primitive.
+Analyze a local component file for legacy Radix matches to inform Base UI migration.
 
 **Input**
 

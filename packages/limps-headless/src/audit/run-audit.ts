@@ -21,9 +21,9 @@ const REFERENCE_PRIMITIVE = 'dialog';
 
 /** Minimum confidence to include a match in analysis results. */
 const DEFAULT_ANALYSIS_THRESHOLD = 40;
-/** Max confidence for CUSTOM_OK (below this = custom component). */
+/** Max confidence for NO_LEGACY_RADIX_MATCH (below this = custom/Base). */
 const CONFIDENCE_CUSTOM_OK_MAX = 50;
-/** Min confidence for ADOPT_RADIX (above this = strong match). */
+/** Min confidence for LEGACY_RADIX_MATCH_STRONG (above this = strong match). */
 const CONFIDENCE_ADOPT_MIN = 70;
 
 function serializeAnalysis(analysis: AnalysisResult['analysis']) {
@@ -100,27 +100,27 @@ async function analyzeFiles(
           primitive: null,
           package: null,
           confidence: bestMatch?.confidence ?? 0,
-          action: 'CUSTOM_OK',
+          action: 'NO_LEGACY_RADIX_MATCH',
           reason:
             bestMatch?.confidence
-              ? `Low confidence (${bestMatch.confidence}) - component likely custom`
-              : 'No matches found',
+              ? `Low confidence (${bestMatch.confidence}) - likely custom or already Base UI`
+              : 'No legacy Radix match detected',
         };
       } else if (bestMatch.confidence >= CONFIDENCE_ADOPT_MIN) {
         recommendation = {
           primitive: bestMatch.primitive,
           package: bestMatch.package,
           confidence: bestMatch.confidence,
-          action: 'ADOPT_RADIX',
-          reason: `High confidence match (${bestMatch.confidence}) - strongly recommend adopting ${bestMatch.primitive}`,
+          action: 'LEGACY_RADIX_MATCH_STRONG',
+          reason: `High confidence legacy Radix match (${bestMatch.confidence}) - prioritize Base UI migration`,
         };
       } else {
         recommendation = {
           primitive: bestMatch.primitive,
           package: bestMatch.package,
           confidence: bestMatch.confidence,
-          action: 'CONSIDER_RADIX',
-          reason: `Moderate confidence match (${bestMatch.confidence}) - consider adopting ${bestMatch.primitive}`,
+          action: 'LEGACY_RADIX_MATCH_POSSIBLE',
+          reason: `Moderate confidence legacy Radix match (${bestMatch.confidence}) - review for Base UI migration`,
         };
       }
 
@@ -165,10 +165,15 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
   let analysisPath: string | undefined;
   let files = input.scope?.files ?? [];
   let discovered: ComponentMetadata[] = [];
-  if (files.length === 0) {
+  let legacyRadixCount = 0;
+  const didDiscover = files.length === 0;
+  if (didDiscover) {
     discovered = await discoverComponents(input.discovery);
     inventoryPath = persistInventory(outputDir, discovered);
     files = discovered.map((c) => c.path);
+    legacyRadixCount = discovered.filter(
+      (component) => component.backend === 'radix' || component.mixedUsage
+    ).length;
   }
 
   if (files.length > 0) {
@@ -203,26 +208,49 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     fs.writeFileSync(analysisPath, JSON.stringify({ results: [] }, null, 2), 'utf-8');
   }
 
-  const currentResolution = await getLatestResolution(REFERENCE_PRIMITIVE);
-  const currentVersion = currentResolution?.version;
-  const packageName = `@radix-ui/react-${REFERENCE_PRIMITIVE}`;
-  const latestVersion = await resolvePackageVersion(packageName, 'latest');
-  const fromVersion = currentVersion ?? input.radixVersion ?? latestVersion;
-  const diff: RadixDiff = await diffVersions(fromVersion, latestVersion, primitives);
-  const diffPath = path.join(outputDir, 'diff.json');
-  fs.writeFileSync(diffPath, JSON.stringify(diff, null, 2), 'utf-8');
+  const shouldSkipRadixDiff = didDiscover && (discovered.length === 0 || legacyRadixCount === 0);
+  let diffPath: string | undefined;
+  let updatesPath: string | undefined;
+  if (shouldSkipRadixDiff) {
+    const diff: RadixDiff = {
+      fromVersion: 'n/a',
+      toVersion: 'n/a',
+      hasBreakingChanges: false,
+      summary: { totalChanges: 0, breaking: 0, warnings: 0, info: 0 },
+      changes: [],
+    };
+    diffPath = path.join(outputDir, 'diff.json');
+    fs.writeFileSync(diffPath, JSON.stringify(diff, null, 2), 'utf-8');
 
-  const hasUpdate = currentVersion !== undefined && currentVersion !== latestVersion;
-  const updates: UpdateCheckResult = {
-    currentVersion: currentVersion ?? latestVersion,
-    latestVersion,
-    hasUpdate,
-  };
-  if (hasUpdate) {
-    updates.diff = diff;
+    const updates: UpdateCheckResult = {
+      currentVersion: 'n/a',
+      latestVersion: 'n/a',
+      hasUpdate: false,
+    };
+    updatesPath = path.join(outputDir, 'updates.json');
+    fs.writeFileSync(updatesPath, JSON.stringify(updates, null, 2), 'utf-8');
+  } else {
+    const currentResolution = await getLatestResolution(REFERENCE_PRIMITIVE);
+    const currentVersion = currentResolution?.version;
+    const packageName = `@radix-ui/react-${REFERENCE_PRIMITIVE}`;
+    const latestVersion = await resolvePackageVersion(packageName, 'latest');
+    const fromVersion = currentVersion ?? input.radixVersion ?? latestVersion;
+    const diff: RadixDiff = await diffVersions(fromVersion, latestVersion, primitives);
+    diffPath = path.join(outputDir, 'diff.json');
+    fs.writeFileSync(diffPath, JSON.stringify(diff, null, 2), 'utf-8');
+
+    const hasUpdate = currentVersion !== undefined && currentVersion !== latestVersion;
+    const updates: UpdateCheckResult = {
+      currentVersion: currentVersion ?? latestVersion,
+      latestVersion,
+      hasUpdate,
+    };
+    if (hasUpdate) {
+      updates.diff = diff;
+    }
+    updatesPath = path.join(outputDir, 'updates.json');
+    fs.writeFileSync(updatesPath, JSON.stringify(updates, null, 2), 'utf-8');
   }
-  const updatesPath = path.join(outputDir, 'updates.json');
-  fs.writeFileSync(updatesPath, JSON.stringify(updates, null, 2), 'utf-8');
 
   const gen = generateReport({
     inputs: {

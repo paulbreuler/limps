@@ -47,13 +47,15 @@ Ask user for:
    - Next plan number = max + 1
 
 2. **Create plan structure** using `create_plan` (server: `limps`):
-   - Plan name: `NNNN-descriptive-name` (zero-padded to 4 digits)
+   - Plan name: `descriptive-name` (NO numeric prefix)
+   - `create_plan` prefixes the next plan number automatically (e.g., `0043-descriptive-name`)
+   - If you already have an `NNNN-` prefix, strip it to avoid duplication
    - Description: Brief overview of the plan
 
 3. **Create planning documents** using `create_doc` (server: `limps`):
    - Use template `none` for plan file, interfaces.md, README.md
    - Use template `addendum` for gotchas.md (if template available)
-   - Path format: `plans/NNNN-descriptive-name/filename.md`
+   - Path format: use the directory returned by `create_plan` (typically `plans/NNNN-descriptive-name/filename.md`)
 
 **Plan Number Format**: Zero-padded to 4 digits (0001, 0002, ..., 0007, 0008, ...) for proper lexicographical ordering. Scripts support both padded and unpadded formats for backward compatibility.
 
@@ -322,7 +324,7 @@ await call_mcp_tool({
   server: 'limps',
   toolName: 'create_plan',
   arguments: {
-    name: '0008-feature-name',
+    name: 'feature-name', // no numeric prefix; create_plan adds it
     description: 'Brief overview of the plan',
   },
 });
@@ -332,7 +334,7 @@ await call_mcp_tool({
   server: 'limps',
   toolName: 'create_doc',
   arguments: {
-    path: 'plans/0008-feature-name/0008-feature-name-plan.md',
+    path: 'plans/0008-feature-name/0008-feature-name-plan.md', // use the prefixed dir name
     content: '...', // Full verbose specs
     template: 'none',
   },

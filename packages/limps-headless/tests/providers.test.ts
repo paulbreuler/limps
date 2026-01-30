@@ -90,6 +90,7 @@ describe('provider-radix (backend)', () => {
     expect(provider.detectImports(['@radix-ui/react-dialog'])).toBe(true);
     expect(provider.detectImports(['@radix-ui/react-select'])).toBe(true);
     expect(provider.detectImports(['@radix-ui/primitive'])).toBe(true);
+    expect(provider.detectImports(['radix-ui'])).toBe(true);
     expect(provider.detectImports(['react', 'lodash'])).toBe(false);
   });
 
@@ -158,6 +159,7 @@ describe('provider-radix (backend)', () => {
 describe('provider-base (backend)', () => {
   it('detects Base UI imports', () => {
     const provider = getBackendProvider('base')!;
+    expect(provider.detectImports(['@base-ui/react/tooltip'])).toBe(true);
     expect(provider.detectImports(['@base-ui-components/react'])).toBe(true);
     expect(provider.detectImports(['@base_ui/react'])).toBe(true);
     expect(provider.detectImports(['react', '@radix-ui/react-dialog'])).toBe(false);

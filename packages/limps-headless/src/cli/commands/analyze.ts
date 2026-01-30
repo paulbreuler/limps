@@ -37,7 +37,7 @@ export function registerAnalyzeCommand(program: Command): void {
   program
     .command('analyze')
     .description(
-      'Analyze a React component for Radix adoption (run from project dir; path is relative to cwd)'
+      'Analyze a React component for legacy Radix matches to inform Base UI migration (run from project dir; path is relative to cwd)'
     )
     .argument('<file>', 'Path to a .ts/.tsx component (relative to cwd)')
     .option('-v, --version <version>', 'Radix version to compare against', 'latest')

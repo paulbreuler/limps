@@ -115,6 +115,101 @@ export function Button({ asChild, ...props }) {
       process.chdir(cwd);
     }
   });
+
+  it('detects Radix backend from unified radix-ui imports in nested folders', async () => {
+    const dir = mkdtemp();
+    const root = path.join(dir, 'src', 'components', 'ui', 'Toast');
+    fs.mkdirSync(root, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(root, 'Toast.tsx'),
+      `import { Toast } from 'radix-ui';
+export function AppToast() {
+  return (
+    <Toast.Provider>
+      <Toast.Root />
+    </Toast.Provider>
+  );
+}
+`,
+      'utf-8'
+    );
+
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const components = await discoverComponents();
+      const toast = components.find((c) => c.name === 'AppToast');
+      expect(toast?.backend).toBe('radix');
+      expect(toast?.importSources).toContain('radix-ui');
+    } finally {
+      process.chdir(cwd);
+    }
+  });
+
+  it('infers Base UI backend from local wrapper imports', async () => {
+    const dir = mkdtemp();
+    const wrapperDir = path.join(dir, 'src', 'components', 'ui');
+    const featureDir = path.join(dir, 'src', 'components');
+    fs.mkdirSync(wrapperDir, { recursive: true });
+    fs.mkdirSync(featureDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(wrapperDir, 'BaseButton.tsx'),
+      `import { Button } from '@base-ui/react/button';
+export function BaseButton() {
+  return <Button.Root />;
+}
+`,
+      'utf-8'
+    );
+
+    fs.writeFileSync(
+      path.join(featureDir, 'Feature.tsx'),
+      `import { BaseButton } from './ui/BaseButton';
+export function Feature() {
+  return <BaseButton />;
+}
+`,
+      'utf-8'
+    );
+
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const components = await discoverComponents();
+      const feature = components.find((c) => c.name === 'Feature');
+      expect(feature?.backend).toBe('base');
+    } finally {
+      process.chdir(cwd);
+    }
+  });
+
+  it('infers Base UI backend from headless role evidence', async () => {
+    const dir = mkdtemp();
+    const root = path.join(dir, 'src', 'components');
+    fs.mkdirSync(root, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(root, 'Menu.tsx'),
+      `export function Menu() {
+  return <div role=\"menu\"><button role=\"menuitem\">Item</button></div>;
+}
+`,
+      'utf-8'
+    );
+
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const components = await discoverComponents();
+      const menu = components.find((c) => c.name === 'Menu');
+      expect(menu?.backend).toBe('base');
+      expect(menu?.evidence).toContain('role:menu');
+    } finally {
+      process.chdir(cwd);
+    }
+  });
 });
 
 // Test ID: discovery-base
@@ -163,7 +258,7 @@ export function MySelect() {
 
     fs.writeFileSync(
       path.join(root, 'Tooltip.tsx'),
-      `import { Tooltip } from '@base-ui-components/react';
+      `import { Tooltip } from '@base-ui/react/tooltip';
 export function MyTooltip({ children }) {
   return (
     <Tooltip.Root>
@@ -182,6 +277,7 @@ export function MyTooltip({ children }) {
       const components = await discoverComponents();
       const tooltip = components.find((c) => c.name === 'MyTooltip');
       expect(tooltip?.backend).toBe('base');
+      expect(tooltip?.importSources).toContain('@base-ui/react/tooltip');
       expect(tooltip?.evidence).toContain('render');
     } finally {
       process.chdir(cwd);

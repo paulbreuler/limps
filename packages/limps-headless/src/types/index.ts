@@ -173,7 +173,10 @@ export interface AnalysisResult {
     primitive: string | null;
     package: string | null;
     confidence: number;
-    action: 'ADOPT_RADIX' | 'CONSIDER_RADIX' | 'CUSTOM_OK';
+    action:
+      | 'LEGACY_RADIX_MATCH_STRONG'
+      | 'LEGACY_RADIX_MATCH_POSSIBLE'
+      | 'NO_LEGACY_RADIX_MATCH';
     reason?: string;
   };
 

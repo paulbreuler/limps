@@ -30,7 +30,7 @@ export async function runCli(): Promise<void> {
   program
     .name('limps-headless')
     .description('Headless UI contract extraction and drift detection CLI')
-    .version(getPackageVersion());
+    .version(getPackageVersion(), '-V, --cli-version', 'output the CLI version');
 
   registerListCommand(program);
   registerExtractCommand(program);
