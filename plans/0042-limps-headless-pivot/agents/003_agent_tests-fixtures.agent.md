@@ -27,7 +27,7 @@ export interface AuditResult {
 ### #6: Tests + Fixtures
 
 TL;DR: Add fixtures and tests for discovery, migration, report, policy.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `fixture-radix`, `fixture-base`, `fixture-mixed`, `report-snapshot`
 Files: `packages/limps-headless/tests/*` (create)
 
@@ -43,6 +43,6 @@ Gotchas:
 
 ## Done
 
-- [ ] Fixture coverage for all backends
-- [ ] Report snapshot stable
-- [ ] Status → PASS
+- [x] Fixture coverage for all backends
+- [x] Report snapshot stable
+- [x] Status → PASS
