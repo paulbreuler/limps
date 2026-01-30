@@ -14,6 +14,13 @@ export const runAuditInputSchema = z.object({
       provider: z.string().optional().default('radix'),
     })
     .optional(),
+  discovery: z
+    .object({
+      rootDir: z.string().optional().describe('Root directory for discovery'),
+      includePatterns: z.array(z.string()).optional().describe('File include patterns'),
+      excludePatterns: z.array(z.string()).optional().describe('File exclude patterns'),
+    })
+    .optional(),
   radixVersion: z.string().optional().default('latest').describe('Radix version (default: latest)'),
   outputDir: z.string().optional().default('.limps-radix/reports').describe('Output directory'),
   format: z.enum(['json', 'markdown', 'both']).optional().default('both'),
@@ -33,6 +40,7 @@ export async function handleRunAudit(
     analysisPath: result.analysisPath,
     diffPath: result.diffPath,
     updatesPath: result.updatesPath,
+    inventoryPath: result.inventoryPath,
     summary: result.report.summary,
   };
   return {
@@ -43,7 +51,7 @@ export async function handleRunAudit(
 export const runAuditTool: ExtensionTool = {
   name: 'radix_run_audit',
   description:
-    'Run a full Radix audit: optionally analyze files, diff versions, check updates, and generate JSON + Markdown report.',
+    'Run a full Radix audit: discover components (if no files), analyze against Radix, diff versions, check updates, and generate JSON + Markdown report.',
   inputSchema: runAuditInputSchema,
   handler: handleRunAudit,
 };

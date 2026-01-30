@@ -3,5 +3,6 @@
  */
 
 export * from './types.js';
+export * from './discover-components.js';
 export * from './generate-report.js';
 export * from './run-audit.js';

@@ -11,6 +11,8 @@ import { diffVersions } from '../differ/index.js';
 import { resolvePackageVersion } from '../fetcher/npm-registry.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
 import type { RadixDiff, UpdateCheckResult } from '../differ/types.js';
+import type { ComponentMetadata, DiscoveryOptions } from './types.js';
+import { discoverComponents } from './discover-components.js';
 import { generateReport } from './generate-report.js';
 import type { GenerateReportResult } from './generate-report.js';
 
@@ -35,6 +37,7 @@ export interface RunAuditInput {
     primitives?: string[];
     provider?: string;
   };
+  discovery?: DiscoveryOptions;
   radixVersion?: string;
   outputDir?: string;
   format?: 'json' | 'markdown' | 'both';
@@ -44,6 +47,99 @@ export interface RunAuditResult extends GenerateReportResult {
   analysisPath?: string;
   diffPath?: string;
   updatesPath?: string;
+  inventoryPath?: string;
+}
+
+async function loadSignatures(version: string): Promise<BehaviorSignature[]> {
+  const signatures: BehaviorSignature[] = [];
+  const primitivesList = await listCachedPrimitives(version);
+  for (const p of primitivesList) {
+    const sig = await getSignatureFromCache(p, version);
+    if (sig) signatures.push(sig);
+  }
+  return signatures;
+}
+
+async function analyzeFiles(
+  files: string[],
+  signatures: BehaviorSignature[]
+): Promise<AnalysisResult[]> {
+  const threshold = 40;
+  const results: AnalysisResult[] = [];
+  const cwd = process.cwd();
+
+  for (const file of files) {
+    const absolute = path.resolve(file);
+    const relative = path.relative(cwd, absolute);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      continue;
+    }
+    if (absolute.endsWith('.d.ts') || !/\.(ts|tsx)$/.test(absolute)) {
+      continue;
+    }
+    try {
+      const analysis = await analyzeComponent(absolute);
+      let recommendation: AnalysisResult['recommendation'];
+      let matches = signatures.length > 0 ? scoreAgainstSignatures(analysis, signatures) : [];
+      matches = matches.filter((m) => m.confidence >= threshold);
+      const ambiguous = isAmbiguous(matches);
+      const bestMatch = matches.length > 0 ? disambiguate(matches, analysis) : null;
+
+      if (!bestMatch || bestMatch.confidence < 50) {
+        recommendation = {
+          primitive: null,
+          package: null,
+          confidence: bestMatch?.confidence ?? 0,
+          action: 'CUSTOM_OK',
+          reason:
+            bestMatch?.confidence
+              ? `Low confidence (${bestMatch.confidence}) - component likely custom`
+              : 'No matches found',
+        };
+      } else if (bestMatch.confidence >= 70) {
+        recommendation = {
+          primitive: bestMatch.primitive,
+          package: bestMatch.package,
+          confidence: bestMatch.confidence,
+          action: 'ADOPT_RADIX',
+          reason: `High confidence match (${bestMatch.confidence}) - strongly recommend adopting ${bestMatch.primitive}`,
+        };
+      } else {
+        recommendation = {
+          primitive: bestMatch.primitive,
+          package: bestMatch.package,
+          confidence: bestMatch.confidence,
+          action: 'CONSIDER_RADIX',
+          reason: `Moderate confidence match (${bestMatch.confidence}) - consider adopting ${bestMatch.primitive}`,
+        };
+      }
+
+      const result: AnalysisResult = {
+        component: analysis.name,
+        filePath: relative,
+        recommendation,
+        matches,
+        analysis,
+        isAmbiguous: ambiguous,
+      };
+      results.push(result);
+    } catch (err) {
+      console.warn(
+        `[run-audit] Skipped ${relative}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  return results;
+}
+
+function persistInventory(
+  outputDir: string,
+  components: ComponentMetadata[]
+): string {
+  const inventoryPath = path.join(outputDir, 'component-inventory.json');
+  fs.writeFileSync(inventoryPath, JSON.stringify({ components }, null, 2), 'utf-8');
+  return inventoryPath;
 }
 
 /**
@@ -54,9 +150,16 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
   ensureDir(outputDir);
   const format = input.format ?? 'both';
   const primitives = input.scope?.primitives;
+  let inventoryPath: string | undefined;
 
   let analysisPath: string | undefined;
-  const files = input.scope?.files ?? [];
+  let files = input.scope?.files ?? [];
+  let discovered: ComponentMetadata[] = [];
+  if (files.length === 0) {
+    discovered = await discoverComponents(input.discovery);
+    inventoryPath = persistInventory(outputDir, discovered);
+    files = discovered.map((c) => c.path);
+  }
 
   if (files.length > 0) {
     let resolvedVersion = input.radixVersion ?? 'latest';
@@ -76,78 +179,8 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
       }
     }
 
-    const signatures: BehaviorSignature[] = [];
-    const primitivesList = await listCachedPrimitives(resolvedVersion);
-    for (const p of primitivesList) {
-      const sig = await getSignatureFromCache(p, resolvedVersion);
-      if (sig) signatures.push(sig);
-    }
-
-    const threshold = 40;
-    const results: AnalysisResult[] = [];
-    const cwd = process.cwd();
-
-    for (const file of files) {
-      const absolute = path.resolve(file);
-      const relative = path.relative(cwd, absolute);
-      if (relative.startsWith('..') || path.isAbsolute(relative)) {
-        continue;
-      }
-      if (absolute.endsWith('.d.ts') || !/\.(ts|tsx)$/.test(absolute)) {
-        continue;
-      }
-      try {
-        const analysis = await analyzeComponent(absolute);
-        let recommendation: AnalysisResult['recommendation'];
-        let matches = signatures.length > 0 ? scoreAgainstSignatures(analysis, signatures) : [];
-        matches = matches.filter((m) => m.confidence >= threshold);
-        const ambiguous = isAmbiguous(matches);
-        const bestMatch = matches.length > 0 ? disambiguate(matches, analysis) : null;
-
-        if (!bestMatch || bestMatch.confidence < 50) {
-          recommendation = {
-            primitive: null,
-            package: null,
-            confidence: bestMatch?.confidence ?? 0,
-            action: 'CUSTOM_OK',
-            reason:
-              bestMatch?.confidence
-                ? `Low confidence (${bestMatch.confidence}) - component likely custom`
-                : 'No matches found',
-          };
-        } else if (bestMatch.confidence >= 70) {
-          recommendation = {
-            primitive: bestMatch.primitive,
-            package: bestMatch.package,
-            confidence: bestMatch.confidence,
-            action: 'ADOPT_RADIX',
-            reason: `High confidence match (${bestMatch.confidence}) - strongly recommend adopting ${bestMatch.primitive}`,
-          };
-        } else {
-          recommendation = {
-            primitive: bestMatch.primitive,
-            package: bestMatch.package,
-            confidence: bestMatch.confidence,
-            action: 'CONSIDER_RADIX',
-            reason: `Moderate confidence match (${bestMatch.confidence}) - consider adopting ${bestMatch.primitive}`,
-          };
-        }
-
-        const result: AnalysisResult = {
-          component: analysis.name,
-          filePath: relative,
-          recommendation,
-          matches,
-          analysis,
-          isAmbiguous: ambiguous,
-        };
-        results.push(result);
-      } catch (err) {
-        console.warn(
-          `[run-audit] Skipped ${relative}: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
+    const signatures = await loadSignatures(resolvedVersion);
+    const results = await analyzeFiles(files, signatures);
 
     const serializable = results.map((r) => ({
       ...r,
@@ -193,5 +226,6 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     analysisPath,
     diffPath,
     updatesPath,
+    inventoryPath,
   };
 }

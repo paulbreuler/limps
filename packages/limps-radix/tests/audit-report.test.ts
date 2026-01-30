@@ -57,6 +57,7 @@ describe('generateReport', () => {
     expect(result.report.metadata.version).toBe('1.0.0');
     expect(result.report.summary.totalComponents).toBe(1);
     expect(result.report.issues.length).toBeGreaterThanOrEqual(0);
+    expect(result.report.compliance?.length).toBe(1);
     expect(result.jsonPath).toBeDefined();
     expect(result.markdownPath).toBeDefined();
     expect(fs.existsSync(result.jsonPath!)).toBe(true);
@@ -65,6 +66,7 @@ describe('generateReport', () => {
     const md = fs.readFileSync(result.markdownPath!, 'utf-8');
     expect(md).toContain('# Test Report');
     expect(md).toContain('## Summary');
+    expect(md).toContain('## Compliance');
 
     const reportJson = JSON.parse(fs.readFileSync(result.jsonPath!, 'utf-8'));
     expect(reportJson.summary.totalComponents).toBe(1);
@@ -143,6 +145,17 @@ describe('runAuditInputSchema', () => {
       expect(result.data.scope?.files).toEqual(['src/Button.tsx']);
       expect(result.data.scope?.primitives).toEqual(['dialog']);
       expect(result.data.outputDir).toBe('/tmp/reports');
+    }
+  });
+
+  it('accepts discovery options', () => {
+    const result = runAuditInputSchema.safeParse({
+      discovery: { rootDir: 'src/ui', includePatterns: ['**/*.tsx'], excludePatterns: ['**/*.test.*'] },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.discovery?.rootDir).toBe('src/ui');
+      expect(result.data.discovery?.includePatterns).toEqual(['**/*.tsx']);
     }
   });
 });

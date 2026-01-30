@@ -13,6 +13,26 @@ export type IssuePriority = 'critical' | 'high' | 'medium' | 'low';
 export type ContraventionSeverity = 'high' | 'medium' | 'low';
 
 /**
+ * Options for component discovery.
+ */
+export interface DiscoveryOptions {
+  rootDir?: string;
+  includePatterns?: string[];
+  excludePatterns?: string[];
+}
+
+/**
+ * Metadata for a discovered component.
+ */
+export interface ComponentMetadata {
+  path: string;
+  name: string;
+  exportType?: 'default' | 'named' | 'both';
+  propsInterface?: string;
+  dependencies?: string[];
+}
+
+/**
  * A single contravention (e.g. legacy package usage, non-tree-shaking).
  */
 export interface Contravention {
@@ -50,6 +70,13 @@ export interface AuditReport {
     issuesByPriority: Record<IssuePriority, number>;
     contraventions: number;
   };
+  compliance?: Array<{
+    path: string;
+    name: string;
+    primitive: string | null;
+    confidence: number;
+    status: 'pass' | 'partial' | 'fail';
+  }>;
   contraventions: Contravention[];
   issues: AuditIssue[];
   recommendations: string[];

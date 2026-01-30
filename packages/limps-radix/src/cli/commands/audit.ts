@@ -15,6 +15,7 @@ export function registerAuditCommand(program: Command): void {
       '-f, --files <paths...>',
       'Component file paths to analyze (relative to cwd)'
     )
+    .option('--root-dir <dir>', 'Root directory for component discovery')
     .option('-o, --output-dir <dir>', 'Output directory', '.limps-radix/reports')
     .option(
       '--format <format>',
@@ -28,6 +29,7 @@ export function registerAuditCommand(program: Command): void {
         : [];
       const result = await runAudit({
         scope: files.length > 0 ? { files } : undefined,
+        discovery: options.rootDir ? { rootDir: options.rootDir } : undefined,
         outputDir: options.outputDir,
         format: options.format === 'json' ? 'json' : options.format === 'markdown' ? 'markdown' : 'both',
       });

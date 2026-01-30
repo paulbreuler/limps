@@ -86,6 +86,31 @@ function issuesFromAnalysis(results: SerializedAnalysisResult[]): AuditIssue[] {
 }
 
 /**
+ * Build per-component compliance summary from analysis results.
+ */
+function complianceFromAnalysis(
+  results: SerializedAnalysisResult[]
+): NonNullable<AuditReport['compliance']> {
+  return results.map((r) => {
+    let status: 'pass' | 'partial' | 'fail';
+    if (r.recommendation.action === 'ADOPT_RADIX') {
+      status = 'pass';
+    } else if (r.recommendation.action === 'CONSIDER_RADIX') {
+      status = 'partial';
+    } else {
+      status = 'fail';
+    }
+    return {
+      path: r.filePath,
+      name: r.component,
+      primitive: r.recommendation.primitive,
+      confidence: r.recommendation.confidence,
+      status,
+    };
+  });
+}
+
+/**
  * Derive contraventions from diff and update-check.
  */
 function contraventionsFromDiffAndUpdates(
@@ -201,6 +226,7 @@ export function generateReport(input: GenerateReportInput): GenerateReportResult
   const contraventions = contraventionsFromDiffAndUpdates(diff, updates);
   const summary = buildSummary(results.length, issues, contraventions);
   const recommendations = buildRecommendations(issues, contraventions);
+  const compliance = complianceFromAnalysis(results);
 
   const report: AuditReport = {
     metadata: {
@@ -209,6 +235,7 @@ export function generateReport(input: GenerateReportInput): GenerateReportResult
       generatedBy: GENERATED_BY,
     },
     summary,
+    compliance,
     contraventions,
     issues,
     recommendations,
@@ -257,6 +284,17 @@ function reportToMarkdown(report: AuditReport, title: string): string {
       if (c.location) lines.push(`*Location:* ${c.location}`, '');
       lines.push('');
     }
+  }
+
+  if (report.compliance && report.compliance.length > 0) {
+    lines.push('## Compliance', '');
+    for (const c of report.compliance) {
+      const primitive = c.primitive ? c.primitive : 'custom';
+      lines.push(
+        `- **${c.name}** (${c.path}) — ${c.status}, ${primitive} (${c.confidence})`
+      );
+    }
+    lines.push('');
   }
 
   if (report.issues.length > 0) {
