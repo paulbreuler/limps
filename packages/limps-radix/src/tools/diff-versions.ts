@@ -1,5 +1,9 @@
 /**
- * MCP tool for comparing two Radix versions for breaking changes.
+ * MCP tool: diff two Radix versions (not your code vs Radix).
+ *
+ * Compares primitive API contracts (props, subcomponents) between a
+ * from-version and a to-version. Use to see what breaks when upgrading;
+ * reports breaking changes, warnings, and info.
  */
 
 import { z } from 'zod';
@@ -13,12 +17,12 @@ import { getProvider } from '../providers/registry.js';
 export const diffVersionsInputSchema = z.object({
   fromVersion: z
     .string()
-    .describe('Starting Radix version to compare from'),
+    .describe('From Radix version (e.g. your current version)'),
   toVersion: z
     .string()
     .optional()
     .default('latest')
-    .describe('Ending Radix version to compare to (default: latest)'),
+    .describe('To Radix version (e.g. latest; default: latest)'),
   primitives: z
     .array(z.string())
     .optional()
@@ -89,7 +93,7 @@ export async function handleDiffVersions(
 export const diffVersionsTool: ExtensionTool = {
   name: 'radix_diff_versions',
   description:
-    'Compare two Radix versions for breaking changes, warnings, and new features. Shows what changed between versions with migration hints.',
+    'Diff two Radix versions (from-version → to-version): compare for breaking changes, warnings, and new features. Shows what changed with migration hints.',
   inputSchema: diffVersionsInputSchema,
   handler: handleDiffVersions,
 };

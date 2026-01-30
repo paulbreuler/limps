@@ -33,9 +33,12 @@ cd /path/to/your/react-app
 limps-radix list --version latest
 limps-radix extract dialog
 limps-radix analyze src/components/ui/button.tsx
-limps-radix diff 1.0.0 --to latest --breaking-only
+limps-radix audit --files src/components/ui/button.tsx src/components/ui/select.tsx   # full audit; output in .limps-radix/reports
+limps-radix diff <from-version> --to <to-version>   # e.g. diff 1.0.0 --to latest
 limps-radix check-updates --refresh
 ```
+
+**Audit output:** `limps-radix audit` writes to `.limps-radix/reports/` (override with `-o`): `audit-report.md`, `audit-report.json`, `analysis.json`, `diff.json`, `updates.json`.
 
 Pass `--json` to any command for raw JSON output.
 
@@ -154,7 +157,7 @@ Analyze a local component file and recommend a Radix primitive.
 
 ### `radix_diff_versions`
 
-Compare two versions of Radix for breaking changes and warnings.
+**Purpose:** Answer “what will break or need attention if I upgrade Radix?” by comparing **two Radix versions** (not your code vs Radix). It diffs the public API contracts (props, subcomponents) of primitives between a from-version (e.g. your current) and a to-version (e.g. `latest`). Lists breaking changes, warnings, and info. Input: `fromVersion`, `toVersion`.
 
 **Input**
 
@@ -308,6 +311,16 @@ limps supports extension-specific config via a top-level key in `limps.config.js
   "disambiguationRule": "Dialog has modal=true by default; AlertDialog requires action confirmation"
 }
 ```
+
+## Troubleshooting
+
+**"Type definitions not found"**  
+We fetch types from unpkg at `dist/index.d.ts` (individual packages) or `dist/<primitive>.d.ts` (unified). The error now includes the URL(s) tried, HTTP status, and a link to unpkg so you can confirm the package layout. Common causes:
+
+- **Older Radix versions** (e.g. 1.1.x): Some packages may not publish types at those paths; the unified `radix-ui` package is only used for 1.4.3+.
+- **Cached version mismatch**: Diff/audit may resolve to a cached version (e.g. 1.1.15) that doesn’t have types at the expected path. Run `limps-radix check-updates --refresh` to refresh cache and prefer newer versions.
+
+Errors are descriptive: they list the paths and status codes tried, and a browse link to the package on unpkg.
 
 ## Notes
 

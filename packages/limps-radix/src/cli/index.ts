@@ -4,10 +4,11 @@
 
 import { Command } from 'commander';
 import { registerAnalyzeCommand } from './commands/analyze.js';
+import { registerAuditCommand } from './commands/audit.js';
+import { registerCheckUpdatesCommand } from './commands/check-updates.js';
 import { registerDiffCommand } from './commands/diff.js';
 import { registerExtractCommand } from './commands/extract.js';
 import { registerListCommand } from './commands/list.js';
-import { registerCheckUpdatesCommand } from './commands/check-updates.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -34,6 +35,7 @@ export async function runCli(): Promise<void> {
   registerListCommand(program);
   registerExtractCommand(program);
   registerAnalyzeCommand(program);
+  registerAuditCommand(program);
   registerDiffCommand(program);
   registerCheckUpdatesCommand(program);
 

@@ -1295,18 +1295,55 @@ Feature: Complex .d.ts parsing
 
 ### Description
 
-Add an audit orchestration pipeline and report generator for limps-radix that produces actionable, LLM-friendly JSON and human-friendly Markdown reports (plus optional summary metadata). This enables downstream consumption in planning docs, Obsidian, and VS Code.
+Add an audit orchestration pipeline and report generator for limps-radix that mirrors the runi audit prototype: **get all components from the current implementation**, **compare them against Radix for compliance**, then produce actionable, LLM-friendly JSON and human-friendly Markdown reports. This enables "collapse uncertainty into truth" for UI component contracts: one command from project root discovers components, analyzes each against Radix primitives, diffs Radix versions, and outputs a compliance report.
+
+**Expected behaviors (aligned with runi prototype):**
+
+1. **Component discovery (foundation)**  
+   Scan the project (e.g. configurable dirs such as `src/components`) and catalog all React components: path, name, export type, props interface, dependencies. Output: component inventory (e.g. `component-inventory.json`). This is the source of "all components from current implementation." Discovery may be exposed as an internal step or an optional MCP tool.
+
+2. **Audit scope**  
+   - **When no files are provided:** Run discovery first to obtain the full component inventory, then analyze every discovered component against Radix signatures, then run diff (Radix version A → B), then generate report.  
+   - **When files are provided:** Skip discovery; analyze only the listed files against Radix, then diff, then generate report.
+
+3. **Compare against Radix for compliance**  
+   For each component in scope (discovered or listed), run the existing analyzer (match to Radix primitive, confidence score). The report must include: per-component Radix compliance (matched primitive or "custom", confidence, pass/partial/fail), plus aggregated issues and contraventions. "Compliance" here means: does this component match a Radix primitive (and how well), or is it custom and optionally worth adopting Radix?
+
+4. **Report outputs**  
+   Same as today: Markdown + JSON (+ optional summary). Report contents: component inventory summary, per-component Radix match/compliance, issues by priority, contraventions (e.g. legacy package usage), and recommendations.
 
 ### Gherkin
 
 ```gherkin
 Feature: Radix audit report pipeline
 
-  Scenario: Run full audit and generate report
+  Scenario: Get all components from current implementation (discovery)
+    Given a project with React components under src/components
+    When discovery runs with default options
+    Then a component inventory is produced
+    And each entry has path, name, and metadata
+
+  Scenario: Run full audit with default scope (discover then analyze)
     Given a project with Radix-like components
-    When calling radix_run_audit with default options
-    Then analysis runs and report files are written
+    When calling radix_run_audit with no files
+    Then discovery runs and component inventory is produced
+    And each discovered component is analyzed against Radix
+    And report includes per-component Radix compliance (match, confidence)
     And report includes issues and contraventions
+
+  Scenario: Run full audit with explicit files
+    Given a project and a list of component file paths
+    When calling radix_run_audit with scope.files set
+    Then discovery is skipped
+    And only the listed files are analyzed against Radix
+    And report is generated from analysis + diff + updates
+
+  Scenario: Compare against Radix for compliance
+    Given analysis results for one or more components
+    When the report is generated
+    Then each component has a Radix match (primitive or custom) and confidence
+    And compliance is summarized (pass/partial/fail or equivalent)
+    And issues and contraventions are categorized by priority
 
   Scenario: Generate report from precomputed inputs
     Given analysis and diff JSON files
@@ -1321,17 +1358,27 @@ Feature: Radix audit report pipeline
 
 ### TDD Cycles
 
-1. **Report output test**
+1. **Discovery test**
+   - Test: discoverComponents scans dirs and returns inventory with path, name, metadata
+   - Impl: Add discovery module (glob + parse exports); output component-inventory shape
+   - Refactor: Configurable rootDir/include/exclude (runi-style options)
+
+2. **Report output test**
    - Test: generate-report writes markdown + JSON
    - Impl: Create audit report generator
    - Refactor: Add summary.json for dashboards
 
-2. **Run audit orchestration test**
-   - Test: run-audit orchestrates analyzer/differ outputs
-   - Impl: Pipe tool outputs into report generator
-   - Refactor: Allow scoped runs by files/primitives
+3. **Run audit orchestration test**
+   - Test: run-audit with no files runs discovery then analyzes all; with files skips discovery and analyzes only those
+   - Impl: Pipe discovery (when no files) → analyzer per component → diff → report
+   - Refactor: Allow scoped runs by primitives; optional discovery tool
 
-3. **Contraventions detection test**
+4. **Radix compliance in report test**
+   - Test: report includes per-component Radix match and confidence; compliance summary
+   - Impl: Ensure report generator consumes analysis and emits compliance section
+   - Refactor: Pass/partial/fail thresholds configurable
+
+5. **Contraventions detection test**
    - Test: legacy package usage flagged
    - Impl: Add rule-based contravention scanning
    - Refactor: Allow custom rule registry
@@ -1339,6 +1386,7 @@ Feature: Radix audit report pipeline
 ### Files
 
 - `src/audit/types.ts` (create)
+- `src/audit/discover-components.ts` (create) — scan project, output component inventory
 - `src/audit/run-audit.ts` (create)
 - `src/audit/generate-report.ts` (create)
 - `src/tools/run-audit.ts` (create)

@@ -446,14 +446,32 @@ export function filterReactInternals(props: RawProp[]): RawProp[];
 
 ## Audit Report Pipeline (Agent 009)
 
+**Component discovery (foundation):** Scan project dirs and catalog all React components → component inventory. When `scope.files` is omitted, audit runs discovery first, then analyzes every discovered component against Radix (compare against Radix for compliance).
+
 ```typescript
+// Discovery (internal or optional tool): get all components from current implementation
+interface DiscoveryOptions {
+  rootDir?: string;             // Default: "src/components" (relative to cwd)
+  includePatterns?: string[];    // Default: ["**/*.tsx", "**/*.jsx"]
+  excludePatterns?: string[];   // Default: test/story patterns
+}
+
+interface ComponentMetadata {
+  path: string;                  // Relative to project root
+  name: string;
+  exportType?: 'default' | 'named' | 'both';
+  propsInterface?: string;
+  dependencies?: string[];
+}
+
 // radix_run_audit
 interface RunAuditInput {
   scope?: {
-    files?: string[];
+    files?: string[];            // If omitted: run discovery, then analyze all
     primitives?: string[];
     provider?: string;           // Default: "radix"
   };
+  discovery?: DiscoveryOptions;  // Used when scope.files is omitted
   radixVersion?: string;         // Default: "latest"
   outputDir?: string;            // Default: ".limps-radix/reports"
   format?: 'json' | 'markdown' | 'both';
@@ -481,7 +499,9 @@ interface AuditReport {
     totalComponents: number;
     issuesByPriority: Record<'critical'|'high'|'medium'|'low', number>;
     contraventions: number;
+    // Per-component Radix compliance: match primitive, confidence, pass/partial/fail
   };
+  compliance?: Array<{ path: string; name: string; primitive: string | null; confidence: number; status: 'pass'|'partial'|'fail' }>;
   contraventions: {
     id: string;
     type: string;                // legacy-package-usage, non-tree-shaking, etc.

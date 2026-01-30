@@ -23,11 +23,12 @@ async function fetchTypeDefinition(
         return fallbackResponse.text();
       }
       throw new Error(
-        `Type definitions not found for ${packageName}@${version}`
+        `Type definitions not found for ${packageName}@${version}: tried ${typesPath} (${response.status}) and ${fallbackPath} (${fallbackResponse.status}). ` +
+          `Package may not publish types at these paths for this version. Check: https://unpkg.com/browse/${packageName}@${version}/`
       );
     }
     throw new Error(
-      `Failed to fetch types: ${response.status} ${response.statusText}`
+      `Failed to fetch types for ${packageName}@${version}: ${response.status} ${response.statusText} at ${url}`
     );
   }
 

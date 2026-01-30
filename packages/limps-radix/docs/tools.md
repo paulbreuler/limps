@@ -89,7 +89,7 @@ Analyze a local component and recommend a Radix primitive. **filePath** is resol
 
 ## radix_diff_versions
 
-Compare two versions for breaking changes.
+**Purpose:** See what will break or need attention when upgrading Radix. Compares **two Radix versions** (not your code vs Radix)—primitive API contracts (props, subcomponents) between a from-version and a to-version. Reports breaking changes, warnings, and info. Input: `fromVersion` (e.g. your current), `toVersion` (e.g. latest).
 
 **Input**
 ```json

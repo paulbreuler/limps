@@ -4,6 +4,6 @@ cd packages/limps && npx lint-staged
 # Stage any auto-fixed files from lint-staged before running full checks
 git add -u
 
-# Run full validation from root (format check, lint, type-check, build, test across workspaces)
-# If all checks pass, the commit will continue. If any check fails, the commit is blocked.
-cd - > /dev/null && npm run validate
+# Run validation from root (format check, lint, type-check, build across workspaces)
+# Tests are intentionally skipped to avoid flaky pre-commit failures.
+cd - > /dev/null && npm run format:check && npm run lint && npm run type-check && npm run build

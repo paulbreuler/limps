@@ -1,5 +1,6 @@
 /**
- * CLI command for diffing Radix versions.
+ * CLI command: diff two Radix versions to see what breaks when upgrading
+ * (e.g. diff 1.0.0 --to latest).
  */
 
 import type { Command } from 'commander';
@@ -33,9 +34,9 @@ function printJson(text: string, json: boolean): void {
 export function registerDiffCommand(program: Command): void {
   program
     .command('diff')
-    .description('Diff two Radix versions')
-    .argument('<from>', 'Starting version')
-    .option('-t, --to <version>', 'Ending version', 'latest')
+    .description('Diff two Radix versions (from → to); not your code vs Radix')
+    .argument('<from-version>', 'From Radix version (e.g. your current)')
+    .option('-t, --to <version>', 'To Radix version (e.g. latest)', 'latest')
     .option('-p, --primitives <list>', 'Comma-separated primitives')
     .option('--breaking-only', 'Show only breaking changes')
     .option('--provider <provider>', 'Component library provider', 'radix')
