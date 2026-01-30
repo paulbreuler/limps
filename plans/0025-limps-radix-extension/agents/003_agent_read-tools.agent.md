@@ -9,11 +9,11 @@ aliases: ["#003", "Read Tools Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: packages/limps-radix/src/tools/list-primitives.ts
+  - path: packages/limps-headless/src/tools/list-primitives.ts
     action: create
-  - path: packages/limps-radix/src/tools/extract-primitive.ts
+  - path: packages/limps-headless/src/tools/extract-primitive.ts
     action: create
-  - path: packages/limps-radix/src/index.ts
+  - path: packages/limps-headless/src/index.ts
     action: modify
 ---
 
@@ -24,7 +24,7 @@ files:
 ## Scope
 
 Features: #7 (radix_list_primitives), #8 (radix_extract_primitive)
-Own: `packages/limps-radix/src/tools/list-primitives.ts`, `packages/limps-radix/src/tools/extract-primitive.ts`
+Own: `packages/limps-headless/src/tools/list-primitives.ts`, `packages/limps-headless/src/tools/extract-primitive.ts`
 Depend on: Agent 002 for signatures/cache
 Block: None directly (but other agents may use these patterns)
 
@@ -33,10 +33,10 @@ Block: None directly (but other agents may use these patterns)
 ### Export
 
 ```typescript
-// packages/limps-radix/src/tools/list-primitives.ts
+// packages/limps-headless/src/tools/list-primitives.ts
 export const listPrimitivesTool: Tool;
 
-// packages/limps-radix/src/tools/extract-primitive.ts
+// packages/limps-headless/src/tools/extract-primitive.ts
 export const extractPrimitiveTool: Tool;
 ```
 

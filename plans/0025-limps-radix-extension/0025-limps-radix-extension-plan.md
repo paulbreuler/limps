@@ -1451,7 +1451,7 @@ Feature: Package documentation
 
 ### Files
 
-- `packages/limps-radix/README.md` (create)
+- `packages/limps-headless/README.md` (create)
 
 ---
 
@@ -1485,7 +1485,7 @@ Feature: Release artifacts
 
 1. **LICENSE file test**
    - Test: LICENSE file exists in package directory
-   - Impl: Copy LICENSE from root to packages/limps-radix/
+   - Impl: Copy LICENSE from root to packages/limps-headless/
    - Refactor: Verify MIT license content
 
 2. **Package verification test**
@@ -1500,7 +1500,7 @@ Feature: Release artifacts
 
 ### Files
 
-- `packages/limps-radix/LICENSE` (create - copy from root)
+- `packages/limps-headless/LICENSE` (create - copy from root)
 
 ---
 

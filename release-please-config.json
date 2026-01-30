@@ -7,11 +7,11 @@
       "bump-patch-for-minor-pre-major": true,
       "component": "limps"
     },
-    "packages/limps-radix": {
+    "packages/limps-headless": {
       "release-type": "node",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
-      "component": "limps-radix"
+      "component": "limps-headless"
     }
   }
 }

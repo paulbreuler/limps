@@ -20,16 +20,16 @@ files:
   - path: packages/limps/src/server.ts
     action: modify
     repo: limps
-  - path: packages/limps-radix/package.json
+  - path: packages/limps-headless/package.json
     action: create
     repo: limps-radix
-  - path: packages/limps-radix/tsconfig.json
+  - path: packages/limps-headless/tsconfig.json
     action: create
     repo: limps-radix
-  - path: packages/limps-radix/src/index.ts
+  - path: packages/limps-headless/src/index.ts
     action: create
     repo: limps-radix
-  - path: packages/limps-radix/src/types/index.ts
+  - path: packages/limps-headless/src/types/index.ts
     action: create
     repo: limps-radix
 ---

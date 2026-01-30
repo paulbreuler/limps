@@ -8,7 +8,7 @@ aliases: ["#011", "Release Artifacts Agent"]
 created: 2026-01-28
 updated: 2026-01-28
 files:
-  - path: packages/limps-radix/LICENSE
+  - path: packages/limps-headless/LICENSE
     action: create
 ---
 
@@ -19,7 +19,7 @@ files:
 ## Scope
 
 Features: #23 (MVP Release Artifacts)
-Own: `packages/limps-radix/LICENSE`
+Own: `packages/limps-headless/LICENSE`
 Depend on: None (can work in parallel with Agent 010)
 Block: None
 
@@ -32,7 +32,7 @@ The package.json `files` array specifies `LICENSE` but the file doesn't exist in
 ### Export
 
 ```typescript
-// packages/limps-radix/LICENSE
+// packages/limps-headless/LICENSE
 // MIT License text file (no TypeScript exports)
 ```
 
@@ -64,10 +64,10 @@ TDD:
 
 ```bash
 # Copy LICENSE from root to package directory
-cp LICENSE packages/limps-radix/LICENSE
+cp LICENSE packages/limps-headless/LICENSE
 ```
 
-Test: LICENSE file exists in `packages/limps-radix/`
+Test: LICENSE file exists in `packages/limps-headless/`
 Impl: Copy LICENSE from repository root
 Refactor: Verify MIT license content matches
 
@@ -127,7 +127,7 @@ Refactor: Check type definitions (.d.ts) included
 
 ## Acceptance Criteria
 
-- [x] LICENSE file exists in `packages/limps-radix/LICENSE`
+- [x] LICENSE file exists in `packages/limps-headless/LICENSE`
 - [x] LICENSE contains MIT license text
 - [x] LICENSE matches root LICENSE file exactly
 - [x] npm pack --dry-run includes LICENSE

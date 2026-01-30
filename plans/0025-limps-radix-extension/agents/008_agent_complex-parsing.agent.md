@@ -9,15 +9,15 @@ aliases: ["#008", "Complex Parsing Agent"]
 created: 2026-01-28
 updated: 2026-01-28
 files:
-  - path: packages/limps-radix/src/extractor/type-resolver.ts
+  - path: packages/limps-headless/src/extractor/type-resolver.ts
     action: create
-  - path: packages/limps-radix/src/extractor/forward-ref.ts
+  - path: packages/limps-headless/src/extractor/forward-ref.ts
     action: create
-  - path: packages/limps-radix/src/extractor/interface.ts
+  - path: packages/limps-headless/src/extractor/interface.ts
     action: modify
-  - path: packages/limps-radix/src/extractor/props.ts
+  - path: packages/limps-headless/src/extractor/props.ts
     action: modify
-  - path: packages/limps-radix/tests/extractor-complex.test.ts
+  - path: packages/limps-headless/tests/extractor-complex.test.ts
     action: create
 ---
 
@@ -28,7 +28,7 @@ files:
 ## Scope
 
 Features: #20 (Complex Type Parsing)
-Own: `packages/limps-radix/src/extractor/type-resolver.ts`, `packages/limps-radix/src/extractor/forward-ref.ts`
+Own: `packages/limps-headless/src/extractor/type-resolver.ts`, `packages/limps-headless/src/extractor/forward-ref.ts`
 Depend on: Agent 001 for existing extractor infrastructure
 Block: None (enhancement)
 
@@ -49,12 +49,12 @@ See: `gotchas.md#GTC-005`
 ### Export
 
 ```typescript
-// packages/limps-radix/src/extractor/forward-ref.ts
+// packages/limps-headless/src/extractor/forward-ref.ts
 export function extractPropsFromForwardRef(
   decl: TypeAliasDeclaration | VariableDeclaration
 ): RawProp[] | null;
 
-// packages/limps-radix/src/extractor/type-resolver.ts
+// packages/limps-headless/src/extractor/type-resolver.ts
 export function resolveTypeAlias(
   sourceFile: SourceFile,
   aliasName: string
@@ -70,10 +70,10 @@ export function filterReactInternals(props: RawProp[]): RawProp[];
 ### Modify
 
 ```typescript
-// packages/limps-radix/src/extractor/interface.ts
+// packages/limps-headless/src/extractor/interface.ts
 // Enhance: Use type resolver when interface not found directly
 
-// packages/limps-radix/src/extractor/props.ts
+// packages/limps-headless/src/extractor/props.ts
 // Enhance: Handle ForwardRefExoticComponent patterns
 ```
 

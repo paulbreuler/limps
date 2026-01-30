@@ -36,7 +36,7 @@ jobs:
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       limps--release_created: ${{ steps.release.outputs['packages/limps--release_created'] }}
-      limps-radix--release_created: ${{ steps.release.outputs['packages/limps-radix--release_created'] }}
+      limps-headless--release_created: ${{ steps.release.outputs['packages/limps-headless--release_created'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -68,9 +68,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  publish-limps-radix:
+  publish-limps-headless:
     needs: release-please
-    if: ${{ needs.release-please.outputs['limps-radix--release_created'] }}
+    if: ${{ needs.release-please.outputs['limps-headless--release_created'] }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -89,8 +89,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish limps-radix to npm
-        working-directory: packages/limps-radix
+      - name: Publish limps-headless to npm
+        working-directory: packages/limps-headless
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

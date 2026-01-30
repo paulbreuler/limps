@@ -9,23 +9,23 @@ aliases: ["#001", "Extraction Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: packages/limps-radix/src/fetcher/npm-registry.ts
+  - path: packages/limps-headless/src/fetcher/npm-registry.ts
     action: create
-  - path: packages/limps-radix/src/fetcher/unpkg.ts
+  - path: packages/limps-headless/src/fetcher/unpkg.ts
     action: create
-  - path: packages/limps-radix/src/fetcher/index.ts
+  - path: packages/limps-headless/src/fetcher/index.ts
     action: create
-  - path: packages/limps-radix/src/extractor/project.ts
+  - path: packages/limps-headless/src/extractor/project.ts
     action: create
-  - path: packages/limps-radix/src/extractor/interface.ts
+  - path: packages/limps-headless/src/extractor/interface.ts
     action: create
-  - path: packages/limps-radix/src/extractor/props.ts
+  - path: packages/limps-headless/src/extractor/props.ts
     action: create
-  - path: packages/limps-radix/src/extractor/jsdoc.ts
+  - path: packages/limps-headless/src/extractor/jsdoc.ts
     action: create
-  - path: packages/limps-radix/src/extractor/classifier.ts
+  - path: packages/limps-headless/src/extractor/classifier.ts
     action: create
-  - path: packages/limps-radix/src/extractor/index.ts
+  - path: packages/limps-headless/src/extractor/index.ts
     action: create
 ---
 
@@ -36,7 +36,7 @@ files:
 ## Scope
 
 Features: #2 (Type Fetcher), #3 (Type Extractor), #4 (Props Classifier)
-Own: `packages/limps-radix/src/fetcher/`, `packages/limps-radix/src/extractor/`
+Own: `packages/limps-headless/src/fetcher/`, `packages/limps-headless/src/extractor/`
 Depend on: Agent 000 for package structure
 Block: Agent 002 (Signature Generator)
 
@@ -45,15 +45,15 @@ Block: Agent 002 (Signature Generator)
 ### Export
 
 ```typescript
-// packages/limps-radix/src/fetcher/index.ts
+// packages/limps-headless/src/fetcher/index.ts
 export async function resolveVersion(primitive: string, versionHint: string): Promise<string>;
 export async function fetchTypes(primitive: string, version: string): Promise<string>;
 export async function listPrimitives(version?: string): Promise<string[]>;
 
-// packages/limps-radix/src/extractor/index.ts
+// packages/limps-headless/src/extractor/index.ts
 export function extractPrimitive(typeContent: string, primitiveName: string): ExtractedPrimitive;
 
-// packages/limps-radix/src/extractor/classifier.ts
+// packages/limps-headless/src/extractor/classifier.ts
 export function classifyProp(prop: RawProp): PropDefinition;
 ```
 

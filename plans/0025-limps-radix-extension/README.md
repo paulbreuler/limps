@@ -119,16 +119,16 @@ graph TD
 | Agent | Features | Owns |
 |-------|----------|------|
 | 000 | #0, #1 | limps extension API, package setup |
-| 001 | #2, #3, #4 | `packages/limps-radix/src/fetcher/`, `packages/limps-radix/src/extractor/` |
-| 002 | #5, #6 | `packages/limps-radix/src/signatures/`, `packages/limps-radix/src/cache/` |
-| 003 | #7, #8 | `packages/limps-radix/src/tools/list-primitives.ts`, `packages/limps-radix/src/tools/extract-primitive.ts` |
-| 004 | #9, #10, #11, #12 | `packages/limps-radix/src/analyzer/`, `packages/limps-radix/src/tools/analyze-component.ts` |
-| 005 | #13, #14, #15 | `packages/limps-radix/src/differ/`, `packages/limps-radix/src/tools/diff-versions.ts`, `packages/limps-radix/src/tools/check-updates.ts` |
-| 006 | #16, #17, #18 | `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/` |
-| 007 | #19 | `packages/limps-radix/src/fetcher/unified-package.ts` |
-| 008 | #20 | `packages/limps-radix/src/extractor/type-resolver.ts`, `packages/limps-radix/src/extractor/forward-ref.ts` |
-| 010 | #22 | `packages/limps-radix/README.md` |
-| 011 | #23 | `packages/limps-radix/LICENSE` |
+| 001 | #2, #3, #4 | `packages/limps-headless/src/fetcher/`, `packages/limps-headless/src/extractor/` |
+| 002 | #5, #6 | `packages/limps-headless/src/signatures/`, `packages/limps-headless/src/cache/` |
+| 003 | #7, #8 | `packages/limps-headless/src/tools/list-primitives.ts`, `packages/limps-headless/src/tools/extract-primitive.ts` |
+| 004 | #9, #10, #11, #12 | `packages/limps-headless/src/analyzer/`, `packages/limps-headless/src/tools/analyze-component.ts` |
+| 005 | #13, #14, #15 | `packages/limps-headless/src/differ/`, `packages/limps-headless/src/tools/diff-versions.ts`, `packages/limps-headless/src/tools/check-updates.ts` |
+| 006 | #16, #17, #18 | `packages/limps-headless/src/providers/`, `packages/limps-headless/src/cli/`, `packages/limps-headless/docs/` |
+| 007 | #19 | `packages/limps-headless/src/fetcher/unified-package.ts` |
+| 008 | #20 | `packages/limps-headless/src/extractor/type-resolver.ts`, `packages/limps-headless/src/extractor/forward-ref.ts` |
+| 010 | #22 | `packages/limps-headless/README.md` |
+| 011 | #23 | `packages/limps-headless/LICENSE` |
 
 ## File Links
 

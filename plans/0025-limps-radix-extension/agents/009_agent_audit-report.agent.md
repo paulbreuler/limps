@@ -11,19 +11,19 @@ aliases: ["#009", "Audit Report Agent"]
 created: 2026-01-28
 updated: 2026-01-29
 files:
-  - path: packages/limps-radix/src/audit/types.ts
+  - path: packages/limps-headless/src/audit/types.ts
     action: create
-  - path: packages/limps-radix/src/audit/discover-components.ts
+  - path: packages/limps-headless/src/audit/discover-components.ts
     action: create
-  - path: packages/limps-radix/src/audit/run-audit.ts
+  - path: packages/limps-headless/src/audit/run-audit.ts
     action: create
-  - path: packages/limps-radix/src/audit/generate-report.ts
+  - path: packages/limps-headless/src/audit/generate-report.ts
     action: create
-  - path: packages/limps-radix/src/tools/run-audit.ts
+  - path: packages/limps-headless/src/tools/run-audit.ts
     action: create
-  - path: packages/limps-radix/src/tools/generate-report.ts
+  - path: packages/limps-headless/src/tools/generate-report.ts
     action: create
-  - path: packages/limps-radix/tests/audit-report.test.ts
+  - path: packages/limps-headless/tests/audit-report.test.ts
     action: create
 ---
 
@@ -34,7 +34,7 @@ files:
 ## Scope
 
 Features: Audit report pipeline + component discovery + Radix compliance reporting
-Own: `packages/limps-radix/src/audit/*`, tool exposure
+Own: `packages/limps-headless/src/audit/*`, tool exposure
 Depend on: Analyzer + Differ for source data
 Block: None
 

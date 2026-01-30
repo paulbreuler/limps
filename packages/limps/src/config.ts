@@ -43,7 +43,7 @@ export interface ServerConfig {
     weights: ScoringWeights;
     biases: ScoringBiases;
   };
-  extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-radix"])
+  extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
 
 /**
