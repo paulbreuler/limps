@@ -50,3 +50,7 @@ export * from './differ/index.js';
 
 // Re-export tools module (includes audit tool handlers and schemas)
 export * from './tools/index.js';
+
+// Config and policy options (Agent 0)
+export * from './config.js';
+export type { RunAuditOptions, BackendMode, MigrationThreshold } from './audit/types.js';

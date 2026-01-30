@@ -31,6 +31,8 @@ function ensureDir(dir: string): void {
   }
 }
 
+import type { RunAuditOptions } from './types.js';
+
 export interface RunAuditInput {
   scope?: {
     files?: string[];
@@ -41,6 +43,8 @@ export interface RunAuditInput {
   radixVersion?: string;
   outputDir?: string;
   format?: 'json' | 'markdown' | 'both';
+  /** Policy options (backend mode, migration threshold). Used when backend/migration analysis is available. */
+  policy?: Partial<RunAuditOptions>;
 }
 
 export interface RunAuditResult extends GenerateReportResult {

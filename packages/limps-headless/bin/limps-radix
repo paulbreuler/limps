@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+process.stderr.write(
+  'limps radix is deprecated; use limps-headless. This alias will be removed in a future release.\n'
+);
+await import('../dist/cli/index.js');

@@ -13,6 +13,20 @@ export type IssuePriority = 'critical' | 'high' | 'medium' | 'low';
 export type ContraventionSeverity = 'high' | 'medium' | 'low';
 
 /**
+ * Policy options for audit (Agent 0 #5).
+ */
+export type BackendMode = 'auto' | 'base' | 'radix-legacy';
+
+export type MigrationThreshold = 'low' | 'medium' | 'high';
+
+export interface RunAuditOptions {
+  backendMode: BackendMode;
+  migrationThreshold: MigrationThreshold;
+  failOnMixed: boolean;
+  includeLegacy: boolean;
+}
+
+/**
  * Options for component discovery.
  */
 export interface DiscoveryOptions {

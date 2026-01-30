@@ -37,7 +37,8 @@
     "LICENSE"
   ],
   "bin": {
-    "limps-headless": "bin/limps-headless"
+    "limps-headless": "bin/limps-headless",
+    "limps-radix": "bin/limps-radix"
   },
   "peerDependencies": {
     "@sudosandwich/limps": "^2.0.0"

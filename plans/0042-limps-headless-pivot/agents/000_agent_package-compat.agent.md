@@ -1,6 +1,6 @@
 # Agent 0: Package Identity + Policy
 
-**Plan Location**: `plans/0042-0042-limps-headless-pivot/0042-0042-limps-headless-pivot-plan.md`
+**Plan Location**: `plans/0042-limps-headless-pivot/0042-limps-headless-pivot-plan.md`
 
 ## Scope
 
@@ -37,7 +37,7 @@ export type HeadlessBackend = 'radix' | 'base' | 'mixed' | 'unknown';
 ### #0: Package Identity + Backward Compatibility
 
 TL;DR: Rename to `limps-headless`, keep `limps radix` alias with deprecation warning.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `headless-cli-alias`, `headless-exports`
 Files: `packages/limps-headless/package.json` (create), `packages/limps-headless/src/cli/index.ts` (create)
 
@@ -54,7 +54,7 @@ Gotchas:
 ### #5: Config + Policy Enforcement
 
 TL;DR: Add `--backend`/`--mode` flags + migration thresholds to fail builds.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `policy-base-only`, `policy-threshold`
 Files: `packages/limps-headless/src/cli/flags.ts` (update), `packages/limps-headless/src/config.ts` (update)
 
@@ -70,7 +70,7 @@ Gotchas:
 
 ## Done
 
-- [ ] TDD cycles pass
-- [ ] CLI aliases verified
-- [ ] Config defaults documented
-- [ ] Status → PASS
+- [x] TDD cycles pass
+- [x] CLI aliases verified
+- [x] Config defaults documented
+- [x] Status → PASS

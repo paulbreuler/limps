@@ -4,6 +4,11 @@
 
 import type { Command } from 'commander';
 import { runAudit } from '../../audit/run-audit.js';
+import {
+  parseBackendMode,
+  parseMigrationThreshold,
+  DEFAULT_RUN_AUDIT_OPTIONS,
+} from '../flags.js';
 
 export function registerAuditCommand(program: Command): void {
   program
@@ -23,6 +28,18 @@ export function registerAuditCommand(program: Command): void {
       'both'
     )
     .option('--json', 'Output summary as JSON only')
+    .option(
+      '--backend <mode>',
+      'Backend policy: auto, base, or radix-legacy',
+      DEFAULT_RUN_AUDIT_OPTIONS.backendMode
+    )
+    .option(
+      '--migration-threshold <level>',
+      'Fail if migration issues >= level: low, medium, high',
+      DEFAULT_RUN_AUDIT_OPTIONS.migrationThreshold
+    )
+    .option('--fail-on-mixed', 'Exit non-zero when Radix and Base are mixed')
+    .option('--no-include-legacy', 'Disallow Radix (enforce base-only when --backend=base)')
     .action(async (options) => {
       const files = options.files
         ? (Array.isArray(options.files) ? options.files : [options.files]).flat()
@@ -32,6 +49,12 @@ export function registerAuditCommand(program: Command): void {
         discovery: options.rootDir ? { rootDir: options.rootDir } : undefined,
         outputDir: options.outputDir,
         format: options.format === 'json' ? 'json' : options.format === 'markdown' ? 'markdown' : 'both',
+        policy: {
+          backendMode: parseBackendMode(options.backend ?? 'auto'),
+          migrationThreshold: parseMigrationThreshold(options.migrationThreshold ?? 'medium'),
+          failOnMixed: Boolean(options.failOnMixed),
+          includeLegacy: options.includeLegacy !== false,
+        },
       });
 
       if (options.json) {
