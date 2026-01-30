@@ -14,7 +14,7 @@ import { resolvePackageVersion } from '../fetcher/npm-registry.js';
 import { getProvider } from '../providers/registry.js';
 
 /**
- * Input schema for radix_check_updates tool.
+ * Input schema for headless_check_updates tool.
  */
 export const checkUpdatesInputSchema = z.object({
   refreshCache: z
@@ -36,7 +36,7 @@ export const checkUpdatesInputSchema = z.object({
 export type CheckUpdatesInput = z.infer<typeof checkUpdatesInputSchema>;
 
 /**
- * Output type for radix_check_updates tool.
+ * Output type for headless_check_updates tool.
  */
 export type CheckUpdatesOutput = UpdateCheckResult;
 
@@ -47,7 +47,7 @@ export type CheckUpdatesOutput = UpdateCheckResult;
 const REFERENCE_PRIMITIVE = 'dialog';
 
 /**
- * Handler for the radix_check_updates tool.
+ * Handler for the headless_check_updates tool.
  */
 export async function handleCheckUpdates(
   input: unknown
@@ -105,7 +105,7 @@ export async function handleCheckUpdates(
  * MCP tool definition for checking Radix updates.
  */
 export const checkUpdatesTool: ExtensionTool = {
-  name: 'radix_check_updates',
+  name: 'headless_check_updates',
   description:
     'Check for new Radix releases and automatically show changes since the last check. Use refreshCache to force re-extraction of signatures.',
   inputSchema: checkUpdatesInputSchema,

@@ -12,7 +12,7 @@ import { diffVersions, type RadixDiff } from '../differ/index.js';
 import { getProvider } from '../providers/registry.js';
 
 /**
- * Input schema for radix_diff_versions tool.
+ * Input schema for headless_diff_versions tool.
  */
 export const diffVersionsInputSchema = z.object({
   fromVersion: z
@@ -42,12 +42,12 @@ export const diffVersionsInputSchema = z.object({
 export type DiffVersionsInput = z.infer<typeof diffVersionsInputSchema>;
 
 /**
- * Output type for radix_diff_versions tool.
+ * Output type for headless_diff_versions tool.
  */
 export type DiffVersionsOutput = RadixDiff;
 
 /**
- * Handler for the radix_diff_versions tool.
+ * Handler for the headless_diff_versions tool.
  */
 export async function handleDiffVersions(
   input: unknown
@@ -91,7 +91,7 @@ export async function handleDiffVersions(
  * MCP tool definition for comparing Radix versions.
  */
 export const diffVersionsTool: ExtensionTool = {
-  name: 'radix_diff_versions',
+  name: 'headless_diff_versions',
   description:
     'Diff two Radix versions (from-version → to-version): compare for breaking changes, warnings, and new features. Shows what changed with migration hints.',
   inputSchema: diffVersionsInputSchema,

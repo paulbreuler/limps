@@ -11,12 +11,20 @@ import { diffVersions } from '../differ/index.js';
 import { resolvePackageVersion } from '../fetcher/npm-registry.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
 import type { RadixDiff, UpdateCheckResult } from '../differ/types.js';
-import type { ComponentMetadata, DiscoveryOptions } from './types.js';
+import type { ComponentMetadata, DiscoveryOptions, RunAuditOptions } from './types.js';
 import { discoverComponents } from './discover-components.js';
 import { generateReport } from './generate-report.js';
 import type { GenerateReportResult } from './generate-report.js';
 
+/** Reference primitive for version resolution (Radix: dialog). */
 const REFERENCE_PRIMITIVE = 'dialog';
+
+/** Minimum confidence to include a match in analysis results. */
+const DEFAULT_ANALYSIS_THRESHOLD = 40;
+/** Max confidence for CUSTOM_OK (below this = custom component). */
+const CONFIDENCE_CUSTOM_OK_MAX = 50;
+/** Min confidence for ADOPT_RADIX (above this = strong match). */
+const CONFIDENCE_ADOPT_MIN = 70;
 
 function serializeAnalysis(analysis: AnalysisResult['analysis']) {
   return {
@@ -30,8 +38,6 @@ function ensureDir(dir: string): void {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
-
-import type { RunAuditOptions } from './types.js';
 
 export interface RunAuditInput {
   scope?: {
@@ -68,7 +74,7 @@ async function analyzeFiles(
   files: string[],
   signatures: BehaviorSignature[]
 ): Promise<AnalysisResult[]> {
-  const threshold = 40;
+  const threshold = DEFAULT_ANALYSIS_THRESHOLD;
   const results: AnalysisResult[] = [];
   const cwd = process.cwd();
 
@@ -89,7 +95,7 @@ async function analyzeFiles(
       const ambiguous = isAmbiguous(matches);
       const bestMatch = matches.length > 0 ? disambiguate(matches, analysis) : null;
 
-      if (!bestMatch || bestMatch.confidence < 50) {
+      if (!bestMatch || bestMatch.confidence < CONFIDENCE_CUSTOM_OK_MAX) {
         recommendation = {
           primitive: null,
           package: null,
@@ -100,7 +106,7 @@ async function analyzeFiles(
               ? `Low confidence (${bestMatch.confidence}) - component likely custom`
               : 'No matches found',
         };
-      } else if (bestMatch.confidence >= 70) {
+      } else if (bestMatch.confidence >= CONFIDENCE_ADOPT_MIN) {
         recommendation = {
           primitive: bestMatch.primitive,
           package: bestMatch.package,
@@ -228,6 +234,7 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     outputDir,
     format,
     title: 'Radix Audit Report',
+    policy: input.policy,
   });
 
   return {

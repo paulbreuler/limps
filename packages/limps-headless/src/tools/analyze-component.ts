@@ -13,7 +13,7 @@ import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
 import { getProvider } from '../providers/registry.js';
 
 /**
- * Input schema for radix_analyze_component tool.
+ * Input schema for headless_analyze_component tool.
  */
 export const analyzeComponentInputSchema = z.object({
   filePath: z.string().describe('Path to .ts/.tsx component file'),
@@ -60,7 +60,7 @@ function resolveAndValidatePath(filePath: string): { absolute: string; relative:
 }
 
 /**
- * Handler for the radix_analyze_component tool.
+ * Handler for the headless_analyze_component tool.
  *
  * @param input - Tool input parameters
  * @returns Analysis result with recommendation and matches
@@ -108,7 +108,7 @@ export async function handleAnalyzeComponent(
             package: null,
             confidence: 0,
             action: 'CUSTOM_OK',
-            reason: 'No Radix signatures cached. Run radix_extract_primitive first.',
+            reason: 'No Radix signatures cached. Run headless_extract_primitive first.',
           },
           matches: [],
           analysis,
@@ -227,7 +227,7 @@ export async function handleAnalyzeComponent(
  * MCP tool definition for analyzing a React component.
  */
 export const analyzeComponentTool: ExtensionTool = {
-  name: 'radix_analyze_component',
+  name: 'headless_analyze_component',
   description:
     'Analyze a React component file for Radix primitive adoption. Returns confidence scores, matches, and recommendations.',
   inputSchema: analyzeComponentInputSchema,

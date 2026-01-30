@@ -1,5 +1,5 @@
 /**
- * Tests for radix_list_primitives and radix_extract_primitive.
+ * Tests for headless_list_primitives and headless_extract_primitive.
  *
  * We test:
  * - Happy path: radix provider returns version and primitives; extract returns contract.
@@ -124,7 +124,7 @@ describe('tools', () => {
 
   describe('listPrimitivesTool', () => {
     it('has correct tool definition', () => {
-      expect(listPrimitivesTool.name).toBe('radix_list_primitives');
+      expect(listPrimitivesTool.name).toBe('headless_list_primitives');
       expect(listPrimitivesTool.description).toContain('List all available Radix UI primitives');
       expect(listPrimitivesTool.inputSchema).toBeDefined();
       expect(listPrimitivesTool.handler).toBeDefined();
@@ -228,7 +228,7 @@ describe('tools', () => {
 
   describe('extractPrimitiveTool', () => {
     it('has correct tool definition', () => {
-      expect(extractPrimitiveTool.name).toBe('radix_extract_primitive');
+      expect(extractPrimitiveTool.name).toBe('headless_extract_primitive');
       expect(extractPrimitiveTool.description).toContain('behavioral contract');
       expect(extractPrimitiveTool.inputSchema).toBeDefined();
       expect(extractPrimitiveTool.handler).toBeDefined();

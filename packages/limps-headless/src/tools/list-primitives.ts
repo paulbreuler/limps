@@ -8,7 +8,7 @@ import { listPrimitives, resolvePackage } from '../fetcher/index.js';
 import { getProvider } from '../providers/registry.js';
 
 /**
- * Input schema for radix_list_primitives tool.
+ * Input schema for headless_list_primitives tool.
  */
 export const listPrimitivesInputSchema = z.object({
   version: z
@@ -26,7 +26,7 @@ export const listPrimitivesInputSchema = z.object({
 export type ListPrimitivesInput = z.infer<typeof listPrimitivesInputSchema>;
 
 /**
- * Output schema for radix_list_primitives tool.
+ * Output schema for headless_list_primitives tool.
  */
 export interface ListPrimitivesOutput {
   version: string;
@@ -38,7 +38,7 @@ export interface ListPrimitivesOutput {
 }
 
 /**
- * Handler for the radix_list_primitives tool.
+ * Handler for the headless_list_primitives tool.
  *
  * @param input - Tool input parameters
  * @returns List of primitives with metadata
@@ -94,7 +94,7 @@ export async function handleListPrimitives(
  * MCP tool definition for listing Radix primitives.
  */
 export const listPrimitivesTool: ExtensionTool = {
-  name: 'radix_list_primitives',
+  name: 'headless_list_primitives',
   description:
     'List all available Radix UI primitives with their package names and descriptions',
   inputSchema: listPrimitivesInputSchema,

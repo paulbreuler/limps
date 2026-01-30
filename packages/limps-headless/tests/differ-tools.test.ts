@@ -1,5 +1,5 @@
 /**
- * Tests for radix_diff_versions and radix_check_updates.
+ * Tests for headless_diff_versions and headless_check_updates.
  *
  * We test:
  * - Input contract: schema validation, defaults, optional params.

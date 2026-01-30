@@ -37,7 +37,7 @@ export async function handleGenerateReport(
 }
 
 export const generateReportTool: ExtensionTool = {
-  name: 'radix_generate_report',
+  name: 'headless_generate_report',
   description:
     'Generate an audit report from precomputed analysis, diff, and/or update-check JSON. Outputs JSON and/or Markdown.',
   inputSchema: generateReportInputSchema,

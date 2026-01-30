@@ -49,7 +49,7 @@ export async function handleRunAudit(
 }
 
 export const runAuditTool: ExtensionTool = {
-  name: 'radix_run_audit',
+  name: 'headless_run_audit',
   description:
     'Run a full Radix audit: discover components (if no files), analyze against Radix, diff versions, check updates, and generate JSON + Markdown report.',
   inputSchema: runAuditInputSchema,

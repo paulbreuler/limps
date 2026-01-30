@@ -28,6 +28,11 @@ describe('provider registry', () => {
     expect(provider.displayName).toBe('Acme UI');
   });
 
+  it('throws with available providers when provider is unknown', () => {
+    expect(() => getProvider('unknown')).toThrow(/Provider "unknown" is not registered/);
+    expect(() => getProvider('unknown')).toThrow(/Available:/);
+  });
+
   it('throws on duplicate provider registration', () => {
     const dupeProvider: ComponentLibraryProvider = {
       name: 'duplicate',

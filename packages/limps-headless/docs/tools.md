@@ -6,7 +6,7 @@ title: limps-headless Tool Reference
 
 All tools accept an optional `provider` (default: `radix`). Provider support is pluggable but only `radix` is fully supported today.
 
-## radix_list_primitives
+## headless_list_primitives
 
 List available primitives.
 
@@ -28,7 +28,7 @@ List available primitives.
 }
 ```
 
-## radix_extract_primitive
+## headless_extract_primitive
 
 Extract a full primitive contract.
 
@@ -57,7 +57,7 @@ Extract a full primitive contract.
 }
 ```
 
-## radix_analyze_component
+## headless_analyze_component
 
 Analyze a local component and recommend a Radix primitive. **filePath** is resolved relative to the current working directory (MCP server cwd or, when using the CLI, the directory you run `limps-headless` from—so run from your project root).
 
@@ -87,7 +87,7 @@ Analyze a local component and recommend a Radix primitive. **filePath** is resol
 }
 ```
 
-## radix_diff_versions
+## headless_diff_versions
 
 **Purpose:** See what will break or need attention when upgrading Radix. Compares **two Radix versions** (not your code vs Radix)—primitive API contracts (props, subcomponents) between a from-version and a to-version. Reports breaking changes, warnings, and info. Input: `fromVersion` (e.g. your current), `toVersion` (e.g. latest).
 
@@ -120,7 +120,7 @@ Analyze a local component and recommend a Radix primitive. **filePath** is resol
 }
 ```
 
-## radix_check_updates
+## headless_check_updates
 
 Check for a newer version and include diffs when available.
 

@@ -11,6 +11,7 @@ import type {
   ComponentMetadata,
   Contravention,
   IssuePriority,
+  RunAuditOptions,
 } from './types.js';
 import type { RadixDiff, UpdateCheckResult } from '../differ/types.js';
 
@@ -141,7 +142,7 @@ function contraventionsFromDiffAndUpdates(
       type: 'legacy-package-usage',
       severity: 'high',
       description: `Current cached version ${updates.currentVersion} is behind latest ${updates.latestVersion}. ${updates.diff.summary.breaking} breaking change(s) exist.`,
-      recommendation: 'Upgrade Radix dependencies and run radix_diff_versions to plan migration.',
+      recommendation: 'Upgrade Radix dependencies and run headless_diff_versions to plan migration.',
     });
     return out;
   }
@@ -205,6 +206,8 @@ export interface GenerateReportInput {
   outputDir?: string;
   format?: 'json' | 'markdown' | 'both';
   title?: string;
+  /** Policy options used for this audit (included in report metadata). */
+  policy?: Partial<RunAuditOptions>;
 }
 
 export interface GenerateReportResult {
@@ -258,6 +261,7 @@ export function generateReport(input: GenerateReportInput): GenerateReportResult
       version: REPORT_VERSION,
       generatedAt: new Date().toISOString(),
       generatedBy: GENERATED_BY,
+      ...(input.policy && Object.keys(input.policy).length > 0 && { policy: input.policy }),
     },
     summary,
     inventory,

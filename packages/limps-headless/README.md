@@ -26,6 +26,8 @@ Example `limps.config.json`:
 
 ## CLI
 
+The `limps-radix` binary is deprecated and will be removed in the next major version; use `limps-headless`.
+
 You can use the standalone CLI for local workflows. **Run from your project directory** so that `analyze` can resolve file paths (paths are relative to the current working directory):
 
 ```bash
@@ -46,7 +48,7 @@ Pass `--json` to any command for raw JSON output.
 
 Tool reference: see `docs/tools.md` for detailed schemas and examples.
 
-### `radix_list_primitives`
+### `headless_list_primitives`
 
 List all available Radix UI primitives with package names and descriptions.
 
@@ -79,7 +81,7 @@ List all available Radix UI primitives with package names and descriptions.
 }
 ```
 
-### `radix_extract_primitive`
+### `headless_extract_primitive`
 
 Extract the behavioral contract for a single Radix primitive, including sub-components, prop metadata, and semantic classification.
 
@@ -140,7 +142,7 @@ Extract the behavioral contract for a single Radix primitive, including sub-comp
 }
 ```
 
-### `radix_analyze_component`
+### `headless_analyze_component`
 
 Analyze a local component file and recommend a Radix primitive.
 
@@ -155,7 +157,7 @@ Analyze a local component file and recommend a Radix primitive.
 }
 ```
 
-### `radix_diff_versions`
+### `headless_diff_versions`
 
 **Purpose:** Answer “what will break or need attention if I upgrade Radix?” by comparing **two Radix versions** (not your code vs Radix). It diffs the public API contracts (props, subcomponents) of primitives between a from-version (e.g. your current) and a to-version (e.g. `latest`). Lists breaking changes, warnings, and info. Input: `fromVersion`, `toVersion`.
 
@@ -170,7 +172,7 @@ Analyze a local component file and recommend a Radix primitive.
 }
 ```
 
-### `radix_check_updates`
+### `headless_check_updates`
 
 Check for a newer Radix version and show changes since the last check.
 
@@ -203,7 +205,7 @@ This package re-exports its core types, signatures, cache helpers, and tool defi
 - `cache` — File-based cache helpers for extracted data and signatures.
 - `signatures` — Behavior signature generation utilities.
 - `providers` — Provider registry for component libraries.
-- `tools` — MCP tool definitions (`radix_list_primitives`, `radix_extract_primitive`, `radix_analyze_component`, `radix_diff_versions`, `radix_check_updates`).
+- `tools` — MCP tool definitions (`headless_list_primitives`, `headless_extract_primitive`, `headless_analyze_component`, `headless_diff_versions`, `headless_check_updates`).
 
 ## Configuration
 

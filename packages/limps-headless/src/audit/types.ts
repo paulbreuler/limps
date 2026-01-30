@@ -8,6 +8,28 @@
 export type IssuePriority = 'critical' | 'high' | 'medium' | 'low';
 
 /**
+ * Backend identifier for headless UI libraries (Agent 1 #1).
+ */
+export type HeadlessBackend = 'radix' | 'base' | 'mixed' | 'unknown';
+
+/**
+ * Issue category for backend provider analysis (Agent 1 #2).
+ */
+export type IssueCategory = 'accessibility' | 'performance' | 'dependencies' | 'storybook' | 'migration';
+
+/**
+ * Issue from backend provider analysis (Agent 1 #2).
+ */
+export interface Issue {
+  component?: string;
+  category: IssueCategory;
+  severity: IssuePriority;
+  message: string;
+  suggestion?: string;
+  evidence?: string[];
+}
+
+/**
  * Severity for contraventions (policy/version drift).
  */
 export type ContraventionSeverity = 'high' | 'medium' | 'low';
@@ -36,7 +58,7 @@ export interface DiscoveryOptions {
 }
 
 /**
- * Metadata for a discovered component.
+ * Metadata for a discovered component (Agent 1 #1 - extended with backend detection).
  */
 export interface ComponentMetadata {
   path: string;
@@ -44,6 +66,18 @@ export interface ComponentMetadata {
   exportType?: 'default' | 'named' | 'both';
   propsInterface?: string;
   dependencies?: string[];
+  /** Detected backend library (radix, base, mixed, unknown). */
+  backend: HeadlessBackend;
+  /** True if component uses both Radix and Base imports. */
+  mixedUsage: boolean;
+  /** Import sources that matched backend detection (e.g. "@radix-ui/react-dialog"). */
+  importSources: string[];
+  /** Pattern evidence found (e.g. "asChild", "render"). */
+  evidence: string[];
+  /** True if component exports a React component. */
+  exportsComponent: boolean;
+  /** Names of exported identifiers. */
+  exportedNames: string[];
 }
 
 export interface ComponentInventory {
@@ -82,6 +116,8 @@ export interface AuditReport {
     version: string;
     generatedAt: string;
     generatedBy: string;
+    /** Policy used for this audit (when provided). */
+    policy?: Partial<RunAuditOptions>;
   };
   summary: {
     totalComponents: number;

@@ -1,5 +1,5 @@
 /**
- * Tests for radix_analyze_component MCP tool.
+ * Tests for headless_analyze_component MCP tool.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -73,7 +73,7 @@ function setupDefaults() {
   mocks.disambiguate.mockImplementation((matches: any[]) => matches[0]);
 }
 
-describe('radix_analyze_component tool', () => {
+describe('headless_analyze_component tool', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupDefaults();

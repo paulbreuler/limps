@@ -221,16 +221,16 @@ describe('generateReportInputSchema', () => {
   });
 });
 
-describe('radix_run_audit tool', () => {
+describe('headless_run_audit tool', () => {
   it('tool name and schema are defined', () => {
-    expect(runAuditTool.name).toBe('radix_run_audit');
+    expect(runAuditTool.name).toBe('headless_run_audit');
     expect(runAuditTool.inputSchema).toBe(runAuditInputSchema);
   });
 });
 
-describe('radix_generate_report tool', () => {
+describe('headless_generate_report tool', () => {
   it('tool name and schema are defined', () => {
-    expect(generateReportTool.name).toBe('radix_generate_report');
+    expect(generateReportTool.name).toBe('headless_generate_report');
     expect(generateReportTool.inputSchema).toBe(generateReportInputSchema);
   });
 

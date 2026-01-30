@@ -19,11 +19,16 @@ export function registerProvider(provider: ComponentLibraryProvider): void {
   providers.set(key, provider);
 }
 
+export function getProviderNames(): string[] {
+  return [...providers.keys()];
+}
+
 export function getProvider(name: string): ComponentLibraryProvider {
   const key = normalizeProviderName(name);
   const provider = providers.get(key);
   if (!provider) {
-    throw new Error(`Provider "${name}" is not registered`);
+    const available = getProviderNames().length > 0 ? getProviderNames().join(', ') : 'none';
+    throw new Error(`Provider "${name}" is not registered. Available: ${available}`);
   }
   return provider;
 }

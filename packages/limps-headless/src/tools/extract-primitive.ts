@@ -19,7 +19,7 @@ import {
 import { getProvider } from '../providers/registry.js';
 
 /**
- * Input schema for radix_extract_primitive tool.
+ * Input schema for headless_extract_primitive tool.
  */
 export const extractPrimitiveInputSchema = z.object({
   primitive: z.string().describe('Primitive name (e.g., "dialog", "popover", "tooltip")'),
@@ -38,7 +38,7 @@ export const extractPrimitiveInputSchema = z.object({
 export type ExtractPrimitiveInput = z.infer<typeof extractPrimitiveInputSchema>;
 
 /**
- * Output schema for radix_extract_primitive tool.
+ * Output schema for headless_extract_primitive tool.
  */
 export interface ExtractPrimitiveOutput {
   primitive: string;
@@ -67,7 +67,7 @@ export interface ExtractPrimitiveOutput {
 }
 
 /**
- * Handler for the radix_extract_primitive tool.
+ * Handler for the headless_extract_primitive tool.
  *
  * @param input - Tool input parameters
  * @returns Full primitive contract with behavioral classification
@@ -219,7 +219,7 @@ export async function handleExtractPrimitive(
  * MCP tool definition for extracting a Radix primitive's contract.
  */
 export const extractPrimitiveTool: ExtensionTool = {
-  name: 'radix_extract_primitive',
+  name: 'headless_extract_primitive',
   description:
     'Extract the behavioral contract from a Radix UI primitive, including sub-components, props, and semantic classification',
   inputSchema: extractPrimitiveInputSchema,

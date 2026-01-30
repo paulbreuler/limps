@@ -67,7 +67,7 @@ So the diff is **planning-oriented**: it expands raw type deltas into descriptio
 ### When to use it
 
 - **Before upgrading**: run diff from your current version (from-version) to the new version (to-version) to see breaking changes and plan code updates.
-- **With check-updates**: `radix_check_updates` can include a diff from current to latest so you see what an upgrade would entail.
+- **With check-updates**: `headless_check_updates` can include a diff from current to latest so you see what an upgrade would entail.
 
 ## Provider System
 
@@ -79,10 +79,10 @@ Default provider: `radix`
 
 MCP tools are thin wrappers around the pipeline:
 
-- `radix_list_primitives`
-- `radix_extract_primitive`
-- `radix_analyze_component`
-- `radix_diff_versions`
-- `radix_check_updates`
+- `headless_list_primitives`
+- `headless_extract_primitive`
+- `headless_analyze_component`
+- `headless_diff_versions`
+- `headless_check_updates`
 
 Each tool accepts an optional `provider` parameter (default: `radix`).
