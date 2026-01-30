@@ -174,6 +174,30 @@ describe('reject-duplicate', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('already exists');
   });
+
+  it('should use name as-is when it already has a number prefix (no double prefix)', async () => {
+    const result = await handleCreatePlan(
+      { name: '0042-limps-headless-pivot', description: 'Pivot plan' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('0042-limps-headless-pivot');
+    expect(result.content[0].text).not.toContain('0042-0042-');
+
+    const planDirs = readdirSync(plansDir);
+    expect(planDirs).toContain('0042-limps-headless-pivot');
+    expect(planDirs.some((d) => d.startsWith('0042-0042-'))).toBe(false);
+  });
+
+  it('should reject duplicate when full directory name matches', async () => {
+    mkdirSync(join(plansDir, '0042-limps-headless-pivot'), { recursive: true });
+
+    const result = await handleCreatePlan({ name: '0042-limps-headless-pivot' }, context);
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('already exists');
+  });
 });
 
 describe('template-replacement', () => {
