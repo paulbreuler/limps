@@ -56,7 +56,7 @@ export interface RunAuditOptions {
 ### #1: Unified Component Discovery
 
 TL;DR: Tag each component with backend detection + evidence.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `discovery-base`, `discovery-radix`, `discovery-mixed`
 Files: `packages/limps-headless/src/audit/discover-components.ts` (update)
 
@@ -74,7 +74,7 @@ Gotchas:
 ### #2: Backend Providers (Radix + Base)
 
 TL;DR: Providers supply backend-specific rules and metadata.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `provider-registry`, `provider-radix`, `provider-base`
 Files: `packages/limps-headless/src/providers/interface.ts` (update), `packages/limps-headless/src/providers/base.ts` (create)
 
@@ -90,6 +90,6 @@ Gotchas:
 
 ## Done
 
-- [ ] Discovery tags are deterministic
-- [ ] Providers cover both backends
-- [ ] Status → PASS
+- [x] Discovery tags are deterministic
+- [x] Providers cover both backends
+- [x] Status → PASS

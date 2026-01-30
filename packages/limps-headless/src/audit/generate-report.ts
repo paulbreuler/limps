@@ -14,6 +14,7 @@ import type {
   RunAuditOptions,
 } from './types.js';
 import type { RadixDiff, UpdateCheckResult } from '../differ/types.js';
+import { analyzeMigration, computeMigrationSummary } from './analyses/migration.js';
 
 const REPORT_VERSION = '1.0.0';
 const GENERATED_BY = 'limps-headless';
@@ -164,7 +165,8 @@ function contraventionsFromDiffAndUpdates(
 function buildSummary(
   totalComponents: number,
   issues: AuditIssue[],
-  contraventions: Contravention[]
+  contraventions: Contravention[],
+  inventory?: ComponentMetadata[]
 ): AuditReport['summary'] {
   const issuesByPriority: Record<IssuePriority, number> = {
     critical: 0,
@@ -175,11 +177,22 @@ function buildSummary(
   for (const i of issues) {
     issuesByPriority[i.priority]++;
   }
-  return {
+
+  const summary: AuditReport['summary'] = {
     totalComponents,
     issuesByPriority,
     contraventions: contraventions.length,
   };
+
+  // Add migration summary when inventory is available
+  if (inventory && inventory.length > 0) {
+    const migrationSummary = computeMigrationSummary(inventory);
+    summary.backendCounts = migrationSummary.backendCounts;
+    summary.legacyRadixCount = migrationSummary.legacyRadixCount;
+    summary.migrationReadiness = migrationSummary.migrationReadiness;
+  }
+
+  return summary;
 }
 
 /**
@@ -251,8 +264,28 @@ export function generateReport(input: GenerateReportInput): GenerateReportResult
   }
 
   const issues = issuesFromAnalysis(results);
+
+  // Add migration issues from inventory if available
+  if (inventory && inventory.length > 0) {
+    const migrationIssues = analyzeMigration(inventory);
+    let migrationId = 0;
+    for (const mi of migrationIssues) {
+      issues.push({
+        id: `migration-${++migrationId}`,
+        category: mi.category,
+        priority: mi.severity,
+        description: mi.message,
+        recommendation: mi.suggestion ?? 'Review component for migration opportunities.',
+        location: mi.component,
+      });
+    }
+  }
+
   const contraventions = contraventionsFromDiffAndUpdates(diff, updates);
-  const summary = buildSummary(results.length, issues, contraventions);
+
+  // Use inventory count when available, fall back to analysis results count
+  const totalComponents = inventory ? inventory.length : results.length;
+  const summary = buildSummary(totalComponents, issues, contraventions, inventory);
   const recommendations = buildRecommendations(issues, contraventions);
   const compliance = complianceFromAnalysis(results);
 
@@ -302,8 +335,22 @@ function reportToMarkdown(report: AuditReport, title: string): string {
     `- **Components audited:** ${report.summary.totalComponents}`,
     `- **Issues:** critical ${report.summary.issuesByPriority.critical}, high ${report.summary.issuesByPriority.high}, medium ${report.summary.issuesByPriority.medium}, low ${report.summary.issuesByPriority.low}`,
     `- **Contraventions:** ${report.summary.contraventions}`,
-    '',
   ];
+
+  // Add backend breakdown and migration readiness when available
+  if (report.summary.backendCounts) {
+    const bc = report.summary.backendCounts;
+    lines.push(
+      `- **Backend breakdown:** base ${bc.base}, radix ${bc.radix}, mixed ${bc.mixed}, unknown ${bc.unknown}`
+    );
+  }
+  if (report.summary.legacyRadixCount !== undefined) {
+    lines.push(`- **Legacy Radix components:** ${report.summary.legacyRadixCount}`);
+  }
+  if (report.summary.migrationReadiness) {
+    lines.push(`- **Migration readiness:** ${report.summary.migrationReadiness}`);
+  }
+  lines.push('');
 
   if (report.contraventions.length > 0) {
     lines.push('## Contraventions', '');
@@ -338,9 +385,28 @@ function reportToMarkdown(report: AuditReport, title: string): string {
     lines.push('');
   }
 
-  if (report.issues.length > 0) {
+  // Separate migration issues into their own section
+  const migrationIssues = report.issues.filter(
+    (i) => i.category === 'migration' || i.category === 'dependencies'
+  );
+  const otherIssues = report.issues.filter(
+    (i) => i.category !== 'migration' && i.category !== 'dependencies'
+  );
+
+  if (migrationIssues.length > 0) {
+    lines.push('## Migration', '');
+    for (const i of migrationIssues) {
+      lines.push(`### ${i.id} — ${i.category} (${i.priority})`, '');
+      lines.push(i.description, '');
+      lines.push(`**Recommendation:** ${i.recommendation}`, '');
+      if (i.location) lines.push(`*Location:* ${i.location}`, '');
+      lines.push('');
+    }
+  }
+
+  if (otherIssues.length > 0) {
     lines.push('## Issues', '');
-    for (const i of report.issues) {
+    for (const i of otherIssues) {
       lines.push(`### ${i.id} — ${i.category} (${i.priority})`, '');
       lines.push(i.description, '');
       lines.push(`**Recommendation:** ${i.recommendation}`, '');

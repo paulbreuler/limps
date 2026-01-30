@@ -290,3 +290,188 @@ describe('runAudit', () => {
     expect(parsed.updatesPath).toBeDefined();
   }, 35000);
 });
+
+// Test ID: report-backend-summary
+describe('report-backend-summary', () => {
+  it('includes backendCounts and legacyRadixCount when inventory is provided', () => {
+    const dir = mkdtemp();
+    const inventoryPath = path.join(dir, 'inventory.json');
+    fs.writeFileSync(
+      inventoryPath,
+      JSON.stringify([
+        {
+          path: 'src/Dialog.tsx',
+          name: 'Dialog',
+          backend: 'radix',
+          mixedUsage: false,
+          importSources: ['@radix-ui/react-dialog'],
+          evidence: ['asChild'],
+          exportsComponent: true,
+          exportedNames: ['Dialog'],
+        },
+        {
+          path: 'src/Button.tsx',
+          name: 'Button',
+          backend: 'base',
+          mixedUsage: false,
+          importSources: ['@base-ui-components/react'],
+          evidence: ['render'],
+          exportsComponent: true,
+          exportedNames: ['Button'],
+        },
+        {
+          path: 'src/Mixed.tsx',
+          name: 'MixedComponent',
+          backend: 'mixed',
+          mixedUsage: true,
+          importSources: ['@radix-ui/react-tooltip', '@base-ui-components/react'],
+          evidence: [],
+          exportsComponent: true,
+          exportedNames: ['MixedComponent'],
+        },
+      ]),
+      'utf-8'
+    );
+
+    const result = generateReport({
+      inputs: { inventory: inventoryPath },
+      outputDir: dir,
+      format: 'json',
+    });
+
+    expect(result.report.summary.backendCounts).toBeDefined();
+    expect(result.report.summary.backendCounts!.radix).toBe(1);
+    expect(result.report.summary.backendCounts!.base).toBe(1);
+    expect(result.report.summary.backendCounts!.mixed).toBe(1);
+    expect(result.report.summary.legacyRadixCount).toBe(2); // radix + mixed
+    expect(result.report.summary.migrationReadiness).toBeDefined();
+  });
+
+  it('does not include backend summary when no inventory', () => {
+    const dir = mkdtemp();
+    const analysisPath = path.join(dir, 'analysis.json');
+    fs.writeFileSync(analysisPath, JSON.stringify({ results: [] }), 'utf-8');
+
+    const result = generateReport({
+      inputs: { analysis: analysisPath },
+      outputDir: dir,
+      format: 'json',
+    });
+
+    expect(result.report.summary.backendCounts).toBeUndefined();
+    expect(result.report.summary.legacyRadixCount).toBeUndefined();
+    expect(result.report.summary.migrationReadiness).toBeUndefined();
+  });
+});
+
+// Test ID: report-migration-section
+describe('report-migration-section', () => {
+  it('includes migration section in markdown output', () => {
+    const dir = mkdtemp();
+    const inventoryPath = path.join(dir, 'inventory.json');
+    fs.writeFileSync(
+      inventoryPath,
+      JSON.stringify([
+        {
+          path: 'src/Dialog.tsx',
+          name: 'Dialog',
+          backend: 'radix',
+          mixedUsage: false,
+          importSources: ['@radix-ui/react-dialog'],
+          evidence: ['asChild'],
+          exportsComponent: true,
+          exportedNames: ['Dialog'],
+        },
+      ]),
+      'utf-8'
+    );
+
+    const result = generateReport({
+      inputs: { inventory: inventoryPath },
+      outputDir: dir,
+      format: 'both',
+      title: 'Migration Test Report',
+    });
+
+    const md = fs.readFileSync(result.markdownPath!, 'utf-8');
+    expect(md).toContain('## Migration');
+    expect(md).toContain('dependencies');
+    expect(md).toContain('legacy Radix UI');
+    expect(md).toContain('Dialog');
+  });
+
+  it('includes backend breakdown in summary section', () => {
+    const dir = mkdtemp();
+    const inventoryPath = path.join(dir, 'inventory.json');
+    fs.writeFileSync(
+      inventoryPath,
+      JSON.stringify([
+        {
+          path: 'src/Dialog.tsx',
+          name: 'Dialog',
+          backend: 'radix',
+          mixedUsage: false,
+          importSources: ['@radix-ui/react-dialog'],
+          evidence: [],
+          exportsComponent: true,
+          exportedNames: ['Dialog'],
+        },
+        {
+          path: 'src/Button.tsx',
+          name: 'Button',
+          backend: 'base',
+          mixedUsage: false,
+          importSources: ['@base-ui-components/react'],
+          evidence: [],
+          exportsComponent: true,
+          exportedNames: ['Button'],
+        },
+      ]),
+      'utf-8'
+    );
+
+    const result = generateReport({
+      inputs: { inventory: inventoryPath },
+      outputDir: dir,
+      format: 'markdown',
+    });
+
+    const md = fs.readFileSync(result.markdownPath!, 'utf-8');
+    expect(md).toContain('**Backend breakdown:**');
+    expect(md).toContain('radix 1');
+    expect(md).toContain('base 1');
+    expect(md).toContain('**Legacy Radix components:**');
+    expect(md).toContain('**Migration readiness:**');
+  });
+
+  it('includes migration readiness indicator in markdown', () => {
+    const dir = mkdtemp();
+    const inventoryPath = path.join(dir, 'inventory.json');
+    // 100% radix = urgent
+    fs.writeFileSync(
+      inventoryPath,
+      JSON.stringify([
+        {
+          path: 'src/Dialog.tsx',
+          name: 'Dialog',
+          backend: 'radix',
+          mixedUsage: false,
+          importSources: ['@radix-ui/react-dialog'],
+          evidence: [],
+          exportsComponent: true,
+          exportedNames: ['Dialog'],
+        },
+      ]),
+      'utf-8'
+    );
+
+    const result = generateReport({
+      inputs: { inventory: inventoryPath },
+      outputDir: dir,
+      format: 'markdown',
+    });
+
+    const md = fs.readFileSync(result.markdownPath!, 'utf-8');
+    expect(md).toContain('**Migration readiness:** urgent');
+  });
+});

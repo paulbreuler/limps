@@ -18,6 +18,11 @@ export type HeadlessBackend = 'radix' | 'base' | 'mixed' | 'unknown';
 export type IssueCategory = 'accessibility' | 'performance' | 'dependencies' | 'storybook' | 'migration';
 
 /**
+ * Migration readiness levels based on Radix percentage in codebase.
+ */
+export type MigrationReadiness = 'excellent' | 'good' | 'needs-work' | 'urgent';
+
+/**
  * Issue from backend provider analysis (Agent 1 #2).
  */
 export interface Issue {
@@ -123,6 +128,12 @@ export interface AuditReport {
     totalComponents: number;
     issuesByPriority: Record<IssuePriority, number>;
     contraventions: number;
+    /** Backend counts when inventory is available (optional for backward compat). */
+    backendCounts?: Record<HeadlessBackend, number>;
+    /** Count of components using legacy Radix (radix + mixed). */
+    legacyRadixCount?: number;
+    /** Migration readiness indicator. */
+    migrationReadiness?: MigrationReadiness;
   };
   inventory?: ComponentMetadata[];
   compliance?: Array<{

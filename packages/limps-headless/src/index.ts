@@ -53,4 +53,8 @@ export * from './tools/index.js';
 
 // Config and policy options (Agent 0)
 export * from './config.js';
-export type { RunAuditOptions, BackendMode, MigrationThreshold } from './audit/types.js';
+export type { RunAuditOptions, BackendMode, MigrationThreshold, MigrationReadiness } from './audit/types.js';
+
+// Migration analysis (Agent 2 #3)
+export { analyzeMigration, computeMigrationSummary } from './audit/analyses/migration.js';
+export type { MigrationSummary } from './audit/analyses/migration.js';
