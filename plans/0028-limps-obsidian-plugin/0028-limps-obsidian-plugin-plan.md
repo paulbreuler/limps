@@ -1,19 +1,34 @@
 ---
-title: limps Obsidian Plugin
+title: limps Obsidian Plugin — Primary Human UI
 status: draft
 workType: feature
-tags: [limps/plan, limps/worktype/feature]
+tags: [limps/plan, limps/worktype/feature, limps/priority/high, obsidian, human-ui, cli-wrapper]
 created: 2026-01-26
-updated: 2026-01-27
+updated: 2026-01-31
 ---
 
-# limps Obsidian Plugin
+# limps Obsidian Plugin — Primary Human UI
 
-## Overview
+## Philosophy: CLI-First, Obsidian Wraps
 
-First-class Obsidian integration for limps - not just file compatibility, but a proper plugin with commands, views, and real-time sync.
+```
+limps CLI (source of truth)
+    ↑
+    │ wraps via exec()
+    ↓
+Obsidian Plugin (human UI)
+    │
+    ├── Plan Dashboard (from `limps list_plans`)
+    ├── Health Sidebar (from `limps graph health`)
+    ├── Graph View (enhanced with entity relationships)
+    └── Command Palette (calls `limps` commands)
+```
 
-## Why a Plugin (Not Just Files)
+**The plugin does NOT run an MCP server.** It calls CLI commands directly via `child_process.exec()`. This is simpler, faster, and keeps all intelligence in the CLI.
+
+---
+
+## Why Obsidian (Not Just Files)
 
 File compatibility gets you:
 - ✅ Readable in Obsidian
@@ -21,13 +36,12 @@ File compatibility gets you:
 - ✅ Basic search
 
 A plugin gets you:
-- 🚀 Custom commands (`Ctrl+P` → "Create Agent", "Mark Task PASS")
-- 🚀 Custom views (Plan dashboard, agent status board)
-- 🚀 Real-time sync with limps server
-- 🚀 Ribbon icons for quick actions
-- 🚀 Status bar showing current plan/agent
-- 🚀 Dataview-like queries without Dataview
-- 🚀 Graph view enhancements (color by status, filter by plan)
+- 🚀 **Proactive Conflict Alerts** — Toast notifications when `limps graph health` finds issues
+- 🚀 **Knowledge Graph Integration** — Plan 0042's entity graph in Obsidian's graph view
+- 🚀 **Command Palette** — `Ctrl+P` → "Create Agent", "Mark Task PASS", "Search Graph"
+- 🚀 **Health Sidebar** — Always-visible conflict status
+- 🚀 **Custom Views** — Plan dashboard, agent status board
+- 🚀 **Graph Enhancements** — Color by status, filter by plan
 
 ---
 
@@ -39,38 +53,84 @@ A plugin gets you:
 │  ┌─────────────────────────────────────────────┐    │
 │  │           limps-obsidian-plugin              │    │
 │  │  ┌─────────┐ ┌─────────┐ ┌─────────────┐    │    │
-│  │  │Commands │ │ Views   │ │ File Watcher│    │    │
+│  │  │Commands │ │ Views   │ │Health Panel │    │    │
 │  │  └────┬────┘ └────┬────┘ └──────┬──────┘    │    │
 │  │       │           │             │           │    │
 │  │       └───────────┼─────────────┘           │    │
 │  │                   │                          │    │
 │  │           ┌───────▼───────┐                 │    │
-│  │           │  MCP Client   │                 │    │
+│  │           │  CLI Wrapper  │                 │    │
+│  │           │ exec('limps') │                 │    │
 │  │           └───────┬───────┘                 │    │
 │  └───────────────────┼─────────────────────────┘    │
 └──────────────────────┼──────────────────────────────┘
-                       │ stdio/SSE
+                       │ child_process.exec()
               ┌────────▼────────┐
-              │   limps server   │
-              │  (MCP over stdio)│
+              │   limps CLI     │
+              │  (all commands) │
               └─────────────────┘
 ```
 
-### Connection Strategy
+### Why CLI (Not MCP)
 
-**Option A: Spawn limps as child process**
-- Plugin spawns `limps serve` on activation
-- Communicate via stdio (like Cursor does)
-- Pro: No external setup required
-- Con: Another process running
+| Approach | Pros | Cons |
+|----------|------|------|
+| MCP Server | Protocol standard | Extra process, complexity |
+| Direct CLI | Simple, fast, no daemon | Spawns process per command |
 
-**Option B: Connect to running limps**
-- User runs `limps serve` separately
-- Plugin connects via SSE/WebSocket
-- Pro: Share server with Cursor
-- Con: User must start server
+**Decision:** Direct CLI. Commands are fast (<100ms), and we avoid daemon management. If performance becomes an issue, add a simple JSON-RPC server later.
 
-**Recommendation:** Option A with fallback to B. Check if limps is running, connect if yes, spawn if no.
+---
+
+## Integration with Plan 0042 (Knowledge Graph)
+
+The plugin surfaces Plan 0042's knowledge graph features:
+
+| CLI Command | Plugin Feature |
+|-------------|----------------|
+| `limps graph health` | Health sidebar with conflict alerts |
+| `limps graph search` | Command: "limps: Search Graph" |
+| `limps graph trace` | Command: "limps: Trace Dependencies" |
+| `limps graph overlap` | Warning modal on feature creation |
+| `limps graph watch` | Background process, toast on conflicts |
+
+### Health Sidebar
+
+```typescript
+class HealthSidebarView extends ItemView {
+  async onOpen() {
+    const health = await this.plugin.exec('limps graph health --json');
+    this.renderHealth(health);
+  }
+  
+  renderHealth(health: HealthResult) {
+    // Show conflicts with severity icons
+    // 🚨 Critical, ⚠️ Warning, ℹ️ Info
+    // Click to navigate to affected plan/agent
+  }
+}
+```
+
+### Proactive Notifications
+
+On vault open, start watching:
+
+```typescript
+class LimpsPlugin extends Plugin {
+  async onload() {
+    // Start background watcher
+    this.watcher = spawn('limps', ['graph', 'watch', '--on-conflict', 'json']);
+    
+    this.watcher.stdout.on('data', (data) => {
+      const conflicts = JSON.parse(data);
+      for (const c of conflicts) {
+        new Notice(`${c.severity}: ${c.message}`, 5000);
+      }
+      this.healthView?.refresh();
+    });
+  }
+}
+```
 
 ---
 
@@ -78,78 +138,125 @@ A plugin gets you:
 
 ### Phase 1: Core Integration (MVP)
 
-#### F1.1: Plan Dashboard View
-- Custom leaf view showing all plans
+#### F1.1: CLI Wrapper
+
+```typescript
+class LimpsPlugin extends Plugin {
+  async exec(command: string): Promise<any> {
+    const { stdout } = await execAsync(`limps ${command}`, {
+      cwd: this.app.vault.adapter.basePath,
+    });
+    return JSON.parse(stdout);
+  }
+}
+```
+
+#### F1.2: Health Sidebar View
+- Shows `limps graph health` output
+- Auto-refreshes on file changes
+- Click conflict to navigate to file
+- Severity icons (🚨⚠️ℹ️)
+
+#### F1.3: Command Palette Integration
+- `limps: Create New Plan` → `limps create_plan`
+- `limps: Create Agent` → `limps create_agent` (in current plan)
+- `limps: Mark PASS` → `limps update_task_status --status PASS`
+- `limps: Get Next Task` → `limps get_next_task`
+- `limps: Search Graph` → modal with `limps graph search`
+- `limps: Trace Dependencies` → modal with `limps graph trace`
+- `limps: Reindex` → `limps graph reindex`
+- `limps: Check Overlap` → `limps graph overlap`
+
+#### F1.4: Toast Notifications
+- On conflict detected (from watch mode)
+- On successful status change
+- On reindex complete
+
+### Phase 2: Views & Dashboards
+
+#### F2.1: Plan Dashboard View
+- All plans from `limps list_plans --json`
 - Status counts (GAP/WIP/PASS/BLOCKED)
 - Click to open plan file
 - Quick-filter by status
 
-#### F1.2: Agent Status Board
-- Kanban-style view of agents
-- Drag-drop to change status
+#### F2.2: Agent Status Board
+- Kanban-style view
+- Drag-drop to change status (calls `limps update_task_status`)
 - Shows dependencies as links
 - Color-coded by persona
 
-#### F1.3: Command Palette Integration
-- `limps: Create New Plan`
-- `limps: Create Agent for Current Plan`
-- `limps: Mark Current Agent PASS`
-- `limps: Get Next Task`
-- `limps: Search Plans`
+#### F2.3: Dependency Graph Modal
+- Shows `limps graph trace` output
+- Interactive graph visualization
+- Click node to navigate to file
 
-#### F1.4: Frontmatter Sync
-- Auto-update `updated` field on save
-- Validate frontmatter against schema
-- Quick-fix suggestions for invalid frontmatter
+### Phase 3: Graph Enhancements
 
-### Phase 2: Graph Enhancements
-
-#### F2.1: Graph Coloring
+#### F3.1: Graph Coloring
 - Color nodes by status (green=PASS, yellow=WIP, red=BLOCKED, gray=GAP)
-- Color by persona (blue=coder, purple=reviewer, etc.)
+- Uses Obsidian's graph CSS customization
 - Toggle via settings
 
-#### F2.2: Graph Filtering
+#### F3.2: Graph Filtering
 - Filter to show only current plan
 - Filter by status
-- Show/hide dependencies
+- Show/hide based on entity type
 
-#### F2.3: Custom Node Labels
-- Show agent number + title instead of filename
-- Show status badge on nodes
+#### F3.3: Entity Relationships
+- Inject Plan 0042's relationships into graph
+- Show DEPENDS_ON, MODIFIES, SIMILAR_TO edges
+- Requires hooking into graph rendering
 
-### Phase 3: Advanced Features
+### Phase 4: Smart Features
 
-#### F3.1: Embedded Agent Blocks
-- Render agent status inline in plan file
-- Live-updating status badges
-- Click to jump to agent file
+#### F4.1: Overlap Warning on Create
+When creating new plan/feature:
+```typescript
+async createPlan(name: string) {
+  const overlap = await this.exec(`graph overlap --threshold 0.7 --json`);
+  if (overlap.similar.length > 0) {
+    new OverlapWarningModal(this.app, overlap).open();
+    // "Similar features exist. Continue anyway?"
+  }
+}
+```
 
-#### F3.2: Dependency Visualization
-- Inline dependency graph in agent files
-- "Blocked by" / "Blocks" sections auto-generated
+#### F4.2: Auto-Reindex on Save
+- Hook into `vault.on('modify')`
+- Call `limps graph reindex --incremental` on plan/agent files
+- Debounce to avoid spam
 
-#### F3.3: Semantic Search Integration
-- `limps: Semantic Search` command
-- Uses sqlite-vec + local ollama
-- Shows results in modal
-
-#### F3.4: Status Bar Widget
-- Current plan name
-- Agent counts by status
-- Click for quick actions
+#### F4.3: Frontmatter Validation
+- Validate on save
+- Show warnings for invalid status, missing depends, etc.
+- Quick-fix suggestions
 
 ---
 
-## Technology Stack
+## Settings
 
-| Component | Choice | Notes |
-|-----------|--------|-------|
-| Language | TypeScript | Obsidian plugin standard |
-| Build | esbuild | Fast, Obsidian-recommended |
-| MCP Client | @anthropic-ai/sdk or custom | Need to evaluate |
-| State | Obsidian's native | WorkspaceLeaf, Settings, etc. |
-| Styling | Obsidian CSS variables | Match user theme |
+```typescript
+interface LimpsSettings {
+  // CLI
+  limpsPath: string;              // Path to limps binary (default: 'limps')
+  plansPath: string;              // Path to plans directory (default: 'plans')
+  
+  // Health
+  showHealthSidebar: boolean;     // Show health sidebar on startup
+  watchMode: boolean;             // Run background watcher
+  notifyOnConflict: boolean;      // Toast on conflicts
+  
+  // Graph
+  graphColoring: 'status' | 'persona' | 'none';
+  showEntityRelationships: boolean;
+  
+  // Behavior
+  autoReindex: boolean;           // Reindex on file save
+  validateFrontmatter: boolean;
+  warnOnOverlap: boolean;         // Warn when creating similar features
+}
+```
 
 ---
 
@@ -160,23 +267,24 @@ limps-obsidian-plugin/
 ├── src/
 │   ├── main.ts              # Plugin entry point
 │   ├── settings.ts          # Plugin settings
-│   ├── mcp/
-│   │   ├── client.ts        # MCP connection
-│   │   └── types.ts         # MCP type definitions
+│   ├── cli/
+│   │   ├── wrapper.ts       # exec() wrapper
+│   │   └── types.ts         # CLI output types
 │   ├── views/
+│   │   ├── HealthSidebar.ts
 │   │   ├── PlanDashboard.ts
 │   │   ├── AgentBoard.ts
-│   │   └── SearchModal.ts
+│   │   └── DependencyGraph.ts
+│   ├── modals/
+│   │   ├── SearchModal.ts
+│   │   ├── TraceModal.ts
+│   │   └── OverlapWarning.ts
 │   ├── commands/
-│   │   ├── createPlan.ts
-│   │   ├── createAgent.ts
-│   │   └── updateStatus.ts
+│   │   ├── index.ts
+│   │   └── ... (one per command)
 │   ├── graph/
-│   │   ├── enhancer.ts      # Graph view modifications
-│   │   └── filters.ts
-│   └── utils/
-│       ├── frontmatter.ts
-│       └── parser.ts
+│   │   └── enhancer.ts      # Graph view modifications
+│   └── watcher.ts           # Background conflict watcher
 ├── styles.css
 ├── manifest.json
 ├── package.json
@@ -185,63 +293,43 @@ limps-obsidian-plugin/
 
 ---
 
-## Settings
+## Dependencies on Other Plans
 
-```typescript
-interface LimpsSettings {
-  // Connection
-  autoStartServer: boolean;        // Spawn limps if not running
-  serverPath: string;              // Path to limps binary
-  configPath: string;              // Path to limps config.json
-  
-  // Display
-  showStatusBar: boolean;
-  graphColoring: 'status' | 'persona' | 'none';
-  defaultView: 'dashboard' | 'board';
-  
-  // Behavior
-  autoUpdateTimestamp: boolean;    // Update 'updated' on save
-  validateFrontmatter: boolean;
-  showNotifications: boolean;
-}
-```
+| Plan | Dependency |
+|------|------------|
+| **0042 Knowledge Graph** | All `graph` commands (health, search, trace, overlap) |
+| **0041 Semantic Search** | Consumed by 0042's hybrid retrieval |
+| **Existing limps** | list_plans, create_plan, update_task_status, etc. |
 
----
-
-## Obsidian API Usage
-
-| API | Use Case |
-|-----|----------|
-| `Plugin.addCommand()` | Register commands |
-| `Plugin.registerView()` | Custom views |
-| `Plugin.addRibbonIcon()` | Quick access button |
-| `Plugin.addStatusBarItem()` | Status widget |
-| `Workspace.getLeaf()` | Open views |
-| `MetadataCache` | Read frontmatter |
-| `Vault.modify()` | Update files |
-| `FileManager.processFrontMatter()` | Safe frontmatter edits |
-
----
-
-## Risks & Mitigations
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| MCP in Obsidian is weird | HIGH | Test early, may need custom transport |
-| Graph API is limited | MEDIUM | Use CSS injection if needed |
-| Obsidian version compat | LOW | Target v1.5+ (current mainstream) |
-| Performance with many plans | MEDIUM | Lazy load, pagination |
+**Critical:** Plan 0042 should be complete before Phase 2+ features.
 
 ---
 
 ## Success Criteria
 
 - [ ] Can create/manage plans without leaving Obsidian
-- [ ] Graph view shows meaningful colors/labels
-- [ ] Status changes reflect in <1s
-- [ ] Works offline (local-first)
-- [ ] <50ms command execution
-- [ ] Zero config for basic usage
+- [ ] Health sidebar shows conflicts in <1s
+- [ ] Toast notifications on conflict detection
+- [ ] Graph view shows status colors
+- [ ] All commands work via palette
+- [ ] <100ms command execution (CLI call)
+- [ ] Zero config for basic usage (auto-detect limps in PATH)
+- [ ] Works fully offline
+
+---
+
+## Agent Breakdown
+
+| Agent | Title | Depends | Deliverable |
+|-------|-------|---------|-------------|
+| 000 | CLI Wrapper | — | `exec()` helper, types |
+| 001 | Health Sidebar | 000, Plan 0042 | Sidebar view with conflicts |
+| 002 | Command Palette | 000 | All palette commands |
+| 003 | Plan Dashboard | 000 | Dashboard view |
+| 004 | Agent Board | 000 | Kanban view with drag-drop |
+| 005 | Graph Enhancements | 000 | Status coloring, filtering |
+| 006 | Background Watcher | 000, Plan 0042 | Watch mode + notifications |
+| 007 | Smart Features | 001, 002, Plan 0042 | Overlap warning, auto-reindex |
 
 ---
 
@@ -249,13 +337,5 @@ interface LimpsSettings {
 
 - [Obsidian Plugin API](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
 - [Obsidian Sample Plugin](https://github.com/obsidianmd/obsidian-sample-plugin)
-- [sqlite-vec](https://github.com/asg017/sqlite-vec)
-- [MCP Specification](https://modelcontextprotocol.io/)
-
----
-
-## Status
-
-Status: Planning
-Work Type: feature
-Created: 2026-01-26
+- Plan 0042: Knowledge Graph Foundation
+- Plan 0041: Semantic Search

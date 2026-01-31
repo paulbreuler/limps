@@ -1,221 +1,328 @@
 ---
-title: CLI-First Architecture
+title: Proactive Watch Mode
 status: GAP
 persona: coder
-depends: [000, 001, 002, 003]
-files: [src/cli/commands/graph/*.ts, src/mcp/tools/graph/*.ts]
-tags: [limps/agent, cli, mcp-wrapper]
+depends: [000, 001, 002]
+files: [src/watch/index.ts, src/watch/detector.ts, src/watch/notifier.ts]
+tags: [watch, proactive, conflicts]
 ---
 
-# Agent 004: CLI-First Architecture
+# Agent 004: Proactive Watch Mode
 
-## Overview
+## Objective
 
-**CLI is the source of truth. MCP is a thin wrapper for AI that can't shell out.**
+Watch for file changes, auto-index, and surface conflicts proactively. **No query needed — system detects problems automatically.**
 
-This agent implements all CLI commands for the knowledge graph and creates thin MCP wrappers that delegate to CLI.
+## Context
 
-## Design Philosophy
+This is the key differentiator from AI-dependent systems. Instead of waiting for AI to ask "are there conflicts?", the system:
+1. Watches for file changes
+2. Re-indexes affected entities
+3. Runs conflict detection
+4. Notifies (stdout, file, webhook, toast)
 
-```
-limps CLI (executes logic)
-    ↑
-    │ wraps (thin layer, no business logic)
-    ↓
-MCP Server (exposes CLI to AI that can't shell out)
-```
+## Tasks
 
-**Why CLI-first?**
-1. Testable: CLI commands can be tested in isolation
-2. Scriptable: Users can compose commands in shell scripts
-3. Debuggable: `--verbose` shows what's happening
-4. Universal: Works in terminal, CI, cron, anywhere
-5. Composable: MCP tools are just CLI wrappers, no duplication
-
-## What We Removed: Agentic Orchestration
-
-**Previously planned:** LLM-based query routing with ReAct loops.
-
-**Why removed:** "AI is usually wrong about what action to take next. Systems thinking isn't strong."
-
-The LLM's job is to CONSUME results, not NAVIGATE to them. System-intelligent, not AI-intelligent.
-
-## Acceptance Criteria
-
-- [ ] All graph CLI commands implemented
-- [ ] All MCP tools are thin wrappers around CLI
-- [ ] MCP tools have no business logic (just `exec()` + JSON parse)
-- [ ] `--json` flag on all commands for programmatic use
-- [ ] `--verbose` flag for debugging
-
-## Technical Specification
-
-### CLI Commands
-
-```bash
-# === INDEXING ===
-limps graph reindex              # Full reindex
-limps graph reindex --plan 0041  # Single plan
-limps graph reindex --incremental # Only changed files
-
-# === HEALTH & CONFLICTS ===
-limps graph health               # All conflict detectors
-limps graph health --plan 0041   # Scope to plan
-limps graph health --severity warning
-limps graph health --json        # Machine-readable
-
-limps graph watch                # File watcher (foreground)
-limps graph watch --daemon       # Background daemon
-limps graph watch --on-conflict notify
-
-# === SEARCH & RETRIEVAL ===
-limps search "auth improvements"          # Hybrid search
-limps search "plan 0041" --strategy lexical
-limps search "what blocks 003" --verbose  # Show routing decision
-limps search "auth" --top-k 20
-
-# === ENTITY INSPECTION ===
-limps graph entity plan:0041     # Show entity + relationships
-limps graph entity agent:0041#003
-limps graph entity file:src/auth.ts
-
-# === TRAVERSAL ===
-limps graph trace 0041#003       # Trace dependencies
-limps graph trace 0041#003 --direction up
-limps graph trace 0041#003 --depth 5
-
-# === RESOLUTION ===
-limps graph resolve              # Run entity resolution
-limps graph duplicates           # List SIMILAR_TO relationships
-limps graph similar "auth"       # Find similar entities
-
-# === STATS ===
-limps graph stats                # Entity/relationship counts
-limps graph stats --plan 0041
-```
-
-### MCP Wrappers (Thin Layer)
+### 1. File Watcher (`src/watch/index.ts`)
 
 ```typescript
-// src/mcp/tools/graph/health.ts
+import chokidar from 'chokidar';
 
-import { exec } from 'child_process';
-
-export const graphHealth: MCPTool = {
-  name: 'graph_health',
-  description: 'Detect conflicts, duplicates, and issues across plans',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      planId: { type: 'string', description: 'Optional: scope to specific plan' },
-      severity: { type: 'string', enum: ['info', 'warning', 'critical'] }
+export class GraphWatcher {
+  private watcher: chokidar.FSWatcher | null = null;
+  
+  constructor(
+    private plansDir: string,
+    private extractor: EntityExtractor,
+    private storage: GraphStorage,
+    private detector: ConflictDetector,
+    private notifier: Notifier
+  ) {}
+  
+  start(options: WatchOptions = {}): void {
+    const {
+      interval = 100,        // Debounce interval
+      onConflict = 'log',    // 'log' | 'notify' | 'webhook'
+      webhookUrl,
+    } = options;
+    
+    this.watcher = chokidar.watch(this.plansDir, {
+      ignored: /(^|[\/\\])\../, // Ignore dotfiles
+      persistent: true,
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: interval,
+        pollInterval: 100,
+      },
+    });
+    
+    this.watcher
+      .on('add', path => this.handleChange(path, 'add'))
+      .on('change', path => this.handleChange(path, 'change'))
+      .on('unlink', path => this.handleChange(path, 'delete'));
+    
+    console.log(`👁️  Watching ${this.plansDir} for changes...`);
+  }
+  
+  stop(): void {
+    this.watcher?.close();
+    this.watcher = null;
+  }
+  
+  private async handleChange(path: string, event: 'add' | 'change' | 'delete'): Promise<void> {
+    // Only process plan/agent markdown files
+    if (!path.endsWith('.md')) return;
+    if (!path.includes('-plan.md') && !path.includes('.agent.md')) return;
+    
+    console.log(`📝 ${event}: ${path}`);
+    
+    // Re-index affected plan
+    const planPath = this.getPlanPath(path);
+    if (planPath) {
+      const result = this.extractor.extractPlan(planPath);
+      this.storage.bulkUpsertEntities(result.entities);
+      this.storage.bulkUpsertRelationships(result.relationships);
     }
-  },
-  handler: async (params) => {
-    // Just call CLI - NO BUSINESS LOGIC HERE
-    const args = ['graph', 'health', '--json'];
-    if (params.planId) args.push('--plan', params.planId);
-    if (params.severity) args.push('--severity', params.severity);
     
-    const result = await exec(`limps ${args.join(' ')}`);
-    return JSON.parse(result.stdout);
-  }
-};
-```
-
-```typescript
-// src/mcp/tools/graph/search.ts
-
-export const search: MCPTool = {
-  name: 'search',
-  description: 'Hybrid search across plans, agents, and features',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      query: { type: 'string', description: 'Search query' },
-      topK: { type: 'number', default: 10 },
-      strategy: { type: 'string', enum: ['semantic', 'lexical', 'graph', 'hybrid'] }
-    },
-    required: ['query']
-  },
-  handler: async (params) => {
-    const args = ['search', `"${params.query}"`, '--json'];
-    if (params.topK) args.push('--top-k', String(params.topK));
-    if (params.strategy) args.push('--strategy', params.strategy);
+    // Run conflict detection
+    const conflicts = this.detector.detectAll();
     
-    const result = await exec(`limps ${args.join(' ')}`);
-    return JSON.parse(result.stdout);
+    // Notify if conflicts found
+    if (conflicts.length > 0) {
+      this.notifier.notify(conflicts);
+    }
   }
-};
-```
-
-### MCP Tool List
-
-All MCP tools are wrappers around CLI:
-
-| MCP Tool | CLI Command |
-|----------|-------------|
-| `graph_health` | `limps graph health --json` |
-| `graph_reindex` | `limps graph reindex --json` |
-| `search` | `limps search --json` |
-| `graph_trace` | `limps graph trace --json` |
-| `graph_entity` | `limps graph entity --json` |
-| `graph_similar` | `limps graph similar --json` |
-| `graph_duplicates` | `limps graph duplicates --json` |
-| `graph_stats` | `limps graph stats --json` |
-
-### CLI Framework
-
-Use existing CLI framework (likely yargs or commander):
-
-```typescript
-// src/cli/commands/graph/index.ts
-
-import { Argv } from 'yargs';
-
-export function registerGraphCommands(yargs: Argv) {
-  return yargs
-    .command('reindex', 'Rebuild knowledge graph', reindexCommand)
-    .command('health', 'Detect conflicts and issues', healthCommand)
-    .command('watch', 'Watch for file changes', watchCommand)
-    .command('entity <id>', 'Show entity details', entityCommand)
-    .command('trace <id>', 'Trace dependencies', traceCommand)
-    .command('resolve', 'Run entity resolution', resolveCommand)
-    .command('duplicates', 'List similar entities', duplicatesCommand)
-    .command('similar <query>', 'Find similar entities', similarCommand)
-    .command('stats', 'Show statistics', statsCommand);
+  
+  private getPlanPath(filePath: string): string | null {
+    // Extract plan directory from file path
+    const match = filePath.match(/(plans\/\d{4}[^\/]+)/);
+    return match ? match[1] : null;
+  }
 }
 ```
 
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/cli/commands/graph/reindex.ts` | Create | Reindex command |
-| `src/cli/commands/graph/health.ts` | Create | Health check command |
-| `src/cli/commands/graph/watch.ts` | Create | Watch mode command |
-| `src/cli/commands/graph/entity.ts` | Create | Entity inspection |
-| `src/cli/commands/graph/trace.ts` | Create | Dependency tracing |
-| `src/cli/commands/graph/resolve.ts` | Create | Entity resolution |
-| `src/cli/commands/graph/stats.ts` | Create | Statistics |
-| `src/cli/commands/search.ts` | Modify | Add hybrid search |
-| `src/mcp/tools/graph/*.ts` | Create | MCP wrappers |
-
-## Testing
+### 2. Conflict Detector (`src/watch/detector.ts`)
 
 ```typescript
-describe('CLI Commands', () => {
-  it('graph health returns JSON', async () => {
-    const result = await exec('limps graph health --json');
-    const parsed = JSON.parse(result.stdout);
-    expect(parsed).toHaveProperty('conflicts');
-    expect(parsed).toHaveProperty('summary');
-  });
+export type ConflictSeverity = 'info' | 'warning' | 'critical';
+
+export interface Conflict {
+  type: 'file_contention' | 'feature_overlap' | 'circular_dependency' | 'stale_wip';
+  severity: ConflictSeverity;
+  message: string;
+  entities: string[];  // Canonical IDs involved
+  suggestion?: string;
+}
+
+export class ConflictDetector {
+  constructor(private storage: GraphStorage) {}
   
-  it('MCP wrapper returns same as CLI', async () => {
-    const cliResult = await exec('limps graph health --json');
-    const mcpResult = await graphHealth.handler({});
-    expect(mcpResult).toEqual(JSON.parse(cliResult.stdout));
-  });
-});
+  detectAll(): Conflict[] {
+    return [
+      ...this.detectFileContention(),
+      ...this.detectFeatureOverlap(),
+      ...this.detectCircularDependencies(),
+      ...this.detectStaleWIP(),
+    ];
+  }
+  
+  /**
+   * Two agents modifying same file
+   */
+  detectFileContention(): Conflict[] {
+    const conflicts: Conflict[] = [];
+    const files = this.storage.getEntitiesByType('file');
+    
+    for (const file of files) {
+      // Get all agents that MODIFY this file
+      const modifiers = this.storage.getRelationshipsByType('MODIFIES')
+        .filter(r => r.targetId === file.id)
+        .map(r => this.storage.getEntity(r.sourceId)!);
+      
+      if (modifiers.length < 2) continue;
+      
+      // Check status combinations
+      const wipAgents = modifiers.filter(a => a.metadata.status === 'WIP');
+      const gapAgents = modifiers.filter(a => a.metadata.status === 'GAP');
+      
+      if (wipAgents.length >= 2) {
+        conflicts.push({
+          type: 'file_contention',
+          severity: 'critical',
+          message: `Two WIP agents modifying ${file.name}`,
+          entities: wipAgents.map(a => a.canonicalId),
+          suggestion: 'Block one agent until the other completes',
+        });
+      } else if (wipAgents.length === 1 && gapAgents.length >= 1) {
+        conflicts.push({
+          type: 'file_contention',
+          severity: 'warning',
+          message: `WIP + GAP agents will modify ${file.name}`,
+          entities: [...wipAgents, ...gapAgents].map(a => a.canonicalId),
+          suggestion: 'Consider sequencing these tasks',
+        });
+      }
+    }
+    
+    return conflicts;
+  }
+  
+  /**
+   * Similar features across plans
+   */
+  detectFeatureOverlap(): Conflict[] {
+    const conflicts: Conflict[] = [];
+    const similarRels = this.storage.getRelationshipsByType('SIMILAR_TO');
+    
+    for (const rel of similarRels) {
+      if (rel.confidence >= 0.85) {
+        const a = this.storage.getEntity(rel.sourceId)!;
+        const b = this.storage.getEntity(rel.targetId)!;
+        
+        conflicts.push({
+          type: 'feature_overlap',
+          severity: 'warning',
+          message: `"${a.name}" and "${b.name}" are ${(rel.confidence * 100).toFixed(0)}% similar`,
+          entities: [a.canonicalId, b.canonicalId],
+          suggestion: 'Consider consolidating into single plan',
+        });
+      }
+    }
+    
+    return conflicts;
+  }
+  
+  /**
+   * Circular dependencies
+   */
+  detectCircularDependencies(): Conflict[] {
+    // DFS to find cycles in dependency graph
+    const conflicts: Conflict[] = [];
+    const agents = this.storage.getEntitiesByType('agent');
+    
+    for (const agent of agents) {
+      const cycle = this.findCycle(agent.id, new Set(), []);
+      if (cycle) {
+        conflicts.push({
+          type: 'circular_dependency',
+          severity: 'critical',
+          message: `Circular dependency: ${cycle.join(' → ')}`,
+          entities: cycle,
+          suggestion: 'Break the cycle by removing one dependency',
+        });
+      }
+    }
+    
+    return conflicts;
+  }
+  
+  /**
+   * WIP agents with no recent activity
+   */
+  detectStaleWIP(): Conflict[] {
+    const conflicts: Conflict[] = [];
+    const agents = this.storage.getEntitiesByType('agent')
+      .filter(a => a.metadata.status === 'WIP');
+    
+    const now = Date.now();
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
+    
+    for (const agent of agents) {
+      const age = now - new Date(agent.updatedAt).getTime();
+      
+      if (age > FOURTEEN_DAYS) {
+        conflicts.push({
+          type: 'stale_wip',
+          severity: 'critical',
+          message: `Agent ${agent.canonicalId} WIP for ${Math.floor(age / (24*60*60*1000))} days`,
+          entities: [agent.canonicalId],
+          suggestion: 'Either complete or mark as BLOCKED',
+        });
+      } else if (age > SEVEN_DAYS) {
+        conflicts.push({
+          type: 'stale_wip',
+          severity: 'warning',
+          message: `Agent ${agent.canonicalId} WIP for ${Math.floor(age / (24*60*60*1000))} days`,
+          entities: [agent.canonicalId],
+        });
+      }
+    }
+    
+    return conflicts;
+  }
+  
+  private findCycle(id: number, visited: Set<number>, path: string[]): string[] | null {
+    // Standard DFS cycle detection
+    // ...
+    return null;
+  }
+}
 ```
+
+### 3. Notifier (`src/watch/notifier.ts`)
+
+```typescript
+export type NotifyTarget = 'log' | 'file' | 'notify' | 'webhook';
+
+export class Notifier {
+  constructor(private options: NotifierOptions = {}) {}
+  
+  notify(conflicts: Conflict[]): void {
+    const { target = 'log', webhookUrl, filePath } = this.options;
+    
+    // Always log
+    this.logConflicts(conflicts);
+    
+    // Additional targets
+    if (target === 'file' && filePath) {
+      this.writeToFile(conflicts, filePath);
+    }
+    
+    if (target === 'notify') {
+      this.sendDesktopNotification(conflicts);
+    }
+    
+    if (target === 'webhook' && webhookUrl) {
+      this.sendWebhook(conflicts, webhookUrl);
+    }
+  }
+  
+  private logConflicts(conflicts: Conflict[]): void {
+    for (const c of conflicts) {
+      const icon = c.severity === 'critical' ? '🚨' : c.severity === 'warning' ? '⚠️' : 'ℹ️';
+      console.log(`${icon} ${c.type.toUpperCase()}: ${c.message}`);
+      if (c.suggestion) console.log(`   💡 ${c.suggestion}`);
+    }
+  }
+  
+  private sendDesktopNotification(conflicts: Conflict[]): void {
+    // Use node-notifier or similar
+    const critical = conflicts.filter(c => c.severity === 'critical');
+    if (critical.length > 0) {
+      // notifier.notify({ title: 'limps', message: ... });
+    }
+  }
+}
+```
+
+## CLI Integration
+
+```bash
+# One-shot health check
+limps graph health
+
+# Watch mode
+limps graph watch
+limps graph watch --on-conflict notify
+limps graph watch --on-conflict webhook --url http://...
+```
+
+## Acceptance Criteria
+
+- [ ] File watcher detects add/change/delete
+- [ ] Incremental reindex on file change (<500ms)
+- [ ] All conflict types detected
+- [ ] Notifications work (log, file, desktop, webhook)
+- [ ] Watch mode is daemon-friendly (runs in background)
+- [ ] Low CPU overhead (<5%)

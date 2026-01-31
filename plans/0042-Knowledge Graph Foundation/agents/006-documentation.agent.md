@@ -1,232 +1,215 @@
 ---
-title: Documentation
+title: MCP Wrappers
 status: GAP
 persona: coder
-depends: [000, 001, 002, 003, 004, 005]
-files: [docs/knowledge-graph.md, docs/cli-reference.md, README.md]
-tags: [limps/agent, documentation]
+depends: [005]
+files: [src/mcp/tools/graph.ts]
+tags: [mcp, wrapper, thin]
 ---
 
-# Agent 006: Documentation
+# Agent 006: MCP Wrappers
 
-## Overview
+## Objective
 
-Document the knowledge graph architecture, CLI commands, and integration patterns.
+Create thin MCP wrappers around CLI commands. **MCP tools are just `exec('limps ...')`.**
+
+## Context
+
+```
+MCP exists for tools that can't shell out.
+If you're in a terminal, use CLI directly.
+MCP is overhead when `limps graph health` does the same thing.
+```
+
+The MCP tools should be **thin wrappers** with no business logic. All intelligence lives in CLI.
+
+## Tasks
+
+### 1. Tool Definitions (`src/mcp/tools/graph.ts`)
+
+```typescript
+import { z } from 'zod';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+export const graphTools = {
+  
+  graph_health: {
+    name: 'graph_health',
+    description: 'Run health check on knowledge graph. Detects file contention, feature overlap, circular dependencies, stale WIP.',
+    inputSchema: z.object({}),
+    handler: async () => {
+      const { stdout } = await execAsync('limps graph health --json');
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_search: {
+    name: 'graph_search',
+    description: 'Hybrid search across knowledge graph. Deterministically routes to lexical/semantic/graph retrieval.',
+    inputSchema: z.object({
+      query: z.string().describe('Search query'),
+      top: z.number().optional().default(10).describe('Number of results'),
+    }),
+    handler: async ({ query, top }) => {
+      const { stdout } = await execAsync(`limps graph search "${query}" --top ${top} --json`);
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_trace: {
+    name: 'graph_trace',
+    description: 'Trace dependencies from an entity (plan, agent, file).',
+    inputSchema: z.object({
+      entity: z.string().describe('Entity canonical ID (e.g., agent:0042#003)'),
+      direction: z.enum(['up', 'down', 'both']).optional().default('both'),
+      depth: z.number().optional().default(3),
+    }),
+    handler: async ({ entity, direction, depth }) => {
+      const { stdout } = await execAsync(`limps graph trace "${entity}" --direction ${direction} --depth ${depth} --json`);
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_entity: {
+    name: 'graph_entity',
+    description: 'Get details about a specific entity and its relationships.',
+    inputSchema: z.object({
+      id: z.string().describe('Entity canonical ID'),
+    }),
+    handler: async ({ id }) => {
+      const { stdout } = await execAsync(`limps graph entity "${id}" --json`);
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_overlap: {
+    name: 'graph_overlap',
+    description: 'Find similar/duplicate features across plans.',
+    inputSchema: z.object({
+      plan: z.string().optional().describe('Filter to specific plan'),
+      threshold: z.number().optional().default(0.8).describe('Similarity threshold (0-1)'),
+    }),
+    handler: async ({ plan, threshold }) => {
+      let cmd = `limps graph overlap --threshold ${threshold} --json`;
+      if (plan) cmd += ` --plan ${plan}`;
+      const { stdout } = await execAsync(cmd);
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_reindex: {
+    name: 'graph_reindex',
+    description: 'Reindex knowledge graph from plan files.',
+    inputSchema: z.object({
+      plan: z.string().optional().describe('Reindex specific plan only'),
+      incremental: z.boolean().optional().default(false).describe('Only reindex changed files'),
+    }),
+    handler: async ({ plan, incremental }) => {
+      let cmd = 'limps graph reindex --json';
+      if (plan) cmd += ` --plan ${plan}`;
+      if (incremental) cmd += ' --incremental';
+      const { stdout } = await execAsync(cmd);
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_check: {
+    name: 'graph_check',
+    description: 'Run specific conflict check (contention, overlap, dependencies, stale).',
+    inputSchema: z.object({
+      type: z.enum(['contention', 'overlap', 'dependencies', 'stale']),
+    }),
+    handler: async ({ type }) => {
+      const { stdout } = await execAsync(`limps graph check ${type} --json`);
+      return JSON.parse(stdout);
+    },
+  },
+  
+  graph_suggest: {
+    name: 'graph_suggest',
+    description: 'Get suggestions (consolidate plans, next task).',
+    inputSchema: z.object({
+      type: z.enum(['consolidate', 'next-task']),
+      plan: z.string().optional().describe('Plan ID for next-task'),
+    }),
+    handler: async ({ type, plan }) => {
+      let cmd = `limps graph suggest ${type} --json`;
+      if (plan) cmd += ` --plan ${plan}`;
+      const { stdout } = await execAsync(cmd);
+      return JSON.parse(stdout);
+    },
+  },
+};
+```
+
+### 2. Register Tools
+
+```typescript
+// In MCP server initialization
+import { graphTools } from './tools/graph';
+
+for (const [name, tool] of Object.entries(graphTools)) {
+  server.registerTool(tool);
+}
+```
+
+### 3. Error Handling
+
+```typescript
+async function wrapCLI(command: string): Promise<any> {
+  try {
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 30000, // 30s timeout
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+    });
+    
+    if (stderr) {
+      console.warn(`CLI stderr: ${stderr}`);
+    }
+    
+    return JSON.parse(stdout);
+  } catch (error) {
+    if (error.killed) {
+      throw new Error('CLI command timed out');
+    }
+    if (error.code === 'ENOENT') {
+      throw new Error('limps CLI not found. Is it installed?');
+    }
+    throw error;
+  }
+}
+```
+
+## Key Principle
+
+**NO BUSINESS LOGIC IN MCP TOOLS.**
+
+❌ Wrong:
+```typescript
+handler: async ({ query }) => {
+  // DON'T DO THIS
+  const strategy = routeQuery(query);  // Business logic!
+  const results = await retriever.search(query, strategy);
+  return results;
+}
+```
+
+✅ Right:
+```typescript
+handler: async ({ query }) => {
+  // Just call CLI
+  const { stdout } = await execAsync(`limps graph search "${query}" --json`);
+  return JSON.parse(stdout);
+}
+```
 
 ## Acceptance Criteria
 
-- [ ] Architecture overview with diagrams
-- [ ] CLI reference with all commands
-- [ ] Integration guide for Plans 0028, 0041, 0033, 0030
-- [ ] FAQ for common issues
-- [ ] README updated
-
-## Documentation Structure
-
-### docs/knowledge-graph.md
-
-```markdown
-# Knowledge Graph Architecture
-
-## Philosophy: System-Intelligent, Not AI-Intelligent
-
-The knowledge graph is designed to be smart independent of whatever AI consumes it.
-
-- **AI does NOT decide** what tools to call
-- **AI does NOT reason** about retrieval strategy
-- **System routes** queries deterministically (regex, not LLM)
-- **System detects** conflicts proactively (watch mode)
-
-## Entity Model
-
-### Entity Types
-
-| Type | Example | Description |
-|------|---------|-------------|
-| `plan` | `plan:0041-semantic` | A feature plan |
-| `agent` | `agent:0041#003` | An agent within a plan |
-| `feature` | `feature:0041#1` | A feature within a plan |
-| `file` | `file:src/auth.ts` | A source file |
-| `tag` | `tag:limps/priority/high` | A tag |
-| `concept` | `concept:authentication` | A concept extracted from text |
-
-### Relationship Types
-
-| Relation | Source → Target | Example |
-|----------|-----------------|---------|
-| `CONTAINS` | Plan → Agent | Plan 0041 contains Agent 003 |
-| `DEPENDS_ON` | Agent → Agent | Agent 003 depends on Agent 001 |
-| `MODIFIES` | Agent → File | Agent 003 modifies `auth.ts` |
-| `IMPLEMENTS` | Agent → Feature | Agent implements "hybrid search" |
-| `SIMILAR_TO` | Entity → Entity | Auto-created when similarity > 0.8 |
-| `BLOCKS` | Agent → Agent | Derived from unsatisfied DEPENDS_ON |
-
-## Hybrid Retrieval
-
-Three retrievers fused via RRF:
-
-1. **Semantic**: Embedding similarity (Plan 0041)
-2. **Lexical**: FTS5/BM25 text search
-3. **Graph**: Relationship traversal
-
-Query routing is **deterministic** (regex patterns):
-
-| Pattern | Strategy | Weights |
-|---------|----------|---------|
-| `plan 0041`, `agent #003` | Lexical | L:0.7, G:0.2, S:0.1 |
-| `what blocks`, `depends on` | Graph | G:0.6, L:0.2, S:0.2 |
-| `how does`, `explain` | Semantic | S:0.6, L:0.2, G:0.2 |
-| Default | Hybrid | S:0.4, L:0.3, G:0.3 |
-
-## Proactive Conflict Detection
-
-Watch mode detects conflicts WITHOUT being asked:
-
-- File overlap (WIP+WIP = critical)
-- Feature duplicates (>85% similarity)
-- Circular dependencies
-- Stale WIP agents
-- Orphan dependencies
-
-## Interface Hierarchy
-
-```
-CLI (source of truth)
-  ↓ wraps
-MCP (for AI that can't shell out)
-  
-CLI (source of truth)
-  ↓ wraps
-Obsidian Plugin (human UI) — see Plan 0028
-```
-```
-
-### docs/cli-reference.md
-
-```markdown
-# CLI Reference
-
-## Graph Commands
-
-### `limps graph reindex`
-
-Rebuild knowledge graph from plan files.
-
-```bash
-limps graph reindex              # Full reindex
-limps graph reindex --plan 0041  # Single plan
-limps graph reindex --incremental # Only changed files
-```
-
-### `limps graph health`
-
-Detect conflicts and issues.
-
-```bash
-limps graph health               # All checks
-limps graph health --plan 0041   # Scope to plan
-limps graph health --severity warning
-limps graph health --json        # Machine-readable
-```
-
-Output example:
-```
-⚠️  CONFLICT [critical]: File contention
-    Plan 0033 Agent 002 (Auth Refactor) - WIP
-    Plan 0041 Agent 001 (Auth Improvements) - WIP
-    Both modify: src/auth.ts
-    Recommendation: Sequence work or consolidate
-
-Summary: 1 critical, 0 warning, 0 info
-```
-
-### `limps graph watch`
-
-Watch for file changes and detect conflicts proactively.
-
-```bash
-limps graph watch                # Foreground
-limps graph watch --daemon       # Background
-limps graph watch --on-conflict notify
-```
-
-### `limps search`
-
-Hybrid search with deterministic routing.
-
-```bash
-limps search "auth improvements"
-limps search "plan 0041" --strategy lexical
-limps search "what blocks 003" --verbose
-```
-
-### `limps graph trace`
-
-Trace dependencies.
-
-```bash
-limps graph trace 0041#003
-limps graph trace 0041#003 --direction up
-limps graph trace 0041#003 --depth 5
-```
-
-### `limps graph entity`
-
-Inspect entity details.
-
-```bash
-limps graph entity plan:0041
-limps graph entity agent:0041#003
-limps graph entity file:src/auth.ts
-```
-
-### `limps graph stats`
-
-Show statistics.
-
-```bash
-limps graph stats
-limps graph stats --plan 0041
-```
-```
-
-### README.md Update
-
-Add section:
-
-```markdown
-## Knowledge Graph
-
-limps includes a knowledge graph that enables:
-
-- **Proactive conflict detection** — watch mode surfaces issues automatically
-- **Hybrid search** — semantic + lexical + graph, fused via RRF
-- **Entity resolution** — detects similar/duplicate features
-- **Deterministic routing** — no LLM in the retrieval loop
-
-```bash
-# Initialize
-limps graph reindex
-
-# Check for issues
-limps graph health
-
-# Start watching
-limps graph watch --daemon
-
-# Search
-limps search "auth improvements"
-```
-
-See [Knowledge Graph Architecture](docs/knowledge-graph.md) for details.
-```
-
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `docs/knowledge-graph.md` | Create | Architecture overview |
-| `docs/cli-reference.md` | Modify | Add graph commands |
-| `docs/integration.md` | Create | Integration patterns |
-| `docs/faq.md` | Create | Common issues |
-| `README.md` | Modify | Add knowledge graph section |
+- [ ] All CLI commands have MCP wrapper
+- [ ] Wrappers are <10 lines each (just exec + JSON parse)
+- [ ] Error messages are helpful (timeout, not found, etc.)
+- [ ] No business logic in MCP layer
+- [ ] Works with existing MCP infrastructure

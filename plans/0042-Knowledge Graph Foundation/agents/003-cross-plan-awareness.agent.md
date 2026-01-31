@@ -1,238 +1,237 @@
 ---
-title: Proactive Conflict Detection (Watch Mode)
+title: Deterministic Hybrid Retrieval
 status: GAP
 persona: coder
-depends: [001, 002]
-files: [src/health/conflicts.ts, src/health/watcher.ts, src/cli/commands/graph/health.ts, src/cli/commands/graph/watch.ts]
-tags: [limps/agent, watch-mode, conflict-detection, proactive]
+depends: [000, 001]
+files: [src/retrieval/router.ts, src/retrieval/hybrid.ts, src/retrieval/rrf.ts]
+tags: [retrieval, rrf, deterministic]
 ---
 
-# Agent 003: Proactive Conflict Detection (Watch Mode)
+# Agent 003: Deterministic Hybrid Retrieval
 
-## Overview
+## Objective
 
-The key differentiator: **system detects conflicts WITHOUT being asked.** File watcher + periodic checks surface problems proactively.
+Route queries deterministically with regex patterns. Fuse results with RRF. **No LLM in the retrieval loop.**
 
-Instead of:
+## Context
+
+The key insight: AI doesn't need to decide how to retrieve. The SYSTEM decides based on query patterns. AI just consumes results.
+
+From arxiv 2507.03226: "hybrid retrieval strategy that fuses vector similarity with graph traversal using Reciprocal Rank Fusion (RRF)"
+
+## Tasks
+
+### 1. Deterministic Router (`src/retrieval/router.ts`)
+
+```typescript
+export type RetrievalStrategy = {
+  primary: 'lexical' | 'semantic' | 'graph' | 'hybrid';
+  weights: { lexical: number; semantic: number; graph: number };
+};
+
+/**
+ * Route query to retrieval strategy using regex patterns.
+ * NO LLM REASONING HERE.
+ */
+export function routeQuery(query: string): RetrievalStrategy {
+  const q = query.toLowerCase();
+  
+  // Exact entity references → lexical first
+  if (/plan\s*\d+|agent\s*#?\d+|\d{4}[-#]\d{3}/i.test(query)) {
+    return { primary: 'lexical', weights: { lexical: 0.6, semantic: 0.2, graph: 0.2 } };
+  }
+  
+  // Relational queries → graph first
+  if (/depends|blocks|modifies|what.*blocking|related|overlap|contention|trace/i.test(q)) {
+    return { primary: 'graph', weights: { graph: 0.5, semantic: 0.3, lexical: 0.2 } };
+  }
+  
+  // Conceptual queries → semantic first
+  if (/how|why|explain|describe|similar|like|what is|tell me about/i.test(q)) {
+    return { primary: 'semantic', weights: { semantic: 0.5, lexical: 0.3, graph: 0.2 } };
+  }
+  
+  // Status queries → graph + lexical
+  if (/status|progress|completion|blocked|wip|gap|pass|done|remaining/i.test(q)) {
+    return { primary: 'graph', weights: { graph: 0.4, lexical: 0.4, semantic: 0.2 } };
+  }
+  
+  // File queries → lexical + graph
+  if (/file|\.ts|\.js|\.md|modif|touch|change/i.test(q)) {
+    return { primary: 'lexical', weights: { lexical: 0.5, graph: 0.3, semantic: 0.2 } };
+  }
+  
+  // Default: balanced hybrid
+  return { primary: 'hybrid', weights: { semantic: 0.4, lexical: 0.3, graph: 0.3 } };
+}
 ```
-User: "Are there any conflicts?"
-AI: *thinks* *calls tools* *maybe finds something*
+
+### 2. Reciprocal Rank Fusion (`src/retrieval/rrf.ts`)
+
+```typescript
+export interface RankedItem {
+  id: string;
+  score: number;
+  source: 'lexical' | 'semantic' | 'graph';
+}
+
+/**
+ * Fuse multiple ranked lists using RRF.
+ * From the paper: RRF_score(d) = Σ 1/(k + rank_i(d))
+ */
+export function rrf(
+  rankings: Map<string, RankedItem[]>,
+  weights: { lexical: number; semantic: number; graph: number },
+  k: number = 60
+): RankedItem[] {
+  const scores = new Map<string, number>();
+  const sources = new Map<string, Set<string>>();
+  
+  for (const [source, items] of rankings) {
+    const weight = weights[source as keyof typeof weights] || 1;
+    
+    for (let rank = 0; rank < items.length; rank++) {
+      const item = items[rank];
+      const rrfScore = weight * (1 / (k + rank + 1));
+      
+      scores.set(item.id, (scores.get(item.id) || 0) + rrfScore);
+      
+      if (!sources.has(item.id)) sources.set(item.id, new Set());
+      sources.get(item.id)!.add(source);
+    }
+  }
+  
+  return Array.from(scores.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, score]) => ({
+      id,
+      score,
+      source: 'hybrid' as any, // Combined
+    }));
+}
 ```
 
-We get:
-```
-[File saved]
-System: ⚠️ CONFLICT: Plan 0033 Agent 002 and Plan 0041 Agent 001 both modify auth.ts
+### 3. Hybrid Retriever (`src/retrieval/hybrid.ts`)
+
+```typescript
+export class HybridRetriever {
+  constructor(
+    private storage: GraphStorage,
+    private embeddings: EmbeddingStore,
+    private fts: FTSIndex
+  ) {}
+  
+  async search(query: string, topK: number = 10): Promise<SearchResult[]> {
+    const strategy = routeQuery(query);
+    
+    // Over-retrieve, then fuse
+    const overRetrieveK = topK * 3;
+    
+    const rankings = new Map<string, RankedItem[]>();
+    
+    // Lexical retrieval (FTS5)
+    if (strategy.weights.lexical > 0) {
+      const lexicalResults = this.fts.search(query, overRetrieveK);
+      rankings.set('lexical', lexicalResults.map((r, i) => ({
+        id: r.canonicalId,
+        score: r.score,
+        source: 'lexical' as const,
+      })));
+    }
+    
+    // Semantic retrieval (embeddings)
+    if (strategy.weights.semantic > 0) {
+      const queryEmbed = await this.embeddings.embed(query);
+      const semanticResults = this.embeddings.findSimilar(queryEmbed, overRetrieveK);
+      rankings.set('semantic', semanticResults.map((r, i) => ({
+        id: r.canonicalId,
+        score: r.similarity,
+        source: 'semantic' as const,
+      })));
+    }
+    
+    // Graph retrieval (traversal from seed entities)
+    if (strategy.weights.graph > 0) {
+      const seeds = this.extractSeeds(query);
+      const graphResults = this.traverseFromSeeds(seeds, overRetrieveK);
+      rankings.set('graph', graphResults.map((r, i) => ({
+        id: r.canonicalId,
+        score: 1 / (i + 1), // Rank-based score
+        source: 'graph' as const,
+      })));
+    }
+    
+    // Fuse with RRF
+    const fused = rrf(rankings, strategy.weights);
+    
+    // Return top K with full entities
+    return fused.slice(0, topK).map(item => ({
+      entity: this.storage.getEntity(item.id)!,
+      score: item.score,
+      strategy: strategy.primary,
+    }));
+  }
+  
+  private extractSeeds(query: string): string[] {
+    // Extract entity IDs from query using patterns
+    const seeds: string[] = [];
+    
+    // Plan references
+    const planMatches = query.matchAll(/plan\s*(\d{4})/gi);
+    for (const m of planMatches) seeds.push(`plan:${m[1]}`);
+    
+    // Agent references
+    const agentMatches = query.matchAll(/(\d{4})#(\d{3})/g);
+    for (const m of agentMatches) seeds.push(`agent:${m[1]}#${m[2]}`);
+    
+    return seeds;
+  }
+  
+  private traverseFromSeeds(seeds: string[], limit: number): Entity[] {
+    const visited = new Set<string>();
+    const results: Entity[] = [];
+    
+    for (const seed of seeds) {
+      const entity = this.storage.getEntity(seed);
+      if (!entity) continue;
+      
+      // 1-hop traversal (from arxiv paper: 1-hop is sufficient)
+      const neighbors = this.storage.getNeighbors(entity.id);
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor.canonicalId)) {
+          visited.add(neighbor.canonicalId);
+          results.push(neighbor);
+          if (results.length >= limit) return results;
+        }
+      }
+    }
+    
+    return results;
+  }
+}
 ```
 
 ## Acceptance Criteria
 
-- [ ] `limps graph health` runs all conflict detectors
-- [ ] `limps graph watch` starts file watcher daemon
-- [ ] File changes trigger incremental reindex + conflict check within 2s
-- [ ] Notifications via stdout, file, or webhook
-- [ ] Conflict types: file overlap, feature duplicate, circular dep, stale WIP, orphan dep
+- [ ] Router categorizes queries correctly (>90% accuracy on test set)
+- [ ] RRF fusion produces stable rankings
+- [ ] Graph traversal limited to 1-hop (per arxiv paper)
+- [ ] Performance: <200ms for hybrid query
+- [ ] **No LLM calls in retrieval path**
 
-## Technical Specification
-
-### Conflict Types
-
-| Conflict | Detection | Severity | Auto-notify? |
-|----------|-----------|----------|--------------|
-| File overlap (GAP+GAP) | Two GAP agents list same file | `info` | No |
-| File overlap (WIP+GAP) | WIP + GAP on same file | `warning` | Optional |
-| File overlap (WIP+WIP) | Two WIP agents on same file | `critical` | Yes |
-| Feature duplicate | SIMILAR_TO score > 0.85 | `warning` | Yes |
-| Circular dependency | Graph cycle detection | `critical` | Yes |
-| Orphan dependency | Depends on non-existent agent | `critical` | Yes |
-| Stale WIP | WIP, no update in 7+ days | `warning` | Optional |
-| Stale WIP (critical) | WIP, no update in 14+ days | `critical` | Yes |
-
-### Conflict Detector
+## Testing
 
 ```typescript
-// src/health/conflicts.ts
+describe('Deterministic Router', () => {
+  it('routes "plan 0042" to lexical-first');
+  it('routes "what blocks agent 003" to graph-first');
+  it('routes "explain authentication" to semantic-first');
+  it('routes "status of plan 41" to graph+lexical');
+});
 
-interface Conflict {
-  type: ConflictType;
-  severity: 'info' | 'warning' | 'critical';
-  entities: Entity[];
-  message: string;
-  recommendation: string;
-}
-
-export async function detectConflicts(
-  storage: GraphStorage,
-  scope?: { planId?: string; filePath?: string }
-): Promise<Conflict[]> {
-  const conflicts: Conflict[] = [];
-  
-  // File overlap detection
-  conflicts.push(...await detectFileOverlap(storage, scope));
-  
-  // Feature duplicates (from SIMILAR_TO relationships)
-  conflicts.push(...await detectFeatureDuplicates(storage, scope));
-  
-  // Circular dependencies
-  conflicts.push(...await detectCircularDeps(storage, scope));
-  
-  // Orphan dependencies
-  conflicts.push(...await detectOrphanDeps(storage, scope));
-  
-  // Stale WIP
-  conflicts.push(...await detectStaleWip(storage, scope));
-  
-  return conflicts;
-}
-
-async function detectFileOverlap(storage: GraphStorage, scope?: Scope): Promise<Conflict[]> {
-  // Find all MODIFIES relationships
-  const modifies = await storage.findRelationships({ type: 'MODIFIES' });
-  
-  // Group by file
-  const byFile = groupBy(modifies, r => r.target.canonical_id);
-  
-  const conflicts: Conflict[] = [];
-  for (const [file, rels] of Object.entries(byFile)) {
-    if (rels.length < 2) continue;
-    
-    const agents = rels.map(r => r.source);
-    const statuses = agents.map(a => a.metadata.status);
-    
-    // Determine severity
-    const wipCount = statuses.filter(s => s === 'WIP').length;
-    let severity: Severity;
-    
-    if (wipCount >= 2) {
-      severity = 'critical';
-    } else if (wipCount === 1) {
-      severity = 'warning';
-    } else {
-      severity = 'info';
-    }
-    
-    conflicts.push({
-      type: 'file_overlap',
-      severity,
-      entities: agents,
-      message: `${agents.length} agents modify ${file}`,
-      recommendation: severity === 'critical' 
-        ? 'Sequence work or consolidate into single plan'
-        : 'Consider sequencing work via dependencies'
-    });
-  }
-  
-  return conflicts;
-}
+describe('RRF Fusion', () => {
+  it('combines rankings with correct weights');
+  it('handles items appearing in multiple lists');
+  it('produces deterministic output for same input');
+});
 ```
-
-### File Watcher
-
-```typescript
-// src/health/watcher.ts
-
-import { watch } from 'chokidar';
-
-interface WatcherOptions {
-  onConflict: 'log' | 'notify' | 'webhook';
-  webhookUrl?: string;
-  minSeverity: Severity;
-  debounceMs: number;
-}
-
-export function startWatcher(
-  plansDir: string,
-  storage: GraphStorage,
-  options: WatcherOptions
-): () => void {
-  const watcher = watch(`${plansDir}/**/*.md`, {
-    persistent: true,
-    ignoreInitial: true,
-    awaitWriteFinish: { stabilityThreshold: 500 }
-  });
-  
-  const handleChange = debounce(async (path: string) => {
-    // 1. Incremental reindex
-    await reindexFile(path, storage);
-    
-    // 2. Run conflict detection
-    const conflicts = await detectConflicts(storage, { filePath: path });
-    
-    // 3. Filter by severity
-    const relevant = conflicts.filter(c => 
-      severityLevel(c.severity) >= severityLevel(options.minSeverity)
-    );
-    
-    // 4. Notify
-    for (const conflict of relevant) {
-      await notify(conflict, options);
-    }
-  }, options.debounceMs);
-  
-  watcher.on('change', handleChange);
-  watcher.on('add', handleChange);
-  
-  // Return cleanup function
-  return () => watcher.close();
-}
-```
-
-### CLI Commands
-
-```bash
-# One-shot health check
-limps graph health
-# Output:
-# ⚠️  CONFLICT [critical]: File contention
-#     Plan 0033 Agent 002 (Auth Refactor) - WIP
-#     Plan 0041 Agent 001 (Auth Improvements) - WIP
-#     Both modify: src/auth.ts
-#     Recommendation: Sequence work or consolidate
-#
-# ⚠️  OVERLAP [warning]: Similar features
-#     "Staleness Detection" (Plan 0033) 
-#     "Health Check System" (Plan 0041)
-#     Similarity: 85%
-#
-# ✓  No circular dependencies
-# ✓  No orphan dependencies
-# 
-# Summary: 1 critical, 1 warning, 0 info
-
-# Scoped to plan
-limps graph health --plan 0041
-
-# Filter by severity
-limps graph health --severity warning
-
-# JSON output for scripting
-limps graph health --json
-
-# Watch mode (foreground)
-limps graph watch
-
-# Watch mode (daemon)
-limps graph watch --daemon
-
-# Watch with webhook notification
-limps graph watch --on-conflict webhook --url https://...
-
-# Watch with desktop notification
-limps graph watch --on-conflict notify
-```
-
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/health/conflicts.ts` | Create | Conflict detection logic |
-| `src/health/watcher.ts` | Create | File watcher |
-| `src/health/notify.ts` | Create | Notification handlers |
-| `src/cli/commands/graph/health.ts` | Create | CLI command |
-| `src/cli/commands/graph/watch.ts` | Create | CLI command |
-
-## Performance Requirements
-
-- Conflict detection: <200ms
-- File change to notification: <2s
-- Watch mode CPU overhead: <5% idle
