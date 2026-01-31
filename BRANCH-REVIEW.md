@@ -36,7 +36,7 @@
 ## Questions / Assumptions
 
 - **Repository URL**: `package.json` files use `github.com/paulbreuler/limps.git`; assumed to be the intended repo.
-- **Extension config key**: Root README config examples use `@sudosandwich/limps-headless`; extension-specific config key remains `radix` (cacheDir) for backward compatibility.
+- **Extension config key**: Root README and packages/limps README config examples use `@sudosandwich/limps-headless` and extension-specific config key `limps-headless` (e.g. `cacheDir`).
 - **Tests**: New tests under `packages/limps-headless/tests/` cover analyzer, differ, audit, providers, CLI flags, and tools; sequential Vitest and fixtures are in place. Assumption: no change to repo-wide test parallelism.
 
 ---
@@ -52,5 +52,5 @@
 ## README updates applied
 
 - **Configuration** (root [README.md](README.md)): Config example `extensions` uses `@sudosandwich/limps-headless`.
-- **Extensions**: Install command and config snippet use `@sudosandwich/limps-headless`; extension-specific config key remains `radix` (cacheDir) per limps-headless README. Available extensions list describes limps-headless.
+- **Extensions**: Install command and config snippet use `@sudosandwich/limps-headless`; extension-specific config key is `limps-headless` (cacheDir). Available extensions list describes limps-headless.
 - **Development**: Monorepo package list lists `packages/limps-headless` with a short description.
