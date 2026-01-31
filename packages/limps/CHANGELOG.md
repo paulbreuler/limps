@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.7.0](https://github.com/paulbreuler/limps/compare/limps-v2.6.1...limps-v2.7.0) (2026-01-31)
+
+
+### Features
+
+* **limps-headless:** add headless UI audit package ([#50](https://github.com/paulbreuler/limps/issues/50)) ([bcc069a](https://github.com/paulbreuler/limps/commit/bcc069a6157af09145096551174bc0ee3f5bcbac))
+* **limps-radix:** add component analyzer ([#47](https://github.com/paulbreuler/limps/issues/47)) ([9df1925](https://github.com/paulbreuler/limps/commit/9df1925b1259f4480646a17cb1d60fe1773016c6))
+
 ## [2.6.1](https://github.com/paulbreuler/limps/compare/limps-v2.6.0...limps-v2.6.1) (2026-01-29)
 
 

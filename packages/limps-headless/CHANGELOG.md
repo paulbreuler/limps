@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.2...limps-headless-v0.1.3) (2026-01-31)
+
+
+### Features
+
+* **limps-headless:** add headless UI audit package ([#50](https://github.com/paulbreuler/limps/issues/50)) ([bcc069a](https://github.com/paulbreuler/limps/commit/bcc069a6157af09145096551174bc0ee3f5bcbac))
+
 ## [0.1.2](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.1...limps-headless-v0.1.2) (2026-01-29)
 
 
