@@ -137,17 +137,6 @@ describe('register-resources', () => {
     expect(server).toBeDefined();
   });
 
-  it('should register agents://status resource callback', async () => {
-    const server = new McpServer({
-      name: 'test-server',
-      version: '0.1.0',
-    });
-
-    registerResources(server, context);
-
-    expect(server).toBeDefined();
-  });
-
   it('should handle resource callbacks with empty text', async () => {
     const server = new McpServer({
       name: 'test-server',

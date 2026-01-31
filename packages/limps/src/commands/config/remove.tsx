@@ -2,7 +2,8 @@ import { Text } from 'ink';
 import { z } from 'zod';
 import { configRemove } from '../../cli/config-cmd.js';
 
-export const description = 'Unregister a project (keeps files)';
+export const description =
+  'Remove a project and delete its config and project directory (when under app config dir)';
 
 export const args = z.tuple([z.string().describe('Project name or path to config.json')]);
 

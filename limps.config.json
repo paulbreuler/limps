@@ -1,6 +1,12 @@
 {
   "plansPath": "./plans",
   "dataPath": "./data",
-  "coordinationPath": "./coordination.json",
-  "heartbeatTimeout": 300000
+  "scoring": {
+    "weights": {
+      "dependency": 40,
+      "priority": 30,
+      "workload": 30
+    },
+    "biases": {}
+  }
 }

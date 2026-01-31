@@ -51,7 +51,7 @@ limps is an MCP (Model Context Protocol) server for AI agent plan management. It
 
 - `src/server.ts` - Creates MCP server instance with `@modelcontextprotocol/sdk`
 - `src/tools/index.ts` - Registers 14 MCP tools (document CRUD, plan management, task status)
-- `src/resources/index.ts` - Registers 5 MCP resources (plans://index, plans://summary/*, plans://full/*, decisions://log, agents://status)
+- `src/resources/index.ts` - Registers 4 MCP resources (plans://index, plans://summary/*, plans://full/*, decisions://log)
 
 **Extension System:**
 

@@ -19,9 +19,12 @@ export default function ConfigCommand(): React.ReactNode {
       [-f] Add/update limps in MCP configs (default: local project config){'\n'}
       {'  '}update {'<name>'} [--plans-path {'<path>'}] [--docs-path {'<path>'}] Update project
       paths{'\n'}
-      {'  '}remove {'<name>'} Unregister a project (keeps files){'\n'}
+      {'  '}remove {'<name>'} Remove a project and delete config/dir (when under limps/projects)
+      {'\n'}
       {'  '}set {'<path>'} Set current from config path (auto-registers){'\n'}
-      {'  '}discover Find and register configs in default locations{'\n'}
+      {'  '}discover Find configs in default locations (use `limps config use {'<name>'}` to
+      register){'\n'}
+      {'  '}migrate Pull known configs into limps/projects/ from old locations{'\n'}
       {'\n'}
       Run `limps config {'<command>'} --help` for more information.
     </Text>

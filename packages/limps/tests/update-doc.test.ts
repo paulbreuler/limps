@@ -52,8 +52,6 @@ describe('update-doc.ts', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    // Create coordination state
-
     // Create tool context
     context = {
       db,
