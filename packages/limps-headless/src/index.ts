@@ -5,6 +5,7 @@ import type {
 import {
   listPrimitivesTool,
   extractPrimitiveTool,
+  analyzeComponentTool,
   diffVersionsTool,
   checkUpdatesTool,
   runAuditTool,
@@ -16,10 +17,11 @@ import {
  */
 const limpsHeadless: LimpsExtension = {
   name: 'limps-headless',
-  version: '0.1.0',
+  version: '0.1.2',
   tools: [
     listPrimitivesTool,
     extractPrimitiveTool,
+    analyzeComponentTool,
     diffVersionsTool,
     checkUpdatesTool,
     runAuditTool,

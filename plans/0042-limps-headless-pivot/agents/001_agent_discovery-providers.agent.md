@@ -1,6 +1,6 @@
 # Agent 1: Discovery + Providers
 
-**Plan Location**: `plans/0042-0042-limps-headless-pivot/0042-0042-limps-headless-pivot-plan.md`
+**Plan Location**: `plans/0042-limps-headless-pivot/0042-limps-headless-pivot-plan.md`
 
 ## Scope
 
