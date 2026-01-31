@@ -3,6 +3,7 @@
  */
 
 import type { ComponentIR } from '../analysis/ir/types.js';
+import type { EvaluationResult } from '../rules/types.js';
 /**
  * Raw extraction from Radix .d.ts files
  */
@@ -185,4 +186,8 @@ export interface AnalysisResult {
   matches: PrimitiveMatch[]; // All matches above threshold
   analysis: ComponentAnalysis;
   isAmbiguous: boolean; // Top 2 within 10 points
+  rules?: {
+    baseUi?: EvaluationResult;
+    radixLegacy?: EvaluationResult;
+  };
 }

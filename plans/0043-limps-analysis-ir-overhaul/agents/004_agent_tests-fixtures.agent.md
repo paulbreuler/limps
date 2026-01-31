@@ -29,7 +29,7 @@ Depend on: Agent 003 for integrated outputs
 ### #5: Tests + Fixtures
 
 TL;DR: Add fixtures and snapshot tests for IR, rules, and analyze/audit integration.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `fixtures-harness`, `ir-snapshot`, `ruleset-eval`, `analyze-integration`, `audit-integration`
 Files: `packages/limps-headless/tests/fixtures/*` (create), `packages/limps-headless/tests/ir-build.test.ts` (create), `packages/limps-headless/tests/rule-engine.test.ts` (create), `packages/limps-headless/tests/analyze-integration.test.ts` (create), `packages/limps-headless/tests/audit-integration.test.ts` (create)
 

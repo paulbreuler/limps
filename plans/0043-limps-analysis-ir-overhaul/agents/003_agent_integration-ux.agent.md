@@ -31,7 +31,7 @@ export interface AuditSummary;
 ### #3: Analyzer + Audit Integration
 
 TL;DR: Pipe IR + rules into analyze/audit flows; keep output backward compatible while adding evidence.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `analyze-evidence-output`, `audit-summary-classification`, `output-schema-snapshot`
 Files: `packages/limps-headless/src/tools/analyze-component.ts` (update), `packages/limps-headless/src/audit/run-audit.ts` (update), `packages/limps-headless/src/audit/generate-report.ts` (update), `packages/limps-headless/src/types/index.ts` (update)
 
@@ -44,7 +44,7 @@ TDD:
 ### #4: UX + Policy Surface
 
 TL;DR: Add ruleset selection, evidence verbosity, and debug IR dump to CLI + reports.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `ruleset-default`, `evidence-verbosity`, `debug-ir-dump`
 Files: `packages/limps-headless/src/cli/flags.ts` (update), `packages/limps-headless/src/cli/commands/analyze.ts` (update), `packages/limps-headless/src/cli/commands/audit.ts` (update), `packages/limps-headless/src/report/formatters.ts` (update)
 

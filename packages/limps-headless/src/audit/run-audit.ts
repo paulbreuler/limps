@@ -16,6 +16,7 @@ import type { ComponentMetadata, DiscoveryOptions, RunAuditOptions } from './typ
 import { discoverComponents } from './discover-components.js';
 import { generateReport } from './generate-report.js';
 import type { GenerateReportResult } from './generate-report.js';
+import { baseUiRuleset, evaluateRuleset, radixLegacyRuleset } from '../rules/index.js';
 
 /** Reference primitive for version resolution (Radix: dialog). */
 const REFERENCE_PRIMITIVE = 'dialog';
@@ -55,6 +56,9 @@ export interface RunAuditInput {
   radixVersion?: string;
   outputDir?: string;
   format?: 'json' | 'markdown' | 'both';
+  ruleset?: 'base-ui' | 'radix-legacy' | 'both';
+  evidence?: 'summary' | 'verbose';
+  debugIr?: boolean;
   /** Policy options (backend mode, migration threshold). Used when backend/migration analysis is available. */
   policy?: Partial<RunAuditOptions>;
 }
@@ -64,6 +68,45 @@ export interface RunAuditResult extends GenerateReportResult {
   diffPath?: string;
   updatesPath?: string;
   inventoryPath?: string;
+  irPath?: string;
+}
+
+function applyEvidenceVerbosity(
+  analysis: AnalysisResult['analysis'],
+  evidence: 'summary' | 'verbose'
+): AnalysisResult['analysis'] {
+  if (!analysis.ir || evidence === 'verbose') {
+    return analysis;
+  }
+
+  const trimmedEvidence = analysis.ir.evidence.map(({ id, source, strength, weight }) => ({
+    id,
+    source,
+    strength,
+    weight,
+  }));
+
+  return {
+    ...analysis,
+    ir: {
+      ...analysis.ir,
+      evidence: trimmedEvidence,
+    },
+  };
+}
+
+function selectRules(
+  rules: AnalysisResult['rules'],
+  ruleset: 'base-ui' | 'radix-legacy' | 'both'
+): AnalysisResult['rules'] {
+  if (!rules) return undefined;
+  if (ruleset === 'base-ui') {
+    return { baseUi: rules.baseUi };
+  }
+  if (ruleset === 'radix-legacy') {
+    return { radixLegacy: rules.radixLegacy };
+  }
+  return rules;
 }
 
 async function loadSignatures(version: string): Promise<BehaviorSignature[]> {
@@ -79,6 +122,7 @@ async function loadSignatures(version: string): Promise<BehaviorSignature[]> {
 async function analyzeFiles(
   files: string[],
   signatures: BehaviorSignature[],
+  options: { ruleset: 'base-ui' | 'radix-legacy' | 'both'; evidence: 'summary' | 'verbose' },
   moduleGraph = createModuleGraph({
     tsconfigPath: resolveTsconfig(process.cwd()),
     cwd: process.cwd(),
@@ -100,6 +144,15 @@ async function analyzeFiles(
     }
     try {
       const analysis = await analyzeComponent(absolute, { moduleGraph });
+      const rules =
+        analysis.ir
+          ? {
+              baseUi: evaluateRuleset(analysis.ir, baseUiRuleset),
+              radixLegacy: evaluateRuleset(analysis.ir, radixLegacyRuleset),
+            }
+          : undefined;
+      const analysisForOutput = applyEvidenceVerbosity(analysis, options.evidence);
+      const rulesForOutput = selectRules(rules, options.ruleset);
       let recommendation: AnalysisResult['recommendation'];
       let matches = signatures.length > 0 ? scoreAgainstSignatures(analysis, signatures) : [];
       matches = matches.filter((m) => m.confidence >= threshold);
@@ -140,8 +193,9 @@ async function analyzeFiles(
         filePath: relative,
         recommendation,
         matches,
-        analysis,
+        analysis: analysisForOutput,
         isAmbiguous: ambiguous,
+        rules: rulesForOutput,
       };
       results.push(result);
     } catch (err) {
@@ -174,6 +228,7 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
   let inventoryPath: string | undefined;
 
   let analysisPath: string | undefined;
+  let irPath: string | undefined;
   let files = input.scope?.files ?? [];
   let discovered: ComponentMetadata[] = [];
   let legacyRadixCount = 0;
@@ -206,14 +261,26 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     }
 
     const signatures = await loadSignatures(resolvedVersion);
-    const results = await analyzeFiles(files, signatures);
-
+    const results = await analyzeFiles(files, signatures, {
+      ruleset: input.ruleset ?? 'base-ui',
+      evidence: input.evidence ?? 'summary',
+    });
     const serializable = results.map((r) => ({
       ...r,
       analysis: serializeAnalysis(r.analysis),
     }));
     analysisPath = path.join(outputDir, 'analysis.json');
     fs.writeFileSync(analysisPath, JSON.stringify({ results: serializable }, null, 2), 'utf-8');
+
+    if (input.debugIr) {
+      irPath = path.join(outputDir, 'ir.json');
+      const irDump = results.map((r) => ({
+        component: r.component,
+        filePath: r.filePath,
+        ir: r.analysis.ir ?? null,
+      }));
+      fs.writeFileSync(irPath, JSON.stringify({ components: irDump }, null, 2), 'utf-8');
+    }
   } else {
     analysisPath = path.join(outputDir, 'analysis.json');
     fs.writeFileSync(analysisPath, JSON.stringify({ results: [] }, null, 2), 'utf-8');
@@ -279,6 +346,7 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
   return {
     ...gen,
     analysisPath,
+    irPath,
     diffPath,
     updatesPath,
     inventoryPath,

@@ -34,6 +34,13 @@ export function registerAuditCommand(program: Command): void {
       DEFAULT_RUN_AUDIT_OPTIONS.backendMode
     )
     .option(
+      '--ruleset <ruleset>',
+      'Ruleset selection: base-ui, radix-legacy, or both',
+      'base-ui'
+    )
+    .option('--evidence <level>', 'Evidence verbosity: summary or verbose', 'summary')
+    .option('--debug-ir', 'Write IR dump to output directory')
+    .option(
       '--migration-threshold <level>',
       'Fail if migration issues >= level: low, medium, high',
       DEFAULT_RUN_AUDIT_OPTIONS.migrationThreshold
@@ -49,6 +56,9 @@ export function registerAuditCommand(program: Command): void {
         discovery: options.rootDir ? { rootDir: options.rootDir } : undefined,
         outputDir: options.outputDir,
         format: options.format === 'json' ? 'json' : options.format === 'markdown' ? 'markdown' : 'both',
+        ruleset: options.ruleset,
+        evidence: options.evidence,
+        debugIr: Boolean(options.debugIr),
         policy: {
           backendMode: parseBackendMode(options.backend ?? 'auto'),
           migrationThreshold: parseMigrationThreshold(options.migrationThreshold ?? 'medium'),
@@ -65,6 +75,7 @@ export function registerAuditCommand(program: Command): void {
               jsonPath: result.jsonPath,
               markdownPath: result.markdownPath,
               analysisPath: result.analysisPath,
+              irPath: result.irPath,
               diffPath: result.diffPath,
               updatesPath: result.updatesPath,
               summary: result.report.summary,
@@ -85,6 +96,9 @@ export function registerAuditCommand(program: Command): void {
         console.log(`JSON:        ${result.jsonPath}`);
       }
       console.log(`Analysis:    ${result.analysisPath}`);
+      if (result.irPath) {
+        console.log(`IR:          ${result.irPath}`);
+      }
       console.log(`Diff:        ${result.diffPath}`);
       console.log(`Updates:     ${result.updatesPath}`);
       console.log('');

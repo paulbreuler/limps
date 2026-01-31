@@ -197,4 +197,41 @@ describe('headless_analyze_component tool', () => {
       handleAnalyzeComponent({ filePath: './tests/tmp-analyze/Nope.tsx' })
     ).rejects.toThrow('Failed to parse component file');
   });
+
+  it('includes ruleset evaluation and respects ruleset filter', async () => {
+    const analysisWithIr: ComponentAnalysis = {
+      ...baseAnalysis,
+      ir: {
+        id: 'Modal#Modal',
+        filePath: 'Modal.tsx',
+        exportName: 'Modal',
+        localName: 'Modal',
+        imports: [{ source: '@base-ui/react/tabs', named: ['Tabs'] }],
+        jsx: { elements: [], attributes: [], roles: [], dataAttrs: [] },
+        behaviors: { behaviors: [], handlers: [] },
+        evidence: [
+          {
+            id: 'import:base-ui:tabs',
+            source: 'import',
+            strength: 'strong',
+            weight: 3,
+          },
+        ],
+        dependencies: [],
+        reexports: [],
+      },
+    };
+
+    mocks.analyzeComponent.mockResolvedValue(analysisWithIr);
+    mocks.scoreAgainstSignatures.mockReturnValue([]);
+
+    const result = await handleAnalyzeComponent({
+      filePath: './tests/tmp-analyze/Modal.tsx',
+      ruleset: 'base-ui',
+      evidence: 'summary',
+    });
+    const parsed = JSON.parse(result.content[0].text) as AnalysisResult;
+    expect(parsed.rules?.baseUi?.classification).toBe('possible');
+    expect(parsed.rules?.radixLegacy).toBeUndefined();
+  });
 });

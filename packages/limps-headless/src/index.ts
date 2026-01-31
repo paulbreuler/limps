@@ -45,6 +45,9 @@ export * from './cache/index.js';
 // Re-export providers module
 export * from './providers/index.js';
 
+// Re-export rules engine module
+export * from './rules/index.js';
+
 // Re-export differ module
 export * from './differ/index.js';
 

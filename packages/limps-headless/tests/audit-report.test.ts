@@ -367,6 +367,27 @@ describe('runAudit', () => {
     expect(fs.existsSync(result.markdownPath!)).toBe(true);
   }, 35000);
 
+  it('writes ir.json when debugIr is true', async () => {
+    const dir = mkdtemp();
+    const fixtureDir = path.join(process.cwd(), 'tests', 'tmp-run-audit');
+    fs.mkdirSync(fixtureDir, { recursive: true });
+    const fixturePath = path.join(fixtureDir, 'Demo.tsx');
+    fs.writeFileSync(
+      fixturePath,
+      'export function Demo() { return <div role=\"menu\" data-state=\"open\" />; }'
+    );
+
+    const result = await runAudit({
+      scope: { files: [path.relative(process.cwd(), fixturePath)] },
+      outputDir: dir,
+      format: 'json',
+      debugIr: true,
+    });
+
+    expect(result.irPath).toBeDefined();
+    expect(fs.existsSync(result.irPath!)).toBe(true);
+  }, 35000);
+
   it('handleRunAudit returns summary content', async () => {
     const dir = mkdtemp();
     const result = await handleRunAudit({

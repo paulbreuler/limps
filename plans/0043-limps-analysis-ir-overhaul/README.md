@@ -22,10 +22,10 @@ graph TD
 |---------|-------------|--------|-------|
 | #0 | Component IR + module graph | PASS | Agent 000 |
 | #1 | Evidence extraction passes | PASS | Agent 001 |
-| #2 | Rule engine + ruleset DSL | GAP | Agent 002 |
-| #3 | Analyzer + audit integration | GAP | Agent 003 |
-| #4 | UX + policy surface | GAP | Agent 003 |
-| #5 | Tests + fixtures | GAP | Agent 004 |
+| #2 | Rule engine + ruleset DSL | PASS | Agent 002 |
+| #3 | Analyzer + audit integration | PASS | Agent 003 |
+| #4 | UX + policy surface | PASS | Agent 003 |
+| #5 | Tests + fixtures | PASS | Agent 004 |
 
 ## Agents
 

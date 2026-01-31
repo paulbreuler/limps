@@ -13,6 +13,7 @@ import { listCachedPrimitives, listCachedVersions } from '../cache/storage.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
 import { getProvider } from '../providers/registry.js';
 import { createModuleGraph } from '../analysis/module-graph.js';
+import { baseUiRuleset, evaluateRuleset, radixLegacyRuleset } from '../rules/index.js';
 
 /**
  * Input schema for headless_analyze_component tool.
@@ -34,6 +35,16 @@ export const analyzeComponentInputSchema = z.object({
     .optional()
     .default('radix')
     .describe('Component library provider (default: radix)'),
+  ruleset: z
+    .enum(['base-ui', 'radix-legacy', 'both'])
+    .optional()
+    .default('base-ui')
+    .describe('Ruleset selection for evidence evaluation'),
+  evidence: z
+    .enum(['summary', 'verbose'])
+    .optional()
+    .default('summary')
+    .describe('Evidence verbosity in output'),
 });
 
 export type AnalyzeComponentInput = z.infer<typeof analyzeComponentInputSchema>;
@@ -66,6 +77,44 @@ function resolveTsconfig(cwd: string): string | undefined {
   return fs.existsSync(candidate) ? candidate : undefined;
 }
 
+function applyEvidenceVerbosity(
+  analysis: AnalysisResult['analysis'],
+  evidence: 'summary' | 'verbose'
+): AnalysisResult['analysis'] {
+  if (!analysis.ir || evidence === 'verbose') {
+    return analysis;
+  }
+
+  const trimmedEvidence = analysis.ir.evidence.map(({ id, source, strength, weight }) => ({
+    id,
+    source,
+    strength,
+    weight,
+  }));
+
+  return {
+    ...analysis,
+    ir: {
+      ...analysis.ir,
+      evidence: trimmedEvidence,
+    },
+  };
+}
+
+function selectRules(
+  rules: AnalysisResult['rules'],
+  ruleset: 'base-ui' | 'radix-legacy' | 'both'
+): AnalysisResult['rules'] {
+  if (!rules) return undefined;
+  if (ruleset === 'base-ui') {
+    return { baseUi: rules.baseUi };
+  }
+  if (ruleset === 'radix-legacy') {
+    return { radixLegacy: rules.radixLegacy };
+  }
+  return rules;
+}
+
 /**
  * Handler for the headless_analyze_component tool.
  *
@@ -92,6 +141,15 @@ export async function handleAnalyzeComponent(
     rootDir: cwd,
   });
   const analysis = await analyzeComponent(absolute, { moduleGraph });
+  const rules =
+    analysis.ir
+      ? {
+          baseUi: evaluateRuleset(analysis.ir, baseUiRuleset),
+          radixLegacy: evaluateRuleset(analysis.ir, radixLegacyRuleset),
+        }
+      : undefined;
+  const analysisForOutput = applyEvidenceVerbosity(analysis, parsed.evidence);
+  const rulesForOutput = selectRules(rules, parsed.ruleset);
 
   // Resolve version if "latest"
   let resolvedVersion = radixVersion;
@@ -125,8 +183,9 @@ export async function handleAnalyzeComponent(
               'No legacy Radix signatures cached. Run headless_extract_primitive to enable migration detection.',
           },
           matches: [],
-          analysis,
+          analysis: analysisForOutput,
           isAmbiguous: false,
+          rules: rulesForOutput,
         };
         const serializableResult = {
           ...result,
@@ -163,8 +222,9 @@ export async function handleAnalyzeComponent(
         reason: 'No legacy Radix signatures available for comparison',
       },
       matches: [],
-      analysis,
+      analysis: analysisForOutput,
       isAmbiguous: false,
+      rules: rulesForOutput,
     };
 
     const serializableResult = {
@@ -223,8 +283,9 @@ export async function handleAnalyzeComponent(
     filePath: relative,
     recommendation,
     matches: filteredMatches,
-    analysis,
+    analysis: analysisForOutput,
     isAmbiguous: ambiguous,
+    rules: rulesForOutput,
   };
 
   const serializableResult = {

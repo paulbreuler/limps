@@ -45,9 +45,10 @@ Overhaul the limps-headless analysis pipeline with a transpiler-grade Component 
 
 ---
 
-## Feature 0: Component IR + Module Graph Foundation
+### #0: Component IR + Module Graph Foundation
 
-**Status:** PASS
+TL;DR: Build Component IR + module graph with alias and re-export resolution.
+Status: `PASS`
 
 ### Description
 
@@ -89,9 +90,10 @@ Feature: Component IR foundation
 
 ---
 
-## Feature 1: Evidence Extraction Passes
+### #1: Evidence Extraction Passes
 
-**Status:** PASS
+TL;DR: Extract import/JSX/behavior evidence with locations.
+Status: `PASS`
 
 ### Description
 
@@ -133,9 +135,10 @@ Feature: evidence extraction
 
 ---
 
-## Feature 2: Rule Engine + Ruleset DSL
+### #2: Rule Engine + Ruleset DSL
 
-**Status:** GAP
+TL;DR: Evaluate evidence against weighted rulesets for Base UI/Radix.
+Status: `PASS`
 
 ### Description
 
@@ -178,9 +181,10 @@ Feature: rule engine
 
 ---
 
-## Feature 3: Analyzer + Audit Integration
+### #3: Analyzer + Audit Integration
 
-**Status:** GAP
+TL;DR: Integrate IR + rules into analyze/audit with compatible output.
+Status: `PASS`
 
 ### Description
 
@@ -222,9 +226,10 @@ Feature: analyzer integration
 
 ---
 
-## Feature 4: UX + Policy Surface
+### #4: UX + Policy Surface
 
-**Status:** GAP
+TL;DR: Add ruleset selection, evidence verbosity, and debug IR options.
+Status: `PASS`
 
 ### Description
 
@@ -266,9 +271,10 @@ Feature: UX and policy
 
 ---
 
-## Feature 5: Tests + Fixtures
+### #5: Tests + Fixtures
 
-**Status:** GAP
+TL;DR: Add fixtures and tests for IR, rules, and integration.
+Status: `PASS`
 
 ### Description
 

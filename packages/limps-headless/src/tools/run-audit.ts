@@ -24,6 +24,17 @@ export const runAuditInputSchema = z.object({
   radixVersion: z.string().optional().default('latest').describe('Radix version (default: latest)'),
   outputDir: z.string().optional().default('.limps-headless/reports').describe('Output directory'),
   format: z.enum(['json', 'markdown', 'both']).optional().default('both'),
+  ruleset: z
+    .enum(['base-ui', 'radix-legacy', 'both'])
+    .optional()
+    .default('base-ui')
+    .describe('Ruleset selection for evidence evaluation'),
+  evidence: z
+    .enum(['summary', 'verbose'])
+    .optional()
+    .default('summary')
+    .describe('Evidence verbosity in output'),
+  debugIr: z.boolean().optional().default(false).describe('Write IR dump to output directory'),
 });
 
 export type RunAuditInput = z.infer<typeof runAuditInputSchema>;
@@ -38,6 +49,7 @@ export async function handleRunAudit(
     jsonPath: result.jsonPath,
     markdownPath: result.markdownPath,
     analysisPath: result.analysisPath,
+    irPath: result.irPath,
     diffPath: result.diffPath,
     updatesPath: result.updatesPath,
     inventoryPath: result.inventoryPath,

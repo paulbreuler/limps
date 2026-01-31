@@ -36,7 +36,7 @@ export const radixLegacyRuleset: Ruleset;
 ### #2: Rule Engine + Ruleset DSL
 
 TL;DR: Implement predicate-based rule evaluator with weighted scoring and Base UI/Radix rulesets.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `rule-any-all-not`, `ruleset-base-ui`, `ruleset-radix-legacy`, `classification-thresholds`
 Files: `packages/limps-headless/src/rules/engine.ts` (create), `packages/limps-headless/src/rules/predicates.ts` (create), `packages/limps-headless/src/rules/rulesets/base-ui.ts` (create), `packages/limps-headless/src/rules/rulesets/radix-legacy.ts` (create), `packages/limps-headless/src/rules/types.ts` (create)
 

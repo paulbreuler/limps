@@ -43,6 +43,12 @@ export function registerAnalyzeCommand(program: Command): void {
     .option('-v, --version <version>', 'Radix version to compare against', 'latest')
     .option('-t, --threshold <number>', 'Minimum confidence threshold', '40')
     .option('-p, --provider <provider>', 'Component library provider', 'radix')
+    .option(
+      '--ruleset <ruleset>',
+      'Ruleset selection: base-ui, radix-legacy, or both',
+      'base-ui'
+    )
+    .option('--evidence <level>', 'Evidence verbosity: summary or verbose', 'summary')
     .option('--json', 'Output raw JSON')
     .action(async (filePath, options) => {
       const response = await handleAnalyzeComponent({
@@ -50,6 +56,8 @@ export function registerAnalyzeCommand(program: Command): void {
         radixVersion: options.version,
         threshold: Number(options.threshold),
         provider: options.provider,
+        ruleset: options.ruleset,
+        evidence: options.evidence,
       });
       const text = response.content[0]?.text ?? '{}';
       printJson(text, Boolean(options.json));
