@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.0](https://github.com/paulbreuler/limps/compare/limps-v2.7.0...limps-v2.8.0) (2026-01-31)
+
+
+### Features
+
+* **config:** projects layout, migrate, coordination cleanup ([#54](https://github.com/paulbreuler/limps/issues/54)) ([b0bade9](https://github.com/paulbreuler/limps/commit/b0bade9736b3091443a256286ae59b6f27e96fd9))
+
 ## [2.7.0](https://github.com/paulbreuler/limps/compare/limps-v2.6.1...limps-v2.7.0) (2026-01-31)
 
 ### BREAKING CHANGES
