@@ -73,8 +73,8 @@ export function getAgentFiles(planDir: string): ParsedAgentFile[] {
     return [];
   }
 
-  // Note: Using { withFileTypes: false } to force fresh directory listing without dirent caching
-  // This helps ensure we get up-to-date file information in environments with aggressive filesystem caching
+  // Note: Read directory as filename strings (default behavior, equivalent to withFileTypes: false)
+  // and rely on statSync() calls below for up-to-date file type info instead of cached Dirent data.
   const files = readdirSync(agentsDir).filter((name) => name.endsWith('.agent.md'));
 
   const agents: ParsedAgentFile[] = [];
@@ -82,8 +82,8 @@ export function getAgentFiles(planDir: string): ParsedAgentFile[] {
   for (const file of files) {
     const filePath = join(agentsDir, file);
     try {
-      // Force a stat() call before reading to help invalidate any OS-level caches
-      // This is particularly important in Docker volumes and network filesystems
+      // Call statSync() to confirm this path is a file without relying on cached Dirent information.
+      // This helps avoid stale file-type data in environments with aggressive filesystem caching.
       const stats = statSync(filePath);
       if (!stats.isFile()) {
         continue;
