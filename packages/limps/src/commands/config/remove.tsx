@@ -4,7 +4,7 @@ import { configRemove } from '../../cli/config-cmd.js';
 
 export const description = 'Unregister a project (keeps files)';
 
-export const args = z.tuple([z.string().describe('Project name')]);
+export const args = z.tuple([z.string().describe('Project name or path to config.json')]);
 
 interface Props {
   args: z.infer<typeof args>;

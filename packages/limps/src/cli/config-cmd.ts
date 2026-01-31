@@ -3,9 +3,17 @@
  * Provides commands to manage the project registry and view configuration.
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync, statSync, mkdirSync } from 'fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+  statSync,
+  mkdirSync,
+  realpathSync,
+} from 'fs';
 import * as jsonpatch from 'fast-json-patch';
-import { resolve, dirname, basename, join } from 'path';
+import { resolve, dirname, basename, join, relative, sep } from 'path';
 import * as toml from '@iarna/toml';
 import {
   registerProject,
@@ -14,7 +22,7 @@ import {
   listProjects,
   loadRegistry,
 } from './registry.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, validateConfig } from '../config.js';
 import { getOSBasePath, getOSConfigPath, getOSDataPath } from '../utils/os-paths.js';
 
 /**
@@ -77,14 +85,37 @@ export function configList(): string {
 
 /**
  * Switch to a different project.
+ * If the name is not in the registry but exists in the default discovery location
+ * (Application Support/<name>/config.json), registers it and sets as current.
  *
  * @param name - Project name to switch to
  * @returns Success message
  * @throws Error if project not found
  */
 export function configUse(name: string): string {
-  setCurrentProject(name);
-  return `Switched to project "${name}"`;
+  const registry = loadRegistry();
+  if (registry.projects[name]) {
+    setCurrentProject(name);
+    return `Switched to project "${name}"`;
+  }
+  // Not registered: try default discovery location so "discover" + "use <name>" works
+  const searchDir = dirname(getOSBasePath('limps'));
+  const configPath = join(searchDir, name, 'config.json');
+  if (existsSync(configPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (validateConfig(raw)) {
+        registerProject(name, configPath);
+        setCurrentProject(name);
+        return `Registered and switched to project "${name}"`;
+      }
+    } catch {
+      // Not valid JSON or not a limps config, fall through to throw
+    }
+  }
+  throw new Error(
+    `Project not found: ${name}\nRun \`limps config list\` to see available projects.`
+  );
 }
 
 /**
@@ -332,17 +363,95 @@ export function configAdd(name: string, configFileOrDirPath: string): string {
   return `Registered project "${name}" with config: ${absolutePath}`;
 }
 
+/** Project names must not contain path separators or traversal (prompt injection / misuse). */
+const SAFE_NAME_REGEX = /^[^/\\]*$/;
+
 /**
  * Remove a project from the registry.
- * Does not delete any files.
+ * Only modifies limps' registry (e.g. registry.json); does not delete or modify
+ * any project config files on disk (limps or other applications).
+ * Accepts either a project name (exact match, no path chars) or a path to a config file.
+ * Paths are strictly validated: must be under discovery root and end with config.json.
  *
- * @param name - Project name to remove
+ * @param nameOrPath - Project name or path to config.json
  * @returns Success message
- * @throws Error if project not found
+ * @throws Error if project not found or path is invalid
  */
-export function configRemove(name: string): string {
-  unregisterProject(name);
-  return `Removed project "${name}" from registry (files not deleted)`;
+export function configRemove(nameOrPath: string): string {
+  const registry = loadRegistry();
+
+  if (SAFE_NAME_REGEX.test(nameOrPath)) {
+    if (registry.projects[nameOrPath]) {
+      unregisterProject(nameOrPath);
+      return `Removed project "${nameOrPath}" from registry (files not deleted)`;
+    }
+    throw new Error(
+      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
+    );
+  }
+
+  const absolutePath = resolve(nameOrPath);
+
+  if (!absolutePath.endsWith('config.json')) {
+    throw new Error(
+      `Invalid path: must point to a config.json file.\nRun \`limps config list\` to see registered projects.`
+    );
+  }
+  if (!existsSync(absolutePath)) {
+    throw new Error(
+      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
+    );
+  }
+  try {
+    const stat = statSync(absolutePath);
+    if (!stat.isFile()) {
+      throw new Error(
+        `Invalid path: not a file.\nRun \`limps config list\` to see registered projects.`
+      );
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Invalid path:')) throw err;
+    throw new Error(
+      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
+    );
+  }
+
+  const discoveryRoot = dirname(getOSBasePath('limps'));
+  let canonicalPath: string;
+  let discoveryRootCanonical: string;
+  try {
+    canonicalPath = realpathSync(absolutePath);
+    discoveryRootCanonical = realpathSync(discoveryRoot);
+  } catch {
+    throw new Error(
+      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
+    );
+  }
+
+  const rel = relative(discoveryRootCanonical, canonicalPath);
+  if (rel.startsWith('..') || rel.includes('..' + sep)) {
+    throw new Error(
+      `Invalid path: must be under application config directory.\nRun \`limps config list\` to see registered projects.`
+    );
+  }
+
+  const entry = Object.entries(registry.projects).find(([, p]) => {
+    try {
+      return realpathSync(resolve(p.configPath)) === canonicalPath;
+    } catch {
+      return false;
+    }
+  });
+
+  if (entry) {
+    const [name] = entry;
+    unregisterProject(name);
+    return `Removed project "${name}" from registry (files not deleted)`;
+  }
+
+  throw new Error(
+    `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
+  );
 }
 
 /**
@@ -400,10 +509,11 @@ import {
 } from './mcp-client-adapter.js';
 
 /**
- * Discover and register config files from default OS locations.
+ * Discover config files in default OS locations that are not yet registered.
  * Scans the OS-specific application support directories for config.json files.
+ * Does not auto-register; use `limps config use <name>` to register and switch.
  *
- * @returns Summary of discovered projects
+ * @returns Summary of discovered (unregistered) projects
  */
 export function configDiscover(): string {
   // Get the parent directory of where limps stores its config
@@ -431,13 +541,13 @@ export function configDiscover(): string {
       // Skip if already registered or doesn't exist
       if (registeredPaths.has(configPath) || !existsSync(configPath)) continue;
 
-      // Validate it's a valid limps config
+      // Only list configs that are actually limps configs (plansPath, dataPath, scoring)
       try {
-        loadConfig(configPath);
-        registerProject(entry.name, configPath);
+        const raw = JSON.parse(readFileSync(configPath, 'utf-8'));
+        if (!validateConfig(raw)) continue;
         discovered.push({ name: entry.name, path: configPath });
       } catch {
-        // Not a valid limps config, skip
+        // Not valid JSON or not a limps config, skip
       }
     }
   } catch {
@@ -453,7 +563,7 @@ export function configDiscover(): string {
     lines.push(`  ${name}: ${path}`);
   }
   lines.push('');
-  lines.push('Run `limps config use <name>` to switch to a project.');
+  lines.push('Run `limps config use <name>` to register and switch to a project.');
 
   return lines.join('\n');
 }

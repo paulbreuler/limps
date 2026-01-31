@@ -152,6 +152,27 @@ describe('config-cmd', () => {
     it('throws error for unknown project', () => {
       expect(() => configUse('nonexistent')).toThrow('Project not found: nonexistent');
     });
+
+    it('registers and switches when name exists in default discovery location', () => {
+      const projectDir = join(testDir, 'use-discover-project');
+      mkdirSync(projectDir, { recursive: true });
+      const config = {
+        plansPath: join(projectDir, 'plans'),
+        dataPath: join(projectDir, 'data'),
+        scoring: {
+          weights: { dependency: 40, priority: 30, workload: 30 },
+          biases: {},
+        },
+      };
+      writeFileSync(join(projectDir, 'config.json'), JSON.stringify(config, null, 2));
+
+      const output = configUse('use-discover-project');
+
+      expect(output).toContain('Registered and switched to project "use-discover-project"');
+      const registry = loadRegistry();
+      expect(registry.projects['use-discover-project']).toBeDefined();
+      expect(registry.current).toBe('use-discover-project');
+    });
   });
 
   describe('configShow', () => {
@@ -386,8 +407,70 @@ describe('config-cmd', () => {
       expect(registry.projects['to-remove']).toBeUndefined();
     });
 
+    it('does not delete config files on remove (only unregisters)', () => {
+      const configPath = createConfig('to-remove');
+      registerProject('to-remove', configPath);
+
+      configRemove('to-remove');
+
+      expect(existsSync(configPath)).toBe(true);
+      const content = readFileSync(configPath, 'utf-8');
+      expect(content).toContain('plansPath');
+    });
+
+    it('removes project by config path when name does not match', () => {
+      const projectDir = join(configDir, 'chippy');
+      mkdirSync(projectDir, { recursive: true });
+      const configFilePath = join(projectDir, 'config.json');
+      writeFileSync(
+        configFilePath,
+        JSON.stringify({
+          plansPath: join(projectDir, 'plans'),
+          dataPath: join(projectDir, 'data'),
+          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
+        })
+      );
+      registerProject('chippy', configFilePath);
+
+      const output = configRemove(configFilePath);
+
+      expect(output).toContain('Removed project "chippy"');
+      const registry = loadRegistry();
+      expect(registry.projects['chippy']).toBeUndefined();
+      expect(existsSync(configFilePath)).toBe(true);
+    });
+
     it('throws error for unknown project', () => {
       expect(() => configRemove('nonexistent')).toThrow('Project not found: nonexistent');
+    });
+
+    it('rejects path outside application config directory', () => {
+      const outsideDir = join(tmpdir(), `limps-remove-outside-${Date.now()}`);
+      mkdirSync(outsideDir, { recursive: true });
+      const configFilePath = join(outsideDir, 'config.json');
+      writeFileSync(
+        configFilePath,
+        JSON.stringify({
+          plansPath: join(outsideDir, 'plans'),
+          dataPath: join(outsideDir, 'data'),
+          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
+        })
+      );
+      registerProject('outside', configFilePath);
+
+      expect(() => configRemove(configFilePath)).toThrow(
+        'Invalid path: must be under application config directory'
+      );
+
+      const registry = loadRegistry();
+      expect(registry.projects['outside']).toBeDefined();
+      rmSync(outsideDir, { recursive: true, force: true });
+    });
+
+    it('rejects path that does not end with config.json', () => {
+      expect(() => configRemove('/etc/passwd')).toThrow(
+        'Invalid path: must point to a config.json file'
+      );
     });
   });
 
@@ -450,7 +533,7 @@ describe('config-cmd', () => {
       expect(output).toContain('No new projects discovered');
     });
 
-    it('discovers and registers projects in default locations', () => {
+    it('discovers projects in default locations without auto-registering', () => {
       // Create a project in the mocked default location
       const projectDir = join(testDir, 'discover-project');
       mkdirSync(projectDir, { recursive: true });
@@ -474,7 +557,20 @@ describe('config-cmd', () => {
       expect(output).toContain('discover-project');
 
       const registry = loadRegistry();
-      expect(registry.projects['discover-project']).toBeDefined();
+      expect(registry.projects['discover-project']).toBeUndefined();
+    });
+
+    it('skips non-limps configs (only lists configs with plansPath, dataPath, scoring)', () => {
+      const projectDir = join(testDir, 'other-app');
+      mkdirSync(projectDir, { recursive: true });
+      writeFileSync(
+        join(projectDir, 'config.json'),
+        JSON.stringify({ apiKey: 'x', theme: 'dark' }, null, 2)
+      );
+
+      const output = configDiscover();
+
+      expect(output).not.toContain('other-app');
     });
 
     it('skips already registered projects', () => {
