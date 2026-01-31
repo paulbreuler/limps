@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
+import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 
 /**
@@ -127,9 +127,24 @@ export function expandTilde(path: string): string {
 }
 
 /**
+/**
+ * Remove deprecated coordination.json if present (coordination system was removed in v2).
+ */
+function removeDeprecatedCoordinationFile(filePath: string): void {
+  if (existsSync(filePath)) {
+    try {
+      unlinkSync(filePath);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/**
  * Load configuration from file.
  * Creates default configuration file if it doesn't exist.
  * Paths are resolved relative to the config file location.
+ * Removes deprecated coordination.json if found in config or data dir.
  *
  * @param configPath - Path to config.json file
  * @returns Server configuration
@@ -146,6 +161,8 @@ export function loadConfig(configPath: string): ServerConfig {
 
     mkdirSync(configDir, { recursive: true });
     writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+    removeDeprecatedCoordinationFile(join(configDir, 'coordination.json'));
+    removeDeprecatedCoordinationFile(join(defaultConfig.dataPath, 'coordination.json'));
     return defaultConfig;
   }
 
@@ -168,6 +185,24 @@ export function loadConfig(configPath: string): ServerConfig {
   // Migration: add configVersion if missing
   if (typedConfig.configVersion === undefined) {
     typedConfig.configVersion = CURRENT_CONFIG_VERSION;
+    needsSave = true;
+  }
+
+  // Migration: remove deprecated coordination-related keys (coordination system was removed in v2)
+  if ('coordinationPath' in config) {
+    delete (config as Record<string, unknown>).coordinationPath;
+    needsSave = true;
+  }
+  if ('heartbeatTimeout' in config) {
+    delete (config as Record<string, unknown>).heartbeatTimeout;
+    needsSave = true;
+  }
+  if ('debounceDelay' in config) {
+    delete (config as Record<string, unknown>).debounceDelay;
+    needsSave = true;
+  }
+  if ('maxHandoffIterations' in config) {
+    delete (config as Record<string, unknown>).maxHandoffIterations;
     needsSave = true;
   }
 
@@ -207,6 +242,10 @@ export function loadConfig(configPath: string): ServerConfig {
     ...(config as Record<string, unknown>),
     ...resolvedConfig,
   } as ServerConfig;
+
+  // Remove deprecated coordination.json if present (coordination system was removed in v2)
+  removeDeprecatedCoordinationFile(join(configDir, 'coordination.json'));
+  removeDeprecatedCoordinationFile(join(resolvedConfig.dataPath, 'coordination.json'));
 
   return mergedConfig;
 }

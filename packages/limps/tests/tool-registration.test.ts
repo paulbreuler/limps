@@ -155,7 +155,7 @@ describe('tool-registration-tools-list', () => {
     // We can verify by checking the server is properly connected
     expect(server).toBeDefined();
 
-    // Tools should be: create_plan, update_task_status, claim_task, release_task, get_next_task, search_docs
+    // Tools should be: create_plan, update_task_status, get_next_task, search_docs
   });
 });
 
@@ -218,7 +218,7 @@ describe('tool-registration-names', () => {
 
   it('should use snake_case for tool names', () => {
     // Register tools and verify no errors
-    // Tool names should be: create_plan, update_task_status, claim_task, release_task, get_next_task, search_docs
+    // Tool names should be: create_plan, update_task_status, get_next_task, search_docs
     registerTools(server, toolContext);
     expect(server).toBeDefined();
   });

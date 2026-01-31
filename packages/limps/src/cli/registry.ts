@@ -103,7 +103,7 @@ export function registerProject(name: string, configPath: string): void {
 /**
  * Unregister a project from the registry.
  * If the project is the current project, clears the current selection.
- * Does not delete any files, only removes the registry entry.
+ * Only modifies limps' registry file; does not touch any project config files on disk.
  *
  * @param name - Project name to unregister
  * @throws Error if the project is not registered

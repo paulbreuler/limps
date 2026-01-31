@@ -4,14 +4,12 @@ import { handlePlansIndex } from './plans-index.js';
 import { handlePlanSummary } from './plans-summary.js';
 import { handlePlanFull } from './plans-full.js';
 import { handleDecisionsLog } from './decisions-log.js';
-import { handleAgentsStatus } from './agents-status.js';
 
 export const CORE_RESOURCE_URIS = [
   'plans://index',
   'plans://summary/*',
   'plans://full/*',
   'decisions://log',
-  'agents://status',
 ] as const;
 
 export const CORE_RESOURCE_NAMES = [
@@ -19,7 +17,6 @@ export const CORE_RESOURCE_NAMES = [
   'Plan Summary',
   'Full Plan',
   'Decisions Log',
-  'Agents Status',
 ] as const;
 
 /**
@@ -75,17 +72,6 @@ export function registerResources(server: McpServer, context: ResourceContext): 
 
   server.resource('Decisions Log', 'decisions://log', async () => {
     const result = await handleDecisionsLog('decisions://log', context);
-    return {
-      contents: result.contents.map((c) => ({
-        uri: c.uri,
-        mimeType: c.mimeType,
-        text: c.text || '',
-      })),
-    };
-  });
-
-  server.resource('Agents Status', 'agents://status', async () => {
-    const result = await handleAgentsStatus('agents://status', context);
     return {
       contents: result.contents.map((c) => ({
         uri: c.uri,

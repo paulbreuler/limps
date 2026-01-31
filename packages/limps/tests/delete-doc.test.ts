@@ -51,12 +51,6 @@ describe('delete-doc.ts', () => {
 
     context = {
       db,
-      coordination: {
-        version: 1,
-        agents: {},
-        tasks: {},
-        handoffs: [],
-      },
       config,
     };
   });

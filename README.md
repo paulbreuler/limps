@@ -490,7 +490,6 @@ Progressive disclosure via resources:
 | `plans://summary` | Plan summaries with key info |
 | `plans://full` | Full plan documents |
 | `decisions://log` | Decision log entries |
-| `agents://status` | Agent status and tasks |
 
 </details>
 

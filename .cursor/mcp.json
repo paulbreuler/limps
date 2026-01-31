@@ -5,7 +5,7 @@
       "args": [
         "serve",
         "--config",
-        "/Users/paul/Library/Application Support/limps/config.json"
+        "/Users/paul/Library/Application Support/limps/projects/limps/config.json"
       ]
     },
     "limps-planning-runi-planning-docs": {
@@ -13,7 +13,7 @@
       "args": [
         "serve",
         "--config",
-        "/Users/paul/Library/Application Support/runi-planning-docs/config.json"
+        "/Users/paul/Library/Application Support/limps/projects/runi-planning-docs/config.json"
       ]
     }
   }

@@ -84,9 +84,9 @@ After:
 
 Update dependency graph colors if present.
 
-### Step 4: Update Task Status and Release
+### Step 4: Update Task Status
 
-Use limps MCP `update_task_status` to mark features as PASS, then `release_task` to release the claim.
+Use limps MCP `update_task_status` to mark features as PASS. Task status is stored in agent file frontmatter.
 
 **Agent-only plans (no feature IDs):**
 

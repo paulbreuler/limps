@@ -44,7 +44,7 @@ export const CORE_TOOL_NAMES = [
  * Register all MCP tools with the server.
  *
  * @param server - MCP server instance
- * @param context - Tool context with db, config, and coordination
+ * @param context - Tool context with db and config
  */
 export function registerTools(server: McpServer, context: ToolContext): void {
   // Plan Management Tools

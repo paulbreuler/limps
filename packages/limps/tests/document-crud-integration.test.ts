@@ -62,8 +62,6 @@ describe('document-crud-integration', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    // Create coordination state
-
     // Create tool context
     context = {
       db,
@@ -284,7 +282,7 @@ describe('document-crud-integration', () => {
       registerTools(server, context);
 
       // Existing tools should still be registered:
-      // create_plan, update_task_status, claim_task, release_task, get_next_task, search_docs
+      // create_plan, update_task_status, get_next_task, search_docs
       // We verify by checking no errors during registration
       expect(server).toBeDefined();
     });

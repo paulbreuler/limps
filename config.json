@@ -3,8 +3,12 @@
   "docsPaths": ["."],
   "fileExtensions": [".md"],
   "dataPath": "./data",
-  "coordinationPath": "./data/coordination.json",
-  "heartbeatTimeout": 300000,
-  "debounceDelay": 200,
-  "maxHandoffIterations": 3
+  "scoring": {
+    "weights": {
+      "dependency": 40,
+      "priority": 30,
+      "workload": 30
+    },
+    "biases": {}
+  }
 }
