@@ -1,6 +1,6 @@
 /**
  * Test for plan status / next task staleness after file changes.
- * Reproduces issue: https://github.com/paulbreuler/limps/issues/XXX
+ * Reproduces issue: Plan status / next task stale after closing plan on disk
  *
  * When agent files are updated on disk (e.g., Status: GAP -> Status: PASS),
  * the tools get_plan_status and get_next_task should reflect the changes
