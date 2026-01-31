@@ -104,6 +104,11 @@ export function configList(): string {
  * @throws Error if project not found
  */
 export function configUse(name: string): string {
+  if (!name || !SAFE_NAME_REGEX.test(name)) {
+    throw new Error(
+      `Invalid project name: must not be empty and must not contain path separators.\nRun \`limps config list\` to see available projects.`
+    );
+  }
   const registry = loadRegistry();
   if (registry.projects[name]) {
     setCurrentProject(name);
@@ -375,7 +380,7 @@ export function configAdd(name: string, configFileOrDirPath: string): string {
 }
 
 /** Project names must not contain path separators or traversal (prompt injection / misuse). */
-const SAFE_NAME_REGEX = /^[^/\\]*$/;
+const SAFE_NAME_REGEX = /^[^/\\]+$/;
 
 /**
  * Delete the config file and its project directory when under discovery root.
@@ -386,7 +391,7 @@ function deleteConfigAndProjectDir(
   discoveryRootCanonical: string
 ): void {
   const rel = relative(discoveryRootCanonical, canonicalConfigPath);
-  if (rel.startsWith('..') || rel.includes('..' + sep)) return;
+  if (rel.split(sep).includes('..')) return;
   if (!existsSync(canonicalConfigPath)) return;
   rmSync(canonicalConfigPath, { force: true });
   const parentDir = dirname(canonicalConfigPath);
@@ -434,10 +439,7 @@ export function configRemove(nameOrPath: string): string {
       }
       const underDiscovery =
         canonicalPath !== null &&
-        ((): boolean => {
-          const r = relative(discoveryRootCanonical, canonicalPath as string);
-          return !r.startsWith('..') && !r.includes('..' + sep);
-        })();
+        !relative(discoveryRootCanonical, canonicalPath).split(sep).includes('..');
       if (underDiscovery && canonicalPath) {
         deleteConfigAndProjectDir(canonicalPath, discoveryRootCanonical);
       }
@@ -453,7 +455,7 @@ export function configRemove(nameOrPath: string): string {
 
   const absolutePath = resolve(nameOrPath);
 
-  if (!absolutePath.endsWith('config.json')) {
+  if (basename(absolutePath) !== 'config.json') {
     throw new Error(
       `Invalid path: must point to a config.json file.\nRun \`limps config list\` to see registered projects.`
     );
@@ -487,7 +489,7 @@ export function configRemove(nameOrPath: string): string {
   }
 
   const rel = relative(discoveryRootCanonical, canonicalPath);
-  if (rel.startsWith('..') || rel.includes('..' + sep)) {
+  if (rel.split(sep).includes('..')) {
     throw new Error(
       `Invalid path: must be under application config directory.\nRun \`limps config list\` to see registered projects.`
     );
@@ -594,7 +596,7 @@ export function configDiscover(): string {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
 
-      const configPath = `${searchDir}/${entry.name}/config.json`;
+      const configPath = join(searchDir, entry.name, 'config.json');
 
       // Skip if already registered or doesn't exist
       if (registeredPaths.has(configPath) || !existsSync(configPath)) continue;
@@ -803,7 +805,7 @@ export function configMigrate(): string {
     }
     if (currentCanonical === targetCanonical) continue;
     const rel = relative(projectsRoot, currentPath);
-    if (!rel.startsWith('..') && !rel.includes('..' + sep)) continue; // already under projects
+    if (!rel.split(sep).includes('..')) continue; // already under projects
     copyConfigToProjectDir(name, currentPath);
   }
 
