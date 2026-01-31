@@ -200,7 +200,9 @@ export function extractCodeBlocks(content: string, lang?: string): CodeBlock[] {
 
 /**
  * Extract features from plan documents.
- * Parses "### #N: Feature Name" patterns with optional TL;DR and Status.
+ * Parses feature headers in two formats for backward compatibility:
+ * - New format: "### #N: Feature Name" with "Status: `GAP`"
+ * - Legacy format: "## Feature N: Feature Name" with "**Status:** GAP"
  *
  * @param content - Plan document content
  * @returns Array of features
@@ -214,8 +216,13 @@ export function extractFeatures(content: string): Feature[] {
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Match "### #N: Feature Name"
-    const featureMatch = trimmed.match(/^###\s+#(\d+):\s*(.+)$/);
+    // Match "### #N: Feature Name" (new format)
+    const newFormatMatch = trimmed.match(/^###\s+#(\d+):\s*(.+)$/);
+    // Match "## Feature N: Feature Name" (legacy format)
+    const legacyFormatMatch = trimmed.match(/^##\s+Feature\s+(\d+):\s*(.+)$/);
+
+    const featureMatch = newFormatMatch || legacyFormatMatch;
+
     if (featureMatch) {
       // Save previous feature if exists
       if (currentFeature && currentFeature.id && currentFeature.name) {
@@ -241,13 +248,19 @@ export function extractFeatures(content: string): Feature[] {
       continue;
     }
 
-    // Match "Status: `GAP`" or "Status: `WIP`" etc.
-    if (currentFeature && /^Status:\s*`([^`]+)`/.test(trimmed)) {
-      const statusMatch = trimmed.match(/^Status:\s*`([^`]+)`/);
+    // Match "Status: `GAP`" (new format) or "**Status:** GAP" (legacy format)
+    if (currentFeature) {
+      // Try new format first
+      let statusMatch = trimmed.match(/^Status:\s*`([^`]+)`/);
+      // Try legacy format if new format didn't match
+      if (!statusMatch) {
+        statusMatch = trimmed.match(/^\*\*Status:\*\*\s+(\w+)/);
+      }
+
       if (statusMatch) {
         currentFeature.status = statusMatch[1];
+        continue;
       }
-      continue;
     }
   }
 
