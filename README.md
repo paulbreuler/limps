@@ -310,7 +310,7 @@ Add to config:
 ```json
 {
   "extensions": ["@sudosandwich/limps-headless"],
-  "radix": {
+  "limps-headless": {
     "cacheDir": "~/Library/Application Support/limps-headless"
   }
 }
@@ -380,7 +380,7 @@ NNNN-descriptive-name/
 
 ### Why the prefixes?
 
-I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan 42", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
+I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan NNNN-plan-name", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
 
 ## Deep Dive
 

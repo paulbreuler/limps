@@ -45,7 +45,7 @@ Status: `GAP`
 
 ### Description
 
-Rename and reposition the package as `@sudosandwich/limps-headless`, while preserving existing `limps radix` commands as deprecated aliases. Ensure config names and docs align with the new headless focus.
+Rename and reposition the package as `@sudosandwich/limps-headless`. Ensure config names and docs align with the new headless focus. CLI entrypoint is `limps-headless` only (no deprecated alias).
 
 ### Gherkin
 
@@ -58,13 +58,7 @@ Feature: headless package identity
     Then limps-headless is available in node_modules
     And package.json exposes headless CLI entrypoints
 
-  Scenario: Backward compatible CLI alias
-    Given user runs limps radix audit
-    When the command executes
-    Then a deprecation warning is printed
-    And the headless audit pipeline runs
-
-  Scenario: New CLI entrypoint
+  Scenario: CLI entrypoint
     Given user runs limps headless audit
     When the command executes
     Then the headless audit pipeline runs
@@ -72,20 +66,15 @@ Feature: headless package identity
 
 ### TDD Cycles
 
-1. **CLI alias test**
-   - Test: `limps radix` routes to headless command
-   - Impl: Add alias command, print deprecation warning
-   - Refactor: Centralize CLI command registry
-
-2. **Package exports test**
+1. **Package exports test**
    - Test: headless entrypoints exist in package exports
    - Impl: Update `package.json` exports/bin
    - Refactor: Share version constants between CLI and audit
 
-3. **Config namespace test**
-   - Test: `headless` config is read with defaults
+2. **Config namespace test**
+   - Test: `limps-headless` config is read with defaults
    - Impl: Add config schema + defaults
-   - Refactor: Merge legacy `radix` config with headless config
+   - Refactor: Document config key in limps extension context
 
 ### Files
 
@@ -444,13 +433,13 @@ Feature: test coverage for headless pivot
 
 ## Risks + Mitigations
 
-- **Package rename churn**: keep deprecated `limps radix` alias for at least one major release.
+- **Package rename churn**: alias removed; users use `limps-headless` only.
 - **Mixed backend complexity**: surface as explicit high-severity issue rather than hidden behavior.
 - **Schema drift**: add snapshot tests for report JSON to prevent breaking changes.
 
 ## Exit Criteria
 
 - `limps headless audit` runs and emits backend/migration summary
-- Existing Radix workflow still functions with deprecation warning
+- Existing Radix workflow still functions via limps-headless
 - Base UI usage is detected and validated against provider rules
 - Tests cover discovery, migration analysis, report output, and policy gates

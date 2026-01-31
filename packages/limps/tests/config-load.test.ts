@@ -60,14 +60,17 @@ describe('config-load', () => {
         biases: {},
       },
       extensions: ['@sudosandwich/limps-headless'],
-      radix: {
+      'limps-headless': {
         cacheDir: '~/Library/Application Support/limps-headless',
       },
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
     const config = loadConfig(configPath);
-    const extensionConfig = (config as Record<string, unknown>)['radix'] as Record<string, unknown>;
+    const extensionConfig = (config as Record<string, unknown>)['limps-headless'] as Record<
+      string,
+      unknown
+    >;
 
     expect(config.extensions).toEqual(['@sudosandwich/limps-headless']);
     expect(extensionConfig).toBeDefined();

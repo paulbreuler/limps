@@ -212,7 +212,7 @@ limps supports extension-specific config via a top-level key in `limps.config.js
 ```json
 {
   "extensions": ["@sudosandwich/limps-headless"],
-  "radix": {
+  "limps-headless": {
     "cacheDir": "~/Library/Application Support/limps-headless"
   }
 }

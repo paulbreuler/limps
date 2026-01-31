@@ -34,20 +34,16 @@ export type HeadlessBackend = 'radix' | 'base' | 'mixed' | 'unknown';
 
 ## Features
 
-### #0: Package Identity + Backward Compatibility
+### #0: Package Identity
 
-TL;DR: Rename to `limps-headless`, keep `limps radix` alias with deprecation warning.
+TL;DR: Rename to `limps-headless`; CLI entrypoint is `limps-headless` only (no alias).
 Status: `PASS`
-Test IDs: `headless-cli-alias`, `headless-exports`
+Test IDs: `headless-exports`
 Files: `packages/limps-headless/package.json` (create), `packages/limps-headless/src/cli/index.ts` (create)
 
 TDD:
-1. `radix alias routes to headless` → add alias command → share CLI registry
-2. `headless exports are present` → update package.json → consolidate exports map
-3. `config defaults load` → add config schema → merge legacy config
-
-Gotchas:
-- alias must preserve legacy args ordering
+1. `headless exports are present` → update package.json → consolidate exports map
+2. `config defaults load` → add config schema → merge legacy config
 
 ---
 
@@ -64,13 +60,13 @@ TDD:
 3. `threshold triggers failure` → add severity checker → reuse gating utility
 
 Gotchas:
-- avoid breaking existing `limps radix` flags
+- avoid breaking existing CLI flags when adding options
 
 ---
 
 ## Done
 
 - [x] TDD cycles pass
-- [x] CLI aliases verified
+- [x] CLI entrypoint verified
 - [x] Config defaults documented
 - [x] Status → PASS

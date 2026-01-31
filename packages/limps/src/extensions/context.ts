@@ -30,6 +30,7 @@ class ConsoleLogger implements Logger {
 
 /**
  * Create extension context for an extension.
+ * Extension-specific config is read from config[extensionName] (e.g. config['limps-headless']).
  *
  * @param extensionName - Name of the extension (e.g., 'limps-headless')
  * @param config - Server configuration
