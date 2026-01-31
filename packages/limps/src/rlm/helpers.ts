@@ -250,8 +250,8 @@ export function extractFeatures(content: string): Feature[] {
 
     // Match "Status: `GAP`" (new format) or "**Status:** GAP" (legacy format)
     if (currentFeature) {
-      // Try new format first
-      let statusMatch = trimmed.match(/^Status:\s*`([^`]+)`/);
+      // Try new format first - use \w+ to match valid status values (GAP, WIP, PASS, BLOCKED)
+      let statusMatch = trimmed.match(/^Status:\s*`(\w+)`/);
       // Try legacy format if new format didn't match
       if (!statusMatch) {
         statusMatch = trimmed.match(/^\*\*Status:\*\*\s+(\w+)/);
