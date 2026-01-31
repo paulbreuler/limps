@@ -31,7 +31,7 @@ Expand MCP client setup to cover OpenAI Codex and ChatGPT. Codex should be fully
 
 ---
 
-## Feature 1: Codex MCP Client Adapter
+### #1: Codex MCP Client Adapter
 
 ### User Story
 
@@ -65,7 +65,7 @@ And limps servers are added/updated
 
 ---
 
-## Feature 2: ChatGPT MCP Setup Guidance
+### #2: ChatGPT MCP Setup Guidance
 
 ### User Story
 
@@ -96,7 +96,7 @@ And instructions are printed instead
 
 ---
 
-## Feature 3: Docs + CLI UX Updates
+### #3: Docs + CLI UX Updates
 
 ### User Story
 

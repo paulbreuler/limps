@@ -26,8 +26,6 @@ Example `limps.config.json`:
 
 ## CLI
 
-The `limps-radix` binary is deprecated and will be removed in the next major version; use `limps-headless`.
-
 You can use the standalone CLI for local workflows. **Run from your project directory** so that `analyze` can resolve file paths (paths are relative to the current working directory):
 
 ```bash
@@ -214,7 +212,7 @@ limps supports extension-specific config via a top-level key in `limps.config.js
 ```json
 {
   "extensions": ["@sudosandwich/limps-headless"],
-  "radix": {
+  "limps-headless": {
     "cacheDir": "~/Library/Application Support/limps-headless"
   }
 }

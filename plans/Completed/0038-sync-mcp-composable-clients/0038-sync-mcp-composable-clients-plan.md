@@ -7,6 +7,8 @@ created: 2026-01-27
 updated: 2026-01-27
 ---
 
+**Retired (2026-01-30):** Scope merged into [0039 LLM Usage Improvements](../0039-llm-usage-improvements/0039-llm-usage-improvements-plan.md). Registry + preview/print + docs are now covered there.
+
 # Composable MCP Client Sync Registry
 
 ## Overview
@@ -29,7 +31,7 @@ Refactor `limps config sync-mcp` from conditionals to a composable client regist
 
 ---
 
-## Feature 1: Client Registry + Hook Interface
+### #1: Client Registry + Hook Interface
 
 ### User Story
 
@@ -61,7 +63,7 @@ And instructions are printed
 
 ---
 
-## Feature 2: Registry-Driven Preview + Print
+### #2: Registry-Driven Preview + Print
 
 ### User Story
 
@@ -86,7 +88,7 @@ Then TOML is printed
 
 ---
 
-## Feature 3: Docs + CLI Usage Updates
+### #3: Docs + CLI Usage Updates
 
 ### User Story
 

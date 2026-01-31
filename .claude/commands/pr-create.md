@@ -60,7 +60,7 @@ Create a PR on GitHub with a limps-aware description based on staged changes or 
    - Use `gh pr create` with title and body
    - **PR Title format** (follow conventional commits):
      - **Note**: PR title summarizes the entire PR (may have multiple commits)
-     - With agent: `feat(limps-radix): <agent-title>` (or appropriate type based on overall PR)
+     - With agent: `feat(limps-headless): <agent-title>` (or appropriate type based on overall PR)
      - Without agent: `<type>(<scope>): <subject>` inferred from all changes
      - Use imperative mood, lowercase (except proper nouns), no period
      - Include scope (package/component) when appropriate
@@ -70,7 +70,7 @@ Create a PR on GitHub with a limps-aware description based on staged changes or 
    - **Title examples:**
      - `feat(limps): add config migration utility` (even if PR has multiple commits)
      - `fix(server): handle missing config gracefully`
-     - `refactor(limps-radix): simplify extension loader`
+     - `refactor(limps-headless): simplify extension loader`
 
 8. **Error handling:**
    - If PR exists, show URL and stop

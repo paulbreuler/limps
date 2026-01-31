@@ -369,23 +369,27 @@ describe('runAudit', () => {
 
   it('writes ir.json when debugIr is true', async () => {
     const dir = mkdtemp();
-    const fixtureDir = path.join(process.cwd(), 'tests', 'tmp-run-audit');
-    fs.mkdirSync(fixtureDir, { recursive: true });
+    const fixtureDir = mkdtemp();
     const fixturePath = path.join(fixtureDir, 'Demo.tsx');
+    fs.mkdirSync(path.dirname(fixturePath), { recursive: true });
     fs.writeFileSync(
       fixturePath,
-      'export function Demo() { return <div role=\"menu\" data-state=\"open\" />; }'
+      'export function Demo() { return <div role="menu" data-state="open" />; }'
     );
 
-    const result = await runAudit({
-      scope: { files: [path.relative(process.cwd(), fixturePath)] },
-      outputDir: dir,
-      format: 'json',
-      debugIr: true,
-    });
+    try {
+      const result = await runAudit({
+        scope: { files: [fixturePath] },
+        outputDir: dir,
+        format: 'json',
+        debugIr: true,
+      });
 
-    expect(result.irPath).toBeDefined();
-    expect(fs.existsSync(result.irPath!)).toBe(true);
+      expect(result.irPath).toBeDefined();
+      expect(fs.existsSync(result.irPath!)).toBe(true);
+    } finally {
+      fs.rmSync(fixtureDir, { recursive: true, force: true });
+    }
   }, 35000);
 
   it('handleRunAudit returns summary content', async () => {
