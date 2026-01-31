@@ -9,7 +9,7 @@ updated: 2026-01-29
 
 ## Overview
 
-`@sudosandwich/limps-headless` replaces `limps-radix` with a backend-agnostic auditor supporting Radix (legacy) and Base UI (default). The plan focuses on detection, migration analysis, report updates, and policy enforcement.
+`@sudosandwich/limps-headless` is the backend-agnostic auditor supporting Radix (legacy) and Base UI (default). The plan focuses on detection, migration analysis, report updates, and policy enforcement.
 
 ## Dependency Graph
 

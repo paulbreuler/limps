@@ -13,7 +13,7 @@ Use `$ARGUMENTS` as the scope (paths, diff range, PR number, or component name).
 ## Workflow
 1. **Establish context**
    - Read `CLAUDE.md` and relevant package docs.
-   - Identify the target package (`packages/limps` or `packages/limps-radix`).
+   - Identify the target package (`packages/limps` or `packages/limps-headless`).
 2. **Threat intel + dependency hygiene**
    - Search authoritative sources for new MCP/LLM or supply-chain issues:
      - OWASP LLM Top 10, OWASP API Top 10, npm advisories, GitHub Security Advisories.
@@ -46,7 +46,7 @@ Focus extra scrutiny on:
 - `packages/limps/src/server.ts`, `src/tools/*`, `src/resources/*` (MCP tool/resource behavior)
 - `packages/limps/src/rlm/*` and `process_doc(s)` tools (untrusted code execution)
 - `packages/limps/src/indexer.ts` and `src/watcher.ts` (filesystem and database safety)
-- `packages/limps-radix/src/tools/*` (external fetchers, parsing, extraction)
+- `packages/limps-headless/src/tools/*` (external fetchers, parsing, extraction)
 
 ## MCP/LLM Security Checklist
 - Validate tool inputs and guard file paths against traversal.

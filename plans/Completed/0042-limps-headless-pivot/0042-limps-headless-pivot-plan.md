@@ -11,7 +11,7 @@ updated: 2026-01-29
 
 ## Overview
 
-Pivot `@sudosandwich/limps-radix` into `@sudosandwich/limps-headless`: a backend-agnostic auditor for headless component libraries. Base UI is the modern default, Radix is supported as legacy. The system auto-detects backend usage, flags migration debt, and preserves existing audit categories (a11y, perf, deps, storybook).
+Deliver `@sudosandwich/limps-headless`: a backend-agnostic auditor for headless component libraries. Base UI is the modern default, Radix is supported as legacy. The system auto-detects backend usage, flags migration debt, and preserves existing audit categories (a11y, perf, deps, storybook).
 
 ## Goals
 

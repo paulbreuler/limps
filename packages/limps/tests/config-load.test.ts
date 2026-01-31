@@ -59,25 +59,19 @@ describe('config-load', () => {
         },
         biases: {},
       },
-      extensions: ['@sudosandwich/limps-radix'],
-      '@sudosandwich/limps-radix': {
-        cacheDir: '~/Library/Application Support/limps-radix',
-        featureFlags: {
-          enableRadix: true,
-        },
+      extensions: ['@sudosandwich/limps-headless'],
+      radix: {
+        cacheDir: '~/Library/Application Support/limps-headless',
       },
     };
     writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf-8');
 
     const config = loadConfig(configPath);
-    const extensionConfig = (config as Record<string, unknown>)[
-      '@sudosandwich/limps-radix'
-    ] as Record<string, unknown>;
+    const extensionConfig = (config as Record<string, unknown>)['radix'] as Record<string, unknown>;
 
-    expect(config.extensions).toEqual(['@sudosandwich/limps-radix']);
+    expect(config.extensions).toEqual(['@sudosandwich/limps-headless']);
     expect(extensionConfig).toBeDefined();
-    expect(extensionConfig.cacheDir).toBe('~/Library/Application Support/limps-radix');
-    expect((extensionConfig.featureFlags as { enableRadix: boolean }).enableRadix).toBe(true);
+    expect(extensionConfig.cacheDir).toBe('~/Library/Application Support/limps-headless');
   });
 
   it('should use default configuration when file does not exist', () => {

@@ -31,7 +31,7 @@ class ConsoleLogger implements Logger {
 /**
  * Create extension context for an extension.
  *
- * @param extensionName - Name of the extension (e.g., 'limps-radix')
+ * @param extensionName - Name of the extension (e.g., 'limps-headless')
  * @param config - Server configuration
  * @returns Extension context with dataDir, config, and logger
  */

@@ -270,7 +270,7 @@ Config location varies by OS:
   "docsPaths": ["~/Documents/my-plans"],
   "fileExtensions": [".md"],
   "dataPath": "~/Library/Application Support/limps/data",
-  "extensions": ["@sudosandwich/limps-radix"],
+  "extensions": ["@sudosandwich/limps-headless"],
   "scoring": {
     "weights": { "dependency": 40, "priority": 30, "workload": 30 },
     "biases": {}
@@ -302,23 +302,23 @@ limps exposes 15 MCP tools for AI assistants:
 Extensions add MCP tools and resources. Install from npm:
 
 ```bash
-npm install -g @sudosandwich/limps-radix
+npm install -g @sudosandwich/limps-headless
 ```
 
 Add to config:
 
 ```json
 {
-  "extensions": ["@sudosandwich/limps-radix"],
-  "@sudosandwich/limps-radix": {
-    "cacheDir": "~/Library/Application Support/limps-radix"
+  "extensions": ["@sudosandwich/limps-headless"],
+  "radix": {
+    "cacheDir": "~/Library/Application Support/limps-headless"
   }
 }
 ```
 
 **Available extensions:**
 
-- `@sudosandwich/limps-radix` — Radix UI contract extraction and semantic analysis
+- `@sudosandwich/limps-headless` — Headless UI contract extraction, semantic analysis, and drift detection (Radix UI and Base UI migration).
 
 ## Obsidian Compatibility
 
@@ -343,7 +343,7 @@ npm test
 This is a monorepo with:
 
 - `packages/limps` — Core MCP server
-- `packages/limps-radix` — Radix UI extension
+- `packages/limps-headless` — Headless UI extension (Radix/Base UI contract extraction and audit)
 
 ## Used in Production
 
@@ -380,7 +380,7 @@ NNNN-descriptive-name/
 
 ### Why the prefixes?
 
-I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan 25", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
+I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan 42", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
 
 ## Deep Dive
 
