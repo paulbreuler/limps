@@ -3,7 +3,7 @@
  * Lists all agents in a specific plan.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import type { ServerConfig } from '../config.js';
 import { parseAgentFile, type ParsedAgentFile, type AgentFrontmatter } from '../agent-parser.js';
@@ -73,15 +73,22 @@ export function getAgentFiles(planDir: string): ParsedAgentFile[] {
     return [];
   }
 
-  const files = readdirSync(agentsDir, { withFileTypes: true })
-    .filter((dirent) => dirent.isFile() && dirent.name.endsWith('.agent.md'))
-    .map((dirent) => dirent.name);
+  // Note: Read directory as filename strings (default behavior, equivalent to withFileTypes: false)
+  // and rely on statSync() calls below for up-to-date file type info instead of cached Dirent data.
+  const files = readdirSync(agentsDir).filter((name) => name.endsWith('.agent.md'));
 
   const agents: ParsedAgentFile[] = [];
 
   for (const file of files) {
     const filePath = join(agentsDir, file);
     try {
+      // Call statSync() to confirm this path is a file without relying on cached Dirent information.
+      // This helps avoid stale file-type data in environments with aggressive filesystem caching.
+      const stats = statSync(filePath);
+      if (!stats.isFile()) {
+        continue;
+      }
+
       const content = readFileSync(filePath, 'utf-8');
       const parsed = parseAgentFile(filePath, content);
       if (parsed) {
