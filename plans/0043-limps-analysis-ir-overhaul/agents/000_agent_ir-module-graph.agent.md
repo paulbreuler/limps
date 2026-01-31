@@ -33,7 +33,7 @@ export function createModuleGraph(input: ModuleGraphInput): ModuleGraph;
 ### #0: Component IR + Module Graph Foundation
 
 TL;DR: Create IR types + builders and a module graph with alias + re-export resolution.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `ir-build`, `module-graph-alias`, `module-graph-reexport`
 Files: `packages/limps-headless/src/analysis/ir/types.ts` (create), `packages/limps-headless/src/analysis/ir/build-ir.ts` (create), `packages/limps-headless/src/analysis/module-graph.ts` (create), `packages/limps-headless/src/analysis/ts-program.ts` (create)
 

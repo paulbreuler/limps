@@ -5,12 +5,14 @@
 import { z } from 'zod';
 import { rcompare, valid as validSemver } from 'semver';
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
 import { analyzeComponent, scoreAgainstSignatures, disambiguate, isAmbiguous } from '../analyzer/index.js';
 import { getSignatureFromCache, getLatestResolution } from '../cache/index.js';
 import { listCachedPrimitives, listCachedVersions } from '../cache/storage.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
 import { getProvider } from '../providers/registry.js';
+import { createModuleGraph } from '../analysis/module-graph.js';
 
 /**
  * Input schema for headless_analyze_component tool.
@@ -59,6 +61,11 @@ function resolveAndValidatePath(filePath: string): { absolute: string; relative:
   return { absolute: resolved, relative };
 }
 
+function resolveTsconfig(cwd: string): string | undefined {
+  const candidate = path.join(cwd, 'tsconfig.json');
+  return fs.existsSync(candidate) ? candidate : undefined;
+}
+
 /**
  * Handler for the headless_analyze_component tool.
  *
@@ -78,7 +85,13 @@ export async function handleAnalyzeComponent(
   }
 
   // Analyze the component
-  const analysis = await analyzeComponent(absolute);
+  const cwd = process.cwd();
+  const moduleGraph = createModuleGraph({
+    tsconfigPath: resolveTsconfig(cwd),
+    cwd,
+    rootDir: cwd,
+  });
+  const analysis = await analyzeComponent(absolute, { moduleGraph });
 
   // Resolve version if "latest"
   let resolvedVersion = radixVersion;

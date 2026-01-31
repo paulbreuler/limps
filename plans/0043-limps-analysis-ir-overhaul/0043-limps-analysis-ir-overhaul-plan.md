@@ -47,7 +47,7 @@ Overhaul the limps-headless analysis pipeline with a transpiler-grade Component 
 
 ## Feature 0: Component IR + Module Graph Foundation
 
-**Status:** GAP
+**Status:** PASS
 
 ### Description
 
@@ -91,7 +91,7 @@ Feature: Component IR foundation
 
 ## Feature 1: Evidence Extraction Passes
 
-**Status:** GAP
+**Status:** PASS
 
 ### Description
 

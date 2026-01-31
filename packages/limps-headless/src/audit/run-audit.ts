@@ -9,6 +9,7 @@ import { analyzeComponent, scoreAgainstSignatures, disambiguate, isAmbiguous } f
 import { getSignatureFromCache, getLatestResolution, listCachedPrimitives, listCachedVersions } from '../cache/index.js';
 import { diffVersions } from '../differ/index.js';
 import { resolvePackageVersion } from '../fetcher/npm-registry.js';
+import { createModuleGraph } from '../analysis/module-graph.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
 import type { RadixDiff, UpdateCheckResult } from '../differ/types.js';
 import type { ComponentMetadata, DiscoveryOptions, RunAuditOptions } from './types.js';
@@ -37,6 +38,11 @@ function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+}
+
+function resolveTsconfig(cwd: string): string | undefined {
+  const candidate = path.join(cwd, 'tsconfig.json');
+  return fs.existsSync(candidate) ? candidate : undefined;
 }
 
 export interface RunAuditInput {
@@ -72,7 +78,12 @@ async function loadSignatures(version: string): Promise<BehaviorSignature[]> {
 
 async function analyzeFiles(
   files: string[],
-  signatures: BehaviorSignature[]
+  signatures: BehaviorSignature[],
+  moduleGraph = createModuleGraph({
+    tsconfigPath: resolveTsconfig(process.cwd()),
+    cwd: process.cwd(),
+    rootDir: process.cwd(),
+  })
 ): Promise<AnalysisResult[]> {
   const threshold = DEFAULT_ANALYSIS_THRESHOLD;
   const results: AnalysisResult[] = [];
@@ -88,7 +99,7 @@ async function analyzeFiles(
       continue;
     }
     try {
-      const analysis = await analyzeComponent(absolute);
+      const analysis = await analyzeComponent(absolute, { moduleGraph });
       let recommendation: AnalysisResult['recommendation'];
       let matches = signatures.length > 0 ? scoreAgainstSignatures(analysis, signatures) : [];
       matches = matches.filter((m) => m.confidence >= threshold);

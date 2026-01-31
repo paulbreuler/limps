@@ -33,7 +33,7 @@ export function extractBehaviorEvidence(...): Evidence[];
 ### #1: Evidence Extraction Passes
 
 TL;DR: Add import, JSX, role/data-attr, and behavior evidence passes with locations.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `evidence-import`, `evidence-role`, `evidence-behavior`
 Files: `packages/limps-headless/src/analysis/passes/import-evidence.ts` (create), `packages/limps-headless/src/analysis/passes/jsx-evidence.ts` (create), `packages/limps-headless/src/analysis/passes/behavior-evidence.ts` (create), `packages/limps-headless/src/analysis/passes/index.ts` (create)
 

@@ -4,6 +4,9 @@
  */
 
 import type { ComponentAnalysis } from '../types/index.js';
+import type { ModuleGraph } from '../analysis/module-graph.js';
+import { buildComponentIr } from '../analysis/ir/build-ir.js';
+import { collectEvidence } from '../analysis/passes/index.js';
 import { parseComponent, getComponentNameFromPath } from './parser.js';
 import { extractProps } from './props.js';
 import {
@@ -22,8 +25,13 @@ import { disambiguate, isAmbiguous } from './disambiguator.js';
 /**
  * Analyze a component file and return ComponentAnalysis.
  */
+export interface AnalyzeComponentOptions {
+  moduleGraph?: ModuleGraph;
+}
+
 export async function analyzeComponent(
-  filePath: string
+  filePath: string,
+  options: AnalyzeComponentOptions = {}
 ): Promise<ComponentAnalysis> {
   // Parse the component file
   const sourceFile = parseComponent(filePath);
@@ -33,6 +41,7 @@ export async function analyzeComponent(
 
   // Get component name
   const componentName = getComponentNameFromPath(filePath);
+  const sourceText = sourceFile.getFullText();
 
   // Extract props
   const propsInterface = extractProps(sourceFile, componentName);
@@ -55,6 +64,16 @@ export async function analyzeComponent(
   const ariaRoles = detectAriaRoles(sourceFile);
   const dataAttributes = detectDataAttributes(sourceFile);
 
+  const ir = buildComponentIr({
+    filePath,
+    sourceText,
+    moduleGraph: options.moduleGraph,
+  });
+  const evidenceBundle = collectEvidence(ir, { filePath, sourceText });
+  ir.jsx = evidenceBundle.jsx;
+  ir.behaviors = evidenceBundle.behaviors;
+  ir.evidence = evidenceBundle.evidence;
+
   return {
     name: componentName,
     filePath,
@@ -67,6 +86,7 @@ export async function analyzeComponent(
     hasAsChild,
     ariaRoles,
     dataAttributes,
+    ir,
   };
 }
 

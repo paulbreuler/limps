@@ -2,6 +2,7 @@
  * Type definitions for limps-headless extension.
  */
 
+import type { ComponentIR } from '../analysis/ir/types.js';
 /**
  * Raw extraction from Radix .d.ts files
  */
@@ -137,6 +138,7 @@ export interface ComponentAnalysis {
   hasAsChild: boolean;
   ariaRoles: string[];
   dataAttributes: string[]; // data-state, data-orientation, etc.
+  ir?: ComponentIR;
 }
 
 /**
