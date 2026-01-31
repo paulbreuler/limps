@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 /**
  * Prepares package for publishing by copying LICENSE from repo root.
- * This script runs as part of the prepublishOnly hook.
- * 
- * Note: limps-headless already has a LICENSE file in git, but we copy from root
- * to ensure it stays in sync. The postpublish script does NOT delete it
- * since it's a real file in the repository.
+ * This script runs as part of the prepublishOnly hook (and in CI on npm publish).
+ * License is derived from the root; the copied file is removed after publish by cleanup-publish.cjs.
  */
 
 const fs = require('fs');
