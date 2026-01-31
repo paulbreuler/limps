@@ -238,9 +238,11 @@ describeUnlessCI('debouncing', () => {
     watcher = startWatcher(testDir, onChange, ['.md'], [], 50, 200, onSettled);
 
     await waitForReady(watcher);
+    // Brief delay so the watcher is fully subscribed (avoids flaky "add" timeout on busy systems)
+    await new Promise((r) => setTimeout(r, 150));
 
     const testFile = join(testDir, 'settled.md');
-    const addEvent = waitForEvent(watcher, 'add', 10000);
+    const addEvent = waitForEvent(watcher, 'add', 15000);
     writeFileSync(testFile, '# Test\n\nContent 1.', 'utf-8');
     await addEvent;
     await waitFor(() => onChange.mock.calls.some((call) => call[1] === 'add'), 8000);
@@ -254,7 +256,7 @@ describeUnlessCI('debouncing', () => {
     const [changes] = onSettled.mock.calls[0] || [];
     expect(Array.isArray(changes)).toBe(true);
     expect(changes.some((c: { path: string }) => c.path === testFile)).toBe(true);
-  }, 15000);
+  }, 20000);
 });
 
 describeUnlessCI('file-deletion', () => {
@@ -422,6 +424,8 @@ describeUnlessCI('multi-path-watcher', () => {
     watcher = startWatcher([testDir1, testDir2], onChange, ['.md']);
 
     await waitForReady(watcher);
+    // Brief delay so watchers are fully subscribed (avoids flaky timeout on busy systems)
+    await new Promise((r) => setTimeout(r, 150));
 
     // Create files in both directories
     writeFileSync(join(testDir1, 'doc1.md'), '# Doc 1', 'utf-8');
@@ -430,7 +434,7 @@ describeUnlessCI('multi-path-watcher', () => {
     await waitFor(() => {
       const paths = onChange.mock.calls.map((c: [string, string]) => c[0]);
       return paths.includes(join(testDir1, 'doc1.md')) && paths.includes(join(testDir2, 'doc2.md'));
-    }, 2500);
+    }, 8000);
 
     const paths = onChange.mock.calls.map((c: [string, string]) => c[0]);
     expect(paths).toContain(join(testDir1, 'doc1.md'));

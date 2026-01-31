@@ -9,29 +9,29 @@ aliases: ["#004", "Analyzer Agent"]
 created: 2026-01-26
 updated: 2026-01-29
 files:
-  - path: packages/limps-radix/src/analyzer/parser.ts
+  - path: packages/limps-headless/src/analyzer/parser.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/props.ts
+  - path: packages/limps-headless/src/analyzer/props.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/patterns.ts
+  - path: packages/limps-headless/src/analyzer/patterns.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/scorer.ts
+  - path: packages/limps-headless/src/analyzer/scorer.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/weights.ts
+  - path: packages/limps-headless/src/analyzer/weights.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/disambiguator.ts
+  - path: packages/limps-headless/src/analyzer/disambiguator.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/rules/index.ts
+  - path: packages/limps-headless/src/analyzer/rules/index.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/rules/dialog-popover.ts
+  - path: packages/limps-headless/src/analyzer/rules/dialog-popover.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/rules/tooltip-hovercard.ts
+  - path: packages/limps-headless/src/analyzer/rules/tooltip-hovercard.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/rules/checkbox-switch-toggle.ts
+  - path: packages/limps-headless/src/analyzer/rules/checkbox-switch-toggle.ts
     action: create
-  - path: packages/limps-radix/src/analyzer/index.ts
+  - path: packages/limps-headless/src/analyzer/index.ts
     action: create
-  - path: packages/limps-radix/src/tools/analyze-component.ts
+  - path: packages/limps-headless/src/tools/analyze-component.ts
     action: create
 ---
 
@@ -42,7 +42,7 @@ files:
 ## Scope
 
 Features: #9 (Component Analyzer), #10 (Confidence Scorer), #11 (Disambiguator), #12 (radix_analyze_component)
-Own: `packages/limps-radix/src/analyzer/`, `packages/limps-radix/src/tools/analyze-component.ts`
+Own: `packages/limps-headless/src/analyzer/`, `packages/limps-headless/src/tools/analyze-component.ts`
 Depend on: Agent 002 for BehaviorSignature
 Block: None
 
@@ -51,12 +51,12 @@ Block: None
 ### Export
 
 ```typescript
-// packages/limps-radix/src/analyzer/index.ts
+// packages/limps-headless/src/analyzer/index.ts
 export function analyzeComponent(filePath: string): Promise<ComponentAnalysis>;
 export function scoreAgainstSignatures(analysis: ComponentAnalysis, signatures: BehaviorSignature[]): PrimitiveMatch[];
 export function disambiguate(matches: PrimitiveMatch[], analysis: ComponentAnalysis): PrimitiveMatch[];
 
-// packages/limps-radix/src/tools/analyze-component.ts
+// packages/limps-headless/src/tools/analyze-component.ts
 export const analyzeComponentTool: Tool;
 ```
 

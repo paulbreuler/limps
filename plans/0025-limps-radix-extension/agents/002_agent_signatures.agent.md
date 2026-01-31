@@ -9,21 +9,21 @@ aliases: ["#002", "Signatures Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: packages/limps-radix/src/signatures/inference.ts
+  - path: packages/limps-headless/src/signatures/inference.ts
     action: create
-  - path: packages/limps-radix/src/signatures/distinguishing.ts
+  - path: packages/limps-headless/src/signatures/distinguishing.ts
     action: create
-  - path: packages/limps-radix/src/signatures/disambiguation.ts
+  - path: packages/limps-headless/src/signatures/disambiguation.ts
     action: create
-  - path: packages/limps-radix/src/signatures/generator.ts
+  - path: packages/limps-headless/src/signatures/generator.ts
     action: create
-  - path: packages/limps-radix/src/signatures/index.ts
+  - path: packages/limps-headless/src/signatures/index.ts
     action: create
-  - path: packages/limps-radix/src/cache/storage.ts
+  - path: packages/limps-headless/src/cache/storage.ts
     action: create
-  - path: packages/limps-radix/src/cache/ttl.ts
+  - path: packages/limps-headless/src/cache/ttl.ts
     action: create
-  - path: packages/limps-radix/src/cache/index.ts
+  - path: packages/limps-headless/src/cache/index.ts
     action: create
 ---
 
@@ -34,7 +34,7 @@ files:
 ## Scope
 
 Features: #5 (Signature Generator), #6 (Cache System)
-Own: `packages/limps-radix/src/signatures/`, `packages/limps-radix/src/cache/`
+Own: `packages/limps-headless/src/signatures/`, `packages/limps-headless/src/cache/`
 Depend on: Agent 001 for ExtractedPrimitive
 Block: Agent 003, 004, 005 (all tools depend on signatures/cache)
 
@@ -43,12 +43,12 @@ Block: Agent 003, 004, 005 (all tools depend on signatures/cache)
 ### Export
 
 ```typescript
-// packages/limps-radix/src/signatures/index.ts
+// packages/limps-headless/src/signatures/index.ts
 export function generateSignature(extracted: ExtractedPrimitive): BehaviorSignature;
 export function inferStatePattern(props: PropDefinition[]): StatePattern;
 export function inferCompositionPattern(subComponents: SubComponentDefinition[]): CompositionPattern;
 
-// packages/limps-radix/src/cache/index.ts
+// packages/limps-headless/src/cache/index.ts
 export async function getFromCache(primitive: string, version: string): Promise<ExtractedPrimitive | null>;
 export async function saveToCache(primitive: string, version: string, data: ExtractedPrimitive): Promise<void>;
 export async function getSignatureFromCache(primitive: string, version: string): Promise<BehaviorSignature | null>;

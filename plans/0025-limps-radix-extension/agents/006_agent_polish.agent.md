@@ -11,33 +11,33 @@ aliases: ["#006", "Polish Agent"]
 created: 2026-01-26
 updated: 2026-01-27
 files:
-  - path: packages/limps-radix/src/providers/interface.ts
+  - path: packages/limps-headless/src/providers/interface.ts
     action: create
-  - path: packages/limps-radix/src/providers/registry.ts
+  - path: packages/limps-headless/src/providers/registry.ts
     action: create
-  - path: packages/limps-radix/src/providers/radix.ts
+  - path: packages/limps-headless/src/providers/radix.ts
     action: create
-  - path: packages/limps-radix/src/providers/index.ts
+  - path: packages/limps-headless/src/providers/index.ts
     action: create
-  - path: packages/limps-radix/src/cli/index.ts
+  - path: packages/limps-headless/src/cli/index.ts
     action: create
-  - path: packages/limps-radix/src/cli/commands/extract.ts
+  - path: packages/limps-headless/src/cli/commands/extract.ts
     action: create
-  - path: packages/limps-radix/src/cli/commands/analyze.ts
+  - path: packages/limps-headless/src/cli/commands/analyze.ts
     action: create
-  - path: packages/limps-radix/src/cli/commands/diff.ts
+  - path: packages/limps-headless/src/cli/commands/diff.ts
     action: create
-  - path: packages/limps-radix/src/cli/commands/list.ts
+  - path: packages/limps-headless/src/cli/commands/list.ts
     action: create
-  - path: packages/limps-radix/bin/limps-radix
+  - path: packages/limps-headless/bin/limps-headless
     action: create
-  - path: packages/limps-radix/README.md
+  - path: packages/limps-headless/README.md
     action: create
-  - path: packages/limps-radix/docs/tools.md
+  - path: packages/limps-headless/docs/tools.md
     action: create
-  - path: packages/limps-radix/docs/architecture.md
+  - path: packages/limps-headless/docs/architecture.md
     action: create
-  - path: packages/limps-radix/docs/providers.md
+  - path: packages/limps-headless/docs/providers.md
     action: create
 ---
 
@@ -48,7 +48,7 @@ files:
 ## Scope
 
 Features: #16 (Provider Architecture), #17 (CLI Commands), #18 (Documentation)
-Own: `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/`, `packages/limps-radix/README.md`
+Own: `packages/limps-headless/src/providers/`, `packages/limps-headless/src/cli/`, `packages/limps-headless/docs/`, `packages/limps-headless/README.md`
 Depend on: Agents 003-005 for tool implementations
 Block: None (final polish)
 
@@ -57,7 +57,7 @@ Block: None (final polish)
 ### Export
 
 ```typescript
-// packages/limps-radix/src/providers/interface.ts
+// packages/limps-headless/src/providers/interface.ts
 export interface ComponentLibraryProvider {
   name: string;
   displayName: string;
@@ -68,7 +68,7 @@ export interface ComponentLibraryProvider {
   generateSignature?(extracted: ExtractedPrimitive): BehaviorSignature;
 }
 
-// packages/limps-radix/src/providers/registry.ts
+// packages/limps-headless/src/providers/registry.ts
 export const providers: ProviderRegistry;
 export function registerProvider(provider: ComponentLibraryProvider): void;
 export function getProvider(name: string): ComponentLibraryProvider;
@@ -101,7 +101,7 @@ TDD:
 
 Provider implementation pattern:
 ```typescript
-// packages/limps-radix/src/providers/radix.ts
+// packages/limps-headless/src/providers/radix.ts
 export const radixProvider: ComponentLibraryProvider = {
   name: 'radix',
   displayName: 'Radix UI',
@@ -157,7 +157,7 @@ limps-radix diff <from> [--to] [--primitives] [--breaking-only] [--json]
 limps-radix check-updates [--refresh] [--json]
 ```
 
-bin/limps-radix:
+bin/limps-headless:
 ```bash
 #!/usr/bin/env node
 import '../dist/cli/index.js';

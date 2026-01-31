@@ -66,6 +66,14 @@ function findNextPlanNumber(plansPath: string): number {
 }
 
 /**
+ * True if name already has a numeric prefix (e.g. 0042-foo or 1-foo).
+ * Callers use name as-is for directory name when this is true to avoid double prefix.
+ */
+function hasNumberPrefix(name: string): boolean {
+  return /^\d+-.+/.test(name);
+}
+
+/**
  * Check if a plan with the given name already exists.
  */
 function planExists(plansPath: string, name: string): boolean {
@@ -77,11 +85,14 @@ function planExists(plansPath: string, name: string): boolean {
     .filter((dirent) => dirent.isDirectory())
     .map((dirent) => dirent.name);
 
-  // Check if any directory contains the name (case-insensitive)
   const normalizedName = name.toLowerCase();
+  // Exact directory name match (e.g. name "0042-limps-headless-pivot" matches dir "0042-limps-headless-pivot")
+  if (dirs.some((dir) => dir.toLowerCase() === normalizedName)) {
+    return true;
+  }
+  // Match by name part after number prefix (e.g. name "my-plan" matches dir "0001-my-plan")
   return dirs.some((dir) => {
     const dirName = dir.toLowerCase();
-    // Extract name part after number prefix
     const nameMatch = dirName.match(/^\d+-(.+)$/);
     if (nameMatch) {
       return nameMatch[1] === normalizedName;
@@ -164,10 +175,11 @@ export async function handleCreatePlan(
     };
   }
 
-  // Find next plan number
-  const planNumber = findNextPlanNumber(plansPath);
-  const paddedNumber = planNumber.toString().padStart(4, '0');
-  const planDirName = `${paddedNumber}-${name}`;
+  // Use name as-is when it already has a number prefix (e.g. 0042-limps-headless-pivot) to avoid double prefix
+  const planDirName = hasNumberPrefix(name)
+    ? name
+    : `${findNextPlanNumber(plansPath).toString().padStart(4, '0')}-${name}`;
+  const planNumber = extractPlanNumber(planDirName) ?? findNextPlanNumber(plansPath);
   const planDir = join(plansPath, planDirName);
 
   try {
@@ -177,7 +189,7 @@ export async function handleCreatePlan(
 
     // Create plan file with descriptive name (e.g., 0004-integration-tests-plan.md)
     const planFileName = `${planDirName}-plan.md`;
-    const planContent = loadTemplate(planNumber, name, description);
+    const planContent = loadTemplate(planNumber, planDirName, description);
     const tempPlanFilePath = join(tempDir, planFileName);
     writeFileSync(tempPlanFilePath, planContent, 'utf-8');
 
@@ -192,7 +204,7 @@ export async function handleCreatePlan(
       content: [
         {
           type: 'text',
-          text: `Plan "${name}" created successfully at ${planDir}`,
+          text: `Plan "${planDirName}" created successfully at ${planDir}`,
         },
       ],
     };

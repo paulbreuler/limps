@@ -9,13 +9,13 @@ aliases: ["#007", "Unified Package Agent"]
 created: 2026-01-28
 updated: 2026-01-28
 files:
-  - path: packages/limps-radix/src/fetcher/unified-package.ts
+  - path: packages/limps-headless/src/fetcher/unified-package.ts
     action: create
-  - path: packages/limps-radix/src/fetcher/npm-registry.ts
+  - path: packages/limps-headless/src/fetcher/npm-registry.ts
     action: modify
-  - path: packages/limps-radix/src/fetcher/unpkg.ts
+  - path: packages/limps-headless/src/fetcher/unpkg.ts
     action: modify
-  - path: packages/limps-radix/tests/fetcher-unified.test.ts
+  - path: packages/limps-headless/tests/fetcher-unified.test.ts
     action: create
 ---
 
@@ -26,7 +26,7 @@ files:
 ## Scope
 
 Features: #19 (Unified Package Support)
-Own: `packages/limps-radix/src/fetcher/unified-package.ts`
+Own: `packages/limps-headless/src/fetcher/unified-package.ts`
 Depend on: Agent 001 for existing fetcher infrastructure
 Block: None (enhancement)
 
@@ -41,7 +41,7 @@ See: `gotchas.md#GTC-004`
 ### Export
 
 ```typescript
-// packages/limps-radix/src/fetcher/unified-package.ts
+// packages/limps-headless/src/fetcher/unified-package.ts
 export type PackageSource = 'individual' | 'unified';
 
 export interface ResolvedPackage {
@@ -59,10 +59,10 @@ export async function resolvePackage(primitive: string, versionHint: string): Pr
 ### Modify
 
 ```typescript
-// packages/limps-radix/src/fetcher/npm-registry.ts
+// packages/limps-headless/src/fetcher/npm-registry.ts
 // Add: queryUnifiedPackage() - check if radix-ui package exists and version >= 1.4.3
 
-// packages/limps-radix/src/fetcher/unpkg.ts
+// packages/limps-headless/src/fetcher/unpkg.ts
 // Add: fetchFromUnifiedPackage() - fetch types from radix-ui package path
 ```
 

@@ -18,17 +18,15 @@ Select the next best agent task from a plan and open it in Cursor, or run a spec
    - Workload balance (30%): Agents with fewer remaining tasks get higher score
    - Priority (30%): Lower feature IDs (earlier in plan) get higher score
 
-2. **Skips auto-claiming tasks** - Task claiming is manual; the user decides which agent to run
+2. **Assesses agent status** - Checks completion state and file organization
 
-3. **Assesses agent status** - Checks completion state and file organization
+3. **Validates agent path** (when `--agent` provided) - Errors if file does not exist
 
-4. **Validates agent path** (when `--agent` provided) - Errors if file does not exist
+4. **Opens agent file in Cursor** - Opens the selected or specified agent file with context
 
-5. **Opens agent file in Cursor** - Opens the selected or specified agent file with context
+5. **Displays instructions** - Shows quick links and next steps
 
-6. **Displays instructions** - Shows quick links and next steps
-
-7. **Prints a brief checklist** - Extracts Files/Tests sections when present (LLM-focused)
+6. **Prints a brief checklist** - Extracts Files/Tests sections when present (LLM-focused)
 
 ## Usage Examples
 

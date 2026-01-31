@@ -8,7 +8,7 @@ aliases: ["#010", "Release Docs Agent"]
 created: 2026-01-28
 updated: 2026-01-28
 files:
-  - path: packages/limps-radix/README.md
+  - path: packages/limps-headless/README.md
     action: create
 ---
 
@@ -19,7 +19,7 @@ files:
 ## Scope
 
 Features: #22 (MVP Release Documentation)
-Own: `packages/limps-radix/README.md`
+Own: `packages/limps-headless/README.md`
 Depend on: None (can work in parallel with Agent 011)
 Block: None
 
@@ -32,7 +32,7 @@ The package is ready for v0.1.0 release but lacks README.md documentation. npm p
 ### Export
 
 ```typescript
-// packages/limps-radix/README.md
+// packages/limps-headless/README.md
 // Markdown documentation file (no TypeScript exports)
 ```
 
@@ -178,7 +178,7 @@ Refactor: Include all available options
 
 ## Acceptance Criteria
 
-- [x] README.md exists in `packages/limps-radix/`
+- [x] README.md exists in `packages/limps-headless/`
 - [x] Installation section with npm command
 - [x] Quick start guide with config example
 - [x] MCP tool documentation for both tools

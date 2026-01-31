@@ -2,7 +2,7 @@
 title: limps Radix Extension Index
 tags: [limps/index]
 created: 2026-01-26
-updated: 2026-01-27
+updated: 2026-01-29
 ---
 
 # 0025-limps-radix-extension
@@ -98,13 +98,13 @@ graph TD
 | 6 | Cache System | 002 | PASS | 7-8, 12, 15 |
 | 7 | radix_list_primitives | 003 | GAP | - |
 | 8 | radix_extract_primitive | 003 | GAP | - |
-| 9 | Component Analyzer | 004 | GAP | 10 |
-| 10 | Confidence Scorer | 004 | GAP | 11 |
-| 11 | Disambiguator | 004 | GAP | 12 |
-| 12 | radix_analyze_component | 004 | GAP | - |
-| 13 | Contract Differ | 005 | GAP | 14 |
-| 14 | radix_diff_versions | 005 | GAP | 15 |
-| 15 | radix_check_updates | 005 | GAP | - |
+| 9 | Component Analyzer | 004 | PASS | 10 |
+| 10 | Confidence Scorer | 004 | PASS | 11 |
+| 11 | Disambiguator | 004 | PASS | 12 |
+| 12 | radix_analyze_component | 004 | PASS | - |
+| 13 | Contract Differ | 005 | PASS | 14 |
+| 14 | radix_diff_versions | 005 | PASS | 15 |
+| 15 | radix_check_updates | 005 | PASS | - |
 | 16 | Provider Architecture | 006 | GAP | 17 |
 | 17 | CLI Commands | 006 | GAP | 18 |
 | 18 | Documentation | 006 | GAP | - |
@@ -119,16 +119,16 @@ graph TD
 | Agent | Features | Owns |
 |-------|----------|------|
 | 000 | #0, #1 | limps extension API, package setup |
-| 001 | #2, #3, #4 | `packages/limps-radix/src/fetcher/`, `packages/limps-radix/src/extractor/` |
-| 002 | #5, #6 | `packages/limps-radix/src/signatures/`, `packages/limps-radix/src/cache/` |
-| 003 | #7, #8 | `packages/limps-radix/src/tools/list-primitives.ts`, `packages/limps-radix/src/tools/extract-primitive.ts` |
-| 004 | #9, #10, #11, #12 | `packages/limps-radix/src/analyzer/`, `packages/limps-radix/src/tools/analyze-component.ts` |
-| 005 | #13, #14, #15 | `packages/limps-radix/src/differ/`, `packages/limps-radix/src/tools/diff-versions.ts`, `packages/limps-radix/src/tools/check-updates.ts` |
-| 006 | #16, #17, #18 | `packages/limps-radix/src/providers/`, `packages/limps-radix/src/cli/`, `packages/limps-radix/docs/` |
-| 007 | #19 | `packages/limps-radix/src/fetcher/unified-package.ts` |
-| 008 | #20 | `packages/limps-radix/src/extractor/type-resolver.ts`, `packages/limps-radix/src/extractor/forward-ref.ts` |
-| 010 | #22 | `packages/limps-radix/README.md` |
-| 011 | #23 | `packages/limps-radix/LICENSE` |
+| 001 | #2, #3, #4 | `packages/limps-headless/src/fetcher/`, `packages/limps-headless/src/extractor/` |
+| 002 | #5, #6 | `packages/limps-headless/src/signatures/`, `packages/limps-headless/src/cache/` |
+| 003 | #7, #8 | `packages/limps-headless/src/tools/list-primitives.ts`, `packages/limps-headless/src/tools/extract-primitive.ts` |
+| 004 | #9, #10, #11, #12 | `packages/limps-headless/src/analyzer/`, `packages/limps-headless/src/tools/analyze-component.ts` |
+| 005 | #13, #14, #15 | `packages/limps-headless/src/differ/`, `packages/limps-headless/src/tools/diff-versions.ts`, `packages/limps-headless/src/tools/check-updates.ts` |
+| 006 | #16, #17, #18 | `packages/limps-headless/src/providers/`, `packages/limps-headless/src/cli/`, `packages/limps-headless/docs/` |
+| 007 | #19 | `packages/limps-headless/src/fetcher/unified-package.ts` |
+| 008 | #20 | `packages/limps-headless/src/extractor/type-resolver.ts`, `packages/limps-headless/src/extractor/forward-ref.ts` |
+| 010 | #22 | `packages/limps-headless/README.md` |
+| 011 | #23 | `packages/limps-headless/LICENSE` |
 
 ## File Links
 
@@ -144,8 +144,8 @@ graph TD
 | 001 | [extraction](./agents/001_agent_extraction.agent.md) | Type Fetcher, Extractor, Classifier | PASS | 9 |
 | 002 | [signatures](./agents/002_agent_signatures.agent.md) | Signature Generator, Cache | PASS | 8 |
 | 003 | [read-tools](./agents/003_agent_read-tools.agent.md) | radix_list_primitives, radix_extract_primitive | GAP | 3 |
-| 004 | [analyzer](./agents/004_agent_analyzer.agent.md) | Component Analyzer, Scorer, Disambiguator | GAP | 12 |
-| 005 | [differ](./agents/005_agent_differ.agent.md) | Contract Differ, radix_diff_versions | GAP | 7 |
+| 004 | [analyzer](./agents/004_agent_analyzer.agent.md) | Component Analyzer, Scorer, Disambiguator | PASS | 12 |
+| 005 | [differ](./agents/005_agent_differ.agent.md) | Contract Differ, radix_diff_versions | PASS | 7 |
 | 006 | [polish](./agents/006_agent_polish.agent.md) | Provider arch, CLI, Documentation | GAP | 14 |
 | 007 | [unified-package](./agents/007_agent_unified-package.agent.md) | Unified Package (GTC-004) | PASS | 4 |
 | 008 | [complex-parsing](./agents/008_agent_complex-parsing.agent.md) | Complex Parsing (GTC-005) | PASS | 5 |
