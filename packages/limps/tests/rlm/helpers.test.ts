@@ -234,6 +234,68 @@ Status: \`WIP\``;
       ]);
     });
 
+    it('parses legacy format features', () => {
+      const content = `## Feature 0: Component IR + Module Graph Foundation
+
+**Status:** GAP
+
+### Description
+
+Build Component IR + module graph with alias and re-export resolution.
+
+## Feature 1: Evidence Extraction Passes
+
+**Status:** WIP
+
+### Description
+
+Extract import/JSX/behavior evidence with locations.`;
+
+      const result = extractFeatures(content);
+
+      expect(result).toEqual([
+        {
+          id: '0',
+          name: 'Component IR + Module Graph Foundation',
+          description: undefined,
+          status: 'GAP',
+        },
+        {
+          id: '1',
+          name: 'Evidence Extraction Passes',
+          description: undefined,
+          status: 'WIP',
+        },
+      ]);
+    });
+
+    it('parses mixed format features', () => {
+      const content = `### #1: New Format Feature
+TL;DR: This uses new format
+Status: \`GAP\`
+
+## Feature 2: Legacy Format Feature
+
+**Status:** WIP`;
+
+      const result = extractFeatures(content);
+
+      expect(result).toEqual([
+        {
+          id: '1',
+          name: 'New Format Feature',
+          description: 'This uses new format',
+          status: 'GAP',
+        },
+        {
+          id: '2',
+          name: 'Legacy Format Feature',
+          description: undefined,
+          status: 'WIP',
+        },
+      ]);
+    });
+
     it('handles status', () => {
       const content = `### #1: Feature
 TL;DR: Desc

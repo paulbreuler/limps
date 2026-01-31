@@ -35,6 +35,7 @@ function isValidTransition(from: string, to: string): boolean {
 /**
  * Find task in document by feature number.
  * Returns the content section for the task.
+ * Supports both new format (### #N:) and legacy format (## Feature N:).
  */
 function findTaskSection(
   content: string,
@@ -44,16 +45,25 @@ function findTaskSection(
   end: number;
   section: string;
 } | null {
-  const featureRegex = new RegExp(`^###\\s+#${featureNumber}:`, 'm');
-  const match = content.match(featureRegex);
+  // Try new format first: "### #N:"
+  let featureRegex = new RegExp(`^###\\s+#${featureNumber}:`, 'm');
+  let match = content.match(featureRegex);
+  let nextFeaturePattern = '### #';
+
+  // Try legacy format if new format not found: "## Feature N:"
+  if (!match || match.index === undefined) {
+    featureRegex = new RegExp(`^##\\s+Feature\\s+${featureNumber}:`, 'm');
+    match = content.match(featureRegex);
+    nextFeaturePattern = '## Feature ';
+  }
 
   if (!match || match.index === undefined) {
     return null;
   }
 
   const start = match.index;
-  // Find next feature or end of document
-  const nextFeatureMatch = content.indexOf('### #', start + 1);
+  // Find next feature or end of document (using the same pattern as matched)
+  const nextFeatureMatch = content.indexOf(nextFeaturePattern, start + 1);
   const end = nextFeatureMatch > 0 ? nextFeatureMatch : content.length;
   const section = content.substring(start, end);
 
@@ -62,39 +72,70 @@ function findTaskSection(
 
 /**
  * Extract current status from a task section.
+ * Supports both new format (Status: `GAP`) and legacy format (**Status:** GAP).
  */
 function extractStatusFromSection(section: string): string | null {
-  const statusRegex = /Status:\s*`?(\w+)`?/i;
-  const match = section.match(statusRegex);
+  // Try new format first: "Status: `GAP`"
+  let statusRegex = /Status:\s*`(\w+)`/i;
+  let match = section.match(statusRegex);
+
+  // Try legacy format if new format not found: "**Status:** GAP"
+  if (!match) {
+    statusRegex = /\*\*Status:\*\*\s+(\w+)/i;
+    match = section.match(statusRegex);
+  }
+
   return match ? match[1].toUpperCase() : null;
 }
 
 /**
  * Update status in task section.
  * Preserves formatting and other content.
+ * Maintains the same format as the original (new or legacy).
  */
 function updateStatusInSection(section: string, newStatus: string): string {
-  // Match status line: "Status: `GAP`" or "Status: `WIP`" etc.
-  const statusRegex = /Status:\s*`?(\w+)`?/i;
-  const match = section.match(statusRegex);
+  // Try new format first: "Status: `GAP`"
+  let statusRegex = /Status:\s*`(\w+)`/i;
+  let match = section.match(statusRegex);
 
   if (match) {
-    // Replace existing status
+    // Replace existing status in new format
     return section.replace(statusRegex, `Status: \`${newStatus}\``);
-  } else {
-    // Add status line if not found (shouldn't happen, but handle gracefully)
-    // Insert after feature title
-    const titleMatch = section.match(/^###\s+#\d+:\s+(.+)$/m);
-    if (titleMatch) {
-      const titleEnd = section.indexOf('\n', titleMatch.index || 0);
-      return (
-        section.substring(0, titleEnd + 1) +
-        `\nStatus: \`${newStatus}\`\n` +
-        section.substring(titleEnd + 1)
-      );
-    }
-    return section;
   }
+
+  // Try legacy format: "**Status:** GAP"
+  statusRegex = /\*\*Status:\*\*\s+(\w+)/i;
+  match = section.match(statusRegex);
+
+  if (match) {
+    // Replace existing status in legacy format
+    return section.replace(statusRegex, `**Status:** ${newStatus}`);
+  }
+
+  // Add status line if not found (shouldn't happen, but handle gracefully)
+  // Insert after feature title (try both formats)
+  let titleMatch = section.match(/^###\s+#\d+:\s+(.+)$/m);
+  if (titleMatch) {
+    const titleEnd = section.indexOf('\n', titleMatch.index || 0);
+    return (
+      section.substring(0, titleEnd + 1) +
+      `\nStatus: \`${newStatus}\`\n` +
+      section.substring(titleEnd + 1)
+    );
+  }
+
+  // Try legacy format title
+  titleMatch = section.match(/^##\s+Feature\s+\d+:\s+(.+)$/m);
+  if (titleMatch) {
+    const titleEnd = section.indexOf('\n', titleMatch.index || 0);
+    return (
+      section.substring(0, titleEnd + 1) +
+      `\n**Status:** ${newStatus}\n` +
+      section.substring(titleEnd + 1)
+    );
+  }
+
+  return section;
 }
 
 /**

@@ -202,3 +202,106 @@ describe('handle-invalid-task', () => {
     expect(result.content[0].text).toContain('not found');
   });
 });
+
+describe('legacy-format-support', () => {
+  let dbPath: string;
+  let db: Database.Database | null = null;
+  let testDir: string;
+  let plansDir: string;
+  let planDir: string;
+  let planFile: string;
+  let context: ToolContext;
+
+  beforeEach(async () => {
+    dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
+    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
+    plansDir = join(testDir, 'plans');
+    planDir = join(plansDir, '0042-legacy-plan');
+    planFile = join(planDir, '0042-legacy-plan-plan.md');
+
+    mkdirSync(planDir, { recursive: true });
+    db = initializeDatabase(dbPath);
+    createSchema(db);
+
+    // Create plan document with legacy format
+    const planContent = `# Legacy Plan
+
+## Feature 0: Component IR + Module Graph Foundation
+
+**Status:** GAP
+
+### Description
+
+Build Component IR + module graph with alias and re-export resolution.
+
+## Feature 1: Evidence Extraction Passes
+
+**Status:** WIP
+
+### Description
+
+Extract import/JSX/behavior evidence with locations.
+`;
+    writeFileSync(planFile, planContent, 'utf-8');
+    await indexDocument(db, planFile);
+
+    const config = loadConfig(join(testDir, 'config.json'));
+    config.plansPath = plansDir;
+
+    context = {
+      db,
+      config,
+    };
+  });
+
+  afterEach(() => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+    if (existsSync(dbPath)) {
+      unlinkSync(dbPath);
+    }
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should update legacy format status from GAP to WIP', async () => {
+    const result = await handleUpdateTaskStatus(
+      { taskId: '0042-legacy-plan#0', status: 'WIP' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+
+    // Verify document was updated and legacy format preserved
+    const updatedContent = readFileSync(planFile, 'utf-8');
+    expect(updatedContent).toContain('**Status:** WIP');
+    expect(updatedContent).not.toContain('**Status:** GAP');
+  });
+
+  it('should update legacy format status from WIP to PASS', async () => {
+    const result = await handleUpdateTaskStatus(
+      { taskId: '0042-legacy-plan#1', status: 'PASS' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+
+    // Verify document was updated
+    const updatedContent = readFileSync(planFile, 'utf-8');
+    expect(updatedContent).toContain('**Status:** PASS');
+    expect(updatedContent).not.toContain('**Status:** WIP');
+  });
+
+  it('should find feature in legacy format', async () => {
+    // Just verify we can find the feature (no error)
+    const result = await handleUpdateTaskStatus(
+      { taskId: '0042-legacy-plan#0', status: 'WIP' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+  });
+});

@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### BREAKING CHANGES
+
+* **plan feature format:** Legacy plan feature format (`## Feature N: Title`, `**Status:** GAP`) is deprecated. The canonical format is `### #N: Title` and `Status: \`GAP\``. Run `npm run migrate:plan-feature-format` from `packages/limps` (or `npx tsx scripts/migrate-plan-feature-format.ts [plans-dir]`) to migrate existing plan files. Backward compatibility for reading/writing both formats remains in this release but may be removed in a future major or minor release.
+
+### Features
+
+* **migrate:** add `migrate:plan-feature-format` script to convert plan files from legacy feature format to new format
+
 ## [2.6.1](https://github.com/paulbreuler/limps/compare/limps-v2.6.0...limps-v2.6.1) (2026-01-29)
 
 

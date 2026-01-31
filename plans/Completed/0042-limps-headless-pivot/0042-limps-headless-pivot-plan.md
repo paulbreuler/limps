@@ -39,9 +39,9 @@ Pivot `@sudosandwich/limps-radix` into `@sudosandwich/limps-headless`: a backend
 
 ---
 
-## Feature 0: Package Identity + Backward Compatibility
+### #0: Package Identity + Backward Compatibility
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
@@ -99,9 +99,9 @@ Feature: headless package identity
 
 ---
 
-## Feature 1: Unified Component Discovery
+### #1: Unified Component Discovery
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
@@ -169,9 +169,9 @@ Feature: unified discovery
 
 ---
 
-## Feature 2: Backend Providers (Radix + Base)
+### #2: Backend Providers (Radix + Base)
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
@@ -224,9 +224,9 @@ Feature: backend providers
 
 ---
 
-## Feature 3: Migration Analysis
+### #3: Migration Analysis
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
@@ -278,9 +278,9 @@ Feature: migration analysis
 
 ---
 
-## Feature 4: Report + CLI Output Updates
+### #4: Report + CLI Output Updates
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
@@ -332,9 +332,9 @@ Feature: report updates
 
 ---
 
-## Feature 5: Config + Policy Enforcement
+### #5: Config + Policy Enforcement
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
@@ -386,9 +386,9 @@ Feature: policy enforcement
 
 ---
 
-## Feature 6: Tests + Fixtures
+### #6: Tests + Fixtures
 
-**Status:** GAP
+Status: `GAP`
 
 ### Description
 
