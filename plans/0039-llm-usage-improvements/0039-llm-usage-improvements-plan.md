@@ -27,7 +27,7 @@ Improve limps reliability and UX based on real LLM usage friction: setup clarity
 
 ---
 
-## Feature 1: Composable Client Registry for sync-mcp
+### #1: Composable Client Registry for sync-mcp
 
 ### User Story
 
@@ -54,7 +54,36 @@ And instructions are printed
 
 ---
 
-## Feature 2: Safer Config Writes + Better Error Surfacing
+## Feature 1b: Registry-Driven Preview + Print
+
+*(Merged from plan 0038.)*
+
+### User Story
+
+As a maintainer, I want preview/print behavior to be client-specific but standardized so adding a new client doesn't require custom branching.
+
+### Gherkin
+
+Scenario: preview hooks are used when supported
+Given a file-backed client with preview support
+When I run `limps config sync-mcp --client codex`
+Then a preview diff is displayed before confirmation
+
+Scenario: print uses correct format per client
+Given Codex uses TOML config
+When I run `limps config sync-mcp --client codex --print`
+Then TOML is printed
+
+### TDD Cycles
+
+1. `registry uses preview when available` → implement hook dispatch → refactor warning message construction.
+2. `registry selects print format by client` → implement print handler → refactor to shared output builder.
+
+**Agent:** 004 (preview-print)
+
+---
+
+### #2: Safer Config Writes + Better Error Surfacing
 
 ### User Story
 
@@ -81,7 +110,7 @@ And suggests how to fix
 
 ---
 
-## Feature 3: LLM-Focused Setup Guidance
+### #3: LLM-Focused Setup Guidance
 
 ### User Story
 
@@ -106,7 +135,7 @@ And suggests next steps (restart/apply)
 
 ---
 
-## Feature 4: Agent Close Workflow Alignment
+### #4: Agent Close Workflow Alignment
 
 ### User Story
 
@@ -162,7 +191,7 @@ Then the output includes a brief checklist for LLM execution
 | --- | --- | --- |
 | Client registry | `src/cli/mcp-clients.ts` | Client descriptors + handlers |
 | Sync command | `src/commands/config/sync-mcp.tsx` | Registry-driven flow |
-| Config helpers | `src/cli/config-cmd.ts` | Error handling + config safety |
+| Config helpers | `src/cli/config-cmd.ts` | Error handling, config safety, preview/print hooks |
 | Docs | `README.md`, CLI help | LLM setup clarity |
 | Tests | `tests/cli/config-cmd.test.ts` | Safety + behavior |
 
@@ -178,6 +207,7 @@ Then the output includes a brief checklist for LLM execution
 ## Acceptance Criteria
 
 - sync-mcp uses a registry to drive behavior (no client-specific branching).
+- Preview and print behavior are registry-driven and client-specific.
 - Invalid server sections are rejected without overwriting.
 - README/CLI explain client-specific constraints clearly.
 - Tests cover registry iteration and error cases.

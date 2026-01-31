@@ -23,6 +23,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
+    "migrate:plan-feature-format": "npx tsx scripts/migrate-plan-feature-format.ts",
     "ci": "npm run validate",
     "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
     "postpublish": "node scripts/cleanup-publish.cjs"
