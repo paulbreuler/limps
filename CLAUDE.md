@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is an npm workspaces monorepo with two packages:
 
 - `packages/limps` - @sudosandwich/limps - The main MCP planning server
-- `packages/limps-radix` - @sudosandwich/limps-radix - Radix UI extension for limps
+- `packages/limps-headless` - @sudosandwich/limps-headless - Headless UI extension for limps
 
 ## Build and Development Commands
 
@@ -21,7 +21,7 @@ npm run validate       # Full validation: format + lint + type-check + build + t
 # Single package commands
 npm run build -w packages/limps           # Build only limps
 npm run test -w packages/limps            # Test only limps
-npm run build -w packages/limps-radix     # Build only limps-radix
+npm run build -w packages/limps-headless # Build only limps-headless
 
 # Development
 npm run dev -w packages/limps             # Watch mode for limps

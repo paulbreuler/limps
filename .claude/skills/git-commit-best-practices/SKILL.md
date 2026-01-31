@@ -56,8 +56,8 @@ When reviewing commits, detect breaking changes by:
 - `revert`: Revert a previous commit
 
 ### Scope (Optional but Recommended)
-- **Single scope** (most common): Package name (`limps`, `limps-radix`) or component (`cli`, `server`, `tools`, `resources`, `rlm`, `indexer`)
-- **Multiple scopes**: Use comma-separated for cross-package changes: `feat(limps,limps-radix): ...`
+- **Single scope** (most common): Package name (`limps`, `limps-headless`) or component (`cli`, `server`, `tools`, `resources`, `rlm`, `indexer`)
+- **Multiple scopes**: Use comma-separated for cross-package changes: `feat(limps,limps-headless): ...`
 - **When to use multiple**: Only when change affects multiple packages/components in same commit
 - **Area scopes**: `config`, `mcp`, `extensions`, `watcher` (use when change is area-specific, not package-specific)
 
@@ -78,7 +78,7 @@ When reviewing commits, detect breaking changes by:
 ### Footer (Optional)
 - **Breaking changes**: `BREAKING CHANGE: <description>`
 - **Issue references**: `Closes #123`, `Fixes #456`, `Related to #789`
-- **Plan/Agent references**: `Plan: 0025-limps-radix-extension`, `Agent: 008`
+- **Plan/Agent references**: `Plan: NNNN-plan-name`, `Agent: 008`
 
 ## Examples
 
@@ -89,7 +89,7 @@ feat(limps): add config migration utility
 Adds utility to migrate config files between versions, handling
 backward compatibility and preserving user settings.
 
-Related to plan 0025-limps-radix-extension
+Related to plan NNNN-plan-name
 ```
 
 ### Bug Fix with Issue Reference
@@ -114,12 +114,12 @@ Migration guide: docs/config-migration.md
 
 ### Multi-Package Change
 ```
-feat(limps,limps-radix): add extension system
+feat(limps,limps-headless): add extension system
 
 Adds extension loader and context system to both packages.
 Extensions can register custom tools and resources.
 
-Plan: 0025-limps-radix-extension
+Plan: NNNN-plan-name
 Agent: 007
 ```
 
@@ -152,15 +152,15 @@ Adds documentation for extension development and integration.
 
 ### Monorepo Considerations
 - **Specify package scope** when changes are package-specific: `feat(limps): ...`
-- **Use root-level scope** for cross-package changes: `feat: ...` or `feat(limps,limps-radix): ...`
+- **Use root-level scope** for cross-package changes: `feat: ...` or `feat(limps,limps-headless): ...`
 - **Workspace-aware**: Consider impact on other packages
 
 ### Plan/Agent Integration
 - **Reference plans/agents** in commit body when applicable:
-  - `Plan: 0025-limps-radix-extension`
+  - `Plan: NNNN-plan-name`
   - `Agent: 008-complex-parsing`
 - **Use agent titles** in subject when committing agent work:
-  - `feat(limps-radix): implement complex parsing logic`
+  - `feat(limps-headless): implement complex parsing logic`
   - Body: `Agent: 008-complex-parsing`
 
 ### Release-Please Integration
