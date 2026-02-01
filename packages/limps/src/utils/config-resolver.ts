@@ -25,7 +25,11 @@ import { getOSConfigPath } from './os-paths.js';
 export function resolveConfigPath(cliConfigPath?: string): string {
   // Priority 1: CLI argument
   if (cliConfigPath) {
-    return resolve(cliConfigPath);
+    const resolvedPath = resolve(cliConfigPath);
+    if (!existsSync(resolvedPath)) {
+      throw new Error(`Config file not found: ${resolvedPath}`);
+    }
+    return resolvedPath;
   }
 
   // Priority 2: Environment variable MCP_PLANNING_CONFIG
