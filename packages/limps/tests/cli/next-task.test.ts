@@ -444,6 +444,35 @@ files: []
       }
       expect(data.task.taskId).toContain('#000');
     });
+
+    it('reports blocked depends_on dependencies in scoring reasons', () => {
+      const agent = createMockAgent({
+        agentNumber: '001',
+        frontmatter: {
+          status: 'GAP',
+          persona: 'coder',
+          dependencies: ['000'],
+          blocks: [],
+          files: [],
+        },
+      });
+      const depAgent = createMockAgent({
+        agentNumber: '000',
+        taskId: '0004-test-plan#000',
+        frontmatter: {
+          status: 'GAP',
+          persona: 'coder',
+          dependencies: [],
+          blocks: [],
+          files: [],
+        },
+      });
+      const allAgents = [agent, depAgent];
+
+      const result = calculateDependencyScore(agent, allAgents);
+      expect(result.score).toBe(0);
+      expect(result.reasons[0]).toContain('Blocked by: 000 (GAP)');
+    });
   });
 
   describe('score-task and score-all helpers', () => {

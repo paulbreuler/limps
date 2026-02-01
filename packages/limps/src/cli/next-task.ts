@@ -186,7 +186,7 @@ function getBlockedDependencies(
   for (const dep of deps) {
     const depAgent = allAgents.find((agent) => agent.agentNumber === dep);
     if (!depAgent) {
-      blocked.push({ id: dep, status: 'missing' });
+      blocked.push({ id: dep, status: 'MISSING' });
       continue;
     }
     if (depAgent.frontmatter.status !== 'PASS') {

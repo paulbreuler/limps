@@ -33,7 +33,7 @@ export interface AgentFrontmatter {
     bias?: number;
     weights?: Partial<ScoringWeights>;
   };
-  depends_on?: string[] | string; // Legacy alias for dependencies
+  depends_on?: string[] | string; // Alias for dependencies
 }
 
 /**
