@@ -58,7 +58,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
           ? resolveProjectConfigPath(options.project)
           : resolveConfigPath(options.config);
         const config = loadConfig(configPath);
-        const result = getScoredTaskById(config, taskId);
+        const result = getScoredTaskById(config, taskId, { suppressWarnings: true });
         if ('error' in result) {
           outputJson(wrapError(result.error, { code: 'SCORE_TASK_ERROR' }), 1);
         }

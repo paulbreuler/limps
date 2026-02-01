@@ -66,7 +66,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
             ? resolveProjectConfigPath(options.project)
             : resolveConfigPath(options.config);
           const config = loadConfig(configPath);
-          const data = await getNextTaskData(config, planId);
+          const data = await getNextTaskData(config, planId, { suppressWarnings: true });
           if ('error' in data) {
             outputJson(wrapError(data.error, { code: 'NEXT_TASK_ERROR' }), 1);
           }

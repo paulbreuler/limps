@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -1321,6 +1321,50 @@ scoring:
       }
       expect(result.tasks[0].biasScore).toBe(15);
       expect(result.tasks[0].totalScore).toBe(115);
+    });
+  });
+
+  describe('frontmatter warnings', () => {
+    it('suppresses malformed plan warning when requested', () => {
+      const planDir = join(plansDir, '0018-malformed-suppress');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0018-malformed-suppress-plan.md'),
+        `---
+scoring: [oops
+---
+
+# Plan 18
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const result = getScoredTasksData(config, '18', { suppressWarnings: true });
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        warnSpy.mockRestore();
+        return;
+      }
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 });

@@ -33,6 +33,9 @@ export interface TaskScoreBreakdown {
 }
 
 type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
+interface ScoringWarningsOptions {
+  suppressWarnings?: boolean;
+}
 
 const PLAN_SIGNAL_WEIGHTS: Record<PlanPriority, number> = {
   low: 0,
@@ -97,7 +100,10 @@ function parseScoringWeights(value: unknown): Partial<ScoringWeights> | undefine
   return Object.keys(weights).length > 0 ? weights : undefined;
 }
 
-function getPlanScoringOverrides(planDir: string): {
+function getPlanScoringOverrides(
+  planDir: string,
+  options?: ScoringWarningsOptions
+): {
   bias?: number;
   weights?: Partial<ScoringWeights>;
 } {
@@ -128,6 +134,7 @@ function getPlanScoringOverrides(planDir: string): {
     scoringBias !== undefined || scoringWeights !== undefined || hasSignalBias;
 
   if (
+    !options?.suppressWarnings &&
     content.startsWith('---') &&
     (detectPlanSignalKeys(content) || detectPlanScoringKeys(content)) &&
     !hasAnyOverrides
@@ -440,7 +447,8 @@ export interface ScoredTasksResult {
  */
 export async function getNextTaskData(
   config: ServerConfig,
-  planId: string
+  planId: string,
+  options?: ScoringWarningsOptions
 ): Promise<NextTaskResult | { error: string }> {
   const planDir = findPlanDirectory(config.plansPath, planId);
 
@@ -455,7 +463,7 @@ export async function getNextTaskData(
   }
 
   const planFolder = planDir.split('/').pop() || planId;
-  const planOverrides = getPlanScoringOverrides(planDir);
+  const planOverrides = getPlanScoringOverrides(planDir, options);
 
   // Get scoring weights and biases from config
   const weights = mergeScoringWeights(getScoringWeights(config), planOverrides.weights);
@@ -495,7 +503,8 @@ export async function getNextTaskData(
 
 export function getScoredTasksData(
   config: ServerConfig,
-  planId: string
+  planId: string,
+  options?: ScoringWarningsOptions
 ): ScoredTasksResult | { error: string } {
   const planDir = findPlanDirectory(config.plansPath, planId);
 
@@ -510,7 +519,7 @@ export function getScoredTasksData(
   }
 
   const planFolder = planDir.split('/').pop() || planId;
-  const planOverrides = getPlanScoringOverrides(planDir);
+  const planOverrides = getPlanScoringOverrides(planDir, options);
   const weights = mergeScoringWeights(getScoringWeights(config), planOverrides.weights);
   const biases = applyPlanBiasOverride(getScoringBiases(config), planFolder, planOverrides.bias);
 
@@ -541,7 +550,8 @@ export function getScoredTasksData(
 
 export function getScoredTaskById(
   config: ServerConfig,
-  taskId: string
+  taskId: string,
+  options?: ScoringWarningsOptions
 ): { planName: string; task: TaskScoreBreakdown } | { error: string } {
   const [planPart] = taskId.split('#');
   if (!planPart) {
@@ -569,7 +579,7 @@ export function getScoredTaskById(
   }
 
   const planFolder = planDir.split('/').pop() || planPart;
-  const planOverrides = getPlanScoringOverrides(planDir);
+  const planOverrides = getPlanScoringOverrides(planDir, options);
   const weights = mergeScoringWeights(getScoringWeights(config), planOverrides.weights);
   const biases = applyPlanBiasOverride(getScoringBiases(config), planFolder, planOverrides.bias);
   const agentOverrides = getAgentScoringOverrides(target);

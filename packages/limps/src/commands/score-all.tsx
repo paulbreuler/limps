@@ -58,7 +58,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
           ? resolveProjectConfigPath(options.project)
           : resolveConfigPath(options.config);
         const config = loadConfig(configPath);
-        const result = getScoredTasksData(config, planId);
+        const result = getScoredTasksData(config, planId, { suppressWarnings: true });
         if ('error' in result) {
           outputJson(wrapError(result.error, { code: 'SCORE_ALL_ERROR' }), 1);
         }
