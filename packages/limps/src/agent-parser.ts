@@ -33,6 +33,7 @@ export interface AgentFrontmatter {
     bias?: number;
     weights?: Partial<ScoringWeights>;
   };
+  depends_on?: string[] | string; // Alias for dependencies
 }
 
 /**
@@ -67,6 +68,33 @@ const DEFAULT_FRONTMATTER: AgentFrontmatter = {
   blocks: [],
   files: [],
 };
+
+function normalizeDependencyValue(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value).padStart(3, '0');
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      return trimmed.padStart(3, '0');
+    }
+    return trimmed;
+  }
+  return null;
+}
+
+function normalizeDependencies(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeDependencyValue(entry))
+      .filter((entry): entry is string => Boolean(entry));
+  }
+  const single = normalizeDependencyValue(value);
+  return single ? [single] : [];
+}
 
 /**
  * Extract agent number from filename.
@@ -332,6 +360,11 @@ export function parseAgentFile(path: string, content: string): ParsedAgentFile |
       ...DEFAULT_FRONTMATTER,
       ...parsed.frontmatter,
     };
+    const rawFrontmatter = parsed.frontmatter as Record<string, unknown>;
+    const dependencyOverrides = normalizeDependencies(rawFrontmatter.depends_on);
+    const parsedDependencies = normalizeDependencies(rawFrontmatter.dependencies);
+    const mergedDependencies = Array.from(new Set([...parsedDependencies, ...dependencyOverrides]));
+    frontmatter.dependencies = mergedDependencies;
     body = parsed.body;
   } else {
     // No frontmatter - extract from legacy format

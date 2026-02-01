@@ -211,6 +211,34 @@ describe('process-docs', () => {
       const resultText = result.content[0].text;
       expect(resultText).toContain('Cannot provide both paths and pattern');
     });
+
+    it('should reject path traversal patterns', async () => {
+      const result = await handleProcessDocs(
+        {
+          pattern: '../**/*.md',
+          code: 'docs.length',
+        },
+        context
+      );
+
+      expect(result.isError).toBeTruthy();
+      const resultText = result.content[0].text;
+      expect(resultText).toContain('Path traversal not allowed');
+    });
+
+    it('should reject absolute path patterns', async () => {
+      const result = await handleProcessDocs(
+        {
+          pattern: '/tmp/**/*.md',
+          code: 'docs.length',
+        },
+        context
+      );
+
+      expect(result.isError).toBeTruthy();
+      const resultText = result.content[0].text;
+      expect(resultText).toContain('Pattern must be relative');
+    });
   });
 
   describe('multi-empty', () => {

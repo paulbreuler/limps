@@ -178,6 +178,24 @@ function applyPlanBiasOverride(
   };
 }
 
+function getBlockedDependencies(
+  deps: string[],
+  allAgents: ParsedAgentFile[]
+): { id: string; status: string }[] {
+  const blocked: { id: string; status: string }[] = [];
+  for (const dep of deps) {
+    const depAgent = allAgents.find((agent) => agent.agentNumber === dep);
+    if (!depAgent) {
+      blocked.push({ id: dep, status: 'MISSING' });
+      continue;
+    }
+    if (depAgent.frontmatter.status !== 'PASS') {
+      blocked.push({ id: dep, status: depAgent.frontmatter.status });
+    }
+  }
+  return blocked;
+}
+
 function mergeScoringWeights(
   base: ScoringWeights,
   overrides?: Partial<ScoringWeights>
@@ -226,22 +244,14 @@ function calculateDependencyScore(
     return { score: maxScore, reasons };
   }
 
-  let satisfiedCount = 0;
-  for (const dep of deps) {
-    // Find the dependent agent by number (deps are just agent numbers like "000")
-    const depAgent = allAgents.find((a) => a.agentNumber === dep);
-    if (depAgent && depAgent.frontmatter.status === 'PASS') {
-      satisfiedCount++;
-    }
-  }
-
-  if (satisfiedCount === deps.length) {
+  const blockedDeps = getBlockedDependencies(deps, allAgents);
+  if (blockedDeps.length === 0) {
     reasons.push(`All ${deps.length} dependencies satisfied`);
     return { score: maxScore, reasons };
   }
 
-  const unsatisfied = deps.length - satisfiedCount;
-  reasons.push(`${unsatisfied}/${deps.length} dependencies not satisfied`);
+  const blockedList = blockedDeps.map((dep) => `${dep.id} (${dep.status})`).join(', ');
+  reasons.push(`Blocked by: ${blockedList}`);
   return { score: 0, reasons };
 }
 
@@ -361,16 +371,13 @@ function isTaskEligible(
     };
   }
 
-  // Check dependency satisfaction (using agent frontmatter status)
-  for (const dep of agent.frontmatter.dependencies) {
-    // Find the dependent agent by number (deps are just agent numbers like "000")
-    const depAgent = allAgents.find((a) => a.agentNumber === dep);
-    if (!depAgent || depAgent.frontmatter.status !== 'PASS') {
-      return {
-        eligible: false,
-        reason: `Dependency ${dep} not satisfied`,
-      };
-    }
+  const blockedDeps = getBlockedDependencies(agent.frontmatter.dependencies, allAgents);
+  if (blockedDeps.length > 0) {
+    const blockedList = blockedDeps.map((dep) => `${dep.id} (${dep.status})`).join(', ');
+    return {
+      eligible: false,
+      reason: `Blocked by: ${blockedList}`,
+    };
   }
 
   return { eligible: true };

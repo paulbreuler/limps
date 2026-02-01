@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { readFile, stat, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, isAbsolute } from 'path';
 import micromatch from 'micromatch';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
@@ -137,6 +137,15 @@ async function resolveGlobPattern(
   return matches;
 }
 
+function validatePattern(pattern: string): void {
+  if (isAbsolute(pattern)) {
+    throw validationError('pattern', 'Pattern must be relative to repo root');
+  }
+  if (pattern.includes('..')) {
+    throw validationError('pattern', 'Path traversal not allowed');
+  }
+}
+
 /**
  * Load a document and create DocVariable.
  */
@@ -225,6 +234,7 @@ export async function handleProcessDocs(
       // Use explicit paths
       docPaths = paths;
     } else if (pattern) {
+      validatePattern(pattern);
       // Resolve glob pattern
       const matchedPaths = await resolveGlobPattern(repoRoot, pattern);
 

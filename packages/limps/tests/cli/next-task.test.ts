@@ -4,6 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import {
   nextTask,
+  getNextTaskData,
   calculateDependencyScore,
   calculatePriorityScore,
   calculateWorkloadScore,
@@ -136,6 +137,7 @@ describe('next-task', () => {
       const result = calculateDependencyScore(agent, allAgents);
 
       expect(result.score).toBe(0);
+      expect(result.reasons[0]).toContain('Blocked by: 001 (GAP)');
     });
   });
 
@@ -261,7 +263,7 @@ describe('next-task', () => {
       const result = isTaskEligible(agent, allAgents);
 
       expect(result.eligible).toBe(false);
-      expect(result.reason).toContain('not satisfied');
+      expect(result.reason).toContain('Blocked by: 001 (GAP)');
     });
   });
 
@@ -397,6 +399,79 @@ files: []
     it('handles plan not found', async () => {
       const result = await nextTask(config, '99');
       expect(result).toContain('Plan not found: 99');
+    });
+
+    it('blocks depends_on dependencies from being selected', async () => {
+      const planDir = join(plansDir, '0014-depends-on');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: Foundation
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '001_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+depends_on:
+  - "000"
+blocks: []
+files: []
+---
+
+# Agent 1: Dependent
+`,
+        'utf-8'
+      );
+
+      const data = await getNextTaskData(config, '14');
+      expect('error' in data).toBe(false);
+      if ('error' in data) {
+        return;
+      }
+      expect(data.task.taskId).toContain('#000');
+    });
+
+    it('reports blocked depends_on dependencies in scoring reasons', () => {
+      const agent = createMockAgent({
+        agentNumber: '001',
+        frontmatter: {
+          status: 'GAP',
+          persona: 'coder',
+          dependencies: ['000'],
+          blocks: [],
+          files: [],
+        },
+      });
+      const depAgent = createMockAgent({
+        agentNumber: '000',
+        taskId: '0004-test-plan#000',
+        frontmatter: {
+          status: 'GAP',
+          persona: 'coder',
+          dependencies: [],
+          blocks: [],
+          files: [],
+        },
+      });
+      const allAgents = [agent, depAgent];
+
+      const result = calculateDependencyScore(agent, allAgents);
+      expect(result.score).toBe(0);
+      expect(result.reasons[0]).toContain('Blocked by: 000 (GAP)');
     });
   });
 
