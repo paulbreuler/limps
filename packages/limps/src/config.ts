@@ -420,6 +420,9 @@ export function validateConfig(config: unknown): config is ServerConfig {
     }
   }
   if (scoring.biases.personas !== undefined) {
+    if (typeof scoring.biases.personas !== 'object' || scoring.biases.personas === null) {
+      return false;
+    }
     const personas = scoring.biases.personas;
     if (personas.coder !== undefined && typeof personas.coder !== 'number') {
       return false;
@@ -435,6 +438,9 @@ export function validateConfig(config: unknown): config is ServerConfig {
     }
   }
   if (scoring.biases.statuses !== undefined) {
+    if (typeof scoring.biases.statuses !== 'object' || scoring.biases.statuses === null) {
+      return false;
+    }
     const statuses = scoring.biases.statuses;
     if (statuses.GAP !== undefined && typeof statuses.GAP !== 'number') {
       return false;

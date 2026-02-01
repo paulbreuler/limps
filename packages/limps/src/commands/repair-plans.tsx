@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { loadConfig } from '../config.js';
+import { type ServerConfig, loadConfig } from '../config.js';
 import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
 import { repairPlanFrontmatter, inspectPlanFrontmatter } from '../cli/plan-repair.js';
 import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
@@ -37,29 +37,36 @@ function findPlanDirs(plansPath: string): string[] {
 
 export default function RepairPlansCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
-  const config = loadConfig(configPath);
   const jsonMode = isJsonMode(options);
 
-  const planDirs = planId
-    ? findPlanDirs(config.plansPath).filter(
-        (dir) =>
-          dir.startsWith(planId.padStart(4, '0')) || dir.startsWith(`${planId}-`) || dir === planId
-      )
-    : findPlanDirs(config.plansPath);
+  const getConfig = (): ServerConfig => {
+    const configPath = options.project
+      ? resolveProjectConfigPath(options.project)
+      : resolveConfigPath(options.config);
+    return loadConfig(configPath);
+  };
 
-  if (planDirs.length === 0) {
-    return <Text color="yellow">No matching plans found.</Text>;
-  }
+  const getPlanDirs = (plansPath: string): string[] =>
+    planId
+      ? findPlanDirs(plansPath).filter(
+          (dir) =>
+            dir.startsWith(planId.padStart(4, '0')) ||
+            dir.startsWith(`${planId}-`) ||
+            dir === planId
+        )
+      : findPlanDirs(plansPath);
 
   useEffect((): (() => void) | undefined => {
-    if (!jsonMode && !options.check) {
+    if (!jsonMode) {
       return;
     }
     const timer = setTimeout(() => {
       try {
+        const config = getConfig();
+        const planDirs = getPlanDirs(config.plansPath);
+        if (planDirs.length === 0) {
+          outputJson(wrapError('No matching plans found.', { code: 'REPAIR_PLANS_ERROR' }), 1);
+        }
         const issues: {
           plan: string;
           path: string;
@@ -89,28 +96,31 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
           }
         }
 
-        if (jsonMode) {
-          outputJson(wrapSuccess({ total: issues.length, issues }));
-        }
+        outputJson(wrapSuccess({ total: issues.length, issues }));
       } catch (error) {
-        if (jsonMode) {
-          outputJson(
-            wrapError(error instanceof Error ? error.message : String(error), {
-              code: 'REPAIR_PLANS_ERROR',
-            }),
-            1
-          );
-        }
+        outputJson(
+          wrapError(error instanceof Error ? error.message : String(error), {
+            code: 'REPAIR_PLANS_ERROR',
+          }),
+          1
+        );
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [config.plansPath, jsonMode, options.check, planDirs]);
+  }, [jsonMode, options.config, options.project, planId]);
 
-  if (options.check || jsonMode) {
-    if (jsonMode) {
-      return null;
-    }
+  if (jsonMode) {
+    return null;
+  }
 
+  const config = getConfig();
+  const planDirs = getPlanDirs(config.plansPath);
+
+  if (planDirs.length === 0) {
+    return <Text color="yellow">No matching plans found.</Text>;
+  }
+
+  if (options.check) {
     const issues: {
       plan: string;
       path: string;
