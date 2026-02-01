@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.3...limps-headless-v0.1.4) (2026-02-01)
+
+
+### Features
+
+* **limps:** add tool filtering and planning skill docs ([#62](https://github.com/paulbreuler/limps/issues/62)) ([679f466](https://github.com/paulbreuler/limps/commit/679f466f3e0956d867ddc99dab5f308eb7ff2d75))
+
 ## [0.1.3](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.2...limps-headless-v0.1.3) (2026-01-31)
 
 
