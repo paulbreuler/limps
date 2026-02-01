@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.9.0](https://github.com/paulbreuler/limps/compare/limps-v2.8.0...limps-v2.9.0) (2026-02-01)
+
+
+### Features
+
+* **limps:** add graph storage scaffolding ([#59](https://github.com/paulbreuler/limps/issues/59)) ([08f3769](https://github.com/paulbreuler/limps/commit/08f376987bab928def7c47a150eb8b51480d1762))
+* **limps:** add tool filtering and planning skill docs ([#62](https://github.com/paulbreuler/limps/issues/62)) ([679f466](https://github.com/paulbreuler/limps/commit/679f466f3e0956d867ddc99dab5f308eb7ff2d75))
+* **limps:** granular scoring overrides and cli tools ([#64](https://github.com/paulbreuler/limps/issues/64)) ([37fc345](https://github.com/paulbreuler/limps/commit/37fc345112c3ef29dba0bf98a1d2895a7111da3c))
+
+
+### Bug Fixes
+
+* **limps:** honor depends_on in next-task scoring ([#65](https://github.com/paulbreuler/limps/issues/65)) ([59f6584](https://github.com/paulbreuler/limps/commit/59f65846e2f0aa01d8f07de98bd79729d937ee3e))
+
 ## [2.8.0](https://github.com/paulbreuler/limps/compare/limps-v2.7.0...limps-v2.8.0) (2026-01-31)
 
 
