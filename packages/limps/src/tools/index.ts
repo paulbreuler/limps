@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolFilteringConfig } from '../config.js';
 import type { ToolContext } from '../types.js';
 
 // Import all tool schemas and handlers
@@ -40,6 +41,67 @@ export const CORE_TOOL_NAMES = [
   'manage_tags',
 ] as const;
 
+const parseToolList = (value: string | undefined): string[] | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const entries = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return entries.length > 0 ? entries : undefined;
+};
+
+const resolveToolFilteringConfig = (
+  config: ToolFilteringConfig | undefined,
+  env: NodeJS.ProcessEnv
+): ToolFilteringConfig | undefined => {
+  if (config) {
+    return config;
+  }
+
+  const allowlist = parseToolList(env.LIMPS_ALLOWED_TOOLS);
+  const denylist = parseToolList(env.LIMPS_DISABLED_TOOLS);
+  if (!allowlist && !denylist) {
+    return undefined;
+  }
+
+  return { allowlist, denylist };
+};
+
+export const filterToolNames = (
+  toolNames: readonly string[],
+  config: ToolFilteringConfig | undefined,
+  env: NodeJS.ProcessEnv = process.env
+): string[] => {
+  const resolvedConfig = resolveToolFilteringConfig(config, env);
+  if (!resolvedConfig?.allowlist && !resolvedConfig?.denylist) {
+    return [...toolNames];
+  }
+
+  const available = new Set(toolNames);
+  const allowlist = resolvedConfig.allowlist?.filter((name) => name.length > 0);
+  const denylist = resolvedConfig.denylist?.filter((name) => name.length > 0);
+
+  const unknownNames = [...(allowlist ?? []), ...(denylist ?? [])].filter(
+    (name) => !available.has(name)
+  );
+  if (unknownNames.length > 0) {
+    console.warn(`Unknown tool names in filter list: ${unknownNames.join(', ')}. Ignoring.`);
+  }
+
+  if (allowlist && allowlist.length > 0) {
+    return allowlist.filter((name) => available.has(name));
+  }
+
+  if (denylist && denylist.length > 0) {
+    const deny = new Set(denylist);
+    return toolNames.filter((name) => !deny.has(name));
+  }
+
+  return [...toolNames];
+};
+
 /**
  * Register all MCP tools with the server.
  *
@@ -47,8 +109,45 @@ export const CORE_TOOL_NAMES = [
  * @param context - Tool context with db and config
  */
 export function registerTools(server: McpServer, context: ToolContext): void {
+  const enabledTools = new Set(filterToolNames(CORE_TOOL_NAMES, context.config.tools, process.env));
+  if (enabledTools.size === 0) {
+    console.warn(
+      '[limps] No tools were enabled after applying tool filtering configuration. ' +
+        'This may indicate a misconfigured ToolFilteringConfig or LIMPS_ALLOWED_TOOLS/LIMPS_DISABLED_TOOLS.'
+    );
+  }
+  const shouldRegisterTool = (name: string): boolean => enabledTools.has(name);
+  const registerTool = (
+    name: string,
+    description: string,
+    schema: unknown,
+    handler: (input: unknown) => Promise<unknown>
+  ): void => {
+    if (!shouldRegisterTool(name)) {
+      return;
+    }
+    server.tool(name, description, schema as never, handler as never);
+  };
+  const registerCursorTool = (
+    name: string,
+    description: string,
+    schema: unknown,
+    handler: (input: unknown) => Promise<unknown>
+  ): void => {
+    if (!shouldRegisterTool(name)) {
+      return;
+    }
+    server.registerTool(
+      name,
+      {
+        description,
+        inputSchema: schema as never,
+      },
+      handler as never
+    );
+  };
   // Plan Management Tools
-  server.tool(
+  registerTool(
     'create_plan',
     'Create a new feature plan with directory structure and agent files',
     CreatePlanInputSchema.shape,
@@ -58,7 +157,7 @@ export function registerTools(server: McpServer, context: ToolContext): void {
     }
   );
 
-  server.tool(
+  registerTool(
     'update_task_status',
     'Update task status (GAP → WIP → PASS/BLOCKED)',
     UpdateTaskStatusInputSchema.shape,
@@ -69,7 +168,7 @@ export function registerTools(server: McpServer, context: ToolContext): void {
   );
 
   // Task Selection Tools
-  server.tool(
+  registerTool(
     'get_next_task',
     `Get highest-priority available task based on dependencies and agent frontmatter.
 
@@ -87,7 +186,7 @@ Returns detailed score breakdown:
   );
 
   // Search Tools
-  server.tool(
+  registerTool(
     'search_docs',
     'Full-text search across planning documents',
     SearchDocsInputSchema.shape,
@@ -98,7 +197,7 @@ Returns detailed score breakdown:
   );
 
   // Document CRUD Tools
-  server.tool(
+  registerTool(
     'list_docs',
     'List files and directories in the repository',
     ListDocsInputSchema.shape,
@@ -108,7 +207,7 @@ Returns detailed score breakdown:
     }
   );
 
-  server.tool(
+  registerTool(
     'create_doc',
     'Create a new document in the repository',
     CreateDocInputSchema.shape,
@@ -118,7 +217,7 @@ Returns detailed score breakdown:
     }
   );
 
-  server.tool(
+  registerTool(
     'update_doc',
     'Update an existing document in the repository',
     UpdateDocInputBaseSchema.shape,
@@ -128,7 +227,7 @@ Returns detailed score breakdown:
     }
   );
 
-  server.tool(
+  registerTool(
     'delete_doc',
     'Delete a document from the repository',
     DeleteDocInputSchema.shape,
@@ -139,12 +238,10 @@ Returns detailed score breakdown:
   );
 
   // Cursor Integration Tools
-  server.registerTool(
+  registerCursorTool(
     'open_document_in_cursor',
-    {
-      description: 'Open a file in Cursor editor at an optional line/column position',
-      inputSchema: OpenDocumentInputSchema.shape,
-    },
+    'Open a file in Cursor editor at an optional line/column position',
+    OpenDocumentInputSchema.shape,
     async (input) => {
       const parsed = OpenDocumentInputSchema.parse(input);
       return handleOpenDocumentInCursor(parsed, context);
@@ -152,7 +249,7 @@ Returns detailed score breakdown:
   );
 
   // Document Processing Tools
-  server.tool(
+  registerTool(
     'process_doc',
     `Process a document with JavaScript code (read, filter, transform, extract). Can do everything read_doc does plus filtering/transformation.
 
@@ -172,7 +269,7 @@ To read line range: code: "doc.content.split('\\n').slice(10, 20).join('\\n')"`,
     }
   );
 
-  server.tool(
+  registerTool(
     'process_docs',
     `Process multiple documents with JavaScript code for cross-document analysis. Use glob patterns or explicit paths.
 
@@ -207,7 +304,7 @@ Example:
   );
 
   // Plan Overview Tools (aligned with CLI experience)
-  server.tool(
+  registerTool(
     'list_plans',
     `List all plans with overview information. Returns structured data including:
 - number: Plan number (e.g., "0001")
@@ -224,7 +321,7 @@ Use this to get an overview of all available plans before diving into a specific
     }
   );
 
-  server.tool(
+  registerTool(
     'list_agents',
     `List all agents for a specific plan with status and metadata. Returns:
 - agentNumber: Agent identifier (e.g., "000")
@@ -243,7 +340,7 @@ Also includes statusCounts summary showing how many agents are in each status.`,
     }
   );
 
-  server.tool(
+  registerTool(
     'get_plan_status',
     `Get plan progress summary with completion percentage. Returns:
 - planName: Full plan directory name
@@ -263,10 +360,9 @@ Use this to understand overall progress and identify blockers.`,
   );
 
   // Tag Management Tool
-  server.registerTool(
+  registerCursorTool(
     'manage_tags',
-    {
-      description: `Add, remove, or list tags in a document. Tags can be in frontmatter (tags: [...]) or inline (#tag).
+    `Add, remove, or list tags in a document. Tags can be in frontmatter (tags: [...]) or inline (#tag).
 
 Operations:
 - list: List all tags (from frontmatter and inline)
@@ -274,8 +370,7 @@ Operations:
 - remove: Remove tags from the document
 
 Tags are stored in frontmatter. Inline tags (#tag) are detected but stored in frontmatter.`,
-      inputSchema: ManageTagsInputSchema.shape,
-    },
+    ManageTagsInputSchema.shape,
     async (input) => {
       const parsed = ManageTagsInputSchema.parse(input);
       return handleManageTags(parsed, context);

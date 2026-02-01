@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type Database from 'better-sqlite3';
@@ -8,7 +8,7 @@ import { existsSync, unlinkSync, rmSync } from 'fs';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
 import type { ServerConfig } from '../src/config.js';
 import type { ToolContext } from '../src/types.js';
-import { registerTools } from '../src/tools/index.js';
+import { CORE_TOOL_NAMES, filterToolNames, registerTools } from '../src/tools/index.js';
 
 describe('tool-registration-export', () => {
   it('should export registerTools function from tools/index.ts', () => {
@@ -289,5 +289,63 @@ describe('tool-registration-no-duplicate', () => {
     // depending on MCP SDK behavior
     // For now, verify first registration works
     expect(server).toBeDefined();
+  });
+});
+
+describe('tool-filtering', () => {
+  const envSnapshot = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...envSnapshot };
+  });
+
+  it('prefers allowlist over denylist', () => {
+    const filtered = filterToolNames(CORE_TOOL_NAMES, {
+      allowlist: ['list_docs', 'search_docs'],
+      denylist: ['list_docs'],
+    });
+    expect(filtered).toEqual(['list_docs', 'search_docs']);
+  });
+
+  it('filters via denylist when no allowlist provided', () => {
+    const filtered = filterToolNames(CORE_TOOL_NAMES, {
+      denylist: ['process_doc', 'process_docs'],
+    });
+    expect(filtered).not.toContain('process_doc');
+    expect(filtered).not.toContain('process_docs');
+  });
+
+  it('uses env vars when config missing', () => {
+    process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,search_docs';
+    const filtered = filterToolNames(CORE_TOOL_NAMES, undefined, process.env);
+    expect(filtered).toEqual(['list_docs', 'search_docs']);
+  });
+
+  it('treats empty allowlist/denylist arrays as no filtering', () => {
+    const filtered = filterToolNames(CORE_TOOL_NAMES, { allowlist: [], denylist: [] });
+    expect(filtered).toEqual([...CORE_TOOL_NAMES]);
+  });
+
+  it('ignores empty and whitespace entries from env lists', () => {
+    process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,,  ,search_docs';
+    const filtered = filterToolNames(CORE_TOOL_NAMES, undefined, process.env);
+    expect(filtered).toEqual(['list_docs', 'search_docs']);
+  });
+
+  it('uses config over env vars', () => {
+    process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,search_docs';
+    const filtered = filterToolNames(CORE_TOOL_NAMES, { denylist: ['process_doc'] }, process.env);
+    expect(filtered).not.toContain('process_doc');
+    expect(filtered).toContain('list_docs');
+  });
+
+  it('warns for unknown tool names', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const filtered = filterToolNames(CORE_TOOL_NAMES, {
+      allowlist: ['list_docs', 'unknown_tool'],
+    });
+    expect(filtered).toEqual(['list_docs']);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

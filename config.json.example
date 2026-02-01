@@ -3,6 +3,9 @@
   "docsPaths": ["/path/to/your/planning/documents"],
   "fileExtensions": [".md"],
   "dataPath": "./data",
+  "tools": {
+    "allowlist": ["list_docs", "search_docs"]
+  },
   "scoring": {
     "weights": {
       "dependency": 40,
