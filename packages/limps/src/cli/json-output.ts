@@ -13,6 +13,8 @@ export interface JsonSuccess<T> {
   data: T;
 }
 
+import type { HelpMeta } from '../utils/cli-help.js';
+
 /**
  * Error envelope for JSON output.
  */
@@ -21,6 +23,7 @@ export interface JsonError {
   error: string;
   code?: string;
   suggestions?: string[];
+  help?: HelpMeta;
 }
 
 /**
@@ -50,7 +53,7 @@ export function wrapSuccess<T>(data: T): JsonSuccess<T> {
  */
 export function wrapError(
   message: string,
-  options?: { code?: string; suggestions?: string[] }
+  options?: { code?: string; suggestions?: string[]; help?: HelpMeta }
 ): JsonError {
   const envelope: JsonError = {
     success: false,
@@ -63,6 +66,10 @@ export function wrapError(
 
   if (options?.suggestions && options.suggestions.length > 0) {
     envelope.suggestions = options.suggestions;
+  }
+
+  if (options?.help) {
+    envelope.help = options.help;
   }
 
   return envelope;

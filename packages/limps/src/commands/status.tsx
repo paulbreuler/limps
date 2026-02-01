@@ -4,10 +4,11 @@ import { z } from 'zod';
 import { getPlanStatusSummary, getAgentStatusSummary } from '../cli/status.js';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { buildHelpText } from '../utils/cli-help.js';
+import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
 import { PlanStatus } from '../components/PlanStatus.js';
 import { AgentStatus } from '../components/AgentStatus.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { useEffect } from 'react';
 import { resolveTaskId } from '../cli/task-resolver.js';
 
 export const description = 'Show plan or agent status';
@@ -78,66 +79,87 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
     ? resolveProjectConfigPath(options.project)
     : resolveConfigPath(options.config);
   const config = loadConfig(configPath);
+  const help = buildHelpOutput({
+    usage: 'limps status <plan> [options]',
+    arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
+    options: [
+      '--config Path to config file',
+      '--project Registered project name',
+      '--json Output as JSON',
+      '--agent Show detailed status for specific agent',
+    ],
+    sections: [
+      {
+        title: 'Agent Status Examples',
+        lines: [
+          'limps status --agent 0001#002',
+          'limps status 0001 --agent 002',
+          'limps status --agent 0001#002 --json',
+        ],
+      },
+      {
+        title: 'Plan Status Examples',
+        lines: ['limps status 4', 'limps status 0004-my-feature', 'limps status 4 --json'],
+      },
+    ],
+    tips: [getProjectTipLine()],
+    llmHints: getProjectLlmHints(),
+  });
+  const jsonMode = isJsonMode(options);
+
+  useEffect((): (() => void) | undefined => {
+    if (!jsonMode) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      try {
+        if (!planId) {
+          outputJson(
+            wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID', help: help.meta }),
+            1
+          );
+        }
+        if (options.agent) {
+          const agentId = options.agent;
+          return handleJsonOutput(() => {
+            const resolvedId = resolveTaskId(agentId, {
+              plansPath: config.plansPath,
+              planContext: planId,
+            });
+            return getAgentStatusSummary(config, resolvedId);
+          }, 'AGENT_STATUS_ERROR');
+        }
+        return handleJsonOutput(() => getPlanStatusSummary(config, planId), 'STATUS_ERROR');
+      } catch (error) {
+        outputJson(
+          wrapError(error instanceof Error ? error.message : String(error), {
+            code: 'STATUS_ERROR',
+          }),
+          1
+        );
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [config, help.meta, jsonMode, options.agent, planId]);
 
   // Handle agent-specific status
   if (options.agent) {
     const agentId = options.agent;
 
-    // Handle JSON output mode for agent status
-    if (isJsonMode(options)) {
-      return handleJsonOutput(() => {
-        const resolvedId = resolveTaskId(agentId, {
-          plansPath: config.plansPath,
-          planContext: planId,
-        });
-        return getAgentStatusSummary(config, resolvedId);
-      }, 'AGENT_STATUS_ERROR');
+    if (jsonMode) {
+      return null;
     }
 
     // Render agent status component
     return <AgentStatusLoader agentId={agentId} planContext={planId} config={config} />;
   }
 
-  // Handle JSON output mode for plan status
-  if (isJsonMode(options)) {
-    if (!planId) {
-      return outputJson(wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID' }), 1);
-    }
-
-    return handleJsonOutput(() => {
-      return getPlanStatusSummary(config, planId);
-    }, 'STATUS_ERROR');
+  if (jsonMode) {
+    return null;
   }
 
   if (!planId) {
-    return (
-      <Text>
-        {buildHelpText({
-          usage: 'limps status <plan> [options]',
-          arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
-          options: [
-            '--config Path to config file',
-            '--project Registered project name',
-            '--json Output as JSON',
-            '--agent Show detailed status for specific agent',
-          ],
-          sections: [
-            {
-              title: 'Agent Status Examples',
-              lines: [
-                'limps status --agent 0001#002',
-                'limps status 0001 --agent 002',
-                'limps status --agent 0001#002 --json',
-              ],
-            },
-            {
-              title: 'Plan Status Examples',
-              lines: ['limps status 4', 'limps status 0004-my-feature', 'limps status 4 --json'],
-            },
-          ],
-        })}
-      </Text>
-    );
+    return <Text>{help.text}</Text>;
   }
 
   try {

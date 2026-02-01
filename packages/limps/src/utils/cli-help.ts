@@ -7,16 +7,34 @@ export interface HelpSection {
   lines: string[];
 }
 
+export interface HelpMeta {
+  usage: string;
+  arguments?: string[];
+  options?: string[];
+  examples?: string[];
+  sections?: HelpSection[];
+  tips?: string[];
+  llmHints?: string[];
+  notices?: string[];
+}
+
 export interface HelpBlock {
   usage: string;
   arguments?: string[];
   options?: string[];
   examples?: string[];
   sections?: HelpSection[];
+  tips?: string[];
+  llmHints?: string[];
+  includeNotices?: boolean;
 }
 
 export function getProjectTipLine(): string {
   return 'Tip: use `limps config list` to find project names for `--project`.';
+}
+
+export function getProjectLlmHints(): string[] {
+  return ['Use `limps config list` to discover project names for `--project`.'];
 }
 
 function getUpdateNoticeLines(): string[] {
@@ -35,7 +53,19 @@ function getUpdateNoticeLines(): string[] {
   return lines;
 }
 
-export function buildHelpText(block: HelpBlock): string {
+export function buildHelpOutput(block: HelpBlock): { text: string; meta: HelpMeta } {
+  const notices = block.includeNotices === false ? [] : getUpdateNoticeLines();
+  const meta: HelpMeta = {
+    usage: block.usage,
+    arguments: block.arguments,
+    options: block.options,
+    examples: block.examples,
+    sections: block.sections,
+    tips: block.tips,
+    llmHints: block.llmHints,
+    notices,
+  };
+
   const lines: string[] = [];
 
   lines.push(`Usage: ${block.usage}`);
@@ -66,12 +96,27 @@ export function buildHelpText(block: HelpBlock): string {
     }
   }
 
-  const notices = getUpdateNoticeLines();
+  if (block.tips && block.tips.length > 0) {
+    lines.push('');
+    lines.push('Tips:');
+    lines.push(...block.tips.map((line) => `  ${line}`));
+  }
+
+  if (block.llmHints && block.llmHints.length > 0) {
+    lines.push('');
+    lines.push('LLM Hints:');
+    lines.push(...block.llmHints.map((line) => `  ${line}`));
+  }
+
   if (notices.length > 0) {
     lines.push('');
     lines.push('Notices:');
     lines.push(...notices.map((line) => `  ${line}`));
   }
 
-  return lines.join('\n');
+  return { text: lines.join('\n'), meta };
+}
+
+export function buildHelpText(block: HelpBlock): string {
+  return buildHelpOutput(block).text;
 }

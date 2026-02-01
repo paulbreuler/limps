@@ -1,11 +1,12 @@
 import { Text } from 'ink';
+import { useEffect } from 'react';
 import { z } from 'zod';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
 import { repairPlanFrontmatter, inspectPlanFrontmatter } from '../cli/plan-repair.js';
-import { isJsonMode, outputJson, wrapSuccess } from '../cli/json-output.js';
+import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
 
 export const description = 'Repair malformed plan frontmatter (priority/severity)';
 
@@ -40,6 +41,7 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
     ? resolveProjectConfigPath(options.project)
     : resolveConfigPath(options.config);
   const config = loadConfig(configPath);
+  const jsonMode = isJsonMode(options);
 
   const planDirs = planId
     ? findPlanDirs(config.plansPath).filter(
@@ -52,7 +54,63 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
     return <Text color="yellow">No matching plans found.</Text>;
   }
 
-  if (options.check || isJsonMode(options)) {
+  useEffect((): (() => void) | undefined => {
+    if (!jsonMode && !options.check) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      try {
+        const issues: {
+          plan: string;
+          path: string;
+          status: string;
+          issues: { code: string; message: string; value?: string }[];
+          priority?: string;
+          severity?: string;
+          priorityRaw?: string;
+          severityRaw?: string;
+        }[] = [];
+
+        for (const dir of planDirs) {
+          const planFilePath = join(config.plansPath, dir, `${dir}-plan.md`);
+          const content = existsSync(planFilePath) ? readFileSync(planFilePath, 'utf-8') : '';
+          const inspection = inspectPlanFrontmatter(content);
+          if (inspection.status === 'needs_repair') {
+            issues.push({
+              plan: dir,
+              path: planFilePath,
+              status: inspection.status,
+              issues: inspection.issues,
+              priority: inspection.priority,
+              severity: inspection.severity,
+              priorityRaw: inspection.priorityRaw,
+              severityRaw: inspection.severityRaw,
+            });
+          }
+        }
+
+        if (jsonMode) {
+          outputJson(wrapSuccess({ total: issues.length, issues }));
+        }
+      } catch (error) {
+        if (jsonMode) {
+          outputJson(
+            wrapError(error instanceof Error ? error.message : String(error), {
+              code: 'REPAIR_PLANS_ERROR',
+            }),
+            1
+          );
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [config.plansPath, jsonMode, options.check, planDirs]);
+
+  if (options.check || jsonMode) {
+    if (jsonMode) {
+      return null;
+    }
+
     const issues: {
       plan: string;
       path: string;
@@ -80,10 +138,6 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
           severityRaw: inspection.severityRaw,
         });
       }
-    }
-
-    if (isJsonMode(options)) {
-      return outputJson(wrapSuccess({ total: issues.length, issues }));
     }
 
     if (issues.length === 0) {

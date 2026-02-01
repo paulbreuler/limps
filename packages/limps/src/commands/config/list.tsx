@@ -1,4 +1,5 @@
 import { Text } from 'ink';
+import { useEffect } from 'react';
 import { z } from 'zod';
 import { configList, getProjectsData } from '../../cli/config-cmd.js';
 import { handleJsonOutput, isJsonMode } from '../../cli/json-output.js';
@@ -14,9 +15,19 @@ interface Props {
 }
 
 export default function ConfigListCommand({ options }: Props): React.ReactNode {
-  // Handle JSON output mode
-  if (isJsonMode(options)) {
-    handleJsonOutput(() => getProjectsData(), 'CONFIG_LIST_ERROR');
+  const jsonMode = isJsonMode(options);
+  useEffect((): (() => void) | undefined => {
+    if (jsonMode) {
+      const timer = setTimeout(() => {
+        handleJsonOutput(() => getProjectsData(), 'CONFIG_LIST_ERROR');
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [jsonMode]);
+
+  if (jsonMode) {
+    return null;
   }
 
   const output = configList();

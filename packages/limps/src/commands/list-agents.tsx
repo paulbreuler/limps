@@ -1,9 +1,10 @@
 import { Text } from 'ink';
+import { useEffect } from 'react';
 import { z } from 'zod';
 import { getAgentsData } from '../cli/list-agents.js';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { buildHelpText } from '../utils/cli-help.js';
+import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
 import { AgentsList } from '../components/AgentsList.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 
@@ -24,46 +25,65 @@ interface Props {
 
 export default function ListAgentsCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
+  const help = buildHelpOutput({
+    usage: 'limps list-agents <plan> [options]',
+    arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
+    options: [
+      '--config Path to config file',
+      '--project Registered project name',
+      '--json Output as JSON',
+    ],
+    examples: [
+      'limps list-agents 4',
+      'limps list-agents 0004-my-feature',
+      'limps list-agents 4 --json',
+    ],
+    tips: [getProjectTipLine()],
+    llmHints: getProjectLlmHints(),
+  });
 
-  // Handle JSON output mode - must check before usage validation
-  if (isJsonMode(options)) {
-    if (!planId) {
-      return outputJson(wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID' }), 1);
+  const jsonMode = isJsonMode(options);
+  useEffect((): (() => void) | undefined => {
+    if (!jsonMode) {
+      return;
     }
-
-    const configPath = options.project
-      ? resolveProjectConfigPath(options.project)
-      : resolveConfigPath(options.config);
-    const config = loadConfig(configPath);
-
-    return handleJsonOutput(() => {
-      const result = getAgentsData(config, planId);
-      if ('error' in result) {
-        throw new Error(result.error);
+    const timer = setTimeout(() => {
+      try {
+        if (!planId) {
+          outputJson(
+            wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID', help: help.meta }),
+            1
+          );
+        }
+        const configPath = options.project
+          ? resolveProjectConfigPath(options.project)
+          : resolveConfigPath(options.config);
+        const config = loadConfig(configPath);
+        handleJsonOutput(() => {
+          const result = getAgentsData(config, planId);
+          if ('error' in result) {
+            throw new Error(result.error);
+          }
+          return result;
+        }, 'LIST_AGENTS_ERROR');
+      } catch (error) {
+        outputJson(
+          wrapError(error instanceof Error ? error.message : String(error), {
+            code: 'LIST_AGENTS_ERROR',
+          }),
+          1
+        );
       }
-      return result;
-    }, 'LIST_AGENTS_ERROR');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [help.meta, jsonMode, options.config, options.project, planId]);
+
+  if (jsonMode) {
+    return null;
   }
 
   if (!planId) {
-    return (
-      <Text>
-        {buildHelpText({
-          usage: 'limps list-agents <plan> [options]',
-          arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
-          options: [
-            '--config Path to config file',
-            '--project Registered project name',
-            '--json Output as JSON',
-          ],
-          examples: [
-            'limps list-agents 4',
-            'limps list-agents 0004-my-feature',
-            'limps list-agents 4 --json',
-          ],
-        })}
-      </Text>
-    );
+    return <Text>{help.text}</Text>;
   }
 
   try {
