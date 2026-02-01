@@ -1,4 +1,4 @@
-import { Text } from 'ink';
+import { Box, Text } from 'ink';
 import { useEffect } from 'react';
 import { z } from 'zod';
 import { getPlansData } from '../cli/list-plans.js';
@@ -68,10 +68,9 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
   }
 
   return (
-    <Text>
+    <Box flexDirection="column">
       <PlansList plans={result.plans} total={result.total} />
-      {'\n'}
-      {getProjectTipLine()}
-    </Text>
+      <Text>{getProjectTipLine()}</Text>
+    </Box>
   );
 }
