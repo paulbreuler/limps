@@ -23,7 +23,7 @@ Block: none
 ### #3: Publish limps planning skill
 
 TL;DR: Provide a standalone skill package with prompts and tool-selection guidance.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `skills-structure-valid`, `readme-skills-section`
 Files: `skills/limps-planning/*` (create), `README.md` (edit)
 
@@ -38,6 +38,6 @@ Gotchas:
 ---
 
 ## Done
-- [ ] Skill package created
-- [ ] README contains install + usage snippet
-- [ ] Status → PASS
+- [x] Skill package created
+- [x] README contains install + usage snippet
+- [x] Status → PASS

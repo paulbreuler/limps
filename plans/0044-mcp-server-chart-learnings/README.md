@@ -15,10 +15,10 @@ graph TD
 
 | Feature | Description | Status | Agent |
 |---|---|---|---|
-| #1 | README & docs parity | GAP | 000 |
-| #2 | Tool filtering (allow/deny) | GAP | 001 |
-| #3 | Publish limps planning skill | GAP | 002 |
-| #4 | Transport roadmap docs | GAP | 000 |
+| #1 | README & docs parity | PASS | 000 |
+| #2 | Tool filtering (allow/deny) | PASS | 001 |
+| #3 | Publish limps planning skill | PASS | 002 |
+| #4 | Transport roadmap docs | PASS | 000 |
 
 ## Agent Assignments
 

@@ -35,7 +35,7 @@ export function filterToolDefinitions(
 ### #2: Tool Filtering
 
 TL;DR: Allow/deny list controls which MCP tools are registered.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `tool-filter-allowlist`, `tool-filter-denylist`, `tool-filter-unknown`
 Files: `packages/limps/src/tools/index.ts` (edit), `packages/limps/src/config.ts` (edit), `packages/limps/src/types.ts` (edit), tests
 
@@ -51,8 +51,8 @@ Gotchas:
 ---
 
 ## Done
-- [ ] Allowlist and denylist supported
-- [ ] Unknown tools warned and ignored
-- [ ] Config + env var precedence documented
-- [ ] Tests added
-- [ ] Status → PASS
+- [x] Allowlist and denylist supported
+- [x] Unknown tools warned and ignored
+- [x] Config + env var precedence documented
+- [x] Tests added
+- [x] Status → PASS

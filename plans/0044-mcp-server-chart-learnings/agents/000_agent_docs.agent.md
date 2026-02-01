@@ -24,7 +24,7 @@ Block: Agent 001/002 can proceed in parallel
 ### #1: README & Docs Parity
 
 TL;DR: Add TOC, features list, CLI options, env var table, Windows config snippets, and skills section.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `readme-toc`, `readme-env-table`, `readme-windows-setup`
 Files: `README.md` (edit), `packages/limps-headless/README.md` (edit if needed)
 
@@ -41,7 +41,7 @@ Gotchas:
 ### #4: Transport & Deployment Docs
 
 TL;DR: Document current stdio transport and future SSE/HTTP roadmap.
-Status: `GAP`
+Status: `PASS`
 Test IDs: `readme-transport-section`
 Files: `README.md` (edit)
 
@@ -55,7 +55,7 @@ Gotchas:
 ---
 
 ## Done
-- [ ] README sections updated and consistent
-- [ ] Windows config snippet validated
-- [ ] Transport roadmap section added
-- [ ] Status → PASS
+- [x] README sections updated and consistent
+- [x] Windows config snippet validated
+- [x] Transport roadmap section added
+- [x] Status → PASS
