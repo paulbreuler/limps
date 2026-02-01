@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import type { Entity, EntityType, GraphStats, RelationType, Relationship } from './types.js';
+import { ENTITY_TYPES, RELATION_TYPES } from './types.js';
 
 interface EntityRow {
   id: number;
@@ -23,17 +24,6 @@ interface RelationshipRow {
   metadata: string | Record<string, unknown> | null;
   created_at: string;
 }
-
-const ENTITY_TYPES: EntityType[] = ['plan', 'agent', 'feature', 'file', 'tag', 'concept'];
-const RELATION_TYPES: RelationType[] = [
-  'CONTAINS',
-  'DEPENDS_ON',
-  'MODIFIES',
-  'IMPLEMENTS',
-  'SIMILAR_TO',
-  'BLOCKS',
-  'TAGGED_WITH',
-];
 
 function resolveEntityType(canonicalId: string, explicitType?: EntityType): EntityType | null {
   if (explicitType) {
@@ -59,7 +49,11 @@ function parseMetadata(value: EntityRow['metadata']): Record<string, unknown> {
 
   try {
     return JSON.parse(value) as Record<string, unknown>;
-  } catch {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn('GraphStorage.parseMetadata failed; returning empty object.', {
+      error: errorMessage,
+    });
     return {};
   }
 }
@@ -231,13 +225,13 @@ export class GraphStorage {
     let rows: RelationshipRow[];
 
     if (direction === 'outgoing') {
-      rows = this.db.prepare('SELECT * FROM relationships WHERE source_id = ?').all(entityId) as
-        | RelationshipRow[]
-        | [];
+      rows = this.db
+        .prepare('SELECT * FROM relationships WHERE source_id = ?')
+        .all(entityId) as RelationshipRow[];
     } else if (direction === 'incoming') {
-      rows = this.db.prepare('SELECT * FROM relationships WHERE target_id = ?').all(entityId) as
-        | RelationshipRow[]
-        | [];
+      rows = this.db
+        .prepare('SELECT * FROM relationships WHERE target_id = ?')
+        .all(entityId) as RelationshipRow[];
     } else {
       rows = this.db
         .prepare('SELECT * FROM relationships WHERE source_id = ? OR target_id = ?')
@@ -292,12 +286,13 @@ export class GraphStorage {
     return rows.map(mapEntity);
   }
 
-  getPath(fromId: number, toId: number, maxDepth: number): Entity[][] | null {
+  getPath(fromId: number, toId: number, maxDepth: number, maxPaths = 25): Entity[][] | null {
     if (maxDepth < 1) {
       return null;
     }
 
     const boundedDepth = Math.min(maxDepth, 10);
+    const boundedPaths = Math.max(1, Math.min(maxPaths, 1000));
     const start = this.getEntityById(fromId);
     const target = this.getEntityById(toId);
 
@@ -311,9 +306,10 @@ export class GraphStorage {
 
     const results: Entity[][] = [];
     const queue: Entity[][] = [[start]];
+    let head = 0;
 
-    while (queue.length > 0) {
-      const path = queue.shift();
+    while (head < queue.length) {
+      const path = queue[head++];
       if (!path) {
         continue;
       }
@@ -337,6 +333,9 @@ export class GraphStorage {
         const nextPath = [...path, neighbor];
         if (neighbor.id === toId) {
           results.push(nextPath);
+          if (results.length >= boundedPaths) {
+            return results;
+          }
         } else {
           queue.push(nextPath);
         }
@@ -523,7 +522,11 @@ export class GraphStorage {
         .all(query, safeLimit) as EntityRow[];
 
       return rows.map(mapEntity);
-    } catch {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn('GraphStorage.searchEntities failed; returning empty results.', {
+        error: errorMessage,
+      });
       return [];
     }
   }
@@ -550,5 +553,5 @@ export function hasChanged(
     return true;
   }
 
-  return existing.some((entity) => entity.contentHash !== currentHash);
+  return existing.some((entity) => !entity.contentHash || entity.contentHash !== currentHash);
 }

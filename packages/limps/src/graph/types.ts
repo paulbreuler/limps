@@ -1,4 +1,6 @@
-export type EntityType = 'plan' | 'agent' | 'feature' | 'file' | 'tag' | 'concept';
+export const ENTITY_TYPES = ['plan', 'agent', 'feature', 'file', 'tag', 'concept'] as const;
+
+export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export interface Entity {
   id: number;
@@ -12,14 +14,17 @@ export interface Entity {
   updatedAt: string;
 }
 
-export type RelationType =
-  | 'CONTAINS'
-  | 'DEPENDS_ON'
-  | 'MODIFIES'
-  | 'IMPLEMENTS'
-  | 'SIMILAR_TO'
-  | 'BLOCKS'
-  | 'TAGGED_WITH';
+export const RELATION_TYPES = [
+  'CONTAINS',
+  'DEPENDS_ON',
+  'MODIFIES',
+  'IMPLEMENTS',
+  'SIMILAR_TO',
+  'BLOCKS',
+  'TAGGED_WITH',
+] as const;
+
+export type RelationType = (typeof RELATION_TYPES)[number];
 
 export interface Relationship {
   id: number;

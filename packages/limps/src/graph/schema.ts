@@ -1,15 +1,19 @@
 import type { Database as DatabaseType } from 'better-sqlite3';
+import { ENTITY_TYPES, RELATION_TYPES } from './types.js';
+
+const entityTypeList = ENTITY_TYPES.map((type) => `'${type}'`).join(', ');
+const relationTypeList = RELATION_TYPES.map((type) => `'${type}'`).join(', ');
 
 export const SCHEMA_SQL = `
 -- Entities table
 CREATE TABLE IF NOT EXISTS entities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  type TEXT NOT NULL CHECK(type IN ('plan', 'agent', 'feature', 'file', 'tag', 'concept')),
+  type TEXT NOT NULL CHECK(type IN (${entityTypeList})),
   canonical_id TEXT NOT NULL,
   name TEXT NOT NULL,
   source_path TEXT,
   content_hash TEXT,
-  metadata JSON DEFAULT '{}',
+  metadata TEXT DEFAULT '{}',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   UNIQUE(type, canonical_id)
@@ -20,11 +24,9 @@ CREATE TABLE IF NOT EXISTS relationships (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
   target_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
-  relation_type TEXT NOT NULL CHECK(
-    relation_type IN ('CONTAINS', 'DEPENDS_ON', 'MODIFIES', 'IMPLEMENTS', 'SIMILAR_TO', 'BLOCKS', 'TAGGED_WITH')
-  ),
+  relation_type TEXT NOT NULL CHECK(relation_type IN (${relationTypeList})),
   confidence REAL DEFAULT 1.0,
-  metadata JSON DEFAULT '{}',
+  metadata TEXT DEFAULT '{}',
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(source_id, target_id, relation_type)
 );
