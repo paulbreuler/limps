@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Tests](https://img.shields.io/badge/Tests-899%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-%3E70%25-brightgreen)
+[![MCP Badge](https://lobehub.com/badge/mcp/paulbreuler-limps)](https://lobehub.com/mcp/paulbreuler-limps)
 
 ![limps in action](https://github.com/paulbreuler/limps/blob/main/.github/assets/limps-a-lol-longer.gif?raw=true)
 
