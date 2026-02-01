@@ -27,7 +27,10 @@ export function resolveConfigPath(cliConfigPath?: string): string {
   if (cliConfigPath) {
     const resolvedPath = resolve(cliConfigPath);
     if (!existsSync(resolvedPath)) {
-      throw new Error(`Config file not found: ${resolvedPath}`);
+      const parentDir = dirname(resolvedPath);
+      if (!existsSync(parentDir)) {
+        throw new Error(`Config directory not found: ${parentDir}`);
+      }
     }
     return resolvedPath;
   }

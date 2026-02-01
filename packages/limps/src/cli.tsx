@@ -8,7 +8,7 @@ import { startMcpServer } from './server-main.js';
 const args = process.argv.slice(2);
 const isServeCommand = args[0] === 'serve';
 const wantsHelp =
-  args.includes('--help') || args.includes('-h') || (args[1] === 'help' && isServeCommand);
+  args.includes('--help') || args.includes('-h') || (isServeCommand && args.includes('help'));
 
 if (isServeCommand && !wantsHelp) {
   // Parse --config option
