@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { useState, useEffect } from 'react';
 import { getNextTaskData, type TaskScoreBreakdown } from '../cli/next-task.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
 import { NextTask } from '../components/NextTask.js';
 import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
 
@@ -13,6 +14,7 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
+  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -23,64 +25,72 @@ interface Props {
 
 export default function NextTaskCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
+  const help = buildHelpOutput({
+    usage: 'limps next-task <plan> [options]',
+    arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
+    options: [
+      '--config Path to config file',
+      '--project Registered project name',
+      '--json Output as JSON',
+    ],
+    examples: ['limps next-task 4', 'limps next-task 0004-my-feature', 'limps next-task 4 --json'],
+    sections: [
+      {
+        title: 'Scoring Algorithm',
+        lines: [
+          'Dependency Score: 40 pts (all deps satisfied)',
+          'Priority Score: 30 pts (lower agent # = higher)',
+          'Workload Score: 30 pts (fewer files = higher)',
+        ],
+      },
+    ],
+    tips: [getProjectTipLine()],
+    llmHints: getProjectLlmHints(),
+  });
+  const jsonMode = isJsonMode(options);
 
-  // Handle JSON output mode - must check before usage validation
-  if (isJsonMode(options)) {
-    if (!planId) {
-      return outputJson(wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID' }), 1);
+  useEffect((): (() => void) | undefined => {
+    if (!jsonMode) {
+      return;
     }
-
-    // For JSON mode, we run synchronously since we're not rendering React
-    const configPath = resolveConfigPath(options.config);
-    const config = loadConfig(configPath);
-
-    // Use promise-based handling for async function
-    getNextTaskData(config, planId)
-      .then((data) => {
-        if ('error' in data) {
-          outputJson(wrapError(data.error, { code: 'NEXT_TASK_ERROR' }), 1);
-        } else {
+    const timer = setTimeout(() => {
+      const run = async (): Promise<void> => {
+        try {
+          if (!planId) {
+            outputJson(
+              wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID', help: help.meta }),
+              1
+            );
+          }
+          const configPath = options.project
+            ? resolveProjectConfigPath(options.project)
+            : resolveConfigPath(options.config);
+          const config = loadConfig(configPath);
+          const data = await getNextTaskData(config, planId, { suppressWarnings: true });
+          if ('error' in data) {
+            outputJson(wrapError(data.error, { code: 'NEXT_TASK_ERROR' }), 1);
+          }
           outputJson(wrapSuccess(data));
+        } catch (error) {
+          outputJson(
+            wrapError(error instanceof Error ? error.message : String(error), {
+              code: 'NEXT_TASK_ERROR',
+            }),
+            1
+          );
         }
-      })
-      .catch((err) => {
-        outputJson(wrapError((err as Error).message, { code: 'NEXT_TASK_ERROR' }), 1);
-      });
+      };
+      void run();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [help.meta, jsonMode, options.config, options.project, planId]);
 
-    // Return null while promise resolves (process.exit will terminate)
+  if (jsonMode) {
     return null;
   }
 
   if (!planId) {
-    return (
-      <Text>
-        <Text color="yellow">Usage:</Text> limps next-task {'<plan>'} [options]
-        {'\n\n'}
-        <Text color="cyan">Arguments:</Text>
-        {'\n'}
-        {'  '}plan Plan ID or name (e.g., "4" or "0004-feature-name")
-        {'\n\n'}
-        <Text color="cyan">Options:</Text>
-        {'\n'}
-        {'  '}--config Path to config file
-        {'\n'}
-        {'  '}--json Output as JSON
-        {'\n\n'}
-        <Text color="cyan">Scoring Algorithm:</Text>
-        {'\n'}
-        {'  '}Dependency Score: 40 pts (all deps satisfied)
-        {'\n'}
-        {'  '}Priority Score: 30 pts (lower agent # = higher)
-        {'\n'}
-        {'  '}Workload Score: 30 pts (fewer files = higher)
-        {'\n\n'}
-        <Text color="cyan">Examples:</Text>
-        {'\n'}
-        {'  '}limps next-task 4{'\n'}
-        {'  '}limps next-task 0004-my-feature{'\n'}
-        {'  '}limps next-task 4 --json
-      </Text>
-    );
+    return <Text>{help.text}</Text>;
   }
   const [result, setResult] = useState<
     { task: TaskScoreBreakdown; otherAvailableTasks: number } | { error: string } | null
@@ -90,7 +100,9 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
   useEffect(() => {
     const run = async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(options.config);
+        const configPath = options.project
+          ? resolveProjectConfigPath(options.project)
+          : resolveConfigPath(options.config);
         const config = loadConfig(configPath);
         const data = await getNextTaskData(config, planId);
         setResult(data);
@@ -99,7 +111,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
       }
     };
     void run();
-  }, [planId, options.config]);
+  }, [planId, options.config, options.project]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

@@ -25,6 +25,7 @@ Provide consistent guidance for selecting limps MCP tools in common planning wor
 - **Search docs**: `search_docs`
 - **Update status**: `update_task_status`
 - **Read/process docs**: `process_doc`, `process_docs`
+- **Update plan priority/severity**: `update_doc` (edit plan frontmatter)
 
 ## Examples
 
@@ -37,6 +38,13 @@ Provide consistent guidance for selecting limps MCP tools in common planning wor
 
 1. `list_agents` for the plan
 2. `update_task_status` with task ID and new status
+
+### Automate plan priority and severity
+
+1. `process_doc` the plan file (e.g., `plans/0030-foo/0030-foo-plan.md`) to read frontmatter
+2. Determine `priority` and `severity` values (`low | medium | high | critical`)
+3. `update_doc` with new frontmatter fields (do not edit config.json)
+4. Optional: add a brief note in plan content or decisions log describing why it was updated
 
 ### Extract open features across plans
 

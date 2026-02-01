@@ -33,6 +33,10 @@ export default function DefaultCommand(): React.ReactNode {
       {'  '}list-plans{'    '}List all plans with status{'\n'}
       {'  '}list-agents{'   '}List agents in a plan{'\n'}
       {'  '}next-task{'     '}Get the next best task{'\n'}
+      {'  '}score-task{'    '}Show scoring for a task{'\n'}
+      {'  '}score-all{'     '}Compare scores across tasks{'\n'}
+      {'  '}reindex{'       '}Rebuild the document index{'\n'}
+      {'  '}repair-plans{'  '}Repair plan frontmatter{'\n'}
       {'  '}status{'        '}Show plan progress{'\n'}
       {'  '}version{'        '}Show version information{'\n'}
       {'  '}config{'        '}Manage project configuration{'\n'}

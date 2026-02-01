@@ -30,6 +30,13 @@ export interface ScoringBiases {
   };
 }
 
+export type ScoringPreset =
+  | 'default'
+  | 'quick-wins'
+  | 'dependency-chain'
+  | 'newest-first'
+  | 'code-then-review';
+
 /**
  * Tool filtering configuration.
  * Allowlist takes precedence over denylist when both are provided.
@@ -49,8 +56,9 @@ export interface ServerConfig {
   fileExtensions?: string[]; // File types to index (default: ['.md'])
   dataPath: string;
   scoring: {
-    weights: ScoringWeights;
-    biases: ScoringBiases;
+    preset?: ScoringPreset;
+    weights: Partial<ScoringWeights>;
+    biases: Partial<ScoringBiases>;
   };
   tools?: ToolFilteringConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
@@ -83,13 +91,45 @@ export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
  * @returns Scoring weights
  */
 export function getScoringWeights(config: ServerConfig): ScoringWeights {
-  return config.scoring.weights;
+  const presetKey = config.scoring.preset ?? 'default';
+  const preset = SCORING_PRESETS[presetKey] ?? SCORING_PRESETS.default;
+  return {
+    ...DEFAULT_SCORING_WEIGHTS,
+    ...preset.weights,
+    ...(config.scoring.weights ?? {}),
+  };
 }
 
 /**
  * Default scoring biases (initial config values).
  */
 export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
+
+export const SCORING_PRESETS: Record<
+  ScoringPreset,
+  { weights: ScoringWeights; biases: ScoringBiases }
+> = {
+  default: {
+    weights: DEFAULT_SCORING_WEIGHTS,
+    biases: {},
+  },
+  'quick-wins': {
+    weights: { dependency: 20, priority: 20, workload: 60 },
+    biases: {},
+  },
+  'dependency-chain': {
+    weights: { dependency: 60, priority: 20, workload: 20 },
+    biases: { statuses: { BLOCKED: 20 } },
+  },
+  'newest-first': {
+    weights: { dependency: 30, priority: 40, workload: 30 },
+    biases: {},
+  },
+  'code-then-review': {
+    weights: DEFAULT_SCORING_WEIGHTS,
+    biases: { personas: { coder: 10, reviewer: -10 } },
+  },
+};
 
 /**
  * Get scoring biases from config.
@@ -99,13 +139,21 @@ export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
  */
 export function getScoringBiases(config: ServerConfig): ScoringBiases {
   const biases = config.scoring.biases;
-  const mergedPlans = { ...(DEFAULT_SCORING_BIASES.plans ?? {}), ...(biases.plans ?? {}) };
+  const presetKey = config.scoring.preset ?? 'default';
+  const preset = SCORING_PRESETS[presetKey] ?? SCORING_PRESETS.default;
+  const mergedPlans = {
+    ...(DEFAULT_SCORING_BIASES.plans ?? {}),
+    ...(preset.biases.plans ?? {}),
+    ...(biases.plans ?? {}),
+  };
   const mergedPersonas = {
     ...(DEFAULT_SCORING_BIASES.personas ?? {}),
+    ...(preset.biases.personas ?? {}),
     ...(biases.personas ?? {}),
   };
   const mergedStatuses = {
     ...(DEFAULT_SCORING_BIASES.statuses ?? {}),
+    ...(preset.biases.statuses ?? {}),
     ...(biases.statuses ?? {}),
   };
 
@@ -342,12 +390,67 @@ export function validateConfig(config: unknown): config is ServerConfig {
   if (!scoring.weights || !scoring.biases) {
     return false;
   }
-  if (
-    typeof scoring.weights.dependency !== 'number' ||
-    typeof scoring.weights.priority !== 'number' ||
-    typeof scoring.weights.workload !== 'number'
-  ) {
+  if (scoring.preset !== undefined) {
+    const presets = new Set<ScoringPreset>([
+      'default',
+      'quick-wins',
+      'dependency-chain',
+      'newest-first',
+      'code-then-review',
+    ]);
+    if (!presets.has(scoring.preset)) {
+      return false;
+    }
+  }
+  if (scoring.weights.dependency !== undefined && typeof scoring.weights.dependency !== 'number') {
     return false;
+  }
+  if (scoring.weights.priority !== undefined && typeof scoring.weights.priority !== 'number') {
+    return false;
+  }
+  if (scoring.weights.workload !== undefined && typeof scoring.weights.workload !== 'number') {
+    return false;
+  }
+  if (scoring.biases.plans !== undefined) {
+    if (typeof scoring.biases.plans !== 'object' || scoring.biases.plans === null) {
+      return false;
+    }
+    if (!Object.values(scoring.biases.plans).every((value) => typeof value === 'number')) {
+      return false;
+    }
+  }
+  if (scoring.biases.personas !== undefined) {
+    if (typeof scoring.biases.personas !== 'object' || scoring.biases.personas === null) {
+      return false;
+    }
+    const personas = scoring.biases.personas;
+    if (personas.coder !== undefined && typeof personas.coder !== 'number') {
+      return false;
+    }
+    if (personas.reviewer !== undefined && typeof personas.reviewer !== 'number') {
+      return false;
+    }
+    if (personas.pm !== undefined && typeof personas.pm !== 'number') {
+      return false;
+    }
+    if (personas.customer !== undefined && typeof personas.customer !== 'number') {
+      return false;
+    }
+  }
+  if (scoring.biases.statuses !== undefined) {
+    if (typeof scoring.biases.statuses !== 'object' || scoring.biases.statuses === null) {
+      return false;
+    }
+    const statuses = scoring.biases.statuses;
+    if (statuses.GAP !== undefined && typeof statuses.GAP !== 'number') {
+      return false;
+    }
+    if (statuses.WIP !== undefined && typeof statuses.WIP !== 'number') {
+      return false;
+    }
+    if (statuses.BLOCKED !== undefined && typeof statuses.BLOCKED !== 'number') {
+      return false;
+    }
   }
 
   return true;

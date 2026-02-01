@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { useEffect } from 'react';
 import { startMcpServer } from '../server-main.js';
+import { resolveProjectConfigPath } from '../utils/config-resolver.js';
 
 export const description = 'Start the MCP server';
 
 export const options = z.object({
-  config: z.string().optional().describe('Path to config file'),
+  config: z.string().optional().describe('Path to config file or project name'),
+  project: z.string().optional().describe('Registered project name'),
 });
 
 interface Props {
@@ -23,11 +25,13 @@ export default function ServeCommand({ options }: Props): React.ReactNode {
     // All output goes to stderr, not stdout
     console.error('MCP Planning Server running on stdio');
 
-    startMcpServer(options.config).catch((err: Error) => {
+    const configPath = options.project ? resolveProjectConfigPath(options.project) : options.config;
+
+    startMcpServer(configPath).catch((err: Error) => {
       console.error(`Server error: ${err.message}`);
       process.exit(1);
     });
-  }, [options.config]);
+  }, [options.config, options.project]);
 
   // Return null - no stdout output allowed for MCP servers
   return null;

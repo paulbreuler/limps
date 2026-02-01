@@ -9,6 +9,7 @@
 
 import { readFileSync, writeFileSync, statSync, readdirSync } from 'fs';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import type { ScoringWeights } from './config.js';
 
 /**
  * Agent file frontmatter interface.
@@ -28,6 +29,10 @@ export interface AgentFrontmatter {
   aliases?: string[]; // Alternative names for search (e.g., ["#000", "Agent 0"])
   created?: string; // ISO date: YYYY-MM-DD
   updated?: string; // ISO date: YYYY-MM-DD
+  scoring?: {
+    bias?: number;
+    weights?: Partial<ScoringWeights>;
+  };
 }
 
 /**

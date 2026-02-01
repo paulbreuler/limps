@@ -1,13 +1,13 @@
 ---
 title: Scoring Biases
-status: GAP
+status: PASS
 persona: coder
 dependencies: ["000"]
 blocks: ["003", "004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#001", "Biases Agent"]
 created: 2026-01-27
-updated: 2026-01-27
+updated: 2026-02-01
 files:
   - path: src/config.ts
     action: modify
@@ -72,7 +72,7 @@ export function getScoringBiases(config: ServerConfig): ScoringBiases;
 ### #0: ScoringBiases Interface
 
 TL;DR: Define the interface for configurable biases
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `ScoringBiases interface exists` → add to config.ts → export
@@ -82,7 +82,7 @@ TDD:
 ### #1: Plan Biases
 
 TL;DR: Allow +/- score adjustment per plan
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `plan bias applied to score` → match planFolder → add bias
@@ -92,7 +92,7 @@ TDD:
 ### #2: Persona Biases
 
 TL;DR: Allow +/- score adjustment per persona
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `persona bias applied to score` → match agent.frontmatter.persona → add bias
@@ -102,7 +102,7 @@ TDD:
 ### #3: Status Biases
 
 TL;DR: Allow +/- score adjustment per status
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `status bias applied to score` → only GAP tasks scored, but still useful
@@ -112,13 +112,13 @@ TDD:
 
 ## Done
 
-- [ ] ScoringBiases interface added to config.ts
-- [ ] DEFAULT_SCORING_BIASES constant defined
-- [ ] getScoringBiases() helper function
-- [ ] Plan biases applied in scoreTask()
-- [ ] Persona biases applied in scoreTask()
-- [ ] Status biases applied in scoreTask()
-- [ ] Score floored at 0 (no negative scores)
-- [ ] Tests for plan biases
-- [ ] Tests for persona biases
-- [ ] Tests for combined biases
+- [x] ScoringBiases interface added to config.ts
+- [x] DEFAULT_SCORING_BIASES constant defined
+- [x] getScoringBiases() helper function
+- [x] Plan biases applied in scoreTask()
+- [x] Persona biases applied in scoreTask()
+- [x] Status biases applied in scoreTask()
+- [x] Score floored at 0 (no negative scores)
+- [x] Tests for plan biases
+- [x] Tests for persona biases
+- [x] Tests for combined biases

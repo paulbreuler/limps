@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -8,6 +8,8 @@ import {
   calculatePriorityScore,
   calculateWorkloadScore,
   calculateBiasScore,
+  getScoredTasksData,
+  getScoredTaskById,
   isTaskEligible,
   scoreTask,
 } from '../../src/cli/next-task.js';
@@ -398,6 +400,103 @@ files: []
     });
   });
 
+  describe('score-task and score-all helpers', () => {
+    it('returns scored tasks sorted by total score', () => {
+      const planDir = join(plansDir, '0009-score-all');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: High Priority
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '001_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 1: Lower Priority
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '9');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].taskId).toContain('#000');
+    });
+
+    it('returns error for ineligible score-task', () => {
+      const planDir = join(plansDir, '0010-score-task');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: WIP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: In Progress
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTaskById(config, '0010-score-task#000');
+      expect('error' in result).toBe(true);
+    });
+
+    it('returns score for eligible score-task', () => {
+      const planDir = join(plansDir, '0011-score-task');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0: Ready
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTaskById(config, '0011-score-task#000');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.task.taskId).toBe('0011-score-task#000');
+    });
+  });
+
   describe('configurable weights', () => {
     describe('getScoringWeights', () => {
       it('applies custom weights from config', () => {
@@ -418,6 +517,23 @@ files: []
         expect(weights.dependency).toBe(50);
         expect(weights.priority).toBe(25);
         expect(weights.workload).toBe(25);
+      });
+
+      it('applies preset weights when configured', () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {
+            preset: 'quick-wins',
+            weights: {},
+            biases: DEFAULT_SCORING_BIASES,
+          },
+        };
+
+        const weights = getScoringWeights(customConfig);
+
+        expect(weights.dependency).toBe(20);
+        expect(weights.priority).toBe(20);
+        expect(weights.workload).toBe(60);
       });
     });
 
@@ -570,6 +686,104 @@ files: []
         expect(biases.plans?.['0004-test-plan']).toBe(20);
         expect(biases.personas?.coder).toBe(10);
         expect(biases.statuses?.GAP).toBe(5);
+      });
+
+      it('applies preset biases when configured', () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {
+            preset: 'code-then-review',
+            weights: DEFAULT_SCORING_WEIGHTS,
+            biases: {},
+          },
+        };
+
+        const biases = getScoringBiases(customConfig);
+
+        expect(biases.personas?.coder).toBe(10);
+        expect(biases.personas?.reviewer).toBe(-10);
+      });
+
+      it('adds plan bias from plan frontmatter priority/severity', () => {
+        const planDir = join(plansDir, '0012-plan-bias');
+        const agentsDir = join(planDir, 'agents');
+        mkdirSync(agentsDir, { recursive: true });
+
+        writeFileSync(
+          join(planDir, '0012-plan-bias-plan.md'),
+          `---
+priority: high
+severity: medium
+---
+
+# Plan 12
+`,
+          'utf-8'
+        );
+
+        writeFileSync(
+          join(agentsDir, '000_agent.agent.md'),
+          `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+          'utf-8'
+        );
+
+        const result = getScoredTasksData(config, '12');
+        expect('error' in result).toBe(false);
+        if ('error' in result) {
+          return;
+        }
+        expect(result.tasks[0].biasScore).toBe(15);
+        expect(result.tasks[0].totalScore).toBe(115);
+      });
+
+      it('ignores malformed plan frontmatter and suggests repair', () => {
+        const planDir = join(plansDir, '0013-plan-bias-repair');
+        const agentsDir = join(planDir, 'agents');
+        mkdirSync(agentsDir, { recursive: true });
+
+        writeFileSync(
+          join(planDir, '0013-plan-bias-repair-plan.md'),
+          `---
+priority: high
+severity: medium
+invalid: [oops
+---
+
+# Plan 13
+`,
+          'utf-8'
+        );
+
+        writeFileSync(
+          join(agentsDir, '000_agent.agent.md'),
+          `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+          'utf-8'
+        );
+
+        const result = getScoredTasksData(config, '13');
+        expect('error' in result).toBe(false);
+        if ('error' in result) {
+          return;
+        }
+        expect(result.tasks[0].biasScore).toBe(0);
       });
 
       it('returns empty biases when none are configured', () => {
@@ -910,6 +1124,247 @@ files: []
         expect(output).toContain('0008-ranking-test#001');
         expect(output).toContain('Reviewer Task');
       });
+    });
+  });
+
+  describe('frontmatter overrides', () => {
+    it('applies plan frontmatter weights override', () => {
+      const planDir = join(plansDir, '0014-plan-weights');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0014-plan-weights-plan.md'),
+        `---
+scoring:
+  weights:
+    dependency: 60
+    priority: 20
+    workload: 20
+---
+
+# Plan 14
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '14');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].weights).toEqual({
+        dependency: 60,
+        priority: 20,
+        workload: 20,
+      });
+      expect(result.tasks[0].dependencyScore).toBe(60);
+      expect(result.tasks[0].priorityScore).toBe(20);
+      expect(result.tasks[0].workloadScore).toBe(20);
+    });
+
+    it('applies agent weights override on top of plan weights', () => {
+      const planDir = join(plansDir, '0015-agent-weight-override');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0015-agent-weight-override-plan.md'),
+        `---
+scoring:
+  weights:
+    dependency: 60
+    priority: 20
+    workload: 20
+---
+
+# Plan 15
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+scoring:
+  weights:
+    dependency: 10
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '15');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].weights).toEqual({
+        dependency: 10,
+        priority: 20,
+        workload: 20,
+      });
+      expect(result.tasks[0].dependencyScore).toBe(10);
+    });
+
+    it('uses plan frontmatter bias over config plan bias', () => {
+      const planDir = join(plansDir, '0016-plan-bias-override');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0016-plan-bias-override-plan.md'),
+        `---
+scoring:
+  bias: -5
+---
+
+# Plan 16
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const customConfig: ServerConfig = {
+        ...config,
+        scoring: {
+          weights: DEFAULT_SCORING_WEIGHTS,
+          biases: {
+            plans: { '0016-plan-bias-override': 20 },
+          },
+        },
+      };
+
+      const result = getScoredTasksData(customConfig, '16');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].biasScore).toBe(-5);
+      expect(result.tasks[0].totalScore).toBe(95);
+    });
+
+    it('stacks agent bias with plan bias', () => {
+      const planDir = join(plansDir, '0017-bias-stack');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0017-bias-stack-plan.md'),
+        `---
+scoring:
+  bias: 10
+---
+
+# Plan 17
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+scoring:
+  bias: 5
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '17');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].biasScore).toBe(15);
+      expect(result.tasks[0].totalScore).toBe(115);
+    });
+  });
+
+  describe('frontmatter warnings', () => {
+    it('suppresses malformed plan warning when requested', () => {
+      const planDir = join(plansDir, '0018-malformed-suppress');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0018-malformed-suppress-plan.md'),
+        `---
+scoring: [oops
+---
+
+# Plan 18
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const result = getScoredTasksData(config, '18', { suppressWarnings: true });
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        warnSpy.mockRestore();
+        return;
+      }
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 });

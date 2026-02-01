@@ -13,6 +13,7 @@ interface NextTaskProps {
 }
 
 export function NextTask({ task, otherAvailableTasks }: NextTaskProps): React.ReactNode {
+  const totalMax = task.weights.dependency + task.weights.priority + task.weights.workload;
   return (
     <Box flexDirection="column">
       <Text bold>Next Best Task:</Text>
@@ -35,21 +36,27 @@ export function NextTask({ task, otherAvailableTasks }: NextTaskProps): React.Re
         <Box marginLeft={2} flexDirection="column">
           <Box>
             <Text dimColor>Total Score: </Text>
-            <Text color={getScoreColor(task.totalScore, 100)} bold>
-              {task.totalScore}/100
+            <Text color={getScoreColor(task.totalScore, totalMax)} bold>
+              {task.totalScore}/{totalMax}
             </Text>
           </Box>
           <Box>
             <Text dimColor>Dependencies: </Text>
-            <Text color={getScoreColor(task.dependencyScore, 40)}>{task.dependencyScore}/40</Text>
+            <Text color={getScoreColor(task.dependencyScore, task.weights.dependency)}>
+              {task.dependencyScore}/{task.weights.dependency}
+            </Text>
           </Box>
           <Box>
             <Text dimColor>Priority: </Text>
-            <Text color={getScoreColor(task.priorityScore, 30)}>{task.priorityScore}/30</Text>
+            <Text color={getScoreColor(task.priorityScore, task.weights.priority)}>
+              {task.priorityScore}/{task.weights.priority}
+            </Text>
           </Box>
           <Box>
             <Text dimColor>Workload: </Text>
-            <Text color={getScoreColor(task.workloadScore, 30)}>{task.workloadScore}/30</Text>
+            <Text color={getScoreColor(task.workloadScore, task.weights.workload)}>
+              {task.workloadScore}/{task.weights.workload}
+            </Text>
           </Box>
         </Box>
       </Box>
