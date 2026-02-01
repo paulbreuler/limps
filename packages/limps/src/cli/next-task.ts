@@ -28,6 +28,12 @@ export interface TaskScoreBreakdown {
   priorityScore: number;
   workloadScore: number;
   biasScore: number;
+  biasBreakdown: {
+    plan: number;
+    persona: number;
+    status: number;
+    agent: number;
+  };
   weights: ScoringWeights;
   reasons: string[];
 }
@@ -311,15 +317,22 @@ function calculateBiasScore(
   agent: ParsedAgentFile,
   biases: ScoringBiases,
   agentBias?: number
-): { score: number; reasons: string[] } {
+): { score: number; reasons: string[]; breakdown: TaskScoreBreakdown['biasBreakdown'] } {
   let score = 0;
   const reasons: string[] = [];
+  const breakdown: TaskScoreBreakdown['biasBreakdown'] = {
+    plan: 0,
+    persona: 0,
+    status: 0,
+    agent: 0,
+  };
 
   // Plan bias
   const planBias = biases.plans?.[agent.planFolder];
   if (planBias !== undefined) {
     const bias = planBias;
     score += bias;
+    breakdown.plan = bias;
     if (bias !== 0) {
       reasons.push(`Plan bias: ${bias > 0 ? '+' : ''}${bias}`);
     }
@@ -332,6 +345,7 @@ function calculateBiasScore(
     : undefined;
   if (personaBias !== undefined) {
     score += personaBias;
+    breakdown.persona = personaBias;
     if (personaBias !== 0) {
       reasons.push(`Persona bias (${persona}): ${personaBias > 0 ? '+' : ''}${personaBias}`);
     }
@@ -342,6 +356,7 @@ function calculateBiasScore(
   const statusBias = biases.statuses?.[status as keyof typeof biases.statuses];
   if (statusBias !== undefined) {
     score += statusBias;
+    breakdown.status = statusBias;
     if (statusBias !== 0) {
       reasons.push(`Status bias (${status}): ${statusBias > 0 ? '+' : ''}${statusBias}`);
     }
@@ -349,12 +364,13 @@ function calculateBiasScore(
 
   if (agentBias !== undefined) {
     score += agentBias;
+    breakdown.agent = agentBias;
     if (agentBias !== 0) {
       reasons.push(`Agent bias: ${agentBias > 0 ? '+' : ''}${agentBias}`);
     }
   }
 
-  return { score, reasons };
+  return { score, reasons, breakdown };
 }
 
 /**
@@ -421,6 +437,7 @@ function scoreTask(
     priorityScore: priorityResult.score,
     workloadScore: workloadResult.score,
     biasScore: biasResult.score,
+    biasBreakdown: biasResult.breakdown,
     weights,
     reasons: [
       ...depResult.reasons,

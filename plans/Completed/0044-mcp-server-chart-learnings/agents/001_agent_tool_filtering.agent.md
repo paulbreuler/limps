@@ -12,7 +12,6 @@ Block: Agent 000 for env var names (sync doc wording)
 ## Interfaces
 
 ### Export
-
 ```ts
 export interface ToolFilteringConfig {
   allowlist?: string[];
@@ -29,7 +28,6 @@ export function filterToolDefinitions(
 ```
 
 ### Receive
-
 - None
 
 ## Features
@@ -42,20 +40,17 @@ Test IDs: `tool-filter-allowlist`, `tool-filter-denylist`, `tool-filter-unknown`
 Files: `packages/limps/src/tools/index.ts` (edit), `packages/limps/src/config.ts` (edit), `packages/limps/src/types.ts` (edit), tests
 
 TDD:
-
 1. `filters tools via allowlist` → implement filter → refactor names
 2. `filters tools via denylist` → implement filter → refactor
 3. `unknown tools warned` → log + test
 
 Gotchas:
-
 - Tool names must match registry keys exactly
 - Avoid filtering required internal tools (if any)
 
 ---
 
 ## Done
-
 - [x] Allowlist and denylist supported
 - [x] Unknown tools warned and ignored
 - [x] Config + env var precedence documented

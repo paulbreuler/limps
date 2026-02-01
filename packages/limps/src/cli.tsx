@@ -6,7 +6,11 @@ import { startMcpServer } from './server-main.js';
 
 // Check if running serve command - needs clean stdio, bypass Pastel/Ink
 const args = process.argv.slice(2);
-if (args[0] === 'serve') {
+const isServeCommand = args[0] === 'serve';
+const wantsHelp =
+  args.includes('--help') || args.includes('-h') || (isServeCommand && args.includes('help'));
+
+if (isServeCommand && !wantsHelp) {
   // Parse --config option
   const configIndex = args.indexOf('--config');
   const configPath = configIndex !== -1 ? args[configIndex + 1] : undefined;

@@ -27,6 +27,14 @@ function createAgentFile(
     dependencies?: string[];
     files?: string[];
     title?: string;
+    scoring?: {
+      bias?: number;
+      weights?: {
+        dependency?: number;
+        priority?: number;
+        workload?: number;
+      };
+    };
   } = {}
 ): string {
   const {
@@ -35,7 +43,28 @@ function createAgentFile(
     dependencies = [],
     files = [],
     title = `Agent ${agentNumber}`,
+    scoring,
   } = options;
+
+  const scoringLines: string[] = [];
+  if (scoring) {
+    scoringLines.push('scoring:');
+    if (scoring.bias !== undefined) {
+      scoringLines.push(`  bias: ${scoring.bias}`);
+    }
+    if (scoring.weights && Object.keys(scoring.weights).length > 0) {
+      scoringLines.push('  weights:');
+      if (scoring.weights.dependency !== undefined) {
+        scoringLines.push(`    dependency: ${scoring.weights.dependency}`);
+      }
+      if (scoring.weights.priority !== undefined) {
+        scoringLines.push(`    priority: ${scoring.weights.priority}`);
+      }
+      if (scoring.weights.workload !== undefined) {
+        scoringLines.push(`    workload: ${scoring.weights.workload}`);
+      }
+    }
+  }
 
   const frontmatter = `---
 status: ${status}
@@ -43,6 +72,7 @@ persona: ${persona}
 dependencies: [${dependencies.map((d) => `"${d}"`).join(', ')}]
 blocks: []
 files: [${files.map((f) => `"${f}"`).join(', ')}]
+${scoringLines.join('\n')}
 ---`;
 
   const content = `${frontmatter}
@@ -112,6 +142,37 @@ describe('get-next-task', () => {
     expect(result.isError).toBeFalsy();
     const data = JSON.parse(result.content[0]?.text || '{}');
     expect(data.taskId).toBe('0001-test-plan#000');
+  });
+
+  it('should include breakdown and configUsed', async () => {
+    const planDir = join(plansPath, '0004-breakdown-test');
+    const agentsDir = join(planDir, 'agents');
+    mkdirSync(agentsDir, { recursive: true });
+
+    createAgentFile(agentsDir, '000', {
+      status: 'GAP',
+      files: [],
+      scoring: { bias: 4 },
+    });
+
+    context.config.scoring.biases = {
+      plans: { '0004-breakdown-test': 5 },
+      personas: { coder: 2 },
+      statuses: { GAP: 1 },
+    };
+
+    const result = await handleGetNextTask({ planId: '0004' }, context);
+
+    expect(result.isError).toBeFalsy();
+    const data = JSON.parse(result.content[0]?.text || '{}');
+    expect(data.breakdown.dependency.raw).toBeCloseTo(1);
+    expect(data.breakdown.priority.raw).toBeCloseTo(1);
+    expect(data.breakdown.workload.raw).toBeCloseTo(1);
+    expect(data.breakdown.biases).toEqual({ plan: 5, persona: 2, status: 1, agent: 4 });
+    expect(data.configUsed).toBe('custom');
+    expect(data.dependencyScore).toBe(40);
+    expect(data.priorityScore).toBe(30);
+    expect(data.workloadScore).toBe(30);
   });
 
   it('should return error when plan not found', async () => {

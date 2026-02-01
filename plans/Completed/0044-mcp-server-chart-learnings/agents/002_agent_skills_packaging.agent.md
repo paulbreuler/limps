@@ -12,12 +12,10 @@ Block: none
 ## Interfaces
 
 ### Export
-
 - Published skill package structure with README and usage
 - Install command documented in limps README
 
 ### Receive
-
 - None
 
 ## Features
@@ -30,19 +28,16 @@ Test IDs: `skills-structure-valid`, `readme-skills-section`
 Files: `skills/limps-planning/*` (create), `README.md` (edit)
 
 TDD:
-
 1. `skill repo structure is valid` → create package → validate metadata
 2. `skill docs referenced in README` → add docs → verify link
 
 Gotchas:
-
 - Ensure skill package is consumable via `npx skills add ...`
 - Keep tool names aligned with limps MCP tool IDs
 
 ---
 
 ## Done
-
 - [x] Skill package created
 - [x] README contains install + usage snippet
 - [x] Status → PASS

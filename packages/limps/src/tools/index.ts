@@ -9,6 +9,7 @@ import { clearIndex, indexAllPaths } from '../indexer.js';
 import { CreatePlanInputSchema, handleCreatePlan } from './create-plan.js';
 import { UpdateTaskStatusInputSchema, handleUpdateTaskStatus } from './update-task-status.js';
 import { GetNextTaskInputSchema, handleGetNextTask } from './get-next-task.js';
+import { ConfigureScoringInputSchema, handleConfigureScoring } from './configure-scoring.js';
 import { SearchDocsInputSchema, handleSearchDocs } from './search-docs.js';
 import { ListDocsInputSchema, handleListDocs } from './list-docs.js';
 import { CreateDocInputSchema, handleCreateDoc } from './create-doc.js';
@@ -30,6 +31,7 @@ export const CORE_TOOL_NAMES = [
   'create_plan',
   'update_task_status',
   'get_next_task',
+  'configure_scoring',
   'search_docs',
   'list_docs',
   'reindex_docs',
@@ -219,6 +221,19 @@ Returns detailed score breakdown:
     async (input) => {
       const parsed = GetNextTaskInputSchema.parse(input);
       return handleGetNextTask(parsed, context);
+    }
+  );
+
+  registerTool(
+    'configure_scoring',
+    `Update scoring configuration.
+
+Supports global config updates (preset/weights/biases) or scoped overrides for plan/agent frontmatter.
+Use scope "plan" or "agent" with targetId to write scoring overrides to frontmatter.`,
+    ConfigureScoringInputSchema.shape,
+    async (input) => {
+      const parsed = ConfigureScoringInputSchema.parse(input);
+      return handleConfigureScoring(parsed, context);
     }
   );
 
