@@ -8,7 +8,7 @@ import { existsSync, unlinkSync, rmSync } from 'fs';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
 import type { ServerConfig } from '../src/config.js';
 import type { ToolContext } from '../src/types.js';
-import { registerTools } from '../src/tools/index.js';
+import { CORE_TOOL_NAMES, filterToolNames, registerTools } from '../src/tools/index.js';
 
 describe('tool-registration-export', () => {
   it('should export registerTools function from tools/index.ts', () => {
@@ -289,5 +289,35 @@ describe('tool-registration-no-duplicate', () => {
     // depending on MCP SDK behavior
     // For now, verify first registration works
     expect(server).toBeDefined();
+  });
+});
+
+describe('tool-filtering', () => {
+  const envSnapshot = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...envSnapshot };
+  });
+
+  it('prefers allowlist over denylist', () => {
+    const filtered = filterToolNames(CORE_TOOL_NAMES, {
+      allowlist: ['list_docs', 'search_docs'],
+      denylist: ['list_docs'],
+    });
+    expect(filtered).toEqual(['list_docs', 'search_docs']);
+  });
+
+  it('filters via denylist when no allowlist provided', () => {
+    const filtered = filterToolNames(CORE_TOOL_NAMES, {
+      denylist: ['process_doc', 'process_docs'],
+    });
+    expect(filtered).not.toContain('process_doc');
+    expect(filtered).not.toContain('process_docs');
+  });
+
+  it('uses env vars when config missing', () => {
+    process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,search_docs';
+    const filtered = filterToolNames(CORE_TOOL_NAMES, undefined, process.env);
+    expect(filtered).toEqual(['list_docs', 'search_docs']);
   });
 });

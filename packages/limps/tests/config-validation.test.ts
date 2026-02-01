@@ -79,6 +79,27 @@ describe('config-validation', () => {
     expect(validateConfig(config)).toBe(true);
   });
 
+  it('should validate config with tool filtering', () => {
+    const config: ServerConfig = {
+      plansPath: '/path/to/plans',
+      dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
+      tools: {
+        allowlist: ['list_docs', 'search_docs'],
+        denylist: ['process_doc'],
+      },
+    };
+
+    expect(validateConfig(config)).toBe(true);
+  });
+
   it('should reject invalid docsPaths (not array)', () => {
     expect(
       validateConfig({
@@ -130,6 +151,44 @@ describe('config-validation', () => {
           biases: {},
         },
       })
+    ).toBe(false);
+  });
+
+  it('should reject invalid tools allowlist/denylist types', () => {
+    expect(
+      validateConfig({
+        plansPath: '/path',
+        dataPath: '/path',
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
+        tools: {
+          allowlist: 'list_docs',
+        },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+
+    expect(
+      validateConfig({
+        plansPath: '/path',
+        dataPath: '/path',
+        scoring: {
+          weights: {
+            dependency: 40,
+            priority: 30,
+            workload: 30,
+          },
+          biases: {},
+        },
+        tools: {
+          denylist: [123],
+        },
+      } as unknown as ServerConfig)
     ).toBe(false);
   });
 });

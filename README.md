@@ -10,6 +10,32 @@
 
 ![limps in action](https://github.com/paulbreuler/limps/blob/main/.github/assets/limps-a-lol-longer.gif?raw=true)
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [How I Use limps](#how-i-use-limps)
+- [How You Can Use It](#how-you-can-use-it)
+- [Why limps?](#why-limps)
+- [Installation](#installation)
+- [Project Setup](#project-setup)
+- [Client Setup](#client-setup)
+- [Transport](#transport)
+- [CLI Commands](#cli-commands)
+- [Configuration](#configuration)
+- [Environment Variables](#environment-variables)
+- [MCP Tools](#mcp-tools)
+- [Skills](#skills)
+- [Extensions](#extensions)
+- [Obsidian Compatibility](#obsidian-compatibility)
+- [Development](#development)
+- [Used in Production](#used-in-production)
+- [Creating a feature plan](#creating-a-feature-plan)
+- [Deep Dive](#deep-dive)
+- [Instructions](#instructions)
+- [What is MCP?](#what-is-mcp)
+- [License](#license)
+
 ## Quick Start
 
 ```bash
@@ -25,6 +51,15 @@ limps config sync-mcp --client claude-code
 ```
 
 Run this in the folder where you want to keep the docs and that's it. Your AI assistant now has access to your documents and nothing else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
+
+## Features
+
+- **Document CRUD + full-text search** across any folder of Markdown files
+- **Plan + agent workflows** with status tracking and task scoring
+- **Next-task suggestions** with score breakdowns and bias tuning
+- **Sandboxed document processing** via `process_doc(s)` helpers
+- **Multi-client sync** for Cursor, Claude, Codex, and more
+- **Extensions** for domain-specific tooling (e.g., limps-headless)
 
 ### What to know before you start
 
@@ -201,6 +236,24 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 </details>
 
 <details>
+<summary><b>Windows (npx)</b></summary>
+
+On Windows, use `cmd /c` to run `npx`:
+
+```json
+{
+  "mcpServers": {
+    "limps": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@sudosandwich/limps", "serve", "--config", "C:\\path\\to\\config.json"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
 <summary><b>OpenAI Codex</b></summary>
 
 Add to `~/.codex/config.toml`:
@@ -230,6 +283,12 @@ limps config sync-mcp --client chatgpt --print
 ```
 
 </details>
+
+## Transport
+
+- **Current**: stdio (local MCP server, launched by your client).
+- **Remote clients**: Use an MCP-compatible proxy for HTTPS clients (e.g., ChatGPT).
+- **Roadmap**: SSE/HTTP transports are planned but not implemented yet.
 
 ## CLI Commands
 
@@ -272,6 +331,10 @@ Config location varies by OS:
   "fileExtensions": [".md"],
   "dataPath": "~/Library/Application Support/limps/data",
   "extensions": ["@sudosandwich/limps-headless"],
+  "tools": {
+    "allowlist": ["list_docs", "search_docs"],
+    "denylist": ["process_doc"]
+  },
   "scoring": {
     "weights": { "dependency": 40, "priority": 30, "workload": 30 },
     "biases": {}
@@ -285,8 +348,19 @@ Config location varies by OS:
 | `docsPaths` | Additional directories to index |
 | `fileExtensions` | File types to index (default: `.md`) |
 | `dataPath` | SQLite database location |
+| `tools` | Tool allowlist/denylist filtering |
 | `extensions` | Extension packages to load |
 | `scoring` | Task prioritization weights and biases |
+
+## Environment Variables
+
+| Variable | Description | Example |
+|---|---|---|
+| `LIMPS_PROJECT` | Select active project for CLI commands | `LIMPS_PROJECT=project-b limps list-plans` |
+| `LIMPS_ALLOWED_TOOLS` | Comma-separated allowlist; only these tools are registered | `LIMPS_ALLOWED_TOOLS="list_docs,search_docs"` |
+| `LIMPS_DISABLED_TOOLS` | Comma-separated denylist; tools to hide | `LIMPS_DISABLED_TOOLS="process_doc,process_docs"` |
+
+**Precedence:** `config.tools` overrides env vars. If allowlist is set, denylist is ignored.
 
 ## MCP Tools
 
@@ -297,6 +371,18 @@ limps exposes 15 MCP tools for AI assistants:
 | **Documents** | `process_doc`, `process_docs`, `create_doc`, `update_doc`, `delete_doc`, `list_docs`, `search_docs`, `manage_tags`, `open_document_in_cursor` |
 | **Plans** | `create_plan`, `list_plans`, `list_agents`, `get_plan_status` |
 | **Tasks** | `get_next_task`, `update_task_status` |
+
+## Skills
+
+This repo includes a limps planning skill for AI IDEs in `skills/limps-planning`.
+
+Install from GitHub:
+
+```bash
+npx skills add paulbreuler/limps/skills/limps-planning
+```
+
+The skill focuses on selecting the right limps tools for common planning workflows.
 
 ## Extensions
 

@@ -31,6 +31,15 @@ export interface ScoringBiases {
 }
 
 /**
+ * Tool filtering configuration.
+ * Allowlist takes precedence over denylist when both are provided.
+ */
+export interface ToolFilteringConfig {
+  allowlist?: string[]; // Explicit tools to expose
+  denylist?: string[]; // Tools to hide
+}
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -43,6 +52,7 @@ export interface ServerConfig {
     weights: ScoringWeights;
     biases: ScoringBiases;
   };
+  tools?: ToolFilteringConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
 
@@ -132,6 +142,7 @@ const DEFAULT_CONFIG: ServerConfig = {
     weights: DEFAULT_SCORING_WEIGHTS,
     biases: DEFAULT_SCORING_BIASES,
   },
+  tools: undefined,
   extensions: undefined,
 };
 
@@ -256,6 +267,7 @@ export function loadConfig(configPath: string): ServerConfig {
     fileExtensions: typedConfig.fileExtensions,
     dataPath: resolvePath(typedConfig.dataPath || DEFAULT_CONFIG.dataPath),
     scoring,
+    tools: typedConfig.tools,
     extensions: typedConfig.extensions,
   };
 
@@ -302,6 +314,23 @@ export function validateConfig(config: unknown): config is ServerConfig {
   if (c.fileExtensions !== undefined) {
     if (!Array.isArray(c.fileExtensions) || !c.fileExtensions.every((e) => typeof e === 'string')) {
       return false;
+    }
+  }
+
+  if (c.tools !== undefined) {
+    if (typeof c.tools !== 'object' || c.tools === null) {
+      return false;
+    }
+    const tools = c.tools as ToolFilteringConfig;
+    if (tools.allowlist !== undefined) {
+      if (!Array.isArray(tools.allowlist) || !tools.allowlist.every((t) => typeof t === 'string')) {
+        return false;
+      }
+    }
+    if (tools.denylist !== undefined) {
+      if (!Array.isArray(tools.denylist) || !tools.denylist.every((t) => typeof t === 'string')) {
+        return false;
+      }
     }
   }
 

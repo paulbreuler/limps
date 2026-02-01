@@ -24,6 +24,10 @@ Example `limps.config.json`:
 }
 ```
 
+## Environment Variables
+
+None.
+
 ## CLI
 
 You can use the standalone CLI for local workflows. **Run from your project directory** so that `analyze` can resolve file paths (paths are relative to the current working directory):
