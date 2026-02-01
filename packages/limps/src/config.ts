@@ -88,7 +88,29 @@ export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
  * @returns Scoring biases
  */
 export function getScoringBiases(config: ServerConfig): ScoringBiases {
-  return config.scoring.biases;
+  const biases = config.scoring.biases;
+  const mergedPlans = { ...(DEFAULT_SCORING_BIASES.plans ?? {}), ...(biases.plans ?? {}) };
+  const mergedPersonas = {
+    ...(DEFAULT_SCORING_BIASES.personas ?? {}),
+    ...(biases.personas ?? {}),
+  };
+  const mergedStatuses = {
+    ...(DEFAULT_SCORING_BIASES.statuses ?? {}),
+    ...(biases.statuses ?? {}),
+  };
+
+  const merged: ScoringBiases = {};
+  if (Object.keys(mergedPlans).length > 0) {
+    merged.plans = mergedPlans;
+  }
+  if (Object.keys(mergedPersonas).length > 0) {
+    merged.personas = mergedPersonas;
+  }
+  if (Object.keys(mergedStatuses).length > 0) {
+    merged.statuses = mergedStatuses;
+  }
+
+  return merged;
 }
 
 /**

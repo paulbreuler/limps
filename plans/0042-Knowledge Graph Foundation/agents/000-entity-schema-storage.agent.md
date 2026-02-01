@@ -1,6 +1,6 @@
 ---
 title: Entity Schema & Storage
-status: GAP
+status: PASS
 persona: coder
 depends: []
 files: [src/graph/schema.ts, src/graph/storage.ts, src/graph/types.ts]
