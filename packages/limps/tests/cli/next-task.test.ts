@@ -571,6 +571,30 @@ files: []
         expect(biases.personas?.coder).toBe(10);
         expect(biases.statuses?.GAP).toBe(5);
       });
+
+      it('returns empty biases when none are configured', () => {
+        const biases = getScoringBiases(config);
+
+        expect(biases).toEqual({});
+      });
+
+      it('keeps only configured bias groups', () => {
+        const customConfig: ServerConfig = {
+          ...config,
+          scoring: {
+            weights: DEFAULT_SCORING_WEIGHTS,
+            biases: {
+              personas: { reviewer: -10 },
+            },
+          },
+        };
+
+        const biases = getScoringBiases(customConfig);
+
+        expect(biases.personas?.reviewer).toBe(-10);
+        expect(biases.plans).toBeUndefined();
+        expect(biases.statuses).toBeUndefined();
+      });
     });
 
     describe('calculateBiasScore', () => {
