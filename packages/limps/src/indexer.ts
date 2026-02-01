@@ -70,6 +70,18 @@ export function createSchema(db: DatabaseType): void {
   `);
 }
 
+/**
+ * Clear all indexed documents.
+ *
+ * @param db - Database instance
+ */
+export function clearIndex(db: DatabaseType): void {
+  db.exec(`
+    DELETE FROM documents_fts;
+    DELETE FROM documents;
+  `);
+}
+
 // Create a singleton FrontmatterHandler instance
 const frontmatterHandler = new FrontmatterHandler();
 

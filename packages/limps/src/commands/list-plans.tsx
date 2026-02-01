@@ -2,14 +2,16 @@ import { Text } from 'ink';
 import { z } from 'zod';
 import { getPlansData } from '../cli/list-plans.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
 import { PlansList } from '../components/PlansList.js';
+import { getProjectTipLine } from '../utils/cli-help.js';
 import { handleJsonOutput, isJsonMode } from '../cli/json-output.js';
 
 export const description = 'List all plans';
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
+  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -18,7 +20,9 @@ interface Props {
 }
 
 export default function ListPlansCommand({ options }: Props): React.ReactNode {
-  const configPath = resolveConfigPath(options.config);
+  const configPath = options.project
+    ? resolveProjectConfigPath(options.project)
+    : resolveConfigPath(options.config);
   const config = loadConfig(configPath);
 
   // Handle JSON output mode - bypass Ink rendering entirely
@@ -39,5 +43,11 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
     return <Text color="red">{result.error}</Text>;
   }
 
-  return <PlansList plans={result.plans} total={result.total} />;
+  return (
+    <Text>
+      <PlansList plans={result.plans} total={result.total} />
+      {'\n'}
+      {getProjectTipLine()}
+    </Text>
+  );
 }

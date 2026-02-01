@@ -3,6 +3,8 @@
  * Get the next best task with scoring breakdown.
  */
 
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import {
   type ServerConfig,
   type ScoringWeights,
@@ -12,6 +14,7 @@ import {
 } from '../config.js';
 import { type ParsedAgentFile } from '../agent-parser.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
+import { FrontmatterHandler } from '../utils/frontmatter.js';
 
 /**
  * Score breakdown for a task.
@@ -26,6 +29,84 @@ export interface TaskScoreBreakdown {
   workloadScore: number;
   biasScore: number;
   reasons: string[];
+}
+
+type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
+
+const PLAN_SIGNAL_WEIGHTS: Record<PlanPriority, number> = {
+  low: 0,
+  medium: 5,
+  high: 10,
+  critical: 20,
+};
+
+const frontmatterHandler = new FrontmatterHandler();
+
+function normalizePlanSignal(value: unknown): PlanPriority | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === 'low' ||
+    normalized === 'medium' ||
+    normalized === 'high' ||
+    normalized === 'critical'
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
+function detectPlanSignalKeys(content: string): boolean {
+  return /(^|\n)\s*priority\s*:/i.test(content) || /(^|\n)\s*severity\s*:/i.test(content);
+}
+
+function getPlanBiasFromFrontmatter(planDir: string): number {
+  const planFolder = planDir.split('/').pop();
+  if (!planFolder) {
+    return 0;
+  }
+  const planFilePath = join(planDir, `${planFolder}-plan.md`);
+  if (!existsSync(planFilePath)) {
+    return 0;
+  }
+  const content = readFileSync(planFilePath, 'utf-8');
+  try {
+    const parsed = frontmatterHandler.parse(content);
+    const priority = normalizePlanSignal(parsed.frontmatter.priority);
+    const severity = normalizePlanSignal(parsed.frontmatter.severity);
+    if (!priority && !severity && content.startsWith('---') && detectPlanSignalKeys(content)) {
+      console.warn(
+        `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps repair-plans --check --json\` for a structured report.`
+      );
+      return 0;
+    }
+    const priorityWeight = priority ? PLAN_SIGNAL_WEIGHTS[priority] : 0;
+    const severityWeight = severity ? PLAN_SIGNAL_WEIGHTS[severity] : 0;
+    return priorityWeight + severityWeight;
+  } catch {
+    if (detectPlanSignalKeys(content)) {
+      console.warn(
+        `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps repair-plans --check --json\` for a structured report.`
+      );
+    }
+    return 0;
+  }
+}
+
+function applyPlanBias(biases: ScoringBiases, planFolder: string, planBias: number): ScoringBiases {
+  if (planBias === 0) {
+    return biases;
+  }
+  const existingPlanBias = biases.plans?.[planFolder] ?? 0;
+  return {
+    ...biases,
+    plans: {
+      ...(biases.plans ?? {}),
+      [planFolder]: existingPlanBias + planBias,
+    },
+  };
 }
 
 /**
@@ -238,6 +319,11 @@ export interface NextTaskResult {
   otherAvailableTasks: number;
 }
 
+export interface ScoredTasksResult {
+  planName: string;
+  tasks: TaskScoreBreakdown[];
+}
+
 /**
  * Get the next best task data from a plan.
  * Returns structured data for rendering.
@@ -262,9 +348,12 @@ export async function getNextTaskData(
     return { error: 'No agents found' };
   }
 
+  const planFolder = planDir.split('/').pop() || planId;
+  const planBias = getPlanBiasFromFrontmatter(planDir);
+
   // Get scoring weights and biases from config
   const weights = getScoringWeights(config);
-  const biases = getScoringBiases(config);
+  const biases = applyPlanBias(getScoringBiases(config), planFolder, planBias);
 
   // Score all eligible tasks
   const scoredTasks: TaskScoreBreakdown[] = [];
@@ -294,6 +383,93 @@ export async function getNextTaskData(
     task: best,
     otherAvailableTasks: scoredTasks.length - 1,
   };
+}
+
+export function getScoredTasksData(
+  config: ServerConfig,
+  planId: string
+): ScoredTasksResult | { error: string } {
+  const planDir = findPlanDirectory(config.plansPath, planId);
+
+  if (!planDir) {
+    return { error: `Plan not found: ${planId}` };
+  }
+
+  const agents = getAgentFiles(planDir);
+
+  if (agents.length === 0) {
+    return { error: 'No agents found' };
+  }
+
+  const planFolder = planDir.split('/').pop() || planId;
+  const planBias = getPlanBiasFromFrontmatter(planDir);
+  const weights = getScoringWeights(config);
+  const biases = applyPlanBias(getScoringBiases(config), planFolder, planBias);
+
+  const scoredTasks: TaskScoreBreakdown[] = [];
+  for (const agent of agents) {
+    const score = scoreTask(agent, agents, weights, biases);
+    if (score) {
+      scoredTasks.push(score);
+    }
+  }
+
+  if (scoredTasks.length === 0) {
+    const passCount = agents.filter((a) => a.frontmatter.status === 'PASS').length;
+    if (passCount === agents.length) {
+      return { error: 'All tasks completed!' };
+    }
+    return { error: 'No available tasks (all blocked or in progress)' };
+  }
+
+  scoredTasks.sort((a, b) => b.totalScore - a.totalScore);
+
+  const planName = planDir.split('/').pop() || planId;
+
+  return { planName, tasks: scoredTasks };
+}
+
+export function getScoredTaskById(
+  config: ServerConfig,
+  taskId: string
+): { planName: string; task: TaskScoreBreakdown } | { error: string } {
+  const [planPart] = taskId.split('#');
+  if (!planPart) {
+    return { error: `Invalid task ID: ${taskId}` };
+  }
+
+  const planDir = findPlanDirectory(config.plansPath, planPart);
+  if (!planDir) {
+    return { error: `Plan not found: ${planPart}` };
+  }
+
+  const agents = getAgentFiles(planDir);
+  if (agents.length === 0) {
+    return { error: 'No agents found' };
+  }
+
+  const target = agents.find((agent) => agent.taskId === taskId);
+  if (!target) {
+    return { error: `Task not found: ${taskId}` };
+  }
+
+  const eligibility = isTaskEligible(target, agents);
+  if (!eligibility.eligible) {
+    return { error: `Task not available: ${eligibility.reason ?? 'Not eligible'}` };
+  }
+
+  const planFolder = planDir.split('/').pop() || planPart;
+  const planBias = getPlanBiasFromFrontmatter(planDir);
+  const weights = getScoringWeights(config);
+  const biases = applyPlanBias(getScoringBiases(config), planFolder, planBias);
+  const score = scoreTask(target, agents, weights, biases);
+
+  if (!score) {
+    return { error: `Task not available: ${taskId}` };
+  }
+
+  const planName = planDir.split('/').pop() || planPart;
+  return { planName, task: score };
 }
 
 /**

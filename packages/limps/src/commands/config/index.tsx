@@ -12,6 +12,7 @@ export default function ConfigCommand(): React.ReactNode {
       {'  '}list Show all registered projects{'\n'}
       {'  '}use {'<name>'} Set the current/default project{'\n'}
       {'  '}show Display resolved configuration values{'\n'}
+      {'  '}scoring Show or update scoring configuration{'\n'}
       {'  '}path Print the resolved config file path{'\n'}
       {'  '}add {'<name>'} {'<path>'} Register an existing config file{'\n'}
       {'  '}sync-mcp [project] [--projects {'<names>'}] [--client{' '}
@@ -27,6 +28,8 @@ export default function ConfigCommand(): React.ReactNode {
       {'  '}migrate Pull known configs into limps/projects/ from old locations{'\n'}
       {'\n'}
       Run `limps config {'<command>'} --help` for more information.
+      {'\n'}
+      Use `limps config list` to find project names for `--project`.
     </Text>
   );
 }

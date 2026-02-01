@@ -1,14 +1,26 @@
 {
   "plansPath": "./plans",
-  "docsPaths": ["."],
-  "fileExtensions": [".md"],
+  "docsPaths": [
+    "."
+  ],
+  "fileExtensions": [
+    ".md"
+  ],
   "dataPath": "./data",
   "scoring": {
-    "weights": {
-      "dependency": 40,
-      "priority": 30,
-      "workload": 30
+    "weights": {},
+    "biases": {
+      "personas": {
+        "reviewer": -10
+      },
+      "plans": {
+        "0030-limps-scoring-weights": 5
+      },
+      "statuses": {
+        "GAP": 2
+      }
     },
-    "biases": {}
-  }
+    "preset": "quick-wins"
+  },
+  "configVersion": 1
 }

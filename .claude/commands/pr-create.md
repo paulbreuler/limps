@@ -72,7 +72,10 @@ Create a PR on GitHub with a limps-aware description based on staged changes or 
      - `fix(server): handle missing config gracefully`
      - `refactor(limps-headless): simplify extension loader`
 
-8. **Error handling:**
+8. **Open PR in browser:**
+   - After successful creation, open the PR in the browser using `gh pr view --web`
+
+9. **Error handling:**
    - If PR exists, show URL and stop
    - If `gh` missing, show install/auth instructions
    - If no changes, report and stop

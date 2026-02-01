@@ -1,6 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import type { ToolFilteringConfig } from '../config.js';
-import type { ToolContext } from '../types.js';
+import { getAllDocsPaths, getFileExtensions } from '../config.js';
+import type { ToolContext, ToolResult } from '../types.js';
+import { clearIndex, indexAllPaths } from '../indexer.js';
 
 // Import all tool schemas and handlers
 import { CreatePlanInputSchema, handleCreatePlan } from './create-plan.js';
@@ -29,6 +32,7 @@ export const CORE_TOOL_NAMES = [
   'get_next_task',
   'search_docs',
   'list_docs',
+  'reindex_docs',
   'create_doc',
   'update_doc',
   'delete_doc',
@@ -40,6 +44,39 @@ export const CORE_TOOL_NAMES = [
   'get_plan_status',
   'manage_tags',
 ] as const;
+
+const ReindexDocsInputSchema = z.object({}).strict();
+
+async function handleReindexDocs(
+  _input: z.infer<typeof ReindexDocsInputSchema>,
+  context: ToolContext
+): Promise<ToolResult> {
+  const { db, config } = context;
+  const docsPaths = getAllDocsPaths(config);
+  const fileExtensions = getFileExtensions(config);
+  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian'];
+
+  clearIndex(db);
+  const result = await indexAllPaths(db, docsPaths, fileExtensions, ignorePatterns);
+
+  const output = {
+    indexed: result.indexed,
+    updated: result.updated,
+    skipped: result.skipped,
+    errors: result.errors,
+    paths: docsPaths,
+    extensions: fileExtensions,
+  };
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(output, null, 2),
+      },
+    ],
+  };
+}
 
 const parseToolList = (value: string | undefined): string[] | undefined => {
   if (!value) {
@@ -204,6 +241,16 @@ Returns detailed score breakdown:
     async (input) => {
       const parsed = ListDocsInputSchema.parse(input);
       return handleListDocs(parsed, context);
+    }
+  );
+
+  registerTool(
+    'reindex_docs',
+    'Clear and rebuild the search index from configured docs paths',
+    ReindexDocsInputSchema.shape,
+    async (input) => {
+      const parsed = ReindexDocsInputSchema.parse(input);
+      return handleReindexDocs(parsed, context);
     }
   );
 

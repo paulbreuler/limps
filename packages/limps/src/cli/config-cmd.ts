@@ -23,7 +23,17 @@ import {
   listProjects,
   loadRegistry,
 } from './registry.js';
-import { loadConfig, validateConfig } from '../config.js';
+import {
+  loadConfig,
+  validateConfig,
+  getScoringWeights,
+  getScoringBiases,
+  SCORING_PRESETS,
+  type ScoringPreset,
+  type ScoringWeights,
+  type ScoringBiases,
+  type ServerConfig,
+} from '../config.js';
 import { getOSBasePath } from '../utils/os-paths.js';
 
 /** Child dir under limps for project configs (limps/projects/<name>/config.json). */
@@ -47,6 +57,10 @@ export interface ProjectsData {
     exists: boolean;
   }[];
   total: number;
+  usage: {
+    projectFlag: string;
+    configUse: string;
+  };
 }
 
 /**
@@ -65,6 +79,10 @@ export function getProjectsData(): ProjectsData {
       exists: existsSync(p.configPath),
     })),
     total: projects.length,
+    usage: {
+      projectFlag: 'limps <command> --project <name>',
+      configUse: 'limps config use <name>',
+    },
   };
 }
 
@@ -90,6 +108,12 @@ export function configList(): string {
     const exists = existsSync(project.configPath) ? '' : ' (missing)';
     lines.push(`   ${current}     ${name}  ${project.configPath}${exists}`);
   }
+
+  lines.push('');
+  lines.push('Use with CLI commands:');
+  lines.push('  limps <command> --project <name>');
+  lines.push('Set default project:');
+  lines.push('  limps config use <name>');
 
   return lines.join('\n');
 }
@@ -209,6 +233,10 @@ export function configShow(resolveConfigPathFn: () => string): string {
 
   if (config.scoring?.weights || config.scoring?.biases) {
     lines.push(`  scoring:`);
+    if (config.scoring.preset) {
+      lines.push(`    preset:`);
+      lines.push(`      ${config.scoring.preset}`);
+    }
 
     if (config.scoring.weights) {
       lines.push(`    weights:`);
@@ -269,6 +297,163 @@ export function configShow(resolveConfigPathFn: () => string): string {
     }
   }
 
+  return lines.join('\n');
+}
+
+export interface ScoringConfigUpdateOptions {
+  preset?: ScoringPreset;
+  weights?: Partial<ScoringWeights>;
+  biases?: Partial<ScoringBiases>;
+}
+
+export function configScoringShow(resolveConfigPathFn: () => string): string {
+  const configPath = resolveConfigPathFn();
+
+  if (!existsSync(configPath)) {
+    return `Config file not found: ${configPath}\n\nRun \`limps init <name>\` to create a project.`;
+  }
+
+  const config = loadConfig(configPath);
+  const weights = getScoringWeights(config);
+  const biases = getScoringBiases(config);
+
+  const lines: string[] = [];
+  lines.push(`Config file: ${configPath}`);
+  lines.push('');
+  lines.push('Scoring:');
+  lines.push(`  preset: ${config.scoring.preset ?? 'default'}`);
+  lines.push('  weights:');
+  lines.push(`    dependency: ${weights.dependency}`);
+  lines.push(`    priority:   ${weights.priority}`);
+  lines.push(`    workload:   ${weights.workload}`);
+
+  const hasPlanBiases = biases.plans && Object.keys(biases.plans).length > 0;
+  const hasPersonaBiases = biases.personas && Object.values(biases.personas).length > 0;
+  const hasStatusBiases = biases.statuses && Object.values(biases.statuses).length > 0;
+  if (hasPlanBiases || hasPersonaBiases || hasStatusBiases) {
+    lines.push('  biases:');
+    if (hasPlanBiases && biases.plans) {
+      lines.push('    plans:');
+      for (const [plan, value] of Object.entries(biases.plans)) {
+        lines.push(`      ${plan}: ${value > 0 ? '+' : ''}${value}`);
+      }
+    }
+    if (hasPersonaBiases && biases.personas) {
+      lines.push('    personas:');
+      for (const [persona, value] of Object.entries(biases.personas)) {
+        lines.push(`      ${persona}: ${value > 0 ? '+' : ''}${value}`);
+      }
+    }
+    if (hasStatusBiases && biases.statuses) {
+      lines.push('    statuses:');
+      for (const [status, value] of Object.entries(biases.statuses)) {
+        lines.push(`      ${status}: ${value > 0 ? '+' : ''}${value}`);
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+export function configScoringUpdate(
+  resolveConfigPathFn: () => string,
+  options: ScoringConfigUpdateOptions
+): string {
+  const configPath = resolveConfigPathFn();
+
+  if (!existsSync(configPath)) {
+    throw new Error(`Config file not found: ${configPath}`);
+  }
+
+  const content = readFileSync(configPath, 'utf-8');
+  const config = JSON.parse(content) as Record<string, unknown>;
+  const typedConfig = config as Partial<ServerConfig>;
+
+  if (!typedConfig.scoring || typeof typedConfig.scoring !== 'object') {
+    typedConfig.scoring = { weights: {}, biases: {} };
+  }
+  if (!typedConfig.scoring.weights || typeof typedConfig.scoring.weights !== 'object') {
+    typedConfig.scoring.weights = {};
+  }
+  if (!typedConfig.scoring.biases || typeof typedConfig.scoring.biases !== 'object') {
+    typedConfig.scoring.biases = {};
+  }
+
+  const changes: string[] = [];
+
+  if (options.preset) {
+    if (!SCORING_PRESETS[options.preset]) {
+      throw new Error(
+        `Unknown preset: ${options.preset}. Valid presets: ${Object.keys(SCORING_PRESETS).join(', ')}`
+      );
+    }
+    typedConfig.scoring.preset = options.preset;
+    changes.push(`  preset: ${options.preset}`);
+    if (!options.weights) {
+      typedConfig.scoring.weights = {};
+    }
+    if (!options.biases) {
+      typedConfig.scoring.biases = {};
+    }
+  }
+
+  if (options.weights && Object.keys(options.weights).length > 0) {
+    typedConfig.scoring.weights = {
+      ...typedConfig.scoring.weights,
+      ...options.weights,
+    };
+    for (const [key, value] of Object.entries(options.weights)) {
+      changes.push(`  weight.${key}: ${value}`);
+    }
+  }
+
+  if (options.biases && Object.keys(options.biases).length > 0) {
+    const existingBiases = typedConfig.scoring.biases;
+    typedConfig.scoring.biases = {
+      ...existingBiases,
+      ...options.biases,
+      plans: {
+        ...(existingBiases?.plans ?? {}),
+        ...(options.biases.plans ?? {}),
+      },
+      personas: {
+        ...(existingBiases?.personas ?? {}),
+        ...(options.biases.personas ?? {}),
+      },
+      statuses: {
+        ...(existingBiases?.statuses ?? {}),
+        ...(options.biases.statuses ?? {}),
+      },
+    };
+    if (options.biases.plans) {
+      for (const [plan, value] of Object.entries(options.biases.plans)) {
+        changes.push(`  bias.plan:${plan}=${value}`);
+      }
+    }
+    if (options.biases.personas) {
+      for (const [persona, value] of Object.entries(options.biases.personas)) {
+        changes.push(`  bias.persona:${persona}=${value}`);
+      }
+    }
+    if (options.biases.statuses) {
+      for (const [status, value] of Object.entries(options.biases.statuses)) {
+        changes.push(`  bias.status:${status}=${value}`);
+      }
+    }
+  }
+
+  if (changes.length === 0) {
+    return 'No scoring changes specified. Use --preset, --weight, or --bias to update scoring.';
+  }
+
+  writeFileSync(configPath, JSON.stringify(typedConfig, null, 2));
+
+  const lines: string[] = [];
+  lines.push('Updated scoring configuration:');
+  lines.push('');
+  lines.push(...changes);
+  lines.push('');
+  lines.push(`Config file: ${configPath}`);
   return lines.join('\n');
 }
 

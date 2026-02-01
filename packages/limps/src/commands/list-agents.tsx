@@ -2,7 +2,8 @@ import { Text } from 'ink';
 import { z } from 'zod';
 import { getAgentsData } from '../cli/list-agents.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { buildHelpText } from '../utils/cli-help.js';
 import { AgentsList } from '../components/AgentsList.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 
@@ -12,6 +13,7 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
+  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -29,7 +31,9 @@ export default function ListAgentsCommand({ args, options }: Props): React.React
       return outputJson(wrapError('Plan ID is required', { code: 'MISSING_PLAN_ID' }), 1);
     }
 
-    const configPath = resolveConfigPath(options.config);
+    const configPath = options.project
+      ? resolveProjectConfigPath(options.project)
+      : resolveConfigPath(options.config);
     const config = loadConfig(configPath);
 
     return handleJsonOutput(() => {
@@ -44,29 +48,28 @@ export default function ListAgentsCommand({ args, options }: Props): React.React
   if (!planId) {
     return (
       <Text>
-        <Text color="yellow">Usage:</Text> limps list-agents {'<plan>'} [options]
-        {'\n\n'}
-        <Text color="cyan">Arguments:</Text>
-        {'\n'}
-        {'  '}plan Plan ID or name (e.g., "4" or "0004-feature-name")
-        {'\n\n'}
-        <Text color="cyan">Options:</Text>
-        {'\n'}
-        {'  '}--config Path to config file
-        {'\n'}
-        {'  '}--json Output as JSON
-        {'\n\n'}
-        <Text color="cyan">Examples:</Text>
-        {'\n'}
-        {'  '}limps list-agents 4{'\n'}
-        {'  '}limps list-agents 0004-my-feature{'\n'}
-        {'  '}limps list-agents 4 --json
+        {buildHelpText({
+          usage: 'limps list-agents <plan> [options]',
+          arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
+          options: [
+            '--config Path to config file',
+            '--project Registered project name',
+            '--json Output as JSON',
+          ],
+          examples: [
+            'limps list-agents 4',
+            'limps list-agents 0004-my-feature',
+            'limps list-agents 4 --json',
+          ],
+        })}
       </Text>
     );
   }
 
   try {
-    const configPath = resolveConfigPath(options.config);
+    const configPath = options.project
+      ? resolveProjectConfigPath(options.project)
+      : resolveConfigPath(options.config);
     const config = loadConfig(configPath);
     const result = getAgentsData(config, planId);
 

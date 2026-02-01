@@ -71,3 +71,20 @@ export function resolveConfigPath(cliConfigPath?: string): string {
 
   return osConfigPath;
 }
+
+/**
+ * Resolve a config path from a registered project name.
+ *
+ * @param projectName - Registered project name
+ * @returns Absolute path to project config
+ * @throws Error if project is not registered or path is missing
+ */
+export function resolveProjectConfigPath(projectName: string): string {
+  const projectPath = getProjectPath(projectName);
+  if (!projectPath || !existsSync(projectPath)) {
+    throw new Error(
+      `Project not found: ${projectName}\nRun \`limps config list\` to see available projects.`
+    );
+  }
+  return projectPath;
+}

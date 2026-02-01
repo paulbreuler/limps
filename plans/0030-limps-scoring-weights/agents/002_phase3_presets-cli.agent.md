@@ -1,13 +1,13 @@
 ---
 title: Presets & CLI
-status: GAP
+status: PASS
 persona: coder
 dependencies: ["000", "001"]
 blocks: ["004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#002", "Presets CLI Agent"]
 created: 2026-01-27
-updated: 2026-01-27
+updated: 2026-02-01
 files:
   - path: src/config.ts
     action: modify
@@ -67,7 +67,7 @@ export interface ServerConfig {
 ### #0: Preset Definitions
 
 TL;DR: Define named presets for common configurations
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `SCORING_PRESETS constant exists` → define all 5 presets
@@ -77,7 +77,7 @@ TDD:
 ### #1: CLI Scoring Config
 
 TL;DR: Commands to view and modify scoring config
-Status: `GAP`
+Status: `PASS`
 
 Commands:
 ```bash
@@ -95,7 +95,7 @@ TDD:
 ### #2: Score Task Command
 
 TL;DR: Command to see how a specific task scores
-Status: `GAP`
+Status: `PASS`
 
 ```bash
 limps score-task 0027#001
@@ -108,7 +108,7 @@ TDD:
 ### #3: Score All Command
 
 TL;DR: Compare scoring across all tasks in a plan
-Status: `GAP`
+Status: `PASS`
 
 ```bash
 limps score-all --plan 0027
@@ -122,14 +122,14 @@ TDD:
 
 ## Done
 
-- [ ] SCORING_PRESETS constant defined
-- [ ] Preset selection in config.json
-- [ ] Preset applied before custom weights/biases
-- [ ] `limps config scoring` shows config
-- [ ] `--preset` flag sets preset
-- [ ] `--weight` flag adjusts weights
-- [ ] `--bias` flag adds biases
-- [ ] `limps score-task` command
-- [ ] `limps score-all` command
-- [ ] Tests for presets
-- [ ] Tests for CLI commands
+- [x] SCORING_PRESETS constant defined
+- [x] Preset selection in config.json
+- [x] Preset applied before custom weights/biases
+- [x] `limps config scoring` shows config
+- [x] `--preset` flag sets preset
+- [x] `--weight` flag adjusts weights
+- [x] `--bias` flag adds biases
+- [x] `limps score-task` command
+- [x] `limps score-all` command
+- [x] Tests for presets
+- [x] Tests for CLI commands

@@ -3,7 +3,8 @@ import { Text } from 'ink';
 import { z } from 'zod';
 import { getPlanStatusSummary, getAgentStatusSummary } from '../cli/status.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { buildHelpText } from '../utils/cli-help.js';
 import { PlanStatus } from '../components/PlanStatus.js';
 import { AgentStatus } from '../components/AgentStatus.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
@@ -15,6 +16,7 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
+  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
   agent: z
     .string()
@@ -72,7 +74,9 @@ function AgentStatusLoader({
 
 export default function StatusCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
-  const configPath = resolveConfigPath(options.config);
+  const configPath = options.project
+    ? resolveProjectConfigPath(options.project)
+    : resolveConfigPath(options.config);
   const config = loadConfig(configPath);
 
   // Handle agent-specific status
@@ -108,31 +112,30 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
   if (!planId) {
     return (
       <Text>
-        <Text color="yellow">Usage:</Text> limps status {'<plan>'} [options]
-        {'\n\n'}
-        <Text color="cyan">Arguments:</Text>
-        {'\n'}
-        {'  '}plan Plan ID or name (e.g., "4" or "0004-feature-name")
-        {'\n\n'}
-        <Text color="cyan">Options:</Text>
-        {'\n'}
-        {'  '}--config Path to config file
-        {'\n'}
-        {'  '}--json Output as JSON
-        {'\n'}
-        {'  '}--agent Show detailed status for specific agent
-        {'\n\n'}
-        <Text color="cyan">Agent Status Examples:</Text>
-        {'\n'}
-        {'  '}limps status --agent 0001#002{'\n'}
-        {'  '}limps status 0001 --agent 002{'\n'}
-        {'  '}limps status --agent 0001#002 --json
-        {'\n\n'}
-        <Text color="cyan">Plan Status Examples:</Text>
-        {'\n'}
-        {'  '}limps status 4{'\n'}
-        {'  '}limps status 0004-my-feature{'\n'}
-        {'  '}limps status 4 --json
+        {buildHelpText({
+          usage: 'limps status <plan> [options]',
+          arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
+          options: [
+            '--config Path to config file',
+            '--project Registered project name',
+            '--json Output as JSON',
+            '--agent Show detailed status for specific agent',
+          ],
+          sections: [
+            {
+              title: 'Agent Status Examples',
+              lines: [
+                'limps status --agent 0001#002',
+                'limps status 0001 --agent 002',
+                'limps status --agent 0001#002 --json',
+              ],
+            },
+            {
+              title: 'Plan Status Examples',
+              lines: ['limps status 4', 'limps status 0004-my-feature', 'limps status 4 --json'],
+            },
+          ],
+        })}
       </Text>
     );
   }
