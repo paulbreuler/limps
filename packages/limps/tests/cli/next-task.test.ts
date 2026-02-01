@@ -1126,4 +1126,201 @@ files: []
       });
     });
   });
+
+  describe('frontmatter overrides', () => {
+    it('applies plan frontmatter weights override', () => {
+      const planDir = join(plansDir, '0014-plan-weights');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0014-plan-weights-plan.md'),
+        `---
+scoring:
+  weights:
+    dependency: 60
+    priority: 20
+    workload: 20
+---
+
+# Plan 14
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '14');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].weights).toEqual({
+        dependency: 60,
+        priority: 20,
+        workload: 20,
+      });
+      expect(result.tasks[0].dependencyScore).toBe(60);
+      expect(result.tasks[0].priorityScore).toBe(20);
+      expect(result.tasks[0].workloadScore).toBe(20);
+    });
+
+    it('applies agent weights override on top of plan weights', () => {
+      const planDir = join(plansDir, '0015-agent-weight-override');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0015-agent-weight-override-plan.md'),
+        `---
+scoring:
+  weights:
+    dependency: 60
+    priority: 20
+    workload: 20
+---
+
+# Plan 15
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+scoring:
+  weights:
+    dependency: 10
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '15');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].weights).toEqual({
+        dependency: 10,
+        priority: 20,
+        workload: 20,
+      });
+      expect(result.tasks[0].dependencyScore).toBe(10);
+    });
+
+    it('uses plan frontmatter bias over config plan bias', () => {
+      const planDir = join(plansDir, '0016-plan-bias-override');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0016-plan-bias-override-plan.md'),
+        `---
+scoring:
+  bias: -5
+---
+
+# Plan 16
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const customConfig: ServerConfig = {
+        ...config,
+        scoring: {
+          weights: DEFAULT_SCORING_WEIGHTS,
+          biases: {
+            plans: { '0016-plan-bias-override': 20 },
+          },
+        },
+      };
+
+      const result = getScoredTasksData(customConfig, '16');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].biasScore).toBe(-5);
+      expect(result.tasks[0].totalScore).toBe(95);
+    });
+
+    it('stacks agent bias with plan bias', () => {
+      const planDir = join(plansDir, '0017-bias-stack');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(planDir, '0017-bias-stack-plan.md'),
+        `---
+scoring:
+  bias: 10
+---
+
+# Plan 17
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '000_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+scoring:
+  bias: 5
+---
+
+# Agent 0
+`,
+        'utf-8'
+      );
+
+      const result = getScoredTasksData(config, '17');
+      expect('error' in result).toBe(false);
+      if ('error' in result) {
+        return;
+      }
+      expect(result.tasks[0].biasScore).toBe(15);
+      expect(result.tasks[0].totalScore).toBe(115);
+    });
+  });
 });

@@ -28,6 +28,7 @@ export interface TaskScoreBreakdown {
   priorityScore: number;
   workloadScore: number;
   biasScore: number;
+  weights: ScoringWeights;
   reasons: string[];
 }
 
@@ -62,51 +63,139 @@ function detectPlanSignalKeys(content: string): boolean {
   return /(^|\n)\s*priority\s*:/i.test(content) || /(^|\n)\s*severity\s*:/i.test(content);
 }
 
-function getPlanBiasFromFrontmatter(planDir: string): number {
+function detectPlanScoringKeys(content: string): boolean {
+  return /(^|\n)\s*scoring\s*:/i.test(content);
+}
+
+function parseScoringBias(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return value;
+}
+
+function parseScoringWeights(value: unknown): Partial<ScoringWeights> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const weightsValue = value as Record<string, unknown>;
+  const weights: Partial<ScoringWeights> = {};
+  const dependency = parseScoringBias(weightsValue.dependency);
+  const priority = parseScoringBias(weightsValue.priority);
+  const workload = parseScoringBias(weightsValue.workload);
+
+  if (dependency !== undefined) {
+    weights.dependency = dependency;
+  }
+  if (priority !== undefined) {
+    weights.priority = priority;
+  }
+  if (workload !== undefined) {
+    weights.workload = workload;
+  }
+
+  return Object.keys(weights).length > 0 ? weights : undefined;
+}
+
+function getPlanScoringOverrides(planDir: string): {
+  bias?: number;
+  weights?: Partial<ScoringWeights>;
+} {
   const planFolder = planDir.split('/').pop();
   if (!planFolder) {
-    return 0;
+    return {};
   }
   const planFilePath = join(planDir, `${planFolder}-plan.md`);
   if (!existsSync(planFilePath)) {
-    return 0;
+    return {};
   }
   const content = readFileSync(planFilePath, 'utf-8');
-  try {
-    const parsed = frontmatterHandler.parse(content);
-    const priority = normalizePlanSignal(parsed.frontmatter.priority);
-    const severity = normalizePlanSignal(parsed.frontmatter.severity);
-    if (!priority && !severity && content.startsWith('---') && detectPlanSignalKeys(content)) {
-      console.warn(
-        `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps repair-plans --check --json\` for a structured report.`
-      );
-      return 0;
-    }
-    const priorityWeight = priority ? PLAN_SIGNAL_WEIGHTS[priority] : 0;
-    const severityWeight = severity ? PLAN_SIGNAL_WEIGHTS[severity] : 0;
-    return priorityWeight + severityWeight;
-  } catch {
-    if (detectPlanSignalKeys(content)) {
-      console.warn(
-        `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps repair-plans --check --json\` for a structured report.`
-      );
-    }
-    return 0;
+  const parsed = frontmatterHandler.parse(content);
+  const priority = normalizePlanSignal(parsed.frontmatter.priority);
+  const severity = normalizePlanSignal(parsed.frontmatter.severity);
+  const scoring = parsed.frontmatter.scoring;
+  const scoringRecord =
+    scoring && typeof scoring === 'object' && !Array.isArray(scoring)
+      ? (scoring as Record<string, unknown>)
+      : undefined;
+  const scoringBias = scoringRecord ? parseScoringBias(scoringRecord.bias) : undefined;
+  const scoringWeights = scoringRecord ? parseScoringWeights(scoringRecord.weights) : undefined;
+  const hasSignalBias = priority !== undefined || severity !== undefined;
+
+  const planSignalBias =
+    (priority ? PLAN_SIGNAL_WEIGHTS[priority] : 0) + (severity ? PLAN_SIGNAL_WEIGHTS[severity] : 0);
+  const hasAnyOverrides =
+    scoringBias !== undefined || scoringWeights !== undefined || hasSignalBias;
+
+  if (
+    content.startsWith('---') &&
+    (detectPlanSignalKeys(content) || detectPlanScoringKeys(content)) &&
+    !hasAnyOverrides
+  ) {
+    console.warn(
+      `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps repair-plans --check --json\` for a structured report.`
+    );
   }
+
+  if (!hasAnyOverrides) {
+    return {};
+  }
+
+  const overrides: { bias?: number; weights?: Partial<ScoringWeights> } = {};
+
+  if (scoringWeights) {
+    overrides.weights = scoringWeights;
+  }
+
+  if (scoringBias !== undefined || hasSignalBias) {
+    overrides.bias = (scoringBias ?? 0) + (hasSignalBias ? planSignalBias : 0);
+  }
+
+  return overrides;
 }
 
-function applyPlanBias(biases: ScoringBiases, planFolder: string, planBias: number): ScoringBiases {
-  if (planBias === 0) {
+function applyPlanBiasOverride(
+  biases: ScoringBiases,
+  planFolder: string,
+  planBias?: number
+): ScoringBiases {
+  if (planBias === undefined) {
     return biases;
   }
-  const existingPlanBias = biases.plans?.[planFolder] ?? 0;
   return {
     ...biases,
     plans: {
       ...(biases.plans ?? {}),
-      [planFolder]: existingPlanBias + planBias,
+      [planFolder]: planBias,
     },
   };
+}
+
+function mergeScoringWeights(
+  base: ScoringWeights,
+  overrides?: Partial<ScoringWeights>
+): ScoringWeights {
+  if (!overrides) {
+    return base;
+  }
+  return {
+    ...base,
+    ...overrides,
+  };
+}
+
+function getAgentScoringOverrides(agent: ParsedAgentFile): {
+  bias?: number;
+  weights?: Partial<ScoringWeights>;
+} {
+  const scoring = agent.frontmatter.scoring;
+  if (!scoring || typeof scoring !== 'object' || Array.isArray(scoring)) {
+    return {};
+  }
+  const scoringRecord = scoring as Record<string, unknown>;
+  const bias = parseScoringBias(scoringRecord.bias);
+  const weights = parseScoringWeights(scoringRecord.weights);
+  return { bias, weights };
 }
 
 /**
@@ -203,16 +292,20 @@ function calculateWorkloadScore(
  */
 function calculateBiasScore(
   agent: ParsedAgentFile,
-  biases: ScoringBiases
+  biases: ScoringBiases,
+  agentBias?: number
 ): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
 
   // Plan bias
-  if (biases.plans?.[agent.planFolder]) {
-    const bias = biases.plans[agent.planFolder];
+  const planBias = biases.plans?.[agent.planFolder];
+  if (planBias !== undefined) {
+    const bias = planBias;
     score += bias;
-    reasons.push(`Plan bias: ${bias > 0 ? '+' : ''}${bias}`);
+    if (bias !== 0) {
+      reasons.push(`Plan bias: ${bias > 0 ? '+' : ''}${bias}`);
+    }
   }
 
   // Persona bias
@@ -222,7 +315,9 @@ function calculateBiasScore(
     : undefined;
   if (personaBias !== undefined) {
     score += personaBias;
-    reasons.push(`Persona bias (${persona}): ${personaBias > 0 ? '+' : ''}${personaBias}`);
+    if (personaBias !== 0) {
+      reasons.push(`Persona bias (${persona}): ${personaBias > 0 ? '+' : ''}${personaBias}`);
+    }
   }
 
   // Status bias (mainly for GAP tasks)
@@ -230,7 +325,16 @@ function calculateBiasScore(
   const statusBias = biases.statuses?.[status as keyof typeof biases.statuses];
   if (statusBias !== undefined) {
     score += statusBias;
-    reasons.push(`Status bias (${status}): ${statusBias > 0 ? '+' : ''}${statusBias}`);
+    if (statusBias !== 0) {
+      reasons.push(`Status bias (${status}): ${statusBias > 0 ? '+' : ''}${statusBias}`);
+    }
+  }
+
+  if (agentBias !== undefined) {
+    score += agentBias;
+    if (agentBias !== 0) {
+      reasons.push(`Agent bias: ${agentBias > 0 ? '+' : ''}${agentBias}`);
+    }
   }
 
   return { score, reasons };
@@ -277,7 +381,8 @@ function scoreTask(
   agent: ParsedAgentFile,
   allAgents: ParsedAgentFile[],
   weights: ScoringWeights,
-  biases: ScoringBiases
+  biases: ScoringBiases,
+  agentBias?: number
 ): TaskScoreBreakdown | null {
   const eligibility = isTaskEligible(agent, allAgents);
   if (!eligibility.eligible) {
@@ -287,7 +392,7 @@ function scoreTask(
   const depResult = calculateDependencyScore(agent, allAgents, weights.dependency);
   const priorityResult = calculatePriorityScore(agent, weights.priority);
   const workloadResult = calculateWorkloadScore(agent, weights.workload);
-  const biasResult = calculateBiasScore(agent, biases);
+  const biasResult = calculateBiasScore(agent, biases, agentBias);
 
   const baseScore = depResult.score + priorityResult.score + workloadResult.score;
   // Floor total at 0 (no negative scores)
@@ -302,6 +407,7 @@ function scoreTask(
     priorityScore: priorityResult.score,
     workloadScore: workloadResult.score,
     biasScore: biasResult.score,
+    weights,
     reasons: [
       ...depResult.reasons,
       ...priorityResult.reasons,
@@ -349,17 +455,19 @@ export async function getNextTaskData(
   }
 
   const planFolder = planDir.split('/').pop() || planId;
-  const planBias = getPlanBiasFromFrontmatter(planDir);
+  const planOverrides = getPlanScoringOverrides(planDir);
 
   // Get scoring weights and biases from config
-  const weights = getScoringWeights(config);
-  const biases = applyPlanBias(getScoringBiases(config), planFolder, planBias);
+  const weights = mergeScoringWeights(getScoringWeights(config), planOverrides.weights);
+  const biases = applyPlanBiasOverride(getScoringBiases(config), planFolder, planOverrides.bias);
 
   // Score all eligible tasks
   const scoredTasks: TaskScoreBreakdown[] = [];
 
   for (const agent of agents) {
-    const score = scoreTask(agent, agents, weights, biases);
+    const agentOverrides = getAgentScoringOverrides(agent);
+    const agentWeights = mergeScoringWeights(weights, agentOverrides.weights);
+    const score = scoreTask(agent, agents, agentWeights, biases, agentOverrides.bias);
     if (score) {
       scoredTasks.push(score);
     }
@@ -402,13 +510,15 @@ export function getScoredTasksData(
   }
 
   const planFolder = planDir.split('/').pop() || planId;
-  const planBias = getPlanBiasFromFrontmatter(planDir);
-  const weights = getScoringWeights(config);
-  const biases = applyPlanBias(getScoringBiases(config), planFolder, planBias);
+  const planOverrides = getPlanScoringOverrides(planDir);
+  const weights = mergeScoringWeights(getScoringWeights(config), planOverrides.weights);
+  const biases = applyPlanBiasOverride(getScoringBiases(config), planFolder, planOverrides.bias);
 
   const scoredTasks: TaskScoreBreakdown[] = [];
   for (const agent of agents) {
-    const score = scoreTask(agent, agents, weights, biases);
+    const agentOverrides = getAgentScoringOverrides(agent);
+    const agentWeights = mergeScoringWeights(weights, agentOverrides.weights);
+    const score = scoreTask(agent, agents, agentWeights, biases, agentOverrides.bias);
     if (score) {
       scoredTasks.push(score);
     }
@@ -459,10 +569,12 @@ export function getScoredTaskById(
   }
 
   const planFolder = planDir.split('/').pop() || planPart;
-  const planBias = getPlanBiasFromFrontmatter(planDir);
-  const weights = getScoringWeights(config);
-  const biases = applyPlanBias(getScoringBiases(config), planFolder, planBias);
-  const score = scoreTask(target, agents, weights, biases);
+  const planOverrides = getPlanScoringOverrides(planDir);
+  const weights = mergeScoringWeights(getScoringWeights(config), planOverrides.weights);
+  const biases = applyPlanBiasOverride(getScoringBiases(config), planFolder, planOverrides.bias);
+  const agentOverrides = getAgentScoringOverrides(target);
+  const agentWeights = mergeScoringWeights(weights, agentOverrides.weights);
+  const score = scoreTask(target, agents, agentWeights, biases, agentOverrides.bias);
 
   if (!score) {
     return { error: `Task not available: ${taskId}` };
@@ -486,7 +598,7 @@ export async function nextTask(config: ServerConfig, planId: string): Promise<st
   }
 
   const { task: best, otherAvailableTasks } = result;
-  const weights = getScoringWeights(config);
+  const weights = best.weights;
   const totalMax = weights.dependency + weights.priority + weights.workload;
 
   // Format output
