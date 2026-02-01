@@ -109,7 +109,13 @@ export const filterToolNames = (
  * @param context - Tool context with db and config
  */
 export function registerTools(server: McpServer, context: ToolContext): void {
-  const enabledTools = new Set(filterToolNames(CORE_TOOL_NAMES, context.config.tools));
+  const enabledTools = new Set(filterToolNames(CORE_TOOL_NAMES, context.config.tools, process.env));
+  if (enabledTools.size === 0) {
+    console.warn(
+      '[limps] No tools were enabled after applying tool filtering configuration. ' +
+        'This may indicate a misconfigured ToolFilteringConfig or LIMPS_ALLOWED_TOOLS/LIMPS_DISABLED_TOOLS.'
+    );
+  }
   const shouldRegisterTool = (name: string): boolean => enabledTools.has(name);
   const registerTool = (
     name: string,

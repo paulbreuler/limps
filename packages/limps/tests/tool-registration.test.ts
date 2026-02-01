@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type Database from 'better-sqlite3';
@@ -319,5 +319,33 @@ describe('tool-filtering', () => {
     process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,search_docs';
     const filtered = filterToolNames(CORE_TOOL_NAMES, undefined, process.env);
     expect(filtered).toEqual(['list_docs', 'search_docs']);
+  });
+
+  it('treats empty allowlist/denylist arrays as no filtering', () => {
+    const filtered = filterToolNames(CORE_TOOL_NAMES, { allowlist: [], denylist: [] });
+    expect(filtered).toEqual([...CORE_TOOL_NAMES]);
+  });
+
+  it('ignores empty and whitespace entries from env lists', () => {
+    process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,,  ,search_docs';
+    const filtered = filterToolNames(CORE_TOOL_NAMES, undefined, process.env);
+    expect(filtered).toEqual(['list_docs', 'search_docs']);
+  });
+
+  it('uses config over env vars', () => {
+    process.env.LIMPS_ALLOWED_TOOLS = 'list_docs,search_docs';
+    const filtered = filterToolNames(CORE_TOOL_NAMES, { denylist: ['process_doc'] }, process.env);
+    expect(filtered).not.toContain('process_doc');
+    expect(filtered).toContain('list_docs');
+  });
+
+  it('warns for unknown tool names', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const filtered = filterToolNames(CORE_TOOL_NAMES, {
+      allowlist: ['list_docs', 'unknown_tool'],
+    });
+    expect(filtered).toEqual(['list_docs']);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

@@ -332,8 +332,7 @@ Config location varies by OS:
   "dataPath": "~/Library/Application Support/limps/data",
   "extensions": ["@sudosandwich/limps-headless"],
   "tools": {
-    "allowlist": ["list_docs", "search_docs"],
-    "denylist": ["process_doc"]
+    "allowlist": ["list_docs", "search_docs"]
   },
   "scoring": {
     "weights": { "dependency": 40, "priority": 30, "workload": 30 },

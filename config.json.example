@@ -4,8 +4,7 @@
   "fileExtensions": [".md"],
   "dataPath": "./data",
   "tools": {
-    "allowlist": ["list_docs", "search_docs"],
-    "denylist": ["process_doc"]
+    "allowlist": ["list_docs", "search_docs"]
   },
   "scoring": {
     "weights": {
