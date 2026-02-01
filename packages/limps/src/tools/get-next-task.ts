@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getNextTaskData } from '../cli/next-task.js';
 import type { ToolContext, ToolResult } from '../types.js';
+import type { ScoringBiases, ScoringWeights } from '../config.js';
 
 /**
  * Input schema for get_next_task tool.
@@ -26,6 +27,52 @@ export interface TaskScore {
   score: number;
   reasons: string[];
 }
+
+const hasWeightOverrides = (weights: Partial<ScoringWeights> | undefined): boolean => {
+  if (!weights) {
+    return false;
+  }
+  return (
+    weights.dependency !== undefined ||
+    weights.priority !== undefined ||
+    weights.workload !== undefined
+  );
+};
+
+const hasBiasOverrides = (biases: Partial<ScoringBiases> | undefined): boolean => {
+  if (!biases) {
+    return false;
+  }
+  const hasPlans = biases.plans && Object.keys(biases.plans).length > 0;
+  const hasPersonas =
+    biases.personas && Object.values(biases.personas).some((value) => value !== undefined);
+  const hasStatuses =
+    biases.statuses && Object.values(biases.statuses).some((value) => value !== undefined);
+  return Boolean(hasPlans || hasPersonas || hasStatuses);
+};
+
+const getConfigUsed = (context: ToolContext): string => {
+  const preset = context.config.scoring.preset;
+  if (preset && preset !== 'default') {
+    return preset;
+  }
+  if (
+    hasWeightOverrides(context.config.scoring.weights) ||
+    hasBiasOverrides(context.config.scoring.biases)
+  ) {
+    return 'custom';
+  }
+  return 'default';
+};
+
+const buildFactorBreakdown = (
+  score: number,
+  weight: number
+): { raw: number; weighted: number; weight: number } => ({
+  raw: weight > 0 ? score / weight : 0,
+  weighted: score,
+  weight,
+});
 
 /**
  * Handle get_next_task tool request.
@@ -65,6 +112,18 @@ export async function handleGetNextTask(
   }
 
   const { task, otherAvailableTasks } = result;
+  const configUsed = getConfigUsed(context);
+  const breakdown = {
+    dependency: buildFactorBreakdown(task.dependencyScore, task.weights.dependency),
+    priority: buildFactorBreakdown(task.priorityScore, task.weights.priority),
+    workload: buildFactorBreakdown(task.workloadScore, task.weights.workload),
+    biases: {
+      plan: task.biasBreakdown.plan,
+      persona: task.biasBreakdown.persona,
+      status: task.biasBreakdown.status,
+      agent: task.biasBreakdown.agent,
+    },
+  };
 
   return {
     content: [
@@ -79,6 +138,8 @@ export async function handleGetNextTask(
             priorityScore: task.priorityScore,
             workloadScore: task.workloadScore,
             reasons: task.reasons,
+            breakdown,
+            configUsed,
             otherAvailableTasks,
           },
           null,

@@ -1,7 +1,6 @@
 # Plan 0044: MCP Server Chart Learnings
 
 ## Overview
-
 Improve limps docs and UX inspired by mcp-server-chart, add optional tool filtering, and publish a limps planning skill package.
 
 ## Dependency Graph
@@ -15,7 +14,7 @@ graph TD
 ## Status Matrix
 
 | Feature | Description | Status | Agent |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | #1 | README & docs parity | PASS | 000 |
 | #2 | Tool filtering (allow/deny) | PASS | 001 |
 | #3 | Publish limps planning skill | PASS | 002 |
@@ -36,6 +35,5 @@ graph TD
   - Files: `skills/limps-planning/*`, README updates
 
 ## Notes
-
 - Keep tool names aligned with actual tool IDs in `packages/limps/src/tools/index.ts`.
 - Ensure docs changes are consistent across limps and limps-headless if applicable.

@@ -12,12 +12,10 @@ Block: Agent 001/002 can proceed in parallel
 ## Interfaces
 
 ### Export
-
 - Updated README sections: TOC, Features, CLI Options, Environment Variables, Skills, Transport
 - Windows setup snippets
 
 ### Receive
-
 - Tool filtering env var names from Agent 001
 - Skill install command/repo from Agent 002
 
@@ -31,13 +29,11 @@ Test IDs: `readme-toc`, `readme-env-table`, `readme-windows-setup`
 Files: `README.md` (edit), `packages/limps-headless/README.md` (edit if needed)
 
 TDD:
-
 1. `README includes TOC` → add TOC → verify anchors
 2. `README includes env var table` → add table → verify values
 3. `README includes windows setup` → add snippet → verify parity
 
 Gotchas:
-
 - Keep section names stable to avoid breaking existing links
 
 ---
@@ -50,18 +46,15 @@ Test IDs: `readme-transport-section`
 Files: `README.md` (edit)
 
 TDD:
-
 1. `transport section exists` → add section → verify clarity
 2. `roadmap disclaimers included` → add notes → verify no promises
 
 Gotchas:
-
 - Avoid implying SSE/HTTP is already supported
 
 ---
 
 ## Done
-
 - [x] README sections updated and consistent
 - [x] Windows config snippet validated
 - [x] Transport roadmap section added
