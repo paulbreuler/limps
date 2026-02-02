@@ -87,10 +87,10 @@ export function inferStatus(
     const currentStatus = frontmatter.status;
 
     // Rule: body mentions "blocked" or "waiting" → suggest BLOCKED
-    const bodyLower = (content || '').toLowerCase();
+    const agentBodyLower = (content || '').toLowerCase();
     if (
       (currentStatus === 'GAP' || currentStatus === 'WIP') &&
-      (bodyLower.includes('blocked') || bodyLower.includes('waiting'))
+      (agentBodyLower.includes('blocked') || agentBodyLower.includes('waiting'))
     ) {
       const confidence = 0.7;
       if (confidence >= minConfidence) {

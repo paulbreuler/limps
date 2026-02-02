@@ -109,12 +109,11 @@ export default function HealthInferenceCommand({ args, options }: Props): React.
     const lines = [
       `Plan ${planId}: ${result.suggestions.length} suggestion(s) (checked ${result.agentsChecked} agents)`,
       '',
-      ...result.suggestions.map(
-        (s) =>
-          `  ${s.taskId}: ${s.currentStatus} → ${s.suggestedStatus} (confidence ${s.confidence})`
-      ),
-      '',
-      ...result.suggestions.flatMap((s) => s.reasons.map((r) => `  - ${r}`)),
+      ...result.suggestions.flatMap((s) => [
+        `  ${s.taskId}: ${s.currentStatus} → ${s.suggestedStatus} (confidence ${s.confidence})`,
+        ...s.reasons.map((r) => `    - ${r}`),
+        '',
+      ]),
     ];
 
     return <Text>{lines.join('\n')}</Text>;
