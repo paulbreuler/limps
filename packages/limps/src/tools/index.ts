@@ -28,6 +28,7 @@ import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status
 import { ManageTagsInputSchema, handleManageTags } from './manage-tags.js';
 import { CheckStalenessInputSchema, handleCheckStaleness } from './check-staleness.js';
 import { CheckDriftInputSchema, handleCheckDrift } from './check-drift.js';
+import { InferStatusInputSchema, handleInferStatus } from './infer-status.js';
 
 export const CORE_TOOL_NAMES = [
   'create_plan',
@@ -49,6 +50,7 @@ export const CORE_TOOL_NAMES = [
   'manage_tags',
   'check_staleness',
   'check_drift',
+  'infer_status',
 ] as const;
 
 const ReindexDocsInputSchema = z.object({}).strict();
@@ -474,6 +476,27 @@ Use this to verify agent file references are up-to-date with the codebase.`,
     async (input) => {
       const parsed = CheckDriftInputSchema.parse(input);
       return handleCheckDrift(parsed, context);
+    }
+  );
+
+  registerTool(
+    'infer_status',
+    `Suggest status updates for plan agents based on conservative rules. Inference is suggest-only; never auto-applies.
+
+Rules (examples):
+- Any → BLOCKED: Agent body mentions "blocked" or "waiting"
+- WIP → PASS: All dependencies are PASS (low confidence)
+
+Returns:
+- agentsChecked: Number of agents checked
+- suggestionCount: Number of suggestions
+- suggestions: Array of { taskId, currentStatus, suggestedStatus, confidence, reasons }
+
+Use minConfidence (0–1) to filter low-confidence suggestions.`,
+    InferStatusInputSchema.shape,
+    async (input) => {
+      const parsed = InferStatusInputSchema.parse(input);
+      return handleInferStatus(parsed, context);
     }
   );
 }

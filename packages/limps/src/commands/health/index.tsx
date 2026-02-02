@@ -9,7 +9,10 @@ export default function HealthCommand(): React.ReactNode {
     sections: [
       {
         title: 'Commands',
-        lines: ['staleness Check for stale plans and agents'],
+        lines: [
+          'staleness  Check for stale plans and agents',
+          'inference  Suggest status updates for plan agents',
+        ],
       },
       {
         title: 'Help',

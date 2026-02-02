@@ -1,13 +1,13 @@
 ---
 title: Phase 3 - Status Inference
-status: GAP
+status: WIP
 persona: coder
 dependencies: ["001"]
 blocks: ["003", "004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/wip, limps/persona/coder]
 aliases: ["#002", "Status Inference"]
 created: 2026-02-01
-updated: 2026-02-01
+updated: 2026-02-02
 ---
 
 # Agent 002: Phase 3 - Status Inference
@@ -39,6 +39,6 @@ TL;DR: Aggregate staleness + drift + inference findings.
 
 ## Done
 
-- [ ] Rule engine implemented
-- [ ] `infer_status` tool implemented
-- [ ] CLI health check aggregates results
+- [x] Rule engine implemented (conservative: BLOCKED from body text, WIP→PASS when deps PASS)
+- [x] `infer_status` tool implemented
+- [ ] CLI health check aggregates results (staleness + drift + inference)

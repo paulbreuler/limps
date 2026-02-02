@@ -1,13 +1,13 @@
 ---
 title: Phase 2 - Code Drift Detection
-status: GAP
+status: PASS
 persona: coder
 dependencies: ["000"]
 blocks: ["002", "003", "004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#001", "Drift Detection"]
 created: 2026-02-01
-updated: 2026-02-01
+updated: 2026-02-02
 ---
 
 # Agent 001: Phase 2 - Code Drift Detection
@@ -43,7 +43,7 @@ TL;DR: Human + JSON output for drift checks.
 
 ## Done
 
-- [ ] `files:` parsing consolidated
-- [ ] Missing file detection implemented
-- [ ] `check_drift` tool implemented
-- [ ] CLI command output wired
+- [x] `files:` parsing consolidated
+- [x] Missing file detection implemented
+- [x] `check_drift` tool implemented
+- [x] CLI command output wired
