@@ -343,6 +343,8 @@ limps proposals apply-safe
 - **0030 Scoring Weights**: Factor health into task scoring
 - **0031 Frontmatter**: Ensure `updated` field stays current
 - **0034 Integrations**: Notify Slack/Discord of health issues
+- **0042 Knowledge Graph**: Health checks feed into `limps graph health` command
+- **0047 Context Hierarchy**: Staleness detection shared between context files and plans; memory drift detection
 
 ---
 
