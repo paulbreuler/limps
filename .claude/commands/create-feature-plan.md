@@ -2,6 +2,13 @@
 
 Generate a TDD plan with verbose planning docs and minimal agent execution files using MCP planning tools.
 
+## LLM Execution Rules
+
+- Use MCP planning tools for all reads/writes; do not write files directly.
+- Do not include secrets, tokens, or credentials in plan content.
+- Only run `process_doc`/`process_docs` with code you authored or reviewed.
+
+
 ## Invocation
 
 ```text
@@ -23,6 +30,14 @@ This command uses limps MCP tools for document management:
 
 **Usage**: Call tools via `call_mcp_tool` with `server: "limps"` and the tool name (e.g., `create_plan`, `create_doc`, etc.)
 
+## Plan Operations Skill
+
+Use `/limps-plan-operations` to keep plan identification and artifact loading consistent:
+
+- `identify-plan` when referencing an existing plan for comparison or migration context
+- `resolve-path` to normalize plan names/paths before constructing doc paths
+- `load-artifacts` to read plan files, interfaces, README, gotchas, and agents via MCP tools
+
 
 ## Workflow
 
@@ -40,19 +55,13 @@ Ask user for:
 
 **Use MCP tools for document creation:**
 
-1. **Determine next plan number** using `list_docs` (server: `limps`):
-   - List all plans in `plans/` directory (relative to configured docsPath)
-   - Extract numeric prefixes from directory names
-   - Find maximum plan number (handle both padded and unpadded formats)
-   - Next plan number = max + 1
-
-2. **Create plan structure** using `create_plan` (server: `limps`):
+1. **Create plan structure** using `create_plan` (server: `limps`):
    - Plan name: `descriptive-name` (NO numeric prefix)
    - `create_plan` prefixes the next plan number automatically (e.g., `0043-descriptive-name`)
    - If you already have an `NNNN-` prefix, strip it to avoid duplication
    - Description: Brief overview of the plan
 
-3. **Create planning documents** using `create_doc` (server: `limps`):
+2. **Create planning documents** using `create_doc` (server: `limps`):
    - Use template `none` for plan file, interfaces.md, README.md
    - Use template `addendum` for gotchas.md (if template available)
    - Path format: use the directory returned by `create_plan` (typically `plans/NNNN-descriptive-name/filename.md`)
@@ -100,9 +109,12 @@ Each agent should have:
 - Clear file ownership
 - Minimal cross-agent dependencies
 
-### Phase 4: Distill Agent Files (Minimal)
+### Phase 4: Agent Files
 
-**Critical step**: Distill, don't copy.
+**Critical step**: Distill, don't copy. Agent files are minimal execution context.
+
+Target size is ~200-400 lines for 2-4 features. If the interface itself is the
+deliverable, include full definitions inline and allow ~400-600 lines.
 
 **Use MCP tools for agent file creation:**
 
@@ -122,33 +134,6 @@ For each agent, create `agents/<NNN>_agent_<descriptive-name>.agent.md` where NN
   - `002_agent_ui_components.agent.md` (depends on testing utilities)
   - `010_agent_selection_sorting.agent.md` (10th agent)
 
-**Rationale**:
-
-- Zero-padding ensures proper lexicographical ordering (000, 001, 002, ... 010, 011, ... 017)
-- Numeric prefixes make execution order clear to humans, even though `limps next-task` uses scoring algorithm
-- This helps when manually selecting agents or understanding plan structure
-
-**Note**: Scripts support both padded (000, 001) and unpadded (0, 1) formats for backward compatibility, but new agents should use zero-padding.
-
-**Extract only**:
-
-- Feature IDs + one-line TL;DRs
-- Interface contracts (exports + receives)
-- Files to create/modify
-- Test IDs
-- TDD cycles as one-liners: `test name → impl → refactor note`
-- Relevant gotchas (brief)
-- Done checklist
-
-**Leave out**:
-
-- Full Gherkin (TL;DR sufficient)
-- Detailed test code (agent writes fresh)
-- Verbose explanations
-- Methodology (agent knows TDD)
-- Other agents' details
-
-**Target**: ~200-400 lines per agent file
 
 ### Phase 5: Validate
 
@@ -252,6 +237,10 @@ Gotchas:
 | Gotcha with full context | `issue: workaround`      |
 | Interface with examples  | Just signatures          |
 
+Agent files must be self-contained for execution. Scoped references are allowed
+when necessary (explicit file + heading), but broad searching means the distillation
+is too thin.
+
 ## Work Type Adjustments
 
 ### Refactor
@@ -303,6 +292,8 @@ After creating a plan, you can use `limps next-task <plan-name>` to see the firs
 ```text
 /update-feature-plan [path]
 ```
+
+Use this when interfaces or feature scope changes; regenerate affected agents.
 
 **Check status**:
 Review README.md status matrix
@@ -449,3 +440,4 @@ const planSummary = await call_mcp_tool({
 - **Templates available** - Use `addendum`, `research`, `example`, or `none` templates when creating docs
 - **Path format** - Always use relative paths from configured docsPath: `plans/NNNN-name/filename.md`
 - **Use process_doc/process_docs** - For reading and querying documents, use `process_doc` and `process_docs` instead of `read_doc` or `rlm_query`
+- **Full reads** - Use `process_doc({ path, code: 'doc.content' })` for full document reads
