@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
-import { getPackageVersion } from '../../src/utils/version.js';
+import { getPackageVersion, getPackageName } from '../../src/utils/version.js';
+import { outputJson } from '../../src/cli/json-output.js';
+
+vi.mock('../../src/cli/json-output.js', async () => {
+  const actual = await vi.importActual('../../src/cli/json-output.js');
+  return {
+    ...(actual as Record<string, unknown>),
+    outputJson: vi.fn(),
+  };
+});
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -95,5 +104,53 @@ describe('version command', () => {
     const currentVersion = getPackageVersion();
     // Should still show version even if check fails
     expect(output).toContain(currentVersion);
+  });
+
+  it('outputs JSON when --json is used without --check', async () => {
+    const { default: VersionCommand } = await import('../../src/commands/version.js');
+    const packageName = getPackageName();
+    const currentVersion = getPackageVersion();
+
+    render(<VersionCommand options={{ check: false, json: true }} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(outputJson).toHaveBeenCalledTimes(1);
+    const payload = (outputJson as unknown as { mock: { calls: [unknown[]] } }).mock.calls[0][0];
+    expect(payload).toEqual({
+      success: true,
+      data: {
+        packageName,
+        currentVersion,
+      },
+    });
+  });
+
+  it('outputs JSON when --json and --check are used', async () => {
+    const currentVersion = getPackageVersion();
+    const newerVersion = '999.999.999';
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: newerVersion }),
+    });
+
+    const { default: VersionCommand } = await import('../../src/commands/version.js');
+    const packageName = getPackageName();
+
+    render(<VersionCommand options={{ check: true, json: true }} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(outputJson).toHaveBeenCalledTimes(1);
+    const payload = (outputJson as unknown as { mock: { calls: [unknown[]] } }).mock.calls[0][0];
+    expect(payload).toEqual({
+      success: true,
+      data: {
+        packageName,
+        currentVersion,
+        latestVersion: newerVersion,
+        updateAvailable: true,
+      },
+    });
   });
 });

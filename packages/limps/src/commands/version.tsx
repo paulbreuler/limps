@@ -41,6 +41,7 @@ export default function VersionCommand({ options }: Props): React.ReactNode {
                 currentVersion,
               })
             );
+            return;
           }
           const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
           if (!response.ok) {

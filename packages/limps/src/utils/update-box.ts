@@ -5,6 +5,10 @@ const ANSI = {
   cyan: '\u001b[36m',
   border: '\u001b[38;5;208m',
 };
+
+/**
+ * Remove ANSI color sequences from a string.
+ */
 function stripAnsi(value: string): string {
   let output = '';
   let i = 0;
@@ -26,6 +30,9 @@ function stripAnsi(value: string): string {
   return output;
 }
 
+/**
+ * Render a colored update notice box for the terminal.
+ */
 export function renderUpdateBox(current: string, latest: string, packageName: string): string {
   const lines = [
     '',
