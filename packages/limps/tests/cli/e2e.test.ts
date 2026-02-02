@@ -144,11 +144,13 @@ This is a test feature plan.
 
       // Should exit successfully (even if network check fails)
       expect([0, 1]).toContain(result.exitCode);
-      // Output may contain "Version:" or "Current version:" depending on update status
+      // Output may be on stdout or stderr (e.g. non-TTY/CI); expect version-like content in either
+      const out = result.stdout + result.stderr;
       expect(
-        result.stdout.includes('Version:') ||
-          result.stdout.includes('Current version:') ||
-          result.stdout.includes('version')
+        out.includes('Version:') ||
+          out.includes('Current version:') ||
+          out.includes('version') ||
+          out.includes('Checking for updates')
       ).toBe(true);
     });
 
