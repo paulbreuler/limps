@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import Pastel from 'pastel';
-import updateNotifier from 'update-notifier';
-import { getPackageVersion, getPackageName } from './utils/version.js';
+import { getPackageVersion } from './utils/version.js';
 import { startMcpServer } from './server-main.js';
 
 // Check if running serve command - needs clean stdio, bypass Pastel/Ink
@@ -22,18 +21,6 @@ if (isServeCommand && !wantsHelp) {
     process.exit(1);
   });
 } else {
-  // Initialize update notifier for automatic update checks
-  // This runs asynchronously in the background and won't block CLI startup
-  const pkg = {
-    name: getPackageName(),
-    version: getPackageVersion(),
-  };
-
-  updateNotifier({
-    pkg,
-    updateCheckInterval: 1000 * 60 * 60 * 24 * 7, // Check once per week
-  }).notify();
-
   const app = new Pastel({
     importMeta: import.meta,
     name: 'limps',
