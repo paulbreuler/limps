@@ -1,13 +1,13 @@
 ---
 title: MCP Integration
-status: GAP
+status: PASS
 persona: coder
 dependencies: ["000", "001", "002", "003"]
 blocks: []
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#004", "MCP Agent"]
 created: 2026-01-27
-updated: 2026-01-27
+updated: 2026-02-01
 files:
   - path: src/tools/index.ts
     action: modify
@@ -76,7 +76,7 @@ params: {
 ### #0: Enhanced get_next_task Response
 
 TL;DR: Return detailed score breakdown in MCP response
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `response includes breakdown` → raw, weighted, weight for each factor
@@ -87,7 +87,7 @@ TDD:
 ### #1: configure_scoring Tool
 
 TL;DR: MCP tool to modify scoring config
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `set preset via tool` → update config.json
@@ -98,7 +98,7 @@ TDD:
 ### #2: Validation & Error Handling
 
 TL;DR: Robust validation for all scoring inputs
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `weights must be non-negative` → error if < 0
@@ -110,17 +110,17 @@ TDD:
 
 ## Done
 
-- [ ] get_next_task returns score breakdown
-- [ ] Breakdown includes raw, weighted, weight
-- [ ] Breakdown includes all bias sources
-- [ ] configUsed field shows active preset/custom
-- [ ] configure_scoring tool registered
-- [ ] Tool updates global config
-- [ ] Tool supports plan scope
-- [ ] Tool supports agent scope
-- [ ] Validation for weights
-- [ ] Validation for biases
-- [ ] Validation for presets
-- [ ] Tests for enhanced response
-- [ ] Tests for configure_scoring
-- [ ] Tests for validation
+- [x] get_next_task returns score breakdown
+- [x] Breakdown includes raw, weighted, weight
+- [x] Breakdown includes all bias sources
+- [x] configUsed field shows active preset/custom
+- [x] configure_scoring tool registered
+- [x] Tool updates global config
+- [x] Tool supports plan scope
+- [x] Tool supports agent scope
+- [x] Validation for weights
+- [x] Validation for biases
+- [x] Validation for presets
+- [x] Tests for enhanced response
+- [x] Tests for configure_scoring
+- [x] Tests for validation
