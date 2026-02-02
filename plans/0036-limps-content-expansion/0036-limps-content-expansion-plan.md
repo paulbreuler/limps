@@ -30,6 +30,8 @@ Expand limps beyond planning documents. ADRs, runbooks, meeting notes - knowledg
 
 Capture "why" decisions were made.
 
+> **Note**: ADR supersession chains and staleness tracking are now handled by **Plan 0047 (Context Hierarchy)**. This section defines the schema and tools; 0047 handles inheritance and lifecycle.
+
 ### Schema
 
 ```yaml

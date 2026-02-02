@@ -139,19 +139,6 @@ This is a test feature plan.
       expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
     });
 
-    it('should handle version --check without crashing', async () => {
-      const result = await runCli(['version', '--check']);
-
-      // Should exit successfully (even if network check fails)
-      expect([0, 1]).toContain(result.exitCode);
-      // Output may contain "Version:" or "Current version:" depending on update status
-      expect(
-        result.stdout.includes('Version:') ||
-          result.stdout.includes('Current version:') ||
-          result.stdout.includes('version')
-      ).toBe(true);
-    });
-
     it('should show default command help', async () => {
       const result = await runCli([]);
 

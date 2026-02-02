@@ -146,7 +146,7 @@ function extractEntities(planPath: string): ExtractedEntities {
 ```sql
 CREATE TABLE entities (
   id INTEGER PRIMARY KEY,
-  type TEXT NOT NULL CHECK(type IN ('plan', 'agent', 'feature', 'file', 'tag', 'concept')),
+  type TEXT NOT NULL CHECK(type IN ('plan', 'agent', 'feature', 'file', 'tag', 'concept', 'context', 'memory')),
   canonical_id TEXT NOT NULL,
   name TEXT NOT NULL,
   source_path TEXT,
@@ -175,6 +175,20 @@ CREATE INDEX idx_rel_source ON relationships(source_id);
 CREATE INDEX idx_rel_target ON relationships(target_id);
 CREATE INDEX idx_rel_type ON relationships(relation_type);
 ```
+
+**Relationship Types**
+
+| Relation | Description | Example |
+|----------|-------------|--------|
+| `CONTAINS` | Parent contains child | plan → agent |
+| `DEPENDS_ON` | Requires completion first | agent → agent |
+| `MODIFIES` | Will change this file | agent → file |
+| `SIMILAR_TO` | Detected similarity | feature → feature |
+| `TAGGED_WITH` | Has this tag | plan → tag |
+| `INHERITS_FROM` | Context inheritance (Plan 0047) | plan → workspace |
+| `OVERRIDES` | Explicitly overrides parent | plan → context |
+| `SUPERSEDES` | Replaces older document | ADR → ADR |
+| `REMEMBERS` | Agent has memory | agent → memory |
 
 **CLI Commands**
 
@@ -517,6 +531,22 @@ for (const rel of modifiesRelations) {
 const blockers = await graph.traverse(agent.id, ['BLOCKED_BY'], maxDepth: 3);
 const blockerPenalty = blockers.filter(b => b.status !== 'PASS').length * 10;
 score -= blockerPenalty;
+```
+
+**Plan 0047 (Context Hierarchy) — Memory & Inheritance**
+
+Graph stores context inheritance and memory relationships:
+
+```typescript
+// Context files become entities
+entityType: 'context'  // workspace.md, vision.md, etc.
+entityType: 'memory'   // *.memory.md files
+
+// Inheritance relationships
+relationType: 'INHERITS_FROM'  // plan inherits from workspace
+relationType: 'OVERRIDES'      // plan overrides workspace value
+relationType: 'SUPERSEDES'     // ADR supersedes another ADR
+relationType: 'REMEMBERS'      // agent has memory file
 ```
 
 Status: `GAP`
