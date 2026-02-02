@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.0](https://github.com/paulbreuler/limps/compare/limps-v2.9.0...limps-v2.10.0) (2026-02-01)
+
+
+### Features
+
+* **limps:** add scoring config tool and MCP hardening ([#66](https://github.com/paulbreuler/limps/issues/66)) ([bfda66f](https://github.com/paulbreuler/limps/commit/bfda66f58482eea9e29c1dd9408a8b980424de3a))
+
 ## [2.9.0](https://github.com/paulbreuler/limps/compare/limps-v2.8.0...limps-v2.9.0) (2026-02-01)
 
 

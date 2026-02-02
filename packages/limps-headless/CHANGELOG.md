@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.4...limps-headless-v0.1.5) (2026-02-01)
+
+
+### Features
+
+* **limps:** add scoring config tool and MCP hardening ([#66](https://github.com/paulbreuler/limps/issues/66)) ([bfda66f](https://github.com/paulbreuler/limps/commit/bfda66f58482eea9e29c1dd9408a8b980424de3a))
+
 ## [0.1.4](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.3...limps-headless-v0.1.4) (2026-02-01)
 
 
