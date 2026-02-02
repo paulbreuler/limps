@@ -1,13 +1,13 @@
 ---
 title: Granular Overrides
-status: GAP
+status: PASS
 persona: coder
 dependencies: ["000", "001"]
 blocks: ["004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#003", "Overrides Agent"]
 created: 2026-01-27
-updated: 2026-01-27
+updated: 2026-02-01
 files:
   - path: src/agent-parser.ts
     action: modify
@@ -66,7 +66,7 @@ scoring:
 ### #0: Plan Frontmatter Scoring
 
 TL;DR: Parse scoring section from plan file frontmatter
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `plan frontmatter parsed` → extract scoring.bias and scoring.weights
@@ -76,7 +76,7 @@ TDD:
 ### #1: Agent Frontmatter Scoring
 
 TL;DR: Parse scoring section from agent frontmatter
-Status: `GAP`
+Status: `PASS`
 
 TDD:
 1. `agent frontmatter parsed` → extend AgentFrontmatter type
@@ -86,7 +86,7 @@ TDD:
 ### #2: Override Precedence
 
 TL;DR: More specific overrides win
-Status: `GAP`
+Status: `PASS`
 
 Precedence (later wins):
 1. Global config (config.json)
@@ -103,13 +103,13 @@ TDD:
 
 ## Done
 
-- [ ] Plan frontmatter scoring section parsed
-- [ ] Plan-level weights override global
-- [ ] Plan-level bias applied to all tasks
-- [ ] Agent frontmatter scoring section parsed
-- [ ] Agent-level bias applied
-- [ ] Override precedence documented and tested
-- [ ] AgentFrontmatter type extended
-- [ ] Tests for plan overrides
-- [ ] Tests for agent overrides
-- [ ] Tests for precedence
+- [x] Plan frontmatter scoring section parsed
+- [x] Plan-level weights override global
+- [x] Plan-level bias applied to all tasks
+- [x] Agent frontmatter scoring section parsed
+- [x] Agent-level bias applied
+- [x] Override precedence documented and tested
+- [x] AgentFrontmatter type extended
+- [x] Tests for plan overrides
+- [x] Tests for agent overrides
+- [x] Tests for precedence

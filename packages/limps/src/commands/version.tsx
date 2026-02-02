@@ -2,11 +2,14 @@ import { Text } from 'ink';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
 import { getPackageVersion, getPackageName } from '../utils/version.js';
+import { renderUpdateBox } from '../utils/update-box.js';
+import { isJsonMode, outputJson, wrapError, wrapSuccess } from '../cli/json-output.js';
 
 export const description = 'Show version information';
 
 export const options = z.object({
   check: z.boolean().optional().default(false).describe('Check for updates from npm registry'),
+  json: z.boolean().optional().describe('Output as JSON'),
 });
 
 interface Props {
@@ -16,12 +19,60 @@ interface Props {
 export default function VersionCommand({ options }: Props): React.ReactNode {
   const currentVersion = getPackageVersion();
   const packageName = getPackageName();
+  const jsonMode = isJsonMode(options);
   const [updateInfo, setUpdateInfo] = useState<{
     latest?: string;
     current: string;
     error?: string;
   } | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+
+  useEffect((): (() => void) | undefined => {
+    if (!jsonMode) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const run = async (): Promise<void> => {
+        try {
+          if (!options.check) {
+            outputJson(
+              wrapSuccess({
+                packageName,
+                currentVersion,
+              })
+            );
+          }
+          const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = (await response.json()) as { version?: string };
+          const latestVersion = data.version;
+          outputJson(
+            wrapSuccess({
+              packageName,
+              currentVersion,
+              latestVersion,
+              updateAvailable: Boolean(latestVersion && latestVersion !== currentVersion),
+            })
+          );
+        } catch (error) {
+          outputJson(
+            wrapError(error instanceof Error ? error.message : 'Unknown error', {
+              code: 'VERSION_CHECK_ERROR',
+            }),
+            1
+          );
+        }
+      };
+      void run();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [currentVersion, jsonMode, options.check, packageName]);
+
+  if (jsonMode) {
+    return null;
+  }
 
   useEffect(() => {
     if (options.check) {
@@ -79,17 +130,8 @@ export default function VersionCommand({ options }: Props): React.ReactNode {
     }
 
     if (updateInfo?.latest && updateInfo.latest !== updateInfo.current) {
-      return (
-        <Text>
-          <Text color="yellow">Current version:</Text> {updateInfo.current}
-          {'\n'}
-          <Text color="green">Latest version:</Text> {updateInfo.latest}
-          {'\n\n'}
-          <Text color="cyan">Update available!</Text>
-          {'\n'}
-          Run: <Text color="green">npm update -g {packageName}</Text>
-        </Text>
-      );
+      const updateBox = renderUpdateBox(updateInfo.current, updateInfo.latest, packageName);
+      return <Text>{updateBox}</Text>;
     }
 
     return (
