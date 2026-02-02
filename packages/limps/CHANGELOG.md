@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/paulbreuler/limps/compare/limps-v2.10.0...limps-v2.11.0) (2026-02-02)
+
+
+### Features
+
+* **limps:** add version json output and update notices ([#68](https://github.com/paulbreuler/limps/issues/68)) ([8bbd510](https://github.com/paulbreuler/limps/commit/8bbd510ac8a23bf2d558fb00947557e77545e91f))
+
 ## [2.10.0](https://github.com/paulbreuler/limps/compare/limps-v2.9.0...limps-v2.10.0) (2026-02-01)
 
 
