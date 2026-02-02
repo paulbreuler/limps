@@ -154,6 +154,66 @@ describe('config-validation', () => {
     ).toBe(false);
   });
 
+  it('should validate config with optional health.staleness', () => {
+    const config: ServerConfig = {
+      plansPath: '/path/to/plans',
+      dataPath: '/path/to/data',
+      scoring: {
+        weights: {
+          dependency: 40,
+          priority: 30,
+          workload: 30,
+        },
+        biases: {},
+      },
+      health: {
+        staleness: {
+          warningDays: 7,
+          criticalDays: 21,
+          excludeStatuses: ['PASS', 'BLOCKED'],
+        },
+      },
+    };
+
+    expect(validateConfig(config)).toBe(true);
+  });
+
+  it('should reject invalid health.staleness (non-numeric day field)', () => {
+    expect(
+      validateConfig({
+        plansPath: '/path',
+        dataPath: '/path',
+        scoring: {
+          weights: { dependency: 40, priority: 30, workload: 30 },
+          biases: {},
+        },
+        health: {
+          staleness: {
+            warningDays: 'seven',
+          },
+        },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should reject invalid health.staleness (excludeStatuses not array of strings)', () => {
+    expect(
+      validateConfig({
+        plansPath: '/path',
+        dataPath: '/path',
+        scoring: {
+          weights: { dependency: 40, priority: 30, workload: 30 },
+          biases: {},
+        },
+        health: {
+          staleness: {
+            excludeStatuses: ['PASS', 123],
+          },
+        },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
   it('should reject invalid tools allowlist/denylist types', () => {
     expect(
       validateConfig({

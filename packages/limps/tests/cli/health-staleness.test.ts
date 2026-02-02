@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, mkdirSync, rmSync, writeFileSync, utimesSync } from 'fs';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { tmpdir } from 'os';
 import { getStalenessReport } from '../../src/cli/health-staleness.js';
 import type { ServerConfig } from '../../src/config.js';
@@ -38,7 +38,7 @@ describe('health staleness', () => {
   });
 
   const writePlan = (planDir: string): string => {
-    const planFile = join(planDir, `${planDir.split('/').pop()}-plan.md`);
+    const planFile = join(planDir, `${basename(planDir)}-plan.md`);
     writeFileSync(
       planFile,
       `---
