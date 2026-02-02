@@ -5,16 +5,17 @@
  * Detects missing files and suggests possible renames via fuzzy matching.
  */
 
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 import type { ServerConfig } from '../config.js';
+import type { AgentFrontmatter } from '../agent-parser.js';
 
 /**
  * File entry in agent frontmatter.
  * Can be a simple string or an object with path and metadata.
  */
-type FileEntry = string | { path: string; action?: string; repo?: string };
+type FileEntry = AgentFrontmatter['files'][number];
 
 /**
  * Drift entry representing a file discrepancy.
@@ -78,6 +79,99 @@ export function normalizeFilePath(entry: FileEntry): string | null {
   return null;
 }
 
+/** Entry in the file index used for fuzzy matching. */
+interface FileIndexEntry {
+  path: string;
+  basename: string;
+  nameWithoutExt: string;
+}
+
+/**
+ * Build an index of files under codebasePath for reuse across multiple lookups.
+ * Skips node_modules, .git, dist, build, .tmp.
+ *
+ * @param codebasePath - Root path of the codebase
+ * @returns Array of file entries (path, basename, nameWithoutExt)
+ */
+export function buildFileIndex(codebasePath: string): FileIndexEntry[] {
+  const entries: FileIndexEntry[] = [];
+
+  function searchDir(dir: string, relativePath = ''): void {
+    try {
+      const items = readdirSync(dir, { withFileTypes: true });
+      for (const entry of items) {
+        const entryPath = join(dir, entry.name);
+        const relPath = relativePath ? join(relativePath, entry.name) : entry.name;
+
+        if (entry.isDirectory()) {
+          if (['node_modules', '.git', 'dist', 'build', '.tmp'].includes(entry.name)) {
+            continue;
+          }
+          searchDir(entryPath, relPath);
+        } else if (entry.isFile()) {
+          const nameWithoutExt = entry.name.replace(/\.[^.]+$/, '');
+          entries.push({ path: relPath, basename: entry.name, nameWithoutExt });
+        }
+      }
+    } catch {
+      // Directory read failed, skip
+    }
+  }
+
+  searchDir(codebasePath);
+  return entries;
+}
+
+/**
+ * Find a similar file from a pre-built index using fuzzy matching.
+ *
+ * @param index - Result of buildFileIndex(codebasePath)
+ * @param filename - Filename to search for (basename only)
+ * @returns Relative path to similar file, or null if not found
+ */
+export function findSimilarFileFromIndex(index: FileIndexEntry[], filename: string): string | null {
+  const targetBase = basename(filename);
+  const targetWithoutExt = targetBase.replace(/\.[^.]+$/, '');
+
+  const candidates: { path: string; score: number }[] = [];
+
+  for (const entry of index) {
+    let score = 0;
+
+    if (entry.basename === targetBase) {
+      score = 100;
+    } else if (entry.nameWithoutExt === targetWithoutExt) {
+      score = 80;
+    } else if (entry.nameWithoutExt.includes(targetWithoutExt)) {
+      score = 50;
+    } else if (
+      targetWithoutExt.includes(entry.nameWithoutExt) &&
+      entry.nameWithoutExt.length >= 4
+    ) {
+      score = 40;
+    } else if (
+      Math.abs(entry.nameWithoutExt.length - targetWithoutExt.length) <= 2 &&
+      entry.nameWithoutExt.length >= 4
+    ) {
+      const common = [...entry.nameWithoutExt].filter((c) => targetWithoutExt.includes(c)).length;
+      const ratio = common / Math.max(entry.nameWithoutExt.length, targetWithoutExt.length);
+      if (ratio > 0.7) {
+        score = Math.floor(ratio * 30);
+      }
+    }
+
+    if (score > 0) {
+      candidates.push({ path: entry.path, score });
+    }
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0].path;
+}
+
 /**
  * Find a similar file in the codebase using fuzzy matching.
  * Searches for files with the same or similar basename.
@@ -87,81 +181,8 @@ export function normalizeFilePath(entry: FileEntry): string | null {
  * @returns Relative path to similar file, or null if not found
  */
 export function findSimilarFile(codebasePath: string, filename: string): string | null {
-  const targetBase = basename(filename);
-  const targetWithoutExt = targetBase.replace(/\.[^.]+$/, '');
-
-  const candidates: { path: string; score: number }[] = [];
-
-  // Recursive search function
-  function searchDir(dir: string, relativePath = ''): void {
-    try {
-      const entries = readdirSync(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const entryPath = join(dir, entry.name);
-        const relPath = relativePath ? join(relativePath, entry.name) : entry.name;
-
-        if (entry.isDirectory()) {
-          // Skip common non-source directories
-          if (['node_modules', '.git', 'dist', 'build', '.tmp'].includes(entry.name)) {
-            continue;
-          }
-          searchDir(entryPath, relPath);
-        } else if (entry.isFile()) {
-          const entryBase = entry.name;
-          const entryWithoutExt = entryBase.replace(/\.[^.]+$/, '');
-
-          // Calculate similarity score
-          let score = 0;
-
-          // Exact match (different directory)
-          if (entryBase === targetBase) {
-            score = 100;
-          }
-          // Same name, different extension
-          else if (entryWithoutExt === targetWithoutExt) {
-            score = 80;
-          }
-          // Name contains target
-          else if (entryWithoutExt.includes(targetWithoutExt)) {
-            score = 50;
-          }
-          // Target contains name
-          else if (targetWithoutExt.includes(entryWithoutExt) && entryWithoutExt.length >= 4) {
-            score = 40;
-          }
-          // Levenshtein-like check: allow 1-2 char difference
-          else if (
-            Math.abs(entryWithoutExt.length - targetWithoutExt.length) <= 2 &&
-            entryWithoutExt.length >= 4
-          ) {
-            // Simple character overlap check
-            const common = [...entryWithoutExt].filter((c) => targetWithoutExt.includes(c)).length;
-            const ratio = common / Math.max(entryWithoutExt.length, targetWithoutExt.length);
-            if (ratio > 0.7) {
-              score = Math.floor(ratio * 30);
-            }
-          }
-
-          if (score > 0) {
-            candidates.push({ path: relPath, score });
-          }
-        }
-      }
-    } catch {
-      // Directory read failed, skip
-    }
-  }
-
-  searchDir(codebasePath);
-
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  // Sort by score descending, return best match
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0].path;
+  const index = buildFileIndex(codebasePath);
+  return findSimilarFileFromIndex(index, filename);
 }
 
 /**
@@ -193,6 +214,18 @@ export function checkFileDrift(
     return result;
   }
 
+  // Validate codebase path so we don't report every file as missing or skip scanning
+  try {
+    const codebaseStat = statSync(codebasePath);
+    if (!codebaseStat.isDirectory()) {
+      result.error = `Codebase path is not a directory: ${codebasePath}`;
+      return result;
+    }
+  } catch {
+    result.error = `Codebase path does not exist or is not readable: ${codebasePath}`;
+    return result;
+  }
+
   // Get agents
   let agents = getAgentFiles(planDir);
 
@@ -202,6 +235,9 @@ export function checkFileDrift(
   }
 
   result.agentsChecked = agents.length;
+
+  // Build file index once for all missing-file lookups (avoids O(missing × repo) scans)
+  const fileIndex = buildFileIndex(codebasePath);
 
   // Check each agent's files
   for (const agent of agents) {
@@ -226,8 +262,8 @@ export function checkFileDrift(
         continue; // File exists, no drift
       }
 
-      // File doesn't exist - check for similar file
-      const suggestion = findSimilarFile(codebasePath, basename(filePath));
+      // File doesn't exist - check for similar file (reuses fileIndex)
+      const suggestion = findSimilarFileFromIndex(fileIndex, basename(filePath));
 
       const drift: DriftEntry = {
         taskId: agent.taskId,
