@@ -26,6 +26,7 @@ import { ListPlansInputSchema, handleListPlans } from './list-plans.js';
 import { ListAgentsInputSchema, handleListAgents } from './list-agents.js';
 import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status.js';
 import { ManageTagsInputSchema, handleManageTags } from './manage-tags.js';
+import { CheckStalenessInputSchema, handleCheckStaleness } from './check-staleness.js';
 import { CheckDriftInputSchema, handleCheckDrift } from './check-drift.js';
 
 export const CORE_TOOL_NAMES = [
@@ -46,6 +47,7 @@ export const CORE_TOOL_NAMES = [
   'list_agents',
   'get_plan_status',
   'manage_tags',
+  'check_staleness',
   'check_drift',
 ] as const;
 
@@ -420,6 +422,16 @@ Use this to understand overall progress and identify blockers.`,
     async (input) => {
       const parsed = GetPlanStatusInputSchema.parse(input);
       return handleGetPlanStatus(parsed, context);
+    }
+  );
+
+  registerTool(
+    'check_staleness',
+    'Report stale plans and agents based on staleness policy',
+    CheckStalenessInputSchema.shape,
+    async (input) => {
+      const parsed = CheckStalenessInputSchema.parse(input);
+      return handleCheckStaleness(parsed, context);
     }
   );
 

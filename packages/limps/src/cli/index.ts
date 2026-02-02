@@ -15,6 +15,12 @@ export {
   type TaskScoreBreakdown,
 } from './next-task.js';
 export { status, getPlanStatusSummary, type PlanStatusSummary } from './status.js';
+export {
+  getStalenessReport,
+  renderStalenessReport,
+  type StalenessReport,
+  type StaleEntry,
+} from './health-staleness.js';
 
 // Registry and config management
 export {

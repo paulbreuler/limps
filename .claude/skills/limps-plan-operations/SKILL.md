@@ -1,20 +1,28 @@
 ---
 name: limps-plan-operations
-description: Common operations for working with limps feature plans: identifying plans, loading plan artifacts, and using limps MCP tools. Use when commands need to work with plan files, interfaces, README, gotchas, or agent files.
-argument-hint: "[identify-plan | load-artifacts | resolve-path]"
+description: Common operations and planning principles for limps feature plans. Covers plan identification, artifact loading, distillation rules, and lifecycle guidance using limps MCP tools.
+argument-hint: "[identify-plan | load-artifacts | resolve-path | distill-agent-files | lifecycle]"
 allowed-tools: MCP(limps:list_plans,limps:list_agents,limps:process_doc,limps:process_docs), Read, Grep
 ---
 # Limps Plan Operations
 
 ## Purpose
 
-Provide reusable patterns for working with limps feature plans across commands. Handles plan identification, path resolution, and loading plan artifacts (plan files, interfaces.md, README.md, gotchas.md, agent files) using limps MCP tools.
+Provide reusable patterns for working with limps feature plans across commands. Handles plan identification, path resolution, loading plan artifacts, and shared distillation/lifecycle guidance for planning and agent execution.
+
+## LLM Execution Rules
+
+- Use limps MCP tools for all reads/writes when available; do not edit plan files directly.
+- Do not include secrets, tokens, or credentials in plan content.
+- Only run `process_doc` / `process_docs` with code you authored or reviewed.
 
 ## Scope
 
 - **identify-plan**: Resolve a plan name or path to a canonical plan directory name and base path
 - **load-artifacts**: Load all plan artifacts (plan file, interfaces.md, README.md, gotchas.md, agent files) using limps MCP tools
 - **resolve-path**: Convert plan name/path input to canonical `plans/NNNN-descriptive-name/` format
+- **distill-agent-files**: Apply distillation rules and size guidance for `*.agent.md` generation
+- **lifecycle**: Provide standard lifecycle and command usage context
 
 ## MCP Tool Usage
 
@@ -317,3 +325,88 @@ Please ensure the plan directory exists and contains the plan file.
 - Plan names are case-sensitive and must match directory names exactly
 - Agent files use pattern `*_agent_*.agent.md` or `agent_*_*.agent.md` (backward compatibility)
 - Zero-padded plan numbers (0001, 0002, ...) ensure proper lexicographical ordering
+
+## Distill Agent Files
+
+Agent files are **distilled execution context**, not documentation.
+
+### Include
+
+- Feature IDs + one-line TL;DRs
+- Interface contracts (exports + receives)
+- Files to create/modify
+- Test IDs
+- Concise TDD cycles (one line per cycle)
+- Relevant gotchas (brief)
+- Done checklist
+
+### Exclude
+
+- Verbose Gherkin (TL;DR sufficient)
+- Methodology explanations (agent knows TDD)
+- Git workflow details
+- Other agents' details
+- Historical context
+
+### Target Size
+
+- ~200-400 lines for 2-4 features (guideline, not a hard limit)
+- If the interface itself is the deliverable, include full definitions inline and allow ~400-600 lines
+
+### Searching Is Failure
+
+If agent files are well-constructed, open-ended searching is rare. Frequent or broad searching means the distillation is too thin.
+
+### Self-Contained Scope (Scoped Search Allowed)
+
+Each `.agent.md` should be self-contained for execution. When details must live elsewhere, include explicit cross-file references (exact file + section/heading) so the agent can do **scoped lookup**, not open-ended search. If an agent requires broad cross-file context, inline the relevant excerpts (distilled) or split the work so each agent remains self-contained.
+
+### When Interface Is the Deliverable
+
+For agents whose primary output is foundational types or interfaces:
+
+- Include full type definitions inline (they are the deliverable)
+- Include concrete test assertions, not descriptions
+- “Distill” means remove methodology and commentary, keep exact code
+
+## Lifecycle
+
+### Create Plan
+
+1. Gather context → verbose `{plan-name}-plan.md`
+2. Map interfaces → `interfaces.md`
+3. Draw dependencies → `README.md`
+4. Distill agent files → `agents/*.agent.md`
+
+### Assign Work
+
+```
+Copy agents/000_agent_*.agent.md → paste to agent → done
+```
+
+### During Execution
+
+- Agent works from their `.agent.md`
+- Updates status when complete
+- Appends to `gotchas.md` if issues found
+- Searches only for unexpected edge cases
+
+## Status Values
+
+| Status    | Meaning        | Action         |
+| --------- | -------------- | -------------- |
+| `GAP`     | Not started    | Begin work     |
+| `WIP`     | In progress    | Continue       |
+| `PASS`    | Complete       | Done           |
+| `BLOCKED` | Waiting on dep | Work elsewhere |
+
+## Commands
+
+| Command               | Purpose                                      | When                                    |
+| --------------------- | -------------------------------------------- | --------------------------------------- |
+| `create-feature-plan` | Create new plan + agent files                | Starting new work                       |
+| `update-feature-plan` | Modify plan, regenerate agents               | Mid-flight changes, interface evolution |
+| `close-feature-agent` | Verify completion, sync status               | Agent finishes work                     |
+| `list-plans`          | List available plans                         | Finding plans                           |
+| `next-task`           | Select next task (no run)                    | Preview next task selection             |
+| `status`              | Assess agent status                          | Check status, find cleanup needs        |

@@ -47,6 +47,22 @@ export interface ToolFilteringConfig {
 }
 
 /**
+ * Staleness detection configuration.
+ */
+export interface StalenessConfig {
+  warningDays: number;
+  criticalDays: number;
+  wipWarningDays: number;
+  gapWarningDays: number;
+  planCriticalDays: number;
+  excludeStatuses: string[];
+}
+
+export interface HealthConfig {
+  staleness?: Partial<StalenessConfig>;
+}
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -61,6 +77,7 @@ export interface ServerConfig {
     biases: Partial<ScoringBiases>;
   };
   tools?: ToolFilteringConfig;
+  health?: HealthConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
 
@@ -104,6 +121,30 @@ export function getScoringWeights(config: ServerConfig): ScoringWeights {
  * Default scoring biases (initial config values).
  */
 export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
+
+/**
+ * Default staleness configuration.
+ */
+export const DEFAULT_STALENESS_CONFIG: StalenessConfig = {
+  warningDays: 14,
+  criticalDays: 30,
+  wipWarningDays: 7,
+  gapWarningDays: 14,
+  planCriticalDays: 30,
+  excludeStatuses: ['PASS'],
+};
+
+/**
+ * Get staleness configuration from config.
+ */
+export function getStalenessConfig(config: ServerConfig): StalenessConfig {
+  const overrides = config.health?.staleness ?? {};
+  return {
+    ...DEFAULT_STALENESS_CONFIG,
+    ...overrides,
+    excludeStatuses: overrides.excludeStatuses ?? DEFAULT_STALENESS_CONFIG.excludeStatuses,
+  };
+}
 
 export const SCORING_PRESETS: Record<
   ScoringPreset,
@@ -191,6 +232,9 @@ const DEFAULT_CONFIG: ServerConfig = {
     biases: DEFAULT_SCORING_BIASES,
   },
   tools: undefined,
+  health: {
+    staleness: DEFAULT_STALENESS_CONFIG,
+  },
   extensions: undefined,
 };
 
@@ -307,6 +351,15 @@ export function loadConfig(configPath: string): ServerConfig {
     ? typedConfig.docsPaths.map(resolvePath)
     : undefined;
 
+  const resolvedHealth: HealthConfig | undefined = ((): HealthConfig | undefined => {
+    const health = typedConfig.health;
+    const staleness = {
+      ...DEFAULT_STALENESS_CONFIG,
+      ...(health?.staleness ?? {}),
+    };
+    return health ? { ...health, staleness } : { staleness };
+  })();
+
   // Merge with defaults and resolve paths (with tilde expansion)
   const resolvedConfig: ServerConfig = {
     configVersion: typedConfig.configVersion,
@@ -316,6 +369,7 @@ export function loadConfig(configPath: string): ServerConfig {
     dataPath: resolvePath(typedConfig.dataPath || DEFAULT_CONFIG.dataPath),
     scoring,
     tools: typedConfig.tools,
+    health: resolvedHealth,
     extensions: typedConfig.extensions,
   };
 
@@ -377,6 +431,39 @@ export function validateConfig(config: unknown): config is ServerConfig {
     }
     if (tools.denylist !== undefined) {
       if (!Array.isArray(tools.denylist) || !tools.denylist.every((t) => typeof t === 'string')) {
+        return false;
+      }
+    }
+  }
+
+  if (c.health !== undefined) {
+    if (typeof c.health !== 'object' || c.health === null) {
+      return false;
+    }
+    const health = c.health as HealthConfig;
+    if (health.staleness !== undefined) {
+      if (typeof health.staleness !== 'object' || health.staleness === null) {
+        return false;
+      }
+      const staleness = health.staleness as Partial<StalenessConfig>;
+      const numberFields: (keyof StalenessConfig)[] = [
+        'warningDays',
+        'criticalDays',
+        'wipWarningDays',
+        'gapWarningDays',
+        'planCriticalDays',
+      ];
+      for (const field of numberFields) {
+        const value = staleness[field];
+        if (value !== undefined && typeof value !== 'number') {
+          return false;
+        }
+      }
+      if (
+        staleness.excludeStatuses !== undefined &&
+        (!Array.isArray(staleness.excludeStatuses) ||
+          !staleness.excludeStatuses.every((status) => typeof status === 'string'))
+      ) {
         return false;
       }
     }

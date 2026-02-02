@@ -1,10 +1,10 @@
 ---
 title: limps Self-Updating Intelligence
-status: draft
+status: active
 workType: feature
 tags: [limps/plan, limps/worktype/feature]
 created: 2026-01-26
-updated: 2026-01-27
+updated: 2026-02-01
 ---
 
 # limps Self-Updating Intelligence
@@ -360,6 +360,6 @@ limps proposals apply-safe
 
 ## Status
 
-Status: Planning
+Status: Active
 Work Type: feature
 Created: 2026-01-26

@@ -1,0 +1,18 @@
+# limps Planning Documents
+> Planning documents for limps
+
+## Quick Start
+- [Plans Directory](/plans/): All plans and supporting docs
+
+## Plan Structure
+Each plan contains:
+- `{plan-name}-plan.md` - Full specifications and requirements
+- `interfaces.md` - API contracts and type definitions (if present)
+- `gotchas.md` - Known issues and edge cases (if present)
+- `agents/` - Task breakdown with status tracking
+
+## Status Legend
+- GAP: Not started
+- WIP: In progress
+- PASS: Complete
+- BLOCKED: Waiting on dependencies
