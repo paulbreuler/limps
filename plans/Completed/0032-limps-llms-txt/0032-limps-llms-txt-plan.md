@@ -1,6 +1,6 @@
 ---
 title: limps LLM Optimization (llms.txt)
-status: draft
+status: PASS
 workType: feature
 tags: [limps/plan, limps/worktype/feature]
 created: 2026-01-26
