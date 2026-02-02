@@ -26,6 +26,7 @@ import { ListPlansInputSchema, handleListPlans } from './list-plans.js';
 import { ListAgentsInputSchema, handleListAgents } from './list-agents.js';
 import { GetPlanStatusInputSchema, handleGetPlanStatus } from './get-plan-status.js';
 import { ManageTagsInputSchema, handleManageTags } from './manage-tags.js';
+import { CheckDriftInputSchema, handleCheckDrift } from './check-drift.js';
 
 export const CORE_TOOL_NAMES = [
   'create_plan',
@@ -45,6 +46,7 @@ export const CORE_TOOL_NAMES = [
   'list_agents',
   'get_plan_status',
   'manage_tags',
+  'check_drift',
 ] as const;
 
 const ReindexDocsInputSchema = z.object({}).strict();
@@ -436,6 +438,30 @@ Tags are stored in frontmatter. Inline tags (#tag) are detected but stored in fr
     async (input) => {
       const parsed = ManageTagsInputSchema.parse(input);
       return handleManageTags(parsed, context);
+    }
+  );
+
+  // Health Check Tools
+  registerTool(
+    'check_drift',
+    `Check for code drift between agent frontmatter file lists and actual filesystem.
+
+Detects:
+- Missing files: Listed in frontmatter but not found on disk
+- Renamed files: Missing files with fuzzy-matched suggestions
+
+Returns:
+- status: "clean" or "drift_detected"
+- agentsChecked: Number of agents checked
+- totalFilesChecked: Number of file references checked
+- skippedExternal: Files with external repo references (skipped)
+- drifts: Array of drift entries with taskId, file, reason, and suggestion
+
+Use this to verify agent file references are up-to-date with the codebase.`,
+    CheckDriftInputSchema.shape,
+    async (input) => {
+      const parsed = CheckDriftInputSchema.parse(input);
+      return handleCheckDrift(parsed, context);
     }
   );
 }
