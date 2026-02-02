@@ -44,8 +44,9 @@ export const loadSkillTool: MCPTool = {
     required: ['skillName']
   },
   handler: async ({ skillName }) => {
-    const result = await exec(`limps skill read ${skillName}`);
-    return { content: [{ type: 'text', text: result.stdout }] };
+    if (!/^[a-zA-Z0-9_-]+$/.test(skillName)) throw new Error('Invalid skill name');
+    const { stdout } = await execFile('limps', ['skill', 'read', skillName]);
+    return { content: [{ type: 'text', text: stdout }] };
   }
 };
 ```

@@ -359,13 +359,14 @@ const reference = await loader.loadResource('limps-planning', 'references/tool-r
 **Integration with MCP**:
 
 ```typescript
-// MCP tool wraps CLI (CLI-first pattern)
+// MCP tool wraps CLI (CLI-first pattern); use execFile + validation to avoid command injection
 export const loadSkillTool: MCPTool = {
   name: 'load_skill',
   description: 'Load a limps skill for guidance on using planning tools',
   handler: async ({ skillName }) => {
-    const result = await exec(`limps skill read ${skillName}`);
-    return result.stdout;
+    if (!/^[a-zA-Z0-9_-]+$/.test(skillName)) throw new Error('Invalid skill name');
+    const { stdout } = await execFile('limps', ['skill', 'read', skillName]);
+    return stdout;
   }
 };
 ```
