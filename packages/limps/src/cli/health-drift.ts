@@ -194,6 +194,12 @@ export function findSimilarFile(codebasePath: string, filename: string): string 
  * @param agentNumber - Optional specific agent number to check
  * @returns Drift check result
  */
+/** Reject path traversal in codebasePath (e.g. "../" or "..\\"). */
+function isSafeCodebasePath(path: string): boolean {
+  const normalized = path.replace(/\\/g, '/');
+  return !normalized.split('/').includes('..');
+}
+
 export function checkFileDrift(
   config: ServerConfig,
   planId: string,
@@ -206,6 +212,11 @@ export function checkFileDrift(
     agentsChecked: 0,
     skippedExternal: 0,
   };
+
+  if (!isSafeCodebasePath(codebasePath)) {
+    result.error = 'codebasePath must not contain ".." (path traversal not allowed)';
+    return result;
+  }
 
   // Find plan directory
   const planDir = findPlanDirectory(config.plansPath, planId);

@@ -29,6 +29,8 @@ import { ManageTagsInputSchema, handleManageTags } from './manage-tags.js';
 import { CheckStalenessInputSchema, handleCheckStaleness } from './check-staleness.js';
 import { CheckDriftInputSchema, handleCheckDrift } from './check-drift.js';
 import { InferStatusInputSchema, handleInferStatus } from './infer-status.js';
+import { GetProposalsInputSchema, handleGetProposals } from './get-proposals.js';
+import { ApplyProposalInputSchema, handleApplyProposal } from './apply-proposal.js';
 
 export const CORE_TOOL_NAMES = [
   'create_plan',
@@ -51,6 +53,8 @@ export const CORE_TOOL_NAMES = [
   'check_staleness',
   'check_drift',
   'infer_status',
+  'get_proposals',
+  'apply_proposal',
 ] as const;
 
 const ReindexDocsInputSchema = z.object({}).strict();
@@ -497,6 +501,26 @@ Use minConfidence (0–1) to filter low-confidence suggestions.`,
     async (input) => {
       const parsed = InferStatusInputSchema.parse(input);
       return handleInferStatus(parsed, context);
+    }
+  );
+
+  registerTool(
+    'get_proposals',
+    'List update proposals from staleness, drift, and inference. Use apply_proposal to apply with confirmation.',
+    GetProposalsInputSchema.shape,
+    async (input) => {
+      const parsed = GetProposalsInputSchema.parse(input);
+      return handleGetProposals(parsed, context);
+    }
+  );
+
+  registerTool(
+    'apply_proposal',
+    'Apply a single proposal by id. Requires confirm: true. Creates a backup before modifying.',
+    ApplyProposalInputSchema.shape,
+    async (input) => {
+      const parsed = ApplyProposalInputSchema.parse(input);
+      return handleApplyProposal(parsed, context);
     }
   );
 }

@@ -1,10 +1,10 @@
 ---
 title: Phase 4 - Update Proposals
-status: GAP
+status: WIP
 persona: coder
 dependencies: ["002"]
 blocks: ["004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/wip, limps/persona/coder]
 aliases: ["#003", "Update Proposals"]
 created: 2026-02-01
 updated: 2026-02-01
@@ -39,6 +39,6 @@ TL;DR: List and apply proposals from the CLI.
 
 ## Done
 
-- [ ] Proposal schema finalized
-- [ ] Tools implemented
-- [ ] CLI commands wired
+- [x] Proposal schema finalized
+- [x] Tools implemented
+- [x] CLI commands wired

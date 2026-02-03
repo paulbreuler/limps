@@ -334,6 +334,14 @@ files:
       expect(result.drifts).toHaveLength(0);
     });
 
+    it('returns error when codebasePath contains path traversal [drift-026b]', () => {
+      // Use a path string that literally contains ".." (path.join would resolve it)
+      const result = checkFileDrift(config, '1', 'codebase/../etc');
+
+      expect(result.error).toContain('path traversal');
+      expect(result.drifts).toHaveLength(0);
+    });
+
     it('handles agents with empty files array [drift-027]', () => {
       const planDir = join(plansDir, '0001-test-plan');
       const agentsDir = join(planDir, 'agents');

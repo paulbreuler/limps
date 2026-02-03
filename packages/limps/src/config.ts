@@ -60,6 +60,7 @@ export interface StalenessConfig {
 
 export interface HealthConfig {
   staleness?: Partial<StalenessConfig>;
+  drift?: { codebasePath?: string };
 }
 
 /**
