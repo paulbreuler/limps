@@ -307,16 +307,16 @@ limps proposals apply-safe
 ## Implementation Plan
 
 ### Phase 1: Staleness Detection
-- [ ] Track file modification times
-- [ ] `check_staleness` tool
-- [ ] CLI `limps health staleness`
-- [ ] Warning/critical thresholds
+- [x] Track file modification times
+- [x] `check_staleness` tool
+- [x] CLI `limps health staleness`
+- [x] Warning/critical thresholds
 
 ### Phase 2: Code Drift
-- [ ] Parse `files:` from frontmatter
-- [ ] File existence checking
-- [ ] Fuzzy filename matching
-- [ ] `check_drift` tool
+- [x] Parse `files:` from frontmatter
+- [x] File existence checking
+- [x] Fuzzy filename matching
+- [x] `check_drift` tool
 
 ### Phase 3: Status Inference
 - [ ] Rule-based inference engine

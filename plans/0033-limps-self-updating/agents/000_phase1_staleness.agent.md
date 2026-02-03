@@ -1,13 +1,13 @@
 ---
 title: Phase 1 - Staleness Detection
-status: GAP
+status: PASS
 persona: coder
 dependencies: []
 blocks: ["001", "002", "003", "004"]
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/pass, limps/persona/coder]
 aliases: ["#000", "Staleness Detection"]
 created: 2026-02-01
-updated: 2026-02-01
+updated: 2026-02-02
 ---
 
 # Agent 000: Phase 1 - Staleness Detection
@@ -43,7 +43,7 @@ TL;DR: Human + JSON output for staleness checks.
 
 ## Done
 
-- [ ] Config schema defined
-- [ ] Staleness rules implemented
-- [ ] `check_staleness` tool implemented
-- [ ] CLI command output wired
+- [x] Config schema defined
+- [x] Staleness rules implemented
+- [x] `check_staleness` tool implemented
+- [x] CLI command output wired
