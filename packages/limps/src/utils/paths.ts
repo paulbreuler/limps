@@ -68,6 +68,15 @@ export const PROTECTED_PLAN_FILES: readonly RegExp[] = [
 ];
 
 /**
+ * Reject path traversal in codebasePath (e.g. "../" or "..\\").
+ * codebasePath is otherwise trusted; this only blocks relative traversal.
+ */
+export function isSafeCodebasePath(path: string): boolean {
+  const normalized = path.replace(/\\/g, '/');
+  return !normalized.split('/').includes('..');
+}
+
+/**
  * Get the plan file name for a plan directory (new format).
  * Format: {dirName}-plan.md (e.g., "0001-feature-name-plan.md")
  *

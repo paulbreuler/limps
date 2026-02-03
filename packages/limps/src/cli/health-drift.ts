@@ -10,6 +10,7 @@ import { join, basename } from 'path';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 import type { ServerConfig } from '../config.js';
 import type { AgentFrontmatter } from '../agent-parser.js';
+import { isSafeCodebasePath } from '../utils/paths.js';
 
 /**
  * File entry in agent frontmatter.
@@ -194,12 +195,6 @@ export function findSimilarFile(codebasePath: string, filename: string): string 
  * @param agentNumber - Optional specific agent number to check
  * @returns Drift check result
  */
-/** Reject path traversal in codebasePath (e.g. "../" or "..\\"). */
-function isSafeCodebasePath(path: string): boolean {
-  const normalized = path.replace(/\\/g, '/');
-  return !normalized.split('/').includes('..');
-}
-
 export function checkFileDrift(
   config: ServerConfig,
   planId: string,

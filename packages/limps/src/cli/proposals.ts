@@ -15,6 +15,7 @@ import { inferStatus } from './health-inference.js';
 import { findPlanDirectory } from './list-agents.js';
 import { listPlanDirectories } from './health-staleness.js';
 import { FrontmatterHandler } from '../utils/frontmatter.js';
+import { isSafeCodebasePath } from '../utils/paths.js';
 
 /** Proposal type for categorization and filtering. */
 export type UpdateProposalType = 'frontmatter' | 'status' | 'content' | 'file_list';
@@ -57,7 +58,7 @@ function proposalId(
   planId: string,
   type: string,
   target: string,
-  field: string,
+  field: string | undefined,
   current: unknown,
   proposed: unknown
 ): string {
@@ -84,14 +85,21 @@ function resolvePlanDirs(config: ServerConfig, planId?: string): { dir: string; 
 /**
  * Generate update proposals from staleness, drift, and inference.
  */
-/**
- * Reject path traversal in codebasePath (e.g. "../" or "..\\").
- * codebasePath is otherwise trusted; this only blocks relative traversal.
- */
-function isSafeCodebasePath(path: string): boolean {
-  const normalized = path.replace(/\\/g, '/');
-  const segments = normalized.split('/');
-  return !segments.includes('..');
+function extractPlanIdFromProposalId(id: string): string | null {
+  const match = id.match(/^proposal_(.+)_[a-f0-9]{12}$/);
+  return match ? match[1] : null;
+}
+
+function resolveStaleEntryPath(plansPath: string, entryPath: string): string | null {
+  const normalized = entryPath.replace(/\\/g, '/');
+  if (!normalized.startsWith('plans/')) {
+    return null;
+  }
+  const relPath = normalized.slice('plans/'.length);
+  if (relPath.split('/').includes('..')) {
+    return null;
+  }
+  return join(plansPath, relPath);
 }
 
 export function getProposals(
@@ -185,9 +193,8 @@ export function getProposals(
       if (entry.type !== 'agent') continue;
       if (typeSet && !typeSet.has('frontmatter')) continue;
       // entry.path is like "plans/0033-limps-self-updating/agents/000_phase1.agent.md"
-      const relUnderPlans = entry.path.replace(/^plans\//, '');
-      const fullPath = join(config.plansPath, relUnderPlans);
-      if (!existsSync(fullPath)) continue;
+      const fullPath = resolveStaleEntryPath(config.plansPath, entry.path);
+      if (!fullPath || !existsSync(fullPath)) continue;
       const proposedDate = new Date().toISOString().slice(0, 10);
       const id = proposalId(
         planName,
@@ -237,7 +244,11 @@ export function applyProposal(
     return { applied: false, error: 'confirm must be true to apply' };
   }
 
-  const planDirs = resolvePlanDirs(config, planId);
+  const scopePlanId = planId ?? extractPlanIdFromProposalId(proposalId) ?? undefined;
+  const planDirs = resolvePlanDirs(config, scopePlanId);
+  if (planDirs.length === 0 && scopePlanId) {
+    return { applied: false, error: `Plan not found: ${scopePlanId}` };
+  }
   const allProposals: UpdateProposal[] = [];
   for (const { dir, planId: p } of planDirs) {
     const planName = dir.split(/[/\\]/).pop() ?? p;
@@ -278,7 +289,7 @@ export function applyProposal(
         const updated = files
           .map((f) => {
             if (typeof f === 'string' && f === proposal.currentValue) {
-              return proposal.proposedValue;
+              return proposal.proposedValue ?? undefined;
             }
             if (
               typeof f === 'object' &&
@@ -289,7 +300,7 @@ export function applyProposal(
             }
             return f;
           })
-          .filter((f) => f !== undefined);
+          .filter((f) => f !== undefined && f !== null);
         (parsed.frontmatter as Record<string, unknown>).files = updated;
       }
     } else {
