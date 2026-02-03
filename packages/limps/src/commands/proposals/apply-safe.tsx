@@ -64,12 +64,21 @@ export default function ProposalsApplySafeCommand({ args, options }: Props): Rea
       return <Text color="red">{error}</Text>;
     }
 
-    if (proposals.length === 0) {
-      return <Text>No auto-applyable proposals found.</Text>;
+    const allowedTypes = config.health?.proposals?.autoApply ?? [];
+    const toApply =
+      allowedTypes.length > 0 ? proposals.filter((p) => allowedTypes.includes(p.type)) : proposals;
+
+    if (toApply.length === 0) {
+      return (
+        <Text>
+          No auto-applyable proposals found
+          {allowedTypes.length > 0 ? ` for configured types: ${allowedTypes.join(', ')}` : ''}.
+        </Text>
+      );
     }
 
     const results: string[] = [];
-    for (const p of proposals) {
+    for (const p of toApply) {
       const result = applyProposal(config, p.id, true, p.planId);
       if (result.applied) {
         results.push(`Applied ${p.id} → ${result.path}`);

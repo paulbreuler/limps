@@ -1,10 +1,10 @@
 ---
 title: Phase 5 - Automation
-status: GAP
+status: WIP
 persona: coder
 dependencies: ["003"]
 blocks: []
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
+tags: [limps/agent, limps/status/wip, limps/persona/coder]
 aliases: ["#004", "Automation"]
 created: 2026-02-01
 updated: 2026-02-01
@@ -39,5 +39,6 @@ TL;DR: Wire hooks for later Slack/Discord integration.
 
 ## Done
 
-- [ ] Background health checks implemented
-- [ ] Safe auto-apply path wired
+- [x] Background health checks implemented (limps health check)
+- [x] Safe auto-apply path wired (config health.proposals.autoApply)
+- [ ] Notification hooks (HealthCheckHook type + onComplete; integration TBD)

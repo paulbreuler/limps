@@ -61,6 +61,8 @@ export interface StalenessConfig {
 export interface HealthConfig {
   staleness?: Partial<StalenessConfig>;
   drift?: { codebasePath?: string };
+  /** Proposal types allowed for auto-apply (e.g. ["frontmatter"]). If unset, all auto-applyable are applied. */
+  proposals?: { autoApply?: string[] };
 }
 
 /**
@@ -87,6 +89,34 @@ export interface ServerConfig {
  * Increment when making breaking changes that require migration.
  */
 export const CURRENT_CONFIG_VERSION = 1;
+
+export type ConfigMigrationStep = (config: Record<string, unknown>) => void;
+
+const CONFIG_MIGRATIONS: ConfigMigrationStep[] = [
+  (config: Record<string, unknown>): void => {
+    const typedConfig = config as Partial<ServerConfig>;
+    const scoring = typedConfig.scoring;
+    if (!scoring?.weights || !scoring?.biases) {
+      typedConfig.scoring = {
+        weights: DEFAULT_SCORING_WEIGHTS,
+        biases: DEFAULT_SCORING_BIASES,
+      };
+    }
+
+    if ('coordinationPath' in config) {
+      delete (config as { coordinationPath?: unknown }).coordinationPath;
+    }
+    if ('heartbeatTimeout' in config) {
+      delete (config as { heartbeatTimeout?: unknown }).heartbeatTimeout;
+    }
+    if ('debounceDelay' in config) {
+      delete (config as { debounceDelay?: unknown }).debounceDelay;
+    }
+    if ('maxHandoffIterations' in config) {
+      delete (config as { maxHandoffIterations?: unknown }).maxHandoffIterations;
+    }
+  },
+];
 
 /**
  * Default file extensions to index.
@@ -296,8 +326,31 @@ export function loadConfig(configPath: string): ServerConfig {
   const config = JSON.parse(content) as Record<string, unknown>;
   const typedConfig = config as Partial<ServerConfig>;
 
-  // Migration: add scoring if missing (pre-v1 configs)
   let needsSave = false;
+  let currentVersion =
+    typeof typedConfig.configVersion === 'number' && typedConfig.configVersion >= 0
+      ? typedConfig.configVersion
+      : 0;
+
+  if (currentVersion > CURRENT_CONFIG_VERSION) {
+    throw new Error(
+      `Unsupported config version ${currentVersion}. Current version is ${CURRENT_CONFIG_VERSION}.`
+    );
+  }
+
+  while (currentVersion < CURRENT_CONFIG_VERSION) {
+    const migration = CONFIG_MIGRATIONS[currentVersion];
+    if (!migration) {
+      throw new Error(
+        `Missing migration step for version ${currentVersion} → ${currentVersion + 1}.`
+      );
+    }
+    migration(config);
+    currentVersion += 1;
+    typedConfig.configVersion = currentVersion;
+    needsSave = true;
+  }
+
   let scoring = typedConfig.scoring;
   if (!scoring?.weights || !scoring?.biases) {
     scoring = {
@@ -305,30 +358,6 @@ export function loadConfig(configPath: string): ServerConfig {
       biases: DEFAULT_SCORING_BIASES,
     };
     typedConfig.scoring = scoring;
-    needsSave = true;
-  }
-
-  // Migration: add configVersion if missing
-  if (typedConfig.configVersion === undefined) {
-    typedConfig.configVersion = CURRENT_CONFIG_VERSION;
-    needsSave = true;
-  }
-
-  // Migration: remove deprecated coordination-related keys (coordination system was removed in v2)
-  if ('coordinationPath' in config) {
-    delete (config as Record<string, unknown>).coordinationPath;
-    needsSave = true;
-  }
-  if ('heartbeatTimeout' in config) {
-    delete (config as Record<string, unknown>).heartbeatTimeout;
-    needsSave = true;
-  }
-  if ('debounceDelay' in config) {
-    delete (config as Record<string, unknown>).debounceDelay;
-    needsSave = true;
-  }
-  if ('maxHandoffIterations' in config) {
-    delete (config as Record<string, unknown>).maxHandoffIterations;
     needsSave = true;
   }
 

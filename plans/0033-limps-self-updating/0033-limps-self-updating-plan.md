@@ -331,9 +331,9 @@ limps proposals apply-safe
 - [x] CLI commands
 
 ### Phase 5: Automation
-- [ ] Background health checks
+- [x] Background health checks (limps health check)
 - [ ] Notification hooks (for future Slack integration)
-- [ ] Auto-apply safe proposals option
+- [x] Auto-apply safe proposals option (config-driven)
 
 ---
 

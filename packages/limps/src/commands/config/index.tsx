@@ -22,6 +22,7 @@ export default function ConfigCommand(): React.ReactNode {
           'set <path> Set current from config path (auto-registers)',
           'discover Find configs in default locations (use `limps config use <name>` to register)',
           'migrate Pull known configs into limps/projects/ from old locations',
+          'upgrade Upgrade config schema to latest version',
         ],
       },
       {
