@@ -10,6 +10,7 @@ import { join, basename } from 'path';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
 import type { ServerConfig } from '../config.js';
 import type { AgentFrontmatter } from '../agent-parser.js';
+import { isSafeCodebasePath } from '../utils/paths.js';
 
 /**
  * File entry in agent frontmatter.
@@ -206,6 +207,11 @@ export function checkFileDrift(
     agentsChecked: 0,
     skippedExternal: 0,
   };
+
+  if (!isSafeCodebasePath(codebasePath)) {
+    result.error = 'codebasePath must not contain ".." (path traversal not allowed)';
+    return result;
+  }
 
   // Find plan directory
   const planDir = findPlanDirectory(config.plansPath, planId);

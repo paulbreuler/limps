@@ -300,6 +300,57 @@ export function configShow(resolveConfigPathFn: () => string): string {
   return lines.join('\n');
 }
 
+/**
+ * Upgrade config schema to the latest version.
+ *
+ * @param resolveConfigPathFn - Function to resolve config path
+ * @param options - Upgrade options
+ * @returns Formatted upgrade summary
+ */
+export function configUpgrade(
+  resolveConfigPathFn: () => string,
+  options: { all?: boolean } = {}
+): string {
+  const lines: string[] = [];
+
+  if (options.all) {
+    const projects = listProjects();
+    if (projects.length === 0) {
+      return 'No projects registered. Run `limps init <name>` to create one.';
+    }
+
+    let upgraded = 0;
+    let skipped = 0;
+    lines.push('Upgrading registered project configs...');
+    lines.push('');
+
+    for (const project of projects) {
+      if (!existsSync(project.configPath)) {
+        skipped++;
+        lines.push(`  ${project.name}: missing (${project.configPath})`);
+        continue;
+      }
+
+      const config = loadConfig(project.configPath);
+      lines.push(
+        `  ${project.name}: ${project.configPath} (version ${config.configVersion ?? 'unknown'})`
+      );
+      upgraded++;
+    }
+
+    lines.push('');
+    lines.push(`Upgraded ${upgraded} project(s).`);
+    if (skipped > 0) {
+      lines.push(`Skipped ${skipped} missing config(s).`);
+    }
+    return lines.join('\n');
+  }
+
+  const configPath = resolveConfigPathFn();
+  const config = loadConfig(configPath);
+  return `Config upgraded to version ${config.configVersion ?? 'unknown'}.\nPath: ${configPath}`;
+}
+
 export interface ScoringConfigUpdateOptions {
   preset?: ScoringPreset;
   weights?: Partial<ScoringWeights>;

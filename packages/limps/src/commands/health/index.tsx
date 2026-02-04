@@ -10,6 +10,7 @@ export default function HealthCommand(): React.ReactNode {
       {
         title: 'Commands',
         lines: [
+          'check      Run full health check (staleness + inference + drift)',
           'staleness  Check for stale plans and agents',
           'inference  Suggest status updates for plan agents',
         ],

@@ -57,7 +57,8 @@ const toRelativePlanPath = (plansPath: string, absolutePath: string): string => 
   return relativePath ? `plans/${relativePath}` : absolutePath;
 };
 
-const listPlanDirectories = (plansPath: string): string[] => {
+/** List plan directory names (e.g. ["0001-feature", "0033-limps-self-updating"]). */
+export function listPlanDirectories(plansPath: string): string[] {
   if (!existsSync(plansPath)) {
     return [];
   }
@@ -65,7 +66,7 @@ const listPlanDirectories = (plansPath: string): string[] => {
     .filter((dirent) => dirent.isDirectory())
     .map((dirent) => dirent.name)
     .filter((dirName) => Boolean(findPlanFile(join(plansPath, dirName))));
-};
+}
 
 const resolvePlanDirectories = (config: ServerConfig, planId?: string): string[] => {
   if (planId) {

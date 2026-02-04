@@ -319,21 +319,21 @@ limps proposals apply-safe
 - [x] `check_drift` tool
 
 ### Phase 3: Status Inference
-- [ ] Rule-based inference engine
+- [x] Rule-based inference engine
 - [ ] Git history integration (optional)
-- [ ] `infer_status` tool
-- [ ] Confidence scoring
+- [x] `infer_status` tool
+- [x] Confidence scoring
 
 ### Phase 4: Proposal System
-- [ ] Proposal generation
-- [ ] Proposal storage/tracking
-- [ ] `get_proposals` / `apply_proposal` tools
-- [ ] CLI commands
+- [x] Proposal generation
+- [x] Proposal storage/tracking (on-demand from health checks)
+- [x] `get_proposals` / `apply_proposal` tools
+- [x] CLI commands
 
 ### Phase 5: Automation
-- [ ] Background health checks
+- [x] Background health checks (limps health check)
 - [ ] Notification hooks (for future Slack integration)
-- [ ] Auto-apply safe proposals option
+- [x] Auto-apply safe proposals option (config-driven)
 
 ---
 

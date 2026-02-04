@@ -38,6 +38,7 @@ export default function DefaultCommand(): React.ReactNode {
       {'  '}reindex{'       '}Rebuild the document index{'\n'}
       {'  '}repair-plans{'  '}Repair plan frontmatter{'\n'}
       {'  '}health{'        '}Run plan health checks{'\n'}
+      {'  '}proposals{'     '}List and apply update proposals{'\n'}
       {'  '}status{'        '}Show plan progress{'\n'}
       {'  '}version{'        '}Show version information{'\n'}
       {'  '}config{'        '}Manage project configuration{'\n'}

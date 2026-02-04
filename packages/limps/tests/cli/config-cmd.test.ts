@@ -23,6 +23,7 @@ import {
   configUse,
   configShow,
   configPath,
+  configUpgrade,
   configAdd,
   configRemove,
   configSet,
@@ -294,6 +295,34 @@ describe('config-cmd', () => {
       const output = configPath(() => expected);
 
       expect(output).toBe(expected);
+    });
+  });
+
+  describe('configUpgrade', () => {
+    it('upgrades a single resolved config path', () => {
+      const configPath = join(configDir, 'upgrade-config.json');
+      writeFileSync(
+        configPath,
+        JSON.stringify({ plansPath: './plans', dataPath: './data' }, null, 2)
+      );
+
+      const output = configUpgrade(() => configPath);
+
+      expect(output).toContain('Config upgraded to version');
+      expect(output).toContain(configPath);
+    });
+
+    it('upgrades all registered configs and reports missing ones', () => {
+      const configA = createConfig('upgrade-a');
+      registerProject('upgrade-a', configA);
+      registerProject('upgrade-missing', join(configDir, 'missing.json'));
+
+      const output = configUpgrade(() => configA, { all: true });
+
+      expect(output).toContain('Upgrading registered project configs');
+      expect(output).toContain('upgrade-a');
+      expect(output).toContain('upgrade-missing');
+      expect(output).toContain('missing');
     });
   });
 
