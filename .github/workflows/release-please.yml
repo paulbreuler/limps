@@ -68,6 +68,39 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  publish-mcp-registry:
+    needs: [release-please, publish-limps]
+    if: ${{ needs.release-please.outputs['limps--release_created'] }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve version from package.json
+        id: version
+        run: |
+          VERSION=$(node -e "console.log(require('./packages/limps/package.json').version)")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Patch server.json version
+        run: |
+          jq --arg v "${{ steps.version.outputs.VERSION }}" \
+            '.version = $v | .packages[0].version = $v' \
+            server.json > server.tmp && mv server.tmp server.json
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Authenticate via GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
+
   publish-limps-headless:
     needs: release-please
     if: ${{ needs.release-please.outputs['limps-headless--release_created'] }}

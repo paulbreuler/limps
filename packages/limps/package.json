@@ -2,6 +2,7 @@
   "name": "@sudosandwich/limps",
   "version": "2.11.0",
   "description": "Local Intelligent MCP Planning Server - AI agent plan management",
+  "mcpName": "io.github.paulbreuler/limps",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
