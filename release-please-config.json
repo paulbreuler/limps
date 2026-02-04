@@ -5,7 +5,19 @@
       "release-type": "node",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
-      "component": "limps"
+      "component": "limps",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "/server.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/server.json",
+          "jsonpath": "$.packages[0].version"
+        }
+      ]
     },
     "packages/limps-headless": {
       "release-type": "node",
