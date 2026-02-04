@@ -71,34 +71,7 @@ jobs:
   publish-mcp-registry:
     needs: [release-please, publish-limps]
     if: ${{ needs.release-please.outputs['limps--release_created'] }}
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install mcp-publisher
-        env:
-          MCP_PUBLISHER_VERSION: v1.4.0
-        run: |
-          set -euo pipefail
-          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-          ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
-          TARBALL="mcp-publisher_${OS}_${ARCH}.tar.gz"
-          BASE_URL="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
-          CHECKSUMS_FILE="registry_${MCP_PUBLISHER_VERSION#v}_checksums.txt"
-          curl -sSLo "${TARBALL}" "${BASE_URL}/${TARBALL}"
-          curl -sSLo "${CHECKSUMS_FILE}" "${BASE_URL}/${CHECKSUMS_FILE}"
-          grep "  ${TARBALL}$" "${CHECKSUMS_FILE}" | sha256sum -c -
-          tar xzf "${TARBALL}" mcp-publisher
-
-      - name: Authenticate via GitHub OIDC
-        run: ./mcp-publisher login github-oidc
-
-      - name: Publish to MCP Registry
-        run: ./mcp-publisher publish
+    uses: ./.github/workflows/publish-mcp-registry.yml
 
   publish-limps-headless:
     needs: release-please
