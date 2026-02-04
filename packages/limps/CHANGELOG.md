@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.12.0](https://github.com/paulbreuler/limps/compare/limps-v2.11.0...limps-v2.12.0) (2026-02-04)
+
+
+### Features
+
+* **ci:** add MCP Registry publish via mcp-publisher OIDC ([#76](https://github.com/paulbreuler/limps/issues/76)) ([54b0d3d](https://github.com/paulbreuler/limps/commit/54b0d3dac2ab23b447fc1f85441d1fee4b07db84))
+* **health:** add code drift detection for agent file references ([#72](https://github.com/paulbreuler/limps/issues/72)) ([e9b69c6](https://github.com/paulbreuler/limps/commit/e9b69c6116322fb99fab2dc766e7ce364b19a831))
+* **health:** add status inference (Phase 3 - Agent 002) ([#74](https://github.com/paulbreuler/limps/issues/74)) ([bead0a9](https://github.com/paulbreuler/limps/commit/bead0a9061f539ecdf572ab53f2f71a6fc0454f0))
+* **limps:** add proposals and health automation ([#75](https://github.com/paulbreuler/limps/issues/75)) ([9c7d46b](https://github.com/paulbreuler/limps/commit/9c7d46b765600a2689627b32c2ea85899efb15cd))
+* **limps:** add staleness health checks ([#70](https://github.com/paulbreuler/limps/issues/70)) ([34ae09a](https://github.com/paulbreuler/limps/commit/34ae09a54889cb97b3f4bc7f3d1d4295318f9885))
+
 ## [2.11.0](https://github.com/paulbreuler/limps/compare/limps-v2.10.0...limps-v2.11.0) (2026-02-02)
 
 
