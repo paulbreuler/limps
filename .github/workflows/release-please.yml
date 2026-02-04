@@ -79,18 +79,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Resolve version from package.json
-        id: version
-        run: |
-          VERSION=$(node -e "console.log(require('./packages/limps/package.json').version)")
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Patch server.json version
-        run: |
-          jq --arg v "${{ steps.version.outputs.VERSION }}" \
-            '.version = $v | .packages[0].version = $v' \
-            server.json > server.tmp && mv server.tmp server.json
-
       - name: Install mcp-publisher
         env:
           MCP_PUBLISHER_VERSION: v1.4.0
