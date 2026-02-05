@@ -552,17 +552,23 @@ export function validateConfig(config: unknown): config is ServerConfig {
       if (typeof retrieval.graphConfig !== 'object' || retrieval.graphConfig === null) {
         return false;
       }
-      if (
-        retrieval.graphConfig.maxDepth !== undefined &&
-        typeof retrieval.graphConfig.maxDepth !== 'number'
-      ) {
-        return false;
+      if (retrieval.graphConfig.maxDepth !== undefined) {
+        if (
+          typeof retrieval.graphConfig.maxDepth !== 'number' ||
+          retrieval.graphConfig.maxDepth < 1 ||
+          retrieval.graphConfig.maxDepth > 10
+        ) {
+          return false;
+        }
       }
-      if (
-        retrieval.graphConfig.hopDecay !== undefined &&
-        typeof retrieval.graphConfig.hopDecay !== 'number'
-      ) {
-        return false;
+      if (retrieval.graphConfig.hopDecay !== undefined) {
+        if (
+          typeof retrieval.graphConfig.hopDecay !== 'number' ||
+          retrieval.graphConfig.hopDecay < 0.1 ||
+          retrieval.graphConfig.hopDecay > 1.0
+        ) {
+          return false;
+        }
       }
     }
   }

@@ -15,7 +15,9 @@ class MockGraphStorage implements Pick<GraphStorage, 'getEntity' | 'getNeighbors
       canonicalId,
       type,
       name,
-      attributes: {},
+      metadata: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     this.entities.set(canonicalId, entity);
   }
@@ -233,9 +235,42 @@ describe('bfsExpansion', () => {
 describe('scoreByHopDistance', () => {
   it('scores nodes by hop distance with decay', () => {
     const nodes = [
-      { entity: { canonicalId: 'A', id: 1, type: 'node', name: 'A', attributes: {} }, depth: 1 },
-      { entity: { canonicalId: 'B', id: 2, type: 'node', name: 'B', attributes: {} }, depth: 2 },
-      { entity: { canonicalId: 'C', id: 3, type: 'node', name: 'C', attributes: {} }, depth: 3 },
+      {
+        entity: {
+          canonicalId: 'A',
+          id: 1,
+          type: 'node',
+          name: 'A',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        depth: 1,
+      },
+      {
+        entity: {
+          canonicalId: 'B',
+          id: 2,
+          type: 'node',
+          name: 'B',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        depth: 2,
+      },
+      {
+        entity: {
+          canonicalId: 'C',
+          id: 3,
+          type: 'node',
+          name: 'C',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        depth: 3,
+      },
     ];
 
     const scored = scoreByHopDistance(nodes, 0.5);
@@ -247,8 +282,30 @@ describe('scoreByHopDistance', () => {
 
   it('handles decay of 1.0 (no decay)', () => {
     const nodes = [
-      { entity: { canonicalId: 'A', id: 1, type: 'node', name: 'A', attributes: {} }, depth: 1 },
-      { entity: { canonicalId: 'B', id: 2, type: 'node', name: 'B', attributes: {} }, depth: 2 },
+      {
+        entity: {
+          canonicalId: 'A',
+          id: 1,
+          type: 'node',
+          name: 'A',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        depth: 1,
+      },
+      {
+        entity: {
+          canonicalId: 'B',
+          id: 2,
+          type: 'node',
+          name: 'B',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        depth: 2,
+      },
     ];
 
     const scored = scoreByHopDistance(nodes, 1.0);
@@ -259,7 +316,18 @@ describe('scoreByHopDistance', () => {
 
   it('handles depth 0 (seeds)', () => {
     const nodes = [
-      { entity: { canonicalId: 'A', id: 1, type: 'node', name: 'A', attributes: {} }, depth: 0 },
+      {
+        entity: {
+          canonicalId: 'A',
+          id: 1,
+          type: 'node',
+          name: 'A',
+          metadata: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        depth: 0,
+      },
     ];
 
     const scored = scoreByHopDistance(nodes, 0.5);

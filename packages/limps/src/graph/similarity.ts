@@ -100,10 +100,8 @@ export function computeSimilarity(
   const weightedRemainder =
     WEIGHTS.lexical * lexical + WEIGHTS.semantic * semantic + WEIGHTS.structural * structural;
   const nonExactWeight = WEIGHTS.lexical + WEIGHTS.semantic + WEIGHTS.structural;
-  const combined =
-    exact >= 1 || nonExactWeight <= 0
-      ? weightedExact + weightedRemainder
-      : weightedRemainder / nonExactWeight;
+  const totalWeight = (exact >= 1 ? WEIGHTS.exact : 0) + nonExactWeight;
+  const combined = totalWeight > 0 ? (weightedExact + weightedRemainder) / totalWeight : 0;
 
   return {
     exact,

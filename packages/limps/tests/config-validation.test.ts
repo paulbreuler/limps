@@ -315,6 +315,54 @@ describe('retrieval config validation', () => {
     ).toBe(false);
   });
 
+  it('should reject retrieval with out-of-range maxDepth', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 0 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 11 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should reject retrieval with out-of-range hopDecay', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { hopDecay: 0.05 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { hopDecay: 1.5 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should accept retrieval with valid graphConfig ranges', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 1, hopDecay: 0.1 } },
+      })
+    ).toBe(true);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 10, hopDecay: 1.0 } },
+      })
+    ).toBe(true);
+  });
+
   it('should reject non-object retrieval', () => {
     expect(
       validateConfig({
