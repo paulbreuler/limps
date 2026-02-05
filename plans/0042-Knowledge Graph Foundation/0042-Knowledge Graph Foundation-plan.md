@@ -324,7 +324,7 @@ limps search "plan 0041" --strategy lexical  # Force strategy
 limps search "what blocks 0041" --verbose    # Show routing decision
 ```
 
-Status: `GAP`
+Status: `PASS`
 
 ---
 
