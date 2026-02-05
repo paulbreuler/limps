@@ -164,6 +164,15 @@ NNNN-descriptive-name/
 **File header**: The agent header in the file should still be descriptive:
 
 ````markdown
+---
+title: [Descriptive Name]
+status: GAP
+persona: coder
+depends_on: [000, 001]   # zero-padded agent numbers this agent depends on; [] if none
+files: [src/path/to/file.ts]
+tags: [feature-area]
+---
+
 # Agent <N>: [Descriptive Name]
 
 **Plan Location**: `plans/[plan-name]/[plan-name]-plan.md`

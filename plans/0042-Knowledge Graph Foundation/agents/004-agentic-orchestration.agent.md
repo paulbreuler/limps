@@ -2,7 +2,7 @@
 title: Proactive Watch Mode
 status: GAP
 persona: coder
-depends: [000, 001, 002]
+depends_on: [000, 001, 002]
 files: [src/watch/index.ts, src/watch/detector.ts, src/watch/notifier.ts]
 tags: [watch, proactive, conflicts]
 ---

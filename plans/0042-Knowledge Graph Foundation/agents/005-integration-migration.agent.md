@@ -2,7 +2,7 @@
 title: CLI Interface
 status: GAP
 persona: coder
-depends: [003, 004]
+depends_on: [003, 004]
 files: [src/cli/commands/graph/index.ts, src/cli/commands/graph/health.ts, src/cli/commands/graph/search.ts, src/cli/commands/graph/trace.ts, src/cli/commands/graph/watch.ts]
 tags: [cli, interface, primary]
 ---

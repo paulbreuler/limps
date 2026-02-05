@@ -99,6 +99,8 @@ function extractDescription(content: string): string {
   return '';
 }
 
+const VALID_STATUSES = new Set(['GAP', 'WIP', 'PASS', 'BLOCKED']);
+
 /**
  * Extract task information from agent files.
  */
@@ -129,13 +131,16 @@ function extractTasks(
     const filePath = join(agentsDir, file);
     const content = readFileSync(filePath, 'utf-8');
 
-    // Extract title from first H1 or filename
-    const h1Match = content.match(/^#\s+(.+)$/m);
+    const { frontmatter, body } = parseYamlFrontmatter(content);
+
+    // Extract title from first H1 in body (after frontmatter) or filename
+    const h1Match = body.match(/^#\s+(.+)$/m);
     const title = h1Match ? h1Match[1].trim() : file.replace('.agent.md', '');
 
-    // Extract status from content (look for "Status: GAP/WIP/PASS/BLOCKED")
-    const statusMatch = content.match(/Status:\s*(GAP|WIP|PASS|BLOCKED)/i);
-    const status = (statusMatch ? statusMatch[1].toUpperCase() : 'GAP') as
+    // Extract status from frontmatter (source of truth, consistent with agent-parser)
+    const rawStatus =
+      typeof frontmatter.status === 'string' ? frontmatter.status.trim().toUpperCase() : 'GAP';
+    const status = (VALID_STATUSES.has(rawStatus) ? rawStatus : 'GAP') as
       | 'GAP'
       | 'WIP'
       | 'PASS'

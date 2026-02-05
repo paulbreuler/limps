@@ -2,7 +2,7 @@
 title: Dependency-Based Entity Extraction
 status: GAP
 persona: coder
-depends: [000]
+depends_on: [000]
 files: [src/graph/extractor.ts, src/graph/patterns.ts, src/graph/parser.ts]
 tags: [extraction, nlp, no-llm]
 ---

@@ -19,8 +19,14 @@ import {
 export type { LocalMcpClientType } from './mcp-client-adapter.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 
-export type McpSyncClientId = 'claude' | 'cursor' | 'claude-code' | 'codex' | 'chatgpt';
-export type McpAdapterId = Exclude<McpSyncClientId, 'chatgpt'>;
+export type McpSyncClientId =
+  | 'claude'
+  | 'cursor'
+  | 'claude-code'
+  | 'codex'
+  | 'chatgpt'
+  | 'opencode';
+export type McpAdapterId = Exclude<McpSyncClientId, 'chatgpt' | 'opencode'>;
 
 export interface PreviewResult {
   hasChanges: boolean;
@@ -110,6 +116,19 @@ export function getSyncClients(): McpSyncClient[] {
       runPrint: (projectFilter?: string[]) =>
         generateChatGptInstructions(() => resolveConfigPath(), projectFilter),
     },
+    {
+      id: 'opencode',
+      displayName: 'OpenCode',
+      supportsPreview: false,
+      supportsWrite: false,
+      supportsPrint: true,
+      supportsLocalConfig: true,
+      printOnly: true,
+      runPrint: (projectFilter?: string[]): string => {
+        const adapter = getLocalAdapter('opencode');
+        return generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+      },
+    },
   ];
 
   return clients;
@@ -159,6 +178,8 @@ export function getLocalClientType(clientId: McpSyncClientId): LocalMcpClientTyp
       return 'cursor';
     case 'claude-code':
       return 'claude-code';
+    case 'opencode':
+      return 'opencode';
     default:
       return null;
   }

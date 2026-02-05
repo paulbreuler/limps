@@ -147,6 +147,119 @@ export function inspectPlanFrontmatter(content: string): PlanFrontmatterInspecti
   };
 }
 
+// ---------------------------------------------------------------------------
+// Agent frontmatter inspection & repair
+// ---------------------------------------------------------------------------
+
+const BAD_DEPENDENCY_KEYS = /^(depends|deps|depend)$/;
+
+export interface AgentFrontmatterIssue {
+  key: string;
+  message: string;
+}
+
+export interface AgentFrontmatterInspection {
+  status: 'valid' | 'needs_repair';
+  issues: AgentFrontmatterIssue[];
+  badKeys: string[];
+}
+
+/**
+ * Inspect an agent file's frontmatter for misspelled dependency keys.
+ * Does not modify the file.
+ */
+export function inspectAgentFrontmatter(content: string): AgentFrontmatterInspection {
+  const block = extractFrontmatterBlock(content);
+  if (!block) {
+    return { status: 'valid', issues: [], badKeys: [] };
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = (parseYaml(block.yaml) as Record<string, unknown>) || {};
+  } catch {
+    return { status: 'valid', issues: [], badKeys: [] };
+  }
+
+  const badKeys = Object.keys(parsed).filter((k) => BAD_DEPENDENCY_KEYS.test(k));
+  if (badKeys.length === 0) {
+    return { status: 'valid', issues: [], badKeys: [] };
+  }
+
+  const issues: AgentFrontmatterIssue[] = badKeys.map((k) => ({
+    key: k,
+    message: `"${k}" is not a recognized dependency key — should be "depends_on".`,
+  }));
+
+  return { status: 'needs_repair', issues, badKeys };
+}
+
+/**
+ * Normalize a raw dependency value (number | string | array) into a deduplicated
+ * array of numeric dependency IDs.
+ *
+ * This applies similar validation rules to agent-parser's `normalizeDependencies`
+ * (accepting finite numbers and numeric strings) but returns unpadded numbers
+ * instead of zero-padded strings.  Callers are responsible for formatting the
+ * final output (e.g. zero-padding) before writing to frontmatter.
+ */
+function normalizeDepsToNumbers(value: unknown): number[] {
+  const entries = Array.isArray(value) ? value : [value];
+  const out: number[] = [];
+  for (const entry of entries) {
+    if (typeof entry === 'number' && Number.isFinite(entry)) {
+      out.push(entry);
+    } else if (typeof entry === 'string') {
+      const trimmed = entry.trim();
+      if (/^\d+$/.test(trimmed)) {
+        out.push(Number(trimmed));
+      }
+    }
+  }
+  return out;
+}
+
+export type AgentRepairResult =
+  | { repaired: true; renamedKeys: string[] }
+  | { repaired: false; reason: string };
+
+/**
+ * Read an `.agent.md` file, rename any bad dependency keys (depends / deps / depend)
+ * into `depends_on`, deduplicate, and write back.
+ */
+export function repairAgentFrontmatter(agentFilePath: string): AgentRepairResult {
+  if (!existsSync(agentFilePath)) {
+    return { repaired: false, reason: 'missing' };
+  }
+
+  const content = readFileSync(agentFilePath, 'utf-8');
+  const inspection = inspectAgentFrontmatter(content);
+  if (inspection.status !== 'needs_repair') {
+    return { repaired: false, reason: 'clean' };
+  }
+
+  const parsed = frontmatterHandler.parse(content);
+  const fm = parsed.frontmatter as Record<string, unknown>;
+  const badKeySet = new Set(inspection.badKeys);
+
+  // Collect values from existing depends_on + all bad keys, then deduplicate
+  let merged = normalizeDepsToNumbers(fm.depends_on);
+  for (const badKey of inspection.badKeys) {
+    merged = merged.concat(normalizeDepsToNumbers(fm[badKey]));
+  }
+
+  // Rebuild frontmatter without the bad keys
+  const cleaned = Object.fromEntries(Object.entries(fm).filter(([key]) => !badKeySet.has(key)));
+  const uniqueSortedDeps = [...new Set(merged)].sort((a, b) => a - b);
+  cleaned.depends_on = uniqueSortedDeps.map((n) => n.toString().padStart(3, '0'));
+
+  const repairedContent = frontmatterHandler.stringify(cleaned, parsed.content);
+  writeFileSync(agentFilePath, repairedContent, 'utf-8');
+  return { repaired: true, renamedKeys: inspection.badKeys };
+}
+
+// ---------------------------------------------------------------------------
+
 export type PlanRepairResult =
   | { repaired: true; priority?: PlanSignal; severity?: PlanSignal }
   | { repaired: false; reason: 'missing' | 'valid' | 'no-signals' };

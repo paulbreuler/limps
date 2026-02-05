@@ -2,7 +2,7 @@
 title: Deterministic Hybrid Retrieval
 status: GAP
 persona: coder
-depends: [000, 001]
+depends_on: [000, 001]
 files: [src/retrieval/router.ts, src/retrieval/hybrid.ts, src/retrieval/rrf.ts]
 tags: [retrieval, rrf, deterministic]
 ---

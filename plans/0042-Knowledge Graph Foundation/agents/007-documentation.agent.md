@@ -2,7 +2,7 @@
 title: Documentation
 status: GAP
 persona: coder
-depends: [000, 001, 002, 003, 004, 005, 006]
+depends_on: [000, 001, 002, 003, 004, 005, 006]
 files: [docs/knowledge-graph.md, docs/cli-reference.md, README.md]
 tags: [docs, integration]
 ---
