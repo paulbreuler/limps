@@ -2,7 +2,7 @@
 title: MCP Wrappers
 status: GAP
 persona: coder
-depends: [005]
+depends_on: [005]
 files: [src/mcp/tools/graph.ts]
 tags: [mcp, wrapper, thin]
 ---

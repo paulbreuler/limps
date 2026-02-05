@@ -2,7 +2,7 @@
 title: Entity Resolution & Similarity
 status: GAP
 persona: coder
-depends: [000, 001]
+depends_on: [000, 001]
 files: [src/graph/resolver.ts, src/graph/similarity.ts]
 tags: [similarity, dedup, embeddings]
 ---

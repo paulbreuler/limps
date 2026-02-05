@@ -2,7 +2,7 @@
 title: Entity Schema & Storage
 status: PASS
 persona: coder
-depends: []
+depends_on: []
 files: [src/graph/schema.ts, src/graph/storage.ts, src/graph/types.ts]
 tags: [foundation, sqlite, schema]
 ---

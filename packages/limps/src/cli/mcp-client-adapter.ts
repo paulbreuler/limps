@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import * as toml from '@iarna/toml';
+import * as _jsonc from 'jsonc-parser';
 
 /**
  * MCP server configuration entry
@@ -350,7 +351,7 @@ export class CodexAdapter implements McpClientAdapter {
 /**
  * Supported MCP client types for local workspace configs
  */
-export type LocalMcpClientType = 'cursor' | 'claude-code' | 'custom';
+export type LocalMcpClientType = 'cursor' | 'claude-code' | 'opencode' | 'custom';
 
 /**
  * Get the default local config path for a given client type
@@ -365,6 +366,8 @@ export function getLocalConfigPath(clientType: LocalMcpClientType, customPath?: 
       return join(process.cwd(), '.cursor', 'mcp.json');
     case 'claude-code':
       return join(process.cwd(), '.mcp.json');
+    case 'opencode':
+      return join(process.cwd(), 'opencode.json');
     case 'custom':
       return join(process.cwd(), '.mcp.json');
     default:
@@ -381,6 +384,8 @@ export function getLocalConfigDisplayName(clientType: LocalMcpClientType): strin
       return 'Cursor Local (.cursor/mcp.json)';
     case 'claude-code':
       return 'Claude Code Local (.mcp.json)';
+    case 'opencode':
+      return 'OpenCode (opencode.json)';
     case 'custom':
       return 'Local MCP Config';
     default:
@@ -508,6 +513,8 @@ export function getLocalAdapter(
 /**
  * Check if a client type supports local workspace configs
  */
-export function supportsLocalConfig(clientType: string): clientType is 'cursor' | 'claude-code' {
-  return clientType === 'cursor' || clientType === 'claude-code';
+export function supportsLocalConfig(
+  clientType: string
+): clientType is 'cursor' | 'claude-code' | 'opencode' {
+  return clientType === 'cursor' || clientType === 'claude-code' || clientType === 'opencode';
 }

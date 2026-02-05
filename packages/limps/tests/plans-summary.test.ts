@@ -124,8 +124,16 @@ describe('include-task-breakdown', () => {
     const agentsDir = join(planDir, 'agents');
     mkdirSync(agentsDir, { recursive: true });
 
-    writeFileSync(join(agentsDir, '001_agent_one.agent.md'), '# Agent One\n\nStatus: GAP', 'utf-8');
-    writeFileSync(join(agentsDir, '002_agent_two.agent.md'), '# Agent Two\n\nStatus: WIP', 'utf-8');
+    writeFileSync(
+      join(agentsDir, '001_agent_one.agent.md'),
+      '---\nstatus: GAP\n---\n# Agent One\n',
+      'utf-8'
+    );
+    writeFileSync(
+      join(agentsDir, '002_agent_two.agent.md'),
+      '---\nstatus: WIP\n---\n# Agent Two\n',
+      'utf-8'
+    );
 
     const result = await handlePlanSummary('plans://summary/0001-test-plan', context);
     const summary = JSON.parse(result.contents[0].text || '{}');
@@ -218,7 +226,11 @@ describe('handle-missing-plan', () => {
     // Create agent file with WIP status
     const agentsDir = join(planDir, 'agents');
     mkdirSync(agentsDir, { recursive: true });
-    writeFileSync(join(agentsDir, '001_wip_agent.agent.md'), '# WIP Agent\n\nStatus: WIP', 'utf-8');
+    writeFileSync(
+      join(agentsDir, '001_wip_agent.agent.md'),
+      '---\nstatus: WIP\n---\n# WIP Agent\n',
+      'utf-8'
+    );
 
     const result = await handlePlanSummary('plans://summary/0001-test-plan', context);
     const summary = JSON.parse(result.contents[0].text || '{}');
@@ -495,12 +507,24 @@ describe('task-counts', () => {
     const agentsDir = join(planDir, 'agents');
     mkdirSync(agentsDir, { recursive: true });
 
-    writeFileSync(join(agentsDir, '001_gap.agent.md'), '# GAP Agent\n\nStatus: GAP', 'utf-8');
-    writeFileSync(join(agentsDir, '002_wip.agent.md'), '# WIP Agent\n\nStatus: WIP', 'utf-8');
-    writeFileSync(join(agentsDir, '003_pass.agent.md'), '# PASS Agent\n\nStatus: PASS', 'utf-8');
+    writeFileSync(
+      join(agentsDir, '001_gap.agent.md'),
+      '---\nstatus: GAP\n---\n# GAP Agent\n',
+      'utf-8'
+    );
+    writeFileSync(
+      join(agentsDir, '002_wip.agent.md'),
+      '---\nstatus: WIP\n---\n# WIP Agent\n',
+      'utf-8'
+    );
+    writeFileSync(
+      join(agentsDir, '003_pass.agent.md'),
+      '---\nstatus: PASS\n---\n# PASS Agent\n',
+      'utf-8'
+    );
     writeFileSync(
       join(agentsDir, '004_blocked.agent.md'),
-      '# BLOCKED Agent\n\nStatus: BLOCKED',
+      '---\nstatus: BLOCKED\n---\n# BLOCKED Agent\n',
       'utf-8'
     );
 
@@ -523,8 +547,16 @@ describe('task-counts', () => {
     const agentsDir = join(planDir, 'agents');
     mkdirSync(agentsDir, { recursive: true });
 
-    writeFileSync(join(agentsDir, '001_gap.agent.md'), '# GAP Agent\n\nStatus: GAP', 'utf-8');
-    writeFileSync(join(agentsDir, '002_wip.agent.md'), '# WIP Agent\n\nStatus: WIP', 'utf-8');
+    writeFileSync(
+      join(agentsDir, '001_gap.agent.md'),
+      '---\nstatus: GAP\n---\n# GAP Agent\n',
+      'utf-8'
+    );
+    writeFileSync(
+      join(agentsDir, '002_wip.agent.md'),
+      '---\nstatus: WIP\n---\n# WIP Agent\n',
+      'utf-8'
+    );
 
     const result = await handlePlanSummary('plans://summary/0001-test-plan', context);
     const summary = JSON.parse(result.contents[0].text || '{}');
@@ -543,7 +575,11 @@ describe('task-counts', () => {
     const agentsDir = join(planDir, 'agents');
     mkdirSync(agentsDir, { recursive: true });
 
-    writeFileSync(join(agentsDir, '001_pass.agent.md'), '# PASS Agent\n\nStatus: PASS', 'utf-8');
+    writeFileSync(
+      join(agentsDir, '001_pass.agent.md'),
+      '---\nstatus: PASS\n---\n# PASS Agent\n',
+      'utf-8'
+    );
 
     const result = await handlePlanSummary('plans://summary/0001-test-plan', context);
     const summary = JSON.parse(result.contents[0].text || '{}');

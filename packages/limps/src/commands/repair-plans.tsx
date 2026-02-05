@@ -5,7 +5,12 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { type ServerConfig, loadConfig } from '../config.js';
 import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { repairPlanFrontmatter, inspectPlanFrontmatter } from '../cli/plan-repair.js';
+import {
+  repairPlanFrontmatter,
+  inspectPlanFrontmatter,
+  inspectAgentFrontmatter,
+  repairAgentFrontmatter,
+} from '../cli/plan-repair.js';
 import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
 
 export const description = 'Repair malformed plan frontmatter (priority/severity)';
@@ -33,6 +38,16 @@ function findPlanDirs(plansPath: string): string[] {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter((name) => name !== 'Completed' && !name.startsWith('_'));
+}
+
+function findAgentFiles(planDirPath: string): string[] {
+  const agentsDir = join(planDirPath, 'agents');
+  if (!existsSync(agentsDir)) {
+    return [];
+  }
+  return readdirSync(agentsDir)
+    .filter((name) => name.endsWith('.agent.md'))
+    .map((name) => join(agentsDir, name));
 }
 
 export default function RepairPlansCommand({ args, options }: Props): React.ReactNode {
@@ -96,7 +111,37 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
           }
         }
 
-        outputJson(wrapSuccess({ total: issues.length, issues }));
+        const agentIssues: {
+          plan: string;
+          agent: string;
+          badKeys: string[];
+          issues: { key: string; message: string }[];
+        }[] = [];
+
+        for (const dir of planDirs) {
+          const planDirPath = join(config.plansPath, dir);
+          for (const agentPath of findAgentFiles(planDirPath)) {
+            const content = readFileSync(agentPath, 'utf-8');
+            const inspection = inspectAgentFrontmatter(content);
+            if (inspection.status === 'needs_repair') {
+              agentIssues.push({
+                plan: dir,
+                agent: agentPath,
+                badKeys: inspection.badKeys,
+                issues: inspection.issues,
+              });
+            }
+          }
+        }
+
+        outputJson(
+          wrapSuccess({
+            total: issues.length,
+            issues,
+            agents: agentIssues,
+            agentsTotal: agentIssues.length,
+          })
+        );
       } catch (error) {
         outputJson(
           wrapError(error instanceof Error ? error.message : String(error), {
@@ -150,18 +195,38 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
       }
     }
 
-    if (issues.length === 0) {
-      return <Text color="green">No repairable plan frontmatter issues found.</Text>;
+    const brokenAgents: { plan: string; agent: string; badKeys: string[] }[] = [];
+    for (const dir of planDirs) {
+      const planDirPath = join(config.plansPath, dir);
+      for (const agentPath of findAgentFiles(planDirPath)) {
+        const content = readFileSync(agentPath, 'utf-8');
+        const inspection = inspectAgentFrontmatter(content);
+        if (inspection.status === 'needs_repair') {
+          brokenAgents.push({ plan: dir, agent: agentPath, badKeys: inspection.badKeys });
+        }
+      }
+    }
+
+    if (issues.length === 0 && brokenAgents.length === 0) {
+      return <Text color="green">No repairable plan or agent frontmatter issues found.</Text>;
     }
 
     const lines: string[] = [];
-    lines.push(`Found ${issues.length} plan(s) needing repair:`);
-    for (const issue of issues) {
-      lines.push(`  - ${issue.plan}: ${issue.path}`);
-      for (const entry of issue.issues) {
-        lines.push(
-          `      ${entry.code}: ${entry.message}${entry.value ? ` (${entry.value})` : ''}`
-        );
+    if (issues.length > 0) {
+      lines.push(`Found ${issues.length} plan(s) needing repair:`);
+      for (const issue of issues) {
+        lines.push(`  - ${issue.plan}: ${issue.path}`);
+        for (const entry of issue.issues) {
+          lines.push(
+            `      ${entry.code}: ${entry.message}${entry.value ? ` (${entry.value})` : ''}`
+          );
+        }
+      }
+    }
+    if (brokenAgents.length > 0) {
+      lines.push(`Found ${brokenAgents.length} agent(s) with bad dependency keys:`);
+      for (const entry of brokenAgents) {
+        lines.push(`  - ${entry.plan}: ${entry.agent} [${entry.badKeys.join(', ')}]`);
       }
     }
     lines.push('');
@@ -187,9 +252,26 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
     }
   }
 
+  let agentRepairedCount = 0;
+  let agentSkippedCount = 0;
+
+  for (const dir of planDirs) {
+    const planDirPath = join(config.plansPath, dir);
+    for (const agentPath of findAgentFiles(planDirPath)) {
+      const result = repairAgentFrontmatter(agentPath);
+      if (result.repaired) {
+        agentRepairedCount++;
+        results.push(`  repaired agent: ${agentPath} [${result.renamedKeys.join(', ')}]`);
+      } else {
+        agentSkippedCount++;
+      }
+    }
+  }
+
   return (
     <Text>
       Repaired {repairedCount} plan(s), skipped {skippedCount}.{'\n'}
+      Repaired {agentRepairedCount} agent(s), skipped {agentSkippedCount}.{'\n'}
       {results.join('\n')}
     </Text>
   );

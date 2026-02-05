@@ -23,11 +23,11 @@ export const options = z.object({
     .optional()
     .describe('Comma-separated list of project names to add (default: all registered projects)'),
   client: z
-    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'all'])
+    .enum(['claude', 'cursor', 'claude-code', 'codex', 'chatgpt', 'opencode', 'all'])
     .optional()
     .default('all')
     .describe(
-      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, or all). Default: all'
+      'MCP client to configure (claude, cursor, claude-code, codex, chatgpt, opencode, or all). Default: all'
     ),
   global: z
     .boolean()

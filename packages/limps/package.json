@@ -64,6 +64,7 @@
     "fast-json-patch": "^3.1.1",
     "gray-matter": "^4.0.3",
     "ink": "^6.6.0",
+    "jsonc-parser": "^3.3.1",
     "micromatch": "^4.0.8",
     "open": "^11.0.0",
     "pastel": "^4.0.0",
