@@ -1,6 +1,6 @@
 ---
 title: Entity Resolution & Similarity
-status: GAP
+status: PASS
 persona: coder
 depends_on: [000, 001]
 files: [src/graph/resolver.ts, src/graph/similarity.ts]

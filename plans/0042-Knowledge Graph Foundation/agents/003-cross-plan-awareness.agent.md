@@ -1,10 +1,11 @@
 ---
 title: Deterministic Hybrid Retrieval
-status: GAP
+status: PASS
 persona: coder
 depends_on: [000, 001]
 files: [src/retrieval/router.ts, src/retrieval/hybrid.ts, src/retrieval/rrf.ts]
 tags: [retrieval, rrf, deterministic]
+completed: 2026-02-05
 ---
 
 # Agent 003: Deterministic Hybrid Retrieval

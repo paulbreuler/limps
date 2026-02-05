@@ -3,6 +3,7 @@ import {
   validateConfig,
   getAllDocsPaths,
   getFileExtensions,
+  getRetrievalConfig,
   type ServerConfig,
 } from '../src/config.js';
 
@@ -250,6 +251,158 @@ describe('config-validation', () => {
         },
       } as unknown as ServerConfig)
     ).toBe(false);
+  });
+});
+
+describe('retrieval config validation', () => {
+  const baseConfig = {
+    plansPath: '/path',
+    dataPath: '/path',
+    scoring: {
+      weights: { dependency: 40, priority: 30, workload: 30 },
+      biases: {},
+    },
+  };
+
+  it('should validate config with valid retrieval section', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: {
+          defaultRecipe: 'HYBRID_BALANCED',
+          graphConfig: { maxDepth: 2, hopDecay: 0.5 },
+          similarityThreshold: 0.7,
+        },
+      })
+    ).toBe(true);
+  });
+
+  it('should validate config without retrieval section', () => {
+    expect(validateConfig(baseConfig)).toBe(true);
+  });
+
+  it('should reject retrieval with non-string defaultRecipe', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { defaultRecipe: 123 },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should reject retrieval with out-of-range similarityThreshold', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { similarityThreshold: 1.5 },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { similarityThreshold: -0.1 },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should reject retrieval with non-numeric graphConfig fields', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 'two' } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should reject retrieval with out-of-range maxDepth', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 0 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 11 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should reject retrieval with out-of-range hopDecay', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { hopDecay: 0.05 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { hopDecay: 1.5 } },
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should accept retrieval with valid graphConfig ranges', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 1, hopDecay: 0.1 } },
+      })
+    ).toBe(true);
+
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: { graphConfig: { maxDepth: 10, hopDecay: 1.0 } },
+      })
+    ).toBe(true);
+  });
+
+  it('should reject non-object retrieval', () => {
+    expect(
+      validateConfig({
+        ...baseConfig,
+        retrieval: 'invalid',
+      } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+});
+
+describe('getRetrievalConfig', () => {
+  it('should return empty config when no retrieval section', () => {
+    const config: ServerConfig = {
+      plansPath: '/path',
+      dataPath: '/path',
+      scoring: {
+        weights: { dependency: 40, priority: 30, workload: 30 },
+        biases: {},
+      },
+    };
+    const retrieval = getRetrievalConfig(config);
+    expect(retrieval).toEqual({});
+  });
+
+  it('should return configured retrieval values', () => {
+    const config: ServerConfig = {
+      plansPath: '/path',
+      dataPath: '/path',
+      scoring: {
+        weights: { dependency: 40, priority: 30, workload: 30 },
+        biases: {},
+      },
+      retrieval: {
+        defaultRecipe: 'LEXICAL_FIRST',
+        similarityThreshold: 0.8,
+      },
+    };
+    const retrieval = getRetrievalConfig(config);
+    expect(retrieval.defaultRecipe).toBe('LEXICAL_FIRST');
+    expect(retrieval.similarityThreshold).toBe(0.8);
   });
 });
 
