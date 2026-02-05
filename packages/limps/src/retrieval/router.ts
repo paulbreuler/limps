@@ -1,9 +1,5 @@
-export type RetrievalSource = 'lexical' | 'semantic' | 'graph';
-
-export interface RetrievalStrategy {
-  primary: RetrievalSource | 'hybrid';
-  weights: { lexical: number; semantic: number; graph: number };
-}
+import { getRecipe } from './recipes.js';
+import type { SearchRecipe } from './types.js';
 
 const ENTITY_QUERY = /plan\s*\d+|agent\s*#?\d+|\d{4}[-#]\d{3}/i;
 const RELATION_QUERY = /depends|blocks|modifies|what.*blocking|related|overlap|contention|trace/i;
@@ -17,52 +13,52 @@ const QUESTION_STATUS =
 const FILE_QUERY = /file|\.ts|\.js|\.md|modif|touch|change/i;
 
 /**
- * Route query to retrieval strategy using deterministic regex patterns.
+ * Route query to retrieval recipe using deterministic regex patterns.
  * Order matters: specific intent patterns checked before generic entity lookups.
  */
-export function routeQuery(query: string): RetrievalStrategy {
+export function routeQuery(query: string): SearchRecipe {
   const q = query.toLowerCase();
 
-  // 1a. Question-based relational queries → graph (takes precedence over entity IDs)
+  // 1a. Question-based relational queries → EDGE_HYBRID_RRF
   if (QUESTION_RELATION.test(q)) {
-    return { primary: 'graph', weights: { graph: 0.5, semantic: 0.3, lexical: 0.2 } };
+    return getRecipe('EDGE_HYBRID_RRF');
   }
 
-  // 1b. Question-based status queries → graph (takes precedence over entity IDs)
+  // 1b. Question-based status queries → EDGE_HYBRID_RRF
   if (QUESTION_STATUS.test(q)) {
-    return { primary: 'graph', weights: { graph: 0.4, lexical: 0.4, semantic: 0.2 } };
+    return getRecipe('EDGE_HYBRID_RRF');
   }
 
-  // 1c. Conceptual queries with entities → semantic (takes precedence over entity IDs)
+  // 1c. Conceptual queries with entities → NODE_HYBRID_RRF
   if (CONCEPT_WITH_ENTITY.test(q)) {
-    return { primary: 'semantic', weights: { semantic: 0.5, lexical: 0.3, graph: 0.2 } };
+    return getRecipe('NODE_HYBRID_RRF');
   }
 
-  // 2. Exact entity references → lexical first
+  // 2. Exact entity references → LEXICAL_FIRST
   if (ENTITY_QUERY.test(query)) {
-    return { primary: 'lexical', weights: { lexical: 0.6, semantic: 0.2, graph: 0.2 } };
+    return getRecipe('LEXICAL_FIRST');
   }
 
-  // 3. Relational queries → graph first
+  // 3. Relational queries → EDGE_HYBRID_RRF
   if (RELATION_QUERY.test(q)) {
-    return { primary: 'graph', weights: { graph: 0.5, semantic: 0.3, lexical: 0.2 } };
+    return getRecipe('EDGE_HYBRID_RRF');
   }
 
-  // 4. Conceptual queries → semantic first
+  // 4. Conceptual queries → SEMANTIC_FIRST
   if (CONCEPT_QUERY.test(q)) {
-    return { primary: 'semantic', weights: { semantic: 0.5, lexical: 0.3, graph: 0.2 } };
+    return getRecipe('SEMANTIC_FIRST');
   }
 
-  // 5. Status queries → graph + lexical
+  // 5. Status queries → EDGE_HYBRID_RRF
   if (STATUS_QUERY.test(q)) {
-    return { primary: 'graph', weights: { graph: 0.4, lexical: 0.4, semantic: 0.2 } };
+    return getRecipe('EDGE_HYBRID_RRF');
   }
 
-  // 6. File queries → lexical + graph
+  // 6. File queries → LEXICAL_FIRST
   if (FILE_QUERY.test(q)) {
-    return { primary: 'lexical', weights: { lexical: 0.5, graph: 0.3, semantic: 0.2 } };
+    return getRecipe('LEXICAL_FIRST');
   }
 
-  // 7. Default: balanced hybrid
-  return { primary: 'hybrid', weights: { semantic: 0.4, lexical: 0.3, graph: 0.3 } };
+  // 7. Default: HYBRID_BALANCED
+  return getRecipe('HYBRID_BALANCED');
 }

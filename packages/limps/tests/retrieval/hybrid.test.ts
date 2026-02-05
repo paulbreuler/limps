@@ -82,7 +82,7 @@ describe('HybridRetriever', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]?.entity.canonicalId).toBe('plan:0042');
-    expect(results[0]?.strategy).toBe('lexical');
+    expect(results[0]?.recipe).toBe('LEXICAL_FIRST');
   });
 
   it('uses one-hop graph traversal from extracted seeds', async () => {
@@ -110,6 +110,6 @@ describe('HybridRetriever', () => {
     const results = await retriever.search('what blocks agent 0042#001', 5);
 
     expect(results.some((r) => r.entity.canonicalId === feature.canonicalId)).toBe(true);
-    expect(results.every((r) => r.strategy === 'graph')).toBe(true);
+    expect(results.every((r) => r.recipe === 'EDGE_HYBRID_RRF')).toBe(true);
   });
 });

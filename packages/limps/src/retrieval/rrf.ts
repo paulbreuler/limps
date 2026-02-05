@@ -1,4 +1,4 @@
-import type { RetrievalSource } from './router.js';
+export type RetrievalSource = 'lexical' | 'semantic' | 'graph';
 
 export interface RankedItem {
   id: string;

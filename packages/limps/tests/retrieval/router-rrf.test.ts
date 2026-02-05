@@ -3,28 +3,28 @@ import { routeQuery } from '../../src/retrieval/router.js';
 import { rrf, type RankedItem } from '../../src/retrieval/rrf.js';
 
 describe('Deterministic Router', () => {
-  it('routes "plan 0042" to lexical-first', () => {
-    const strategy = routeQuery('plan 0042');
-    expect(strategy.primary).toBe('lexical');
-    expect(strategy.weights.lexical).toBeGreaterThan(strategy.weights.semantic);
+  it('routes "plan 0042" to LEXICAL_FIRST recipe', () => {
+    const recipe = routeQuery('plan 0042');
+    expect(recipe.name).toBe('LEXICAL_FIRST');
+    expect(recipe.weights.lexical).toBeGreaterThan(recipe.weights.semantic);
   });
 
-  it('routes "what blocks agent 003" to graph-first', () => {
-    const strategy = routeQuery('what blocks agent 003');
-    expect(strategy.primary).toBe('graph');
-    expect(strategy.weights.graph).toBeGreaterThanOrEqual(strategy.weights.semantic);
+  it('routes "what blocks agent 003" to EDGE_HYBRID_RRF recipe', () => {
+    const recipe = routeQuery('what blocks agent 003');
+    expect(recipe.name).toBe('EDGE_HYBRID_RRF');
+    expect(recipe.weights.graph).toBeGreaterThanOrEqual(recipe.weights.semantic);
   });
 
-  it('routes "explain authentication" to semantic-first', () => {
-    const strategy = routeQuery('explain authentication');
-    expect(strategy.primary).toBe('semantic');
-    expect(strategy.weights.semantic).toBeGreaterThan(strategy.weights.lexical);
+  it('routes "explain authentication" to SEMANTIC_FIRST recipe', () => {
+    const recipe = routeQuery('explain authentication');
+    expect(recipe.name).toBe('SEMANTIC_FIRST');
+    expect(recipe.weights.semantic).toBeGreaterThan(recipe.weights.lexical);
   });
 
-  it('routes "status of plan 41" to graph+lexical', () => {
-    const strategy = routeQuery('status of plan 41');
-    expect(strategy.primary).toBe('graph');
-    expect(strategy.weights.graph).toBe(strategy.weights.lexical);
+  it('routes "status of plan 41" to EDGE_HYBRID_RRF recipe', () => {
+    const recipe = routeQuery('status of plan 41');
+    expect(recipe.name).toBe('EDGE_HYBRID_RRF');
+    expect(recipe.weights.graph).toBeGreaterThanOrEqual(recipe.weights.lexical);
   });
 });
 
