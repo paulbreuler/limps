@@ -154,8 +154,8 @@ depends: [1]
       const fmMatch = repaired.match(/^---\n([\s\S]*?)\n---/);
       expect(fmMatch).toBeTruthy();
       const parsed = parseYaml(fmMatch![1]) as Record<string, unknown>;
-      expect(parsed.depends_on).toContain(0);
-      expect(parsed.depends_on).toContain(1);
+      expect(parsed.depends_on).toContain('000');
+      expect(parsed.depends_on).toContain('001');
     });
 
     it('catches deps: and depend: too', () => {

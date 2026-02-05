@@ -7,7 +7,6 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import * as toml from '@iarna/toml';
-import * as _jsonc from 'jsonc-parser';
 
 /**
  * MCP server configuration entry

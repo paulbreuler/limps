@@ -196,7 +196,12 @@ export function inspectAgentFrontmatter(content: string): AgentFrontmatterInspec
 
 /**
  * Normalize a raw dependency value (number | string | array) into a deduplicated
- * number[] using the same logic as agent-parser's normalizeDependencies.
+ * array of numeric dependency IDs.
+ *
+ * This applies similar validation rules to agent-parser's `normalizeDependencies`
+ * (accepting finite numbers and numeric strings) but returns unpadded numbers
+ * instead of zero-padded strings.  Callers are responsible for formatting the
+ * final output (e.g. zero-padding) before writing to frontmatter.
  */
 function normalizeDepsToNumbers(value: unknown): number[] {
   const entries = Array.isArray(value) ? value : [value];
@@ -245,7 +250,8 @@ export function repairAgentFrontmatter(agentFilePath: string): AgentRepairResult
 
   // Rebuild frontmatter without the bad keys
   const cleaned = Object.fromEntries(Object.entries(fm).filter(([key]) => !badKeySet.has(key)));
-  cleaned.depends_on = [...new Set(merged)].sort((a, b) => a - b);
+  const uniqueSortedDeps = [...new Set(merged)].sort((a, b) => a - b);
+  cleaned.depends_on = uniqueSortedDeps.map((n) => n.toString().padStart(3, '0'));
 
   const repairedContent = frontmatterHandler.stringify(cleaned, parsed.content);
   writeFileSync(agentFilePath, repairedContent, 'utf-8');

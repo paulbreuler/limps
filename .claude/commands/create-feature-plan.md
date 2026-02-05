@@ -168,7 +168,7 @@ NNNN-descriptive-name/
 title: [Descriptive Name]
 status: GAP
 persona: coder
-depends_on: [N, M]   # agent numbers this agent depends on; [] if none
+depends_on: [000, 001]   # zero-padded agent numbers this agent depends on; [] if none
 files: [src/path/to/file.ts]
 tags: [feature-area]
 ---
