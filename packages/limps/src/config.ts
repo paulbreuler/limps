@@ -58,6 +58,21 @@ export interface StalenessConfig {
   excludeStatuses: string[];
 }
 
+/**
+ * Retrieval configuration for hybrid search.
+ */
+export interface RetrievalConfig {
+  /** Default recipe name (e.g. "HYBRID_BALANCED") */
+  defaultRecipe?: string;
+  /** Default graph expansion parameters */
+  graphConfig?: {
+    maxDepth?: number;
+    hopDecay?: number;
+  };
+  /** Default similarity threshold for semantic filtering */
+  similarityThreshold?: number;
+}
+
 export interface HealthConfig {
   staleness?: Partial<StalenessConfig>;
   drift?: { codebasePath?: string };
@@ -80,6 +95,7 @@ export interface ServerConfig {
     biases: Partial<ScoringBiases>;
   };
   tools?: ToolFilteringConfig;
+  retrieval?: RetrievalConfig;
   health?: HealthConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
@@ -152,6 +168,21 @@ export function getScoringWeights(config: ServerConfig): ScoringWeights {
  * Default scoring biases (initial config values).
  */
 export const DEFAULT_SCORING_BIASES: ScoringBiases = {};
+
+/**
+ * Default retrieval configuration.
+ */
+export const DEFAULT_RETRIEVAL_CONFIG: RetrievalConfig = {};
+
+/**
+ * Get retrieval configuration from config.
+ */
+export function getRetrievalConfig(config: ServerConfig): RetrievalConfig {
+  return {
+    ...DEFAULT_RETRIEVAL_CONFIG,
+    ...(config.retrieval ?? {}),
+  };
+}
 
 /**
  * Default staleness configuration.
@@ -398,6 +429,7 @@ export function loadConfig(configPath: string): ServerConfig {
     fileExtensions: typedConfig.fileExtensions,
     dataPath: resolvePath(typedConfig.dataPath || DEFAULT_CONFIG.dataPath),
     scoring,
+    retrieval: typedConfig.retrieval,
     tools: typedConfig.tools,
     health: resolvedHealth,
     extensions: typedConfig.extensions,
@@ -493,6 +525,42 @@ export function validateConfig(config: unknown): config is ServerConfig {
         staleness.excludeStatuses !== undefined &&
         (!Array.isArray(staleness.excludeStatuses) ||
           !staleness.excludeStatuses.every((status) => typeof status === 'string'))
+      ) {
+        return false;
+      }
+    }
+  }
+
+  if (c.retrieval !== undefined) {
+    if (typeof c.retrieval !== 'object' || c.retrieval === null) {
+      return false;
+    }
+    const retrieval = c.retrieval as RetrievalConfig;
+    if (retrieval.defaultRecipe !== undefined && typeof retrieval.defaultRecipe !== 'string') {
+      return false;
+    }
+    if (retrieval.similarityThreshold !== undefined) {
+      if (
+        typeof retrieval.similarityThreshold !== 'number' ||
+        retrieval.similarityThreshold < 0 ||
+        retrieval.similarityThreshold > 1
+      ) {
+        return false;
+      }
+    }
+    if (retrieval.graphConfig !== undefined) {
+      if (typeof retrieval.graphConfig !== 'object' || retrieval.graphConfig === null) {
+        return false;
+      }
+      if (
+        retrieval.graphConfig.maxDepth !== undefined &&
+        typeof retrieval.graphConfig.maxDepth !== 'number'
+      ) {
+        return false;
+      }
+      if (
+        retrieval.graphConfig.hopDecay !== undefined &&
+        typeof retrieval.graphConfig.hopDecay !== 'number'
       ) {
         return false;
       }

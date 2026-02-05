@@ -4,6 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { parseFrontmatter } from '../../src/graph/parser.js';
 import { EntityExtractor } from '../../src/graph/extractor.js';
+import { PATTERNS } from '../../src/graph/patterns.js';
 
 describe('graph parser', () => {
   it('parses frontmatter fields including arrays', () => {
@@ -45,6 +46,37 @@ status: GAP
     expect(parsed.title).toBe('Windows Test');
     expect(parsed.status).toBe('GAP');
     expect(parsed.tags).toEqual(['test', 'crlf']);
+  });
+});
+
+describe('featureHeader regex', () => {
+  function matchFeatureHeaders(text: string): { id: string | undefined; title: string }[] {
+    const results: { id: string | undefined; title: string }[] = [];
+    const regex = new RegExp(PATTERNS.featureHeader.source, PATTERNS.featureHeader.flags);
+    for (const match of text.matchAll(regex)) {
+      results.push({ id: match[1], title: match[2]! });
+    }
+    return results;
+  }
+
+  it('matches feature headers with #N: prefix', () => {
+    const text = '### #1: Entity Schema & Graph Storage\n### #2: Entity Resolution';
+    const matches = matchFeatureHeaders(text);
+    expect(matches).toHaveLength(2);
+    expect(matches[0]).toEqual({ id: '1', title: 'Entity Schema & Graph Storage' });
+    expect(matches[1]).toEqual({ id: '2', title: 'Entity Resolution' });
+  });
+
+  it('does not match plain ### headings without #N prefix', () => {
+    const text = '### Architecture Overview\n### Implementation Notes';
+    const matches = matchFeatureHeaders(text);
+    expect(matches).toHaveLength(0);
+  });
+
+  it('does not match #### or ## headings', () => {
+    const text = '## #1: Not a feature\n#### #2: Also not a feature';
+    const matches = matchFeatureHeaders(text);
+    expect(matches).toHaveLength(0);
   });
 });
 

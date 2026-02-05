@@ -1,4 +1,6 @@
-export type RetrievalSource = 'lexical' | 'semantic' | 'graph';
+import type { RetrievalSource } from './types.js';
+
+export type { RetrievalSource };
 
 export interface RankedItem {
   id: string;

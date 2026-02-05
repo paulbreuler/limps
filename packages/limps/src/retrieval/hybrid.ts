@@ -51,8 +51,8 @@ export class HybridRetriever {
       let semantic = this.embeddings.findSimilar(queryVector, overRetrieveK);
 
       // Apply similarity threshold if configured
-      if (recipe.graphConfig?.similarityThreshold !== undefined) {
-        const threshold = recipe.graphConfig.similarityThreshold;
+      if (recipe.similarityThreshold !== undefined) {
+        const threshold = recipe.similarityThreshold;
         semantic = semantic.filter((item: SimilarCandidate) => {
           const similarity = item.similarity ?? item.score ?? 0;
           return similarity >= threshold;
@@ -69,11 +69,10 @@ export class HybridRetriever {
       );
     }
 
-    if (recipe.weights.graph > 0) {
+    if (recipe.weights.graph > 0 && recipe.graphConfig) {
       const seeds = this.extractSeeds(query);
-      const graphConfig = recipe.graphConfig || { maxDepth: 1, hopDecay: 0.5 };
-      const bfsNodes = bfsExpansion(this.storage, seeds, graphConfig, overRetrieveK);
-      const scoredEntities = scoreByHopDistance(bfsNodes, graphConfig.hopDecay);
+      const bfsNodes = bfsExpansion(this.storage, seeds, recipe.graphConfig, overRetrieveK);
+      const scoredEntities = scoreByHopDistance(bfsNodes, recipe.graphConfig.hopDecay);
 
       rankings.set(
         'graph',

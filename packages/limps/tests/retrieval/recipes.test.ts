@@ -97,7 +97,18 @@ describe('Recipe Validation', () => {
       name: 'BAD_THRESHOLD',
       description: 'Invalid threshold',
       weights: { lexical: 0.5, semantic: 0.3, graph: 0.2 },
-      graphConfig: { maxDepth: 2, hopDecay: 0.5, similarityThreshold: 1.5 },
+      similarityThreshold: 1.5,
+    };
+
+    expect(() => validateRecipe(recipe)).toThrow(/similarityThreshold must be between 0 and 1/);
+  });
+
+  it('throws error when similarityThreshold is negative', () => {
+    const recipe: SearchRecipe = {
+      name: 'BAD_THRESHOLD',
+      description: 'Invalid threshold',
+      weights: { lexical: 0.5, semantic: 0.3, graph: 0.2 },
+      similarityThreshold: -0.1,
     };
 
     expect(() => validateRecipe(recipe)).toThrow(/similarityThreshold must be between 0 and 1/);
@@ -111,8 +122,8 @@ describe('Recipe Validation', () => {
       graphConfig: {
         maxDepth: 3,
         hopDecay: 0.5,
-        similarityThreshold: 0.7,
       },
+      similarityThreshold: 0.7,
     };
 
     expect(() => validateRecipe(recipe)).not.toThrow();

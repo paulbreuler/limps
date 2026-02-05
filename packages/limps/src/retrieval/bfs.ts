@@ -1,5 +1,6 @@
 import type { Entity } from '../graph/types.js';
 import type { GraphStorage } from '../graph/storage.js';
+import { BFS_QUEUE_LIMIT } from './types.js';
 import type { BFSNode, GraphExpansionConfig } from './types.js';
 
 /**
@@ -63,6 +64,11 @@ export function bfsExpansion(
 
       results.push(node);
       queue.push(node);
+
+      // Defensive cap on queue size to prevent runaway traversals
+      if (queue.length >= BFS_QUEUE_LIMIT) {
+        return results;
+      }
 
       // Early termination if we've reached the limit
       if (results.length >= limit) {

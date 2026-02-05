@@ -26,7 +26,8 @@ export const BUILT_IN_RECIPES: Record<string, SearchRecipe> = {
     name: 'NODE_HYBRID_RRF',
     description: 'Semantic-first with graph support for conceptual queries',
     weights: { lexical: 0.2, semantic: 0.5, graph: 0.3 },
-    graphConfig: { maxDepth: 1, hopDecay: 0.5, similarityThreshold: 0.6 },
+    graphConfig: { maxDepth: 1, hopDecay: 0.5 },
+    similarityThreshold: 0.6,
   },
 
   /**
@@ -62,7 +63,8 @@ export const BUILT_IN_RECIPES: Record<string, SearchRecipe> = {
     name: 'SEMANTIC_FIRST',
     description: 'Conceptual exploration via embeddings',
     weights: { lexical: 0.2, semantic: 0.6, graph: 0.2 },
-    graphConfig: { maxDepth: 1, hopDecay: 0.5, similarityThreshold: 0.7 },
+    graphConfig: { maxDepth: 1, hopDecay: 0.5 },
+    similarityThreshold: 0.7,
   },
 
   /**
@@ -91,9 +93,19 @@ export function validateRecipe(recipe: SearchRecipe): void {
     );
   }
 
+  // Validate similarity threshold at recipe level
+  if (
+    recipe.similarityThreshold !== undefined &&
+    (recipe.similarityThreshold < 0 || recipe.similarityThreshold > 1)
+  ) {
+    throw new Error(
+      `Recipe "${recipe.name}": similarityThreshold must be between 0 and 1 (got ${recipe.similarityThreshold})`
+    );
+  }
+
   // Validate graph config if present
   if (recipe.graphConfig) {
-    const { maxDepth, hopDecay, similarityThreshold } = recipe.graphConfig;
+    const { maxDepth, hopDecay } = recipe.graphConfig;
 
     if (maxDepth < 1) {
       throw new Error(`Recipe "${recipe.name}": maxDepth must be at least 1 (got ${maxDepth})`);
@@ -113,12 +125,6 @@ export function validateRecipe(recipe: SearchRecipe): void {
         `Recipe "${recipe.name}": hopDecay must be between ${RECIPE_CONSTRAINTS.MIN_HOP_DECAY.toFixed(1)} and ${RECIPE_CONSTRAINTS.MAX_HOP_DECAY.toFixed(1)} (got ${hopDecay})`
       );
     }
-
-    if (similarityThreshold !== undefined && (similarityThreshold < 0 || similarityThreshold > 1)) {
-      throw new Error(
-        `Recipe "${recipe.name}": similarityThreshold must be between 0 and 1 (got ${similarityThreshold})`
-      );
-    }
   }
 }
 
@@ -132,7 +138,7 @@ export function getRecipe(name: string): SearchRecipe {
     throw new Error(`Unknown recipe: ${name}`);
   }
   // Return a deep copy to prevent modification
-  return JSON.parse(JSON.stringify(recipe));
+  return structuredClone(recipe);
 }
 
 /**

@@ -1,6 +1,16 @@
 import type { Entity } from '../graph/types.js';
 
 /**
+ * Source channel for retrieval results.
+ */
+export type RetrievalSource = 'lexical' | 'semantic' | 'graph';
+
+/**
+ * Maximum BFS queue size to prevent runaway traversals.
+ */
+export const BFS_QUEUE_LIMIT = 1000;
+
+/**
  * Configuration for graph expansion during BFS traversal.
  */
 export interface GraphExpansionConfig {
@@ -8,8 +18,6 @@ export interface GraphExpansionConfig {
   maxDepth: number;
   /** Score decay per hop (0.5 = halve score each hop, range 0.1-1.0) */
   hopDecay: number;
-  /** Optional minimum similarity threshold for semantic results (0-1) */
-  similarityThreshold?: number;
 }
 
 /**
@@ -38,6 +46,8 @@ export interface SearchRecipe {
   };
   /** Optional graph expansion configuration */
   graphConfig?: GraphExpansionConfig;
+  /** Optional minimum similarity threshold for semantic results (0-1) */
+  similarityThreshold?: number;
 }
 
 /**

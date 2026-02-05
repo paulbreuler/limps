@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { bfsExpansion, scoreByHopDistance } from '../../src/retrieval/bfs.js';
+import { BFS_QUEUE_LIMIT } from '../../src/retrieval/types.js';
 import type { GraphStorage } from '../../src/graph/storage.js';
 import type { Entity } from '../../src/graph/types.js';
 
@@ -190,6 +191,26 @@ describe('bfsExpansion', () => {
     expect(ids).toContain('A');
     expect(ids).toContain('B');
     expect(ids).toContain('C');
+  });
+
+  it('caps traversal when queue exceeds BFS_QUEUE_LIMIT', () => {
+    // Create a wide graph that would exceed the queue limit
+    storage.addEntity('root', 'node', 'Root');
+    for (let i = 0; i < BFS_QUEUE_LIMIT + 100; i++) {
+      storage.addEntity(`node${i}`, 'node', `Node ${i}`);
+      storage.addEdge('root', `node${i}`);
+    }
+
+    const result = bfsExpansion(
+      storage as any,
+      ['root'],
+      { maxDepth: 1, hopDecay: 0.5 },
+      BFS_QUEUE_LIMIT + 200
+    );
+
+    // Results should be capped - queue includes seed + results,
+    // so we get at most BFS_QUEUE_LIMIT - 1 results (seed takes one slot)
+    expect(result.length).toBeLessThanOrEqual(BFS_QUEUE_LIMIT);
   });
 
   it('stops early when limit reached', () => {

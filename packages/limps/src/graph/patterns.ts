@@ -8,7 +8,7 @@ export const PATTERNS = {
   agentHeader: /^#\s*Agent\s+(\d{3}):\s*(.+)$/gm,
 
   // Features
-  featureHeader: /^###\s*(?:#(\d+):?\s*)?(.+)$/gm,
+  featureHeader: /^###\s*#(\d+):?\s+(.+)$/gm,
   featureStatus: /Status:\s*`?(GAP|WIP|PASS|BLOCKED)`?/gi,
 
   // Files (in frontmatter or inline)
