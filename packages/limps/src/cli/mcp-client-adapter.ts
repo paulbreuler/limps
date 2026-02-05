@@ -9,11 +9,20 @@ import { homedir } from 'os';
 import * as toml from '@iarna/toml';
 
 /**
- * MCP server configuration entry
+ * MCP server configuration entry.
+ *
+ * Standard clients (Claude Desktop, Cursor, Claude Code, Codex) use
+ *   { command: string, args: string[] }
+ * OpenCode uses a different shape:
+ *   { type: "local", command: string[] }
+ *
+ * The index signature keeps the type open for client-specific fields
+ * without requiring every adapter to cast.
  */
 export interface McpServerConfig {
-  command: string;
-  args: string[];
+  command: string | string[];
+  args?: string[];
+  [key: string]: unknown;
 }
 
 /**
@@ -415,7 +424,8 @@ export class LocalMcpAdapter implements McpClientAdapter {
   }
 
   getServersKey(): string {
-    return 'mcpServers';
+    // OpenCode nests MCP servers under "mcp"; all other local clients use "mcpServers"
+    return this.clientType === 'opencode' ? 'mcp' : 'mcpServers';
   }
 
   readConfig(): McpClientConfig {
@@ -455,7 +465,13 @@ export class LocalMcpAdapter implements McpClientAdapter {
   }
 
   createServerConfig(configPath: string): McpServerConfig {
-    // Local configs can use the global limps command
+    // OpenCode expects { type: "local", command: [...] } with command+args merged
+    if (this.clientType === 'opencode') {
+      return {
+        type: 'local',
+        command: ['limps', 'serve', '--config', configPath],
+      };
+    }
     return {
       command: 'limps',
       args: ['serve', '--config', configPath],

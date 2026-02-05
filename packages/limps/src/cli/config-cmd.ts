@@ -899,13 +899,9 @@ function repairMcpConfigReferences(oldPath: string, newPath: string): void {
 
       let changed = false;
       for (const server of Object.values(servers)) {
-        if (
-          !server ||
-          typeof server !== 'object' ||
-          !Array.isArray((server as McpServerConfig).args)
-        )
-          continue;
+        if (!server || typeof server !== 'object') continue;
         const args = (server as McpServerConfig).args;
+        if (!Array.isArray(args)) continue;
         for (let i = 0; i < args.length; i++) {
           const arg = args[i];
           if (typeof arg !== 'string') continue;

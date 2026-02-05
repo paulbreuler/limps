@@ -116,6 +116,19 @@ export function getSyncClients(): McpSyncClient[] {
       runPrint: (projectFilter?: string[]) =>
         generateChatGptInstructions(() => resolveConfigPath(), projectFilter),
     },
+    {
+      id: 'opencode',
+      displayName: 'OpenCode',
+      supportsPreview: false,
+      supportsWrite: false,
+      supportsPrint: true,
+      supportsLocalConfig: true,
+      printOnly: true,
+      runPrint: (projectFilter?: string[]): string => {
+        const adapter = getLocalAdapter('opencode');
+        return generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+      },
+    },
   ];
 
   return clients;
