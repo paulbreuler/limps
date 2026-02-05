@@ -17,9 +17,24 @@ function withGlobal(pattern: RegExp): RegExp {
   );
 }
 
+const TAG_STOP_LIST = new Set([
+  'gap',
+  'wip',
+  'pass',
+  'blocked',
+  'draft',
+  'todo',
+  'fixme',
+  'hack',
+  'note',
+]);
+
 function normalizeTag(value: string): string | null {
   const cleaned = value.trim().toLowerCase();
   if (!cleaned || !/^[a-z][\w-]*$/.test(cleaned)) {
+    return null;
+  }
+  if (TAG_STOP_LIST.has(cleaned)) {
     return null;
   }
   return cleaned;
@@ -244,6 +259,12 @@ export class EntityExtractor {
     if (!planMarkdownPath || !existsSync(planMarkdownPath)) {
       result.warnings.push(`Could not locate plan markdown file in ${planRoot}`);
       return result;
+    }
+
+    if (!/-plan\.md$/i.test(planMarkdownPath)) {
+      result.warnings.push(
+        `No *-plan.md file found in ${planRoot}; falling back to non-plan file: ${planMarkdownPath}`
+      );
     }
 
     const planContent = readFileSync(planMarkdownPath, 'utf8');

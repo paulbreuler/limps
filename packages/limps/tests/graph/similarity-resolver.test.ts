@@ -169,4 +169,52 @@ describe('graph similarity + resolver', () => {
     expect(matches.map((m) => m.canonicalId)).toContain(featureA.canonicalId);
     expect(matches.map((m) => m.canonicalId)).not.toContain(featureB.canonicalId);
   });
+
+  it('computeSimilarity defaults structural to 0 when options omitted', () => {
+    const a = storage.upsertEntity({
+      type: 'feature',
+      canonicalId: 'feature:default-struct-a',
+      name: 'Auth Flow',
+      metadata: {},
+    });
+    const b = storage.upsertEntity({
+      type: 'feature',
+      canonicalId: 'feature:default-struct-b',
+      name: 'Auth Flow',
+      metadata: {},
+    });
+
+    embeddings.set(a.canonicalId, [1, 0]);
+    embeddings.set(b.canonicalId, [1, 0]);
+
+    const score = computeSimilarity(a, b, embeddings);
+    expect(score.structural).toBe(0);
+    expect(score.lexical).toBeGreaterThan(0);
+    expect(score.semantic).toBeGreaterThan(0);
+  });
+
+  it('checkNewFeature uses fallback when embed/findSimilar are unavailable', () => {
+    const basicStore: EmbeddingStore = {
+      get: () => null,
+    };
+
+    storage.upsertEntity({
+      type: 'feature',
+      canonicalId: 'feature:0042#20',
+      name: 'Auth Token Refresh',
+      metadata: {},
+    });
+    storage.upsertEntity({
+      type: 'feature',
+      canonicalId: 'feature:0042#21',
+      name: 'Dashboard Analytics',
+      metadata: {},
+    });
+
+    const resolver = new EntityResolver(storage, basicStore);
+    const matches = resolver.checkNewFeature('auth token', 'refresh flow');
+
+    expect(Array.isArray(matches)).toBe(true);
+    expect(matches.every((m) => m.type === 'feature')).toBe(true);
+  });
 });

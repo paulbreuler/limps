@@ -26,7 +26,11 @@ function isDuplicate(score: SimilarityScore): boolean {
   }
 
   // Different canonical IDs can still be duplicates when lexical + semantic signals are near-identical.
-  return score.lexical >= 0.98 && score.semantic >= 0.98 && score.structural >= 0.95;
+  return (
+    score.lexical >= THRESHOLDS.duplicateLexical &&
+    score.semantic >= THRESHOLDS.duplicateSemantic &&
+    score.structural >= THRESHOLDS.duplicateStructural
+  );
 }
 
 export class EntityResolver {

@@ -1,7 +1,7 @@
 export const PATTERNS = {
   // Plan references
   planId: /(?:plan\s*)?(\d{4})(?:[-\s]+([\w-]+))?/gi,
-  planRef: /(?:plan\s+)?(\d{4})(?:#(\d{3}))?/gi,
+  planRef: /\bplan\s+(\d{4})(?:#(\d{3}))?/gi,
 
   // Agent references
   agentId: /(\d{4})#(\d{3})/g,

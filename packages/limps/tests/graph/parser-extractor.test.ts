@@ -37,6 +37,15 @@ status: GAP
     expect(malformed).toEqual({});
     expect(missing).toEqual({});
   });
+
+  it('parses frontmatter with Windows (CRLF) line endings', () => {
+    const parsed = parseFrontmatter(
+      '---\r\ntitle: Windows Test\r\nstatus: GAP\r\ntags: [test, crlf]\r\n---\r\n\r\n# Content'
+    );
+    expect(parsed.title).toBe('Windows Test');
+    expect(parsed.status).toBe('GAP');
+    expect(parsed.tags).toEqual(['test', 'crlf']);
+  });
 });
 
 describe('entity extractor', () => {
@@ -129,6 +138,134 @@ Inline tag mention: #deterministic
       ).toBe(true);
 
       expect(result.warnings).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not create plan entities from bare 4-digit numbers in body text', () => {
+    const root = mkdtempSync(join(tmpdir(), 'limps-graph-planref-'));
+    const planDir = join(root, '0099-False Positive Test');
+    const agentsDir = join(planDir, 'agents');
+    mkdirSync(agentsDir, { recursive: true });
+
+    try {
+      writeFileSync(
+        join(planDir, '0099-False Positive Test-plan.md'),
+        `---
+title: False Positive Test
+status: draft
+---
+
+# False Positive Test
+`,
+        'utf8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '001-test-agent.agent.md'),
+        `---
+title: Test Agent
+status: GAP
+depends_on: []
+---
+
+# Agent 001: Test Agent
+
+In 2024, the API was refactored.
+The service handles 3000 concurrent users on port 8080.
+`,
+        'utf8'
+      );
+
+      const extractor = new EntityExtractor();
+      const result = extractor.extractPlan(planDir);
+
+      expect(result.entities.some((e) => e.canonicalId === 'plan:2024')).toBe(false);
+      expect(result.entities.some((e) => e.canonicalId === 'plan:3000')).toBe(false);
+      expect(result.entities.some((e) => e.canonicalId === 'plan:8080')).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not create tag entities from status tokens in body text', () => {
+    const root = mkdtempSync(join(tmpdir(), 'limps-graph-tag-'));
+    const planDir = join(root, '0098-Tag Filter Test');
+    const agentsDir = join(planDir, 'agents');
+    mkdirSync(agentsDir, { recursive: true });
+
+    try {
+      writeFileSync(
+        join(planDir, '0098-Tag Filter Test-plan.md'),
+        `---
+title: Tag Filter Test
+status: draft
+---
+
+# Tag Filter Test
+`,
+        'utf8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '001-test-agent.agent.md'),
+        `---
+title: Tag Test Agent
+status: PASS
+depends_on: []
+tags: [real-tag]
+---
+
+# Agent 001: Tag Test Agent
+
+This has #PASS status and #WIP items.
+Also #GAP and #BLOCKED mentions.
+But #legitimate-tag should still work.
+`,
+        'utf8'
+      );
+
+      const extractor = new EntityExtractor();
+      const result = extractor.extractPlan(planDir);
+
+      expect(result.entities.some((e) => e.canonicalId === 'tag:pass')).toBe(false);
+      expect(result.entities.some((e) => e.canonicalId === 'tag:wip')).toBe(false);
+      expect(result.entities.some((e) => e.canonicalId === 'tag:gap')).toBe(false);
+      expect(result.entities.some((e) => e.canonicalId === 'tag:blocked')).toBe(false);
+      expect(result.entities.some((e) => e.canonicalId === 'tag:real-tag')).toBe(true);
+      expect(result.entities.some((e) => e.canonicalId === 'tag:legitimate-tag')).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('warns when falling back to non-plan markdown file', () => {
+    const root = mkdtempSync(join(tmpdir(), 'limps-graph-planmd-'));
+    const planDir = join(root, '0097-Warn Test');
+    mkdirSync(planDir, { recursive: true });
+
+    try {
+      writeFileSync(
+        join(planDir, 'README.md'),
+        `---
+title: Just a README
+status: draft
+---
+
+# README
+
+Some content.
+`,
+        'utf8'
+      );
+
+      const extractor = new EntityExtractor();
+      const result = extractor.extractPlan(planDir);
+
+      expect(
+        result.warnings.some((w) => w.includes('No *-plan.md') || w.includes('non-plan'))
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

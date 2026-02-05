@@ -23,6 +23,9 @@ export const WEIGHTS = {
 
 export const THRESHOLDS = {
   duplicate: 0.95,
+  duplicateLexical: 0.98,
+  duplicateSemantic: 0.98,
+  duplicateStructural: 0.95,
   similar: 0.8,
   related: 0.6,
 } as const;
@@ -82,25 +85,6 @@ export function computeStructuralSimilarityFromNeighbors(a: Set<string>, b: Set<
   return jaccardSimilarity(a, b);
 }
 
-function readRelationshipFingerprints(entity: Entity): Set<string> {
-  const value = entity.metadata.relationships;
-  if (!Array.isArray(value)) {
-    return new Set<string>();
-  }
-  return new Set(
-    value
-      .filter((entry): entry is string => typeof entry === 'string')
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0)
-  );
-}
-
-export function computeStructuralSimilarity(a: Entity, b: Entity): number {
-  const aNeighbors = readRelationshipFingerprints(a);
-  const bNeighbors = readRelationshipFingerprints(b);
-  return computeStructuralSimilarityFromNeighbors(aNeighbors, bNeighbors);
-}
-
 export function computeSimilarity(
   a: Entity,
   b: Entity,
@@ -110,7 +94,7 @@ export function computeSimilarity(
   const exact = a.canonicalId === b.canonicalId ? 1 : 0;
   const lexical = jaccardSimilarity(tokenize(a.name), tokenize(b.name));
   const semantic = cosineSimilarity(embeddings.get(a.canonicalId), embeddings.get(b.canonicalId));
-  const structural = options.structural ?? computeStructuralSimilarity(a, b);
+  const structural = options.structural ?? 0;
 
   const weightedExact = WEIGHTS.exact * exact;
   const weightedRemainder =

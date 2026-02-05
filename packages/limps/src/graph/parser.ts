@@ -29,7 +29,7 @@ function normalizeStatus(value: string): ParsedFrontmatter['status'] | undefined
 }
 
 export function parseFrontmatter(content: string): ParsedFrontmatter {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match || !match[1]) {
     return {};
   }
