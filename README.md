@@ -26,7 +26,7 @@
 - [Configuration](#configuration)
 - [Environment Variables](#environment-variables)
 - [MCP Tools](#mcp-tools)
-- [Skills](#skills)
+- [Skills & Commands](#skills--commands)
 - [Extensions](#extensions)
 - [Obsidian Compatibility](#obsidian-compatibility)
 - [Development](#development)
@@ -469,17 +469,28 @@ limps health check --json        # Run all checks
 limps proposals apply-safe       # Auto-apply safe fixes
 ```
 
-## Skills
+## Skills & Commands
 
-This repo includes a limps planning skill for AI IDEs in `skills/limps-planning`.
+This repo ships Claude Code slash commands in [`.claude/commands/`](/.claude/commands/) and a [Vercel Skills](https://github.com/vercel-labs/skills) skill in `skills/limps-planning`.
 
-Install from GitHub:
+**Claude Code commands** (available automatically when limps is your working directory):
+
+| Command                | Description                         |
+| ---------------------- | ----------------------------------- |
+| `/create-feature-plan` | Create a full TDD plan with agents  |
+| `/run-agent`           | Pick up and execute the next agent  |
+| `/close-feature-agent` | Mark an agent PASS and clean up     |
+| `/update-feature-plan` | Revise an existing plan             |
+| `/audit-plan`          | Audit a plan for completeness       |
+| `/list-feature-plans`  | List all plans with status          |
+| `/plan-check-status`   | Check plan progress                 |
+| `/pr-create`           | Create a PR from the current branch |
+
+**Vercel Skills** (for other AI IDEs):
 
 ```bash
 npx skills add paulbreuler/limps/skills/limps-planning
 ```
-
-The skill focuses on selecting the right limps tools for common planning workflows.
 
 ## Extensions
 
@@ -537,34 +548,29 @@ limps manages planning for [runi](https://github.com/paulbreuler/runi), using a 
 
 ## Creating a feature plan
 
-This flow is used by the **create-feature-plan** command you can find in [claude/commands](/.claude/commands/) along with other useful commands and skills. These can be followed manually with MCP tools. The docs path is whatever folder limps is pointed at (any directory, not necessarily a repo).
+The fastest way is the `/create-feature-plan` slash command (Claude Code) — it handles numbering, doc creation, and agent distillation automatically via MCP tools. See [`.claude/commands/create-feature-plan.md`](/.claude/commands/create-feature-plan.md) for the full spec.
 
-1. **Gather context** — Project name and scope, work type (`refactor` | `overhaul` | `features`), tech stack, prototype/reference docs, known gotchas.
-2. **Create planning docs** — Use MCP:
-   - `list_docs` on `plans/` to get the next plan number (max existing + 1).
-   - `create_plan` with name `NNNN-descriptive-name` and a short description.
-   - `create_doc` for: `{plan-name}-plan.md` (full specs), `interfaces.md`, `README.md`, `gotchas.md` (template). Use template `none` for plan/interfaces/README, `addendum` for gotchas if available.
-3. **Assign features to agents** — Group by file ownership and dependencies; 2–4 features per agent; minimize cross-agent conflicts.
-4. **Distill agent files** — For each agent, `create_doc` at `plans/NNNN-name/agents/NNN_agent_descriptive-name.agent.md` (template `none`). Extract from the plan: feature IDs + TL;DRs, interface contracts, files to create/modify, test IDs, TDD one-liners, brief gotchas. Target ~200–400 lines per agent.
-5. **Validate** — Agent files self-contained; interfaces consistent; dependency graph and file ownership correct; each agent file <500 lines.
+You can also run the same steps manually with MCP tools:
 
-Resulting layout:
+1. `list_plans` → determine next plan number
+2. `create_plan` → scaffold the plan directory
+3. `create_doc` → add plan, interfaces, README, and agent files
+4. `update_task_status` → track progress
+
+Plans follow this layout:
 
 ```
 NNNN-descriptive-name/
 ├── README.md
-├── {plan-name}-plan.md
+├── NNNN-descriptive-name-plan.md
 ├── interfaces.md
-├── gotchas.md
 └── agents/
     ├── 000_agent_infrastructure.agent.md
-    ├── 001_agent_....agent.md
+    ├── 001_agent_feature-a.agent.md
     └── ...
 ```
 
-### Why the prefixes?
-
-I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan NNNN-plan-name", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
+Numbered prefixes keep plans and agents lexicographically ordered. `get_next_task` uses the agent number (plus dependency and workload scores) to suggest what to work on next.
 
 ## Deep Dive
 
