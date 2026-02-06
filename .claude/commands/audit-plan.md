@@ -80,7 +80,17 @@ Score each category 0 (missing or poor) to 5 (excellent). Provide one or two sen
 - Compare the audited plan's features to others: normalize titles (lowercase, strip punctuation), compare token overlap or key phrases. Optionally use `search_docs` for shared keywords.
 - Report likely duplicates as a list: `Plan A` feature `#X: Title` vs `Plan B` feature `#Y: Title` with a confidence level (High / Medium / Low). If none, say "No likely duplicates found."
 
-### 5. Emit Findings by Severity
+### 5. Health Checks (Automated)
+
+Run these MCP tools to supplement manual audit:
+
+- **`check_staleness`** (server: `limps`): Identify agents or plans that haven't been updated recently. Include staleness warnings in findings.
+- **`check_drift`** (server: `limps`): Verify file references in agent frontmatter match actual files on disk. Report any missing or renamed files.
+- **`infer_status`** (server: `limps`): Check if any agent statuses should change based on dependency completion. Report suggestions.
+
+Include health check results in the scorecard and findings sections.
+
+### 6. Emit Findings by Severity
 
 - **Critical**: Blocking issues (e.g. missing scope, broken interface consistency, no acceptance criteria).
 - **Major**: Important gaps (e.g. missing edge cases, unclear local-first behavior, dependency risks).
@@ -88,7 +98,7 @@ Score each category 0 (missing or poor) to 5 (excellent). Provide one or two sen
 
 For each finding: severity, category, one-line summary, and pointer to exact location (file + section or feature ID).
 
-### 6. Output Format
+### 7. Output Format
 
 Produce the following in order:
 
@@ -114,7 +124,7 @@ Produce the following in order:
 
 **Next edits**: bulleted list of concrete edits (file path, section or feature ID, suggested change). One line per edit; directly actionable for the user or a follow-up agent.
 
-### 7. Error Handling
+### 8. Error Handling
 
 - If no plan is provided and no default can be chosen: list plans via `list_plans` and ask the user to specify.
 - If the plan directory or main plan file does not exist: report clearly and list available plans.

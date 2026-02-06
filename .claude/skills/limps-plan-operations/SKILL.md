@@ -28,14 +28,51 @@ Provide reusable patterns for working with limps feature plans across commands. 
 
 All operations use limps MCP tools with server `"limps"`:
 
+### Document & Plan Tools
 - `list_plans` - List available plans
 - `list_agents` - List agents for a plan
 - `process_doc` - Read and analyze a single document
 - `process_docs` - Read and analyze multiple documents (e.g., all agent files)
+- `create_plan` - Create a new plan structure
+- `create_doc` - Create a new document
+- `update_doc` - Update an existing document
+- `search_docs` - Full-text search across documents
+
+### Health & Integrity Tools
+- `check_staleness` - Report stale plans/agents based on modification time
+- `check_drift` - Verify agent file references match actual filesystem
+- `infer_status` - Suggest status updates based on dependency completion
+
+### Proposals & Scoring Tools
+- `get_proposals` - List update proposals from staleness, drift, and inference
+- `apply_proposal` - Apply a single proposal with confirmation
+- `configure_scoring` - Update scoring weights, presets, and biases
+
+### Task Management Tools
+- `get_plan_status` - Plan progress summary with completion percentage
+- `get_next_task` - Get highest-priority available task based on scoring
+- `update_task_status` - Update agent status (GAP/WIP/PASS/BLOCKED)
+
+### Index Tools
+- `reindex_docs` - Clear and rebuild the search index
 
 **Path format**: Always relative to configured docsPath, e.g. `plans/0041-limps-improvements/0041-limps-improvements-plan.md`
 
 **Tool invocation**: Use `call_mcp_tool` with `server: "limps"` and the tool name.
+
+### Quick Tool Selection
+
+| Goal | Tool |
+| ---- | ---- |
+| Find next task to work on | `get_next_task` |
+| Check plan progress | `get_plan_status` |
+| Find stale work | `check_staleness` |
+| Verify file refs | `check_drift` |
+| Suggest status changes | `infer_status` |
+| Review all suggestions | `get_proposals` |
+| Apply a suggestion | `apply_proposal` |
+| Tune scoring | `configure_scoring` |
+| Rebuild search index | `reindex_docs` |
 
 ## Identify Plan
 
@@ -323,7 +360,7 @@ Please ensure the plan directory exists and contains the plan file.
 - Always use `process_doc` and `process_docs` for reading plan content; do not assume other read APIs
 - Path format: always relative to configured docsPath
 - Plan names are case-sensitive and must match directory names exactly
-- Agent files use pattern `*_agent_*.agent.md` or `agent_*_*.agent.md` (backward compatibility)
+- Agent files use pattern `NNN_agent_descriptive-name.agent.md` (zero-padded 3-digit prefix)
 - Zero-padded plan numbers (0001, 0002, ...) ensure proper lexicographical ordering
 
 ## Distill Agent Files
@@ -410,3 +447,14 @@ Copy agents/000_agent_*.agent.md → paste to agent → done
 | `list-plans`          | List available plans                         | Finding plans                           |
 | `next-task`           | Select next task (no run)                    | Preview next task selection             |
 | `status`              | Assess agent status                          | Check status, find cleanup needs        |
+| `audit-plan`          | PM-style audit with health checks            | Validate plan quality                   |
+
+## Health & Integrity Workflow
+
+After completing agent work or during audits, use health tools in this order:
+
+1. `check_drift` - Verify file references are still valid
+2. `infer_status` - Check if statuses should change
+3. `check_staleness` - Find stale agents
+4. `get_proposals` - Review all suggested updates
+5. `apply_proposal` - Apply approved suggestions

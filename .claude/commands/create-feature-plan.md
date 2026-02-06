@@ -294,7 +294,10 @@ Agent implements
 ```
 
 **Optional: Assess initial status**:
-After creating a plan, you can use `limps next-task <plan-name>` to see the first recommended task. This is optional but can help verify the plan structure is correct.
+After creating a plan, you can use `get_next_task` MCP tool to see the first recommended task. This is optional but can help verify the plan structure is correct.
+
+**Optional: Reindex knowledge graph**:
+After creating a plan, use `reindex_docs` MCP tool to update the knowledge graph index with the new plan documents.
 
 **Update plan**:
 

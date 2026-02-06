@@ -67,42 +67,49 @@ Assesses all agents in the plan for completion status and file organization.
 **When this command is invoked, you must:**
 
 1. **Get next task or parse arguments:**
-   - If plan name provided: Use `limps next-task <plan-name>` to get the next best task
+   - If plan name provided: Use `get_next_task` MCP tool (server: `limps`) to get the next best task
    - If `--agent` provided: Use the specified agent file path
-   - If `--assess` provided: Use `limps status <plan-name>` to assess plan status
+   - If `--assess` provided: Use `get_plan_status` MCP tool (server: `limps`) to assess plan status
 
-2. **Validate agent path (if --agent):**
+2. **Gather entity context (optional but recommended):**
+   - Use `search_docs` MCP tool to search for entities related to the agent's scope
+   - This helps understand cross-plan dependencies and related work before starting
+
+3. **Validate agent path (if --agent):**
    - If the agent file does not exist, return a clear error and stop
    - Suggest using `/plan-list-agents <plan>` to find valid paths
 
-3. **Open agent file:**
+4. **Open agent file:**
    - Use `open_document_in_cursor` MCP tool to open the agent file in Cursor
    - Or use `cursor` CLI command if MCP tool not available
 
-4. **Display output:**
+5. **Display output:**
    - Show task selection results (if applicable)
    - Show agent status assessment
    - Show context and instructions
    - Display clickable file links
 
-5. **Provide guidance:**
+6. **Provide guidance:**
    - Explain next steps for the agent
-   - Reference related commands (`/close-feature-agent`, `limps status`, `limps next-task`)
+   - Reference related commands (`/close-feature-agent`, `get_plan_status`, `get_next_task`)
    - Show how to verify completion
 
-6. **Checklist (LLM-focused):**
+7. **Checklist (LLM-focused):**
    - If agent file includes Files or Tests sections, print a short checklist:
      - Files to create/modify
      - Tests to run (or test IDs)
    - Keep it concise to avoid token waste
 
+8. **Post-completion: run `check_drift`:**
+   - After completing agent work, use `check_drift` MCP tool on the plan to catch stale file references
+
 ## Integration with Other Commands
 
-- **next-task**: Use `limps next-task <plan-name>` to get the next best task. Then use `/run-agent <plan-name>` to start work
+- **get_next_task**: Use `get_next_task` MCP tool to get the next best task. Then use `/run-agent <plan-name>` to start work
 - **plan-list-agents**: Use to find and see all agents in a plan, then use `/run-agent --agent [path]` to run a specific one
 - **list-feature-plans**: Use to discover plans, then use `/run-agent <plan-name>`
-- **close-feature-agent**: After closing, use `limps status <plan-name>` to assess overall status
-- **update-feature-plan**: After updating, use `limps next-task <plan-name>` to get next task
+- **close-feature-agent**: After closing, use `get_plan_status` MCP tool to assess overall status
+- **update-feature-plan**: After updating, use `get_next_task` MCP tool to get next task
 
 ## Workflow
 
@@ -120,7 +127,7 @@ Assesses all agents in the plan for completion status and file organization.
 ### Recommended Workflow
 
 ```
-1. Get next task: `limps next-task <plan-name>` (suggests next task)
+1. Get next task: `get_next_task` MCP tool (suggests next task)
 2. Start work: /run-agent <plan-name> (uses next task from step 1)
 3. Agent implements work
 4. Verify completion: /close-feature-agent <agent-path>
@@ -161,11 +168,11 @@ Score: 85/100
   - Priority: 25/30 (avg feature #5)
   - Workload: 20/30 (3 remaining tasks)
 
-🚀 Starting Agent Work: 004_agent_selection__expander_columns.agent.md
+Starting Agent Work: 004_agent_selection__expander_columns.agent.md
 
 Agent: Selection & Expander Columns
 Features: #4, #5, #6
-Dependencies: All satisfied ✓
+Dependencies: All satisfied
 
 Quick Links:
   {plan-name}-plan.md
@@ -177,8 +184,9 @@ Instructions:
 1. Agent file opened in Cursor
 2. Copy agent file content to Cursor Agent Chat
 3. Agent implements features per spec
-4. Run: `limps status 0004-feature-name` to check status when done
+4. Run: `get_plan_status` MCP tool to check status when done
 5. Run: `/close-feature-agent [agent-path]` to verify completion
+6. Run: `check_drift` MCP tool to verify file references
 ```
 
 ## Error Handling
@@ -193,9 +201,9 @@ Instructions:
 
 - The command uses limps MCP `open_document_in_cursor` tool or `cursor` CLI to open files
 - Agent files are opened in Cursor for editing
-- Status assessment uses `limps status` to check plan progress
+- Status assessment uses `get_plan_status` MCP tool to check plan progress
 - Scoring algorithm prioritizes unblocked tasks to maximize parallel work
-- For best results, use `limps next-task <plan-name>` first to get the next task, then use `/run-agent <plan-name>` to start it
+- For best results, use `get_next_task` MCP tool first to get the next task, then use `/run-agent <plan-name>` to start it
 
 ## Additional Flags
 
