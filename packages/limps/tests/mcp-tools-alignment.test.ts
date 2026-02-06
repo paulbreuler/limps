@@ -11,7 +11,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handleGetNextTask } from '../src/tools/get-next-task.js';
 import { handleListPlans } from '../src/tools/list-plans.js';
 import { handleListAgents } from '../src/tools/list-agents.js';
@@ -78,7 +78,7 @@ describe('get_next_task with planId (CLI-aligned scoring)', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansPath;
 
     context = {
@@ -256,7 +256,7 @@ describe('list_plans MCP tool', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansPath;
 
     context = {
@@ -385,7 +385,7 @@ describe('list_agents MCP tool', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansPath;
 
     context = {
@@ -498,7 +498,7 @@ describe('get_plan_status MCP tool', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansPath;
 
     context = {

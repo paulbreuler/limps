@@ -20,16 +20,30 @@ const CLI_PATH = join(__dirname, '..', '..', 'dist', 'cli.js');
  */
 function runCli(
   args: string[],
-  cwd?: string
+  options?: { cwd?: string; env?: Record<string, string | undefined> }
 ): Promise<{
   stdout: string;
   stderr: string;
   exitCode: number;
 }> {
   return new Promise((resolve) => {
+    // Build env by filtering out keys overridden with undefined
+    // to prevent them from being stringified as "undefined" by spawn
+    const overrides = options?.env ?? {};
+    const removedKeys = new Set(
+      Object.entries(overrides)
+        .filter(([, v]) => v === undefined)
+        .map(([k]) => k)
+    );
+    const env = Object.fromEntries(
+      Object.entries({ ...process.env, ...overrides }).filter(
+        ([k, v]) => v !== undefined && !removedKeys.has(k)
+      )
+    );
+
     const child = spawn('node', [CLI_PATH, ...args], {
-      cwd: cwd || process.cwd(),
-      env: { ...process.env },
+      cwd: options?.cwd || process.cwd(),
+      env,
     });
 
     let stdout = '';
@@ -239,6 +253,24 @@ This is a test feature plan.
 
       // Should show usage/help, not crash
       expect(result.stdout.length + result.stderr.length).toBeGreaterThan(0);
+    });
+
+    it('should show clear error when no config is found', async () => {
+      // Use isolated HOME to avoid picking up real registry
+      const isolatedHome = join(testDir, 'isolated-home');
+      mkdirSync(isolatedHome, { recursive: true });
+
+      const result = await runCli(['list-plans'], {
+        env: {
+          HOME: isolatedHome,
+          MCP_PLANNING_CONFIG: undefined,
+          LIMPS_PROJECT: undefined,
+        },
+      });
+
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('No config found');
+      expect(output).toContain('limps init');
     });
   });
 

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 
@@ -333,28 +333,20 @@ function removeDeprecatedCoordinationFile(filePath: string): void {
 
 /**
  * Load configuration from file.
- * Creates default configuration file if it doesn't exist.
  * Paths are resolved relative to the config file location.
  * Removes deprecated coordination.json if found in config or data dir.
  *
  * @param configPath - Path to config.json file
  * @returns Server configuration
+ * @throws Error if config file does not exist
  */
 export function loadConfig(configPath: string): ServerConfig {
   const configDir = dirname(configPath);
 
   if (!existsSync(configPath)) {
-    // Create default config file
-    const defaultConfig = { ...DEFAULT_CONFIG };
-    // Resolve paths relative to config file
-    defaultConfig.plansPath = resolve(configDir, DEFAULT_CONFIG.plansPath);
-    defaultConfig.dataPath = resolve(configDir, DEFAULT_CONFIG.dataPath);
-
-    mkdirSync(configDir, { recursive: true });
-    writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
-    removeDeprecatedCoordinationFile(join(configDir, 'coordination.json'));
-    removeDeprecatedCoordinationFile(join(defaultConfig.dataPath, 'coordination.json'));
-    return defaultConfig;
+    throw new Error(
+      `Config file not found: ${configPath}\nRun \`limps init <project>\` to create a new project config.`
+    );
   }
 
   const content = readFileSync(configPath, 'utf-8');

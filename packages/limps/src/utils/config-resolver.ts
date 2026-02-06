@@ -6,7 +6,6 @@
 import { resolve, dirname } from 'path';
 import { existsSync } from 'fs';
 import { getCurrentProjectPath, getProjectPath } from '../cli/registry.js';
-import { getOSConfigPath } from './os-paths.js';
 
 /**
  * Resolve configuration file path with priority:
@@ -14,10 +13,12 @@ import { getOSConfigPath } from './os-paths.js';
  * 2. Environment variable MCP_PLANNING_CONFIG
  * 3. Environment variable LIMPS_PROJECT (project name → registry lookup)
  * 4. Registry current project
- * 5. OS-specific default path
+ *
+ * Throws if no config source is found — there is no OS-level fallback.
  *
  * @param cliConfigPath - Config path from CLI argument (if provided)
  * @returns Resolved absolute path to config file
+ * @throws Error if no configuration source is found
  */
 export function resolveConfigPath(cliConfigPath?: string): string {
   // Priority 1: CLI argument
@@ -55,8 +56,10 @@ export function resolveConfigPath(cliConfigPath?: string): string {
     return currentPath;
   }
 
-  // Priority 5: OS-specific default
-  return getOSConfigPath();
+  // No config found — require explicit configuration
+  throw new Error(
+    'No config found. Run `limps init <project>`, use `--config <path>`, or set a current project with `limps config use <name>`.'
+  );
 }
 
 /**

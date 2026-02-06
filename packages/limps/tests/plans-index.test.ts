@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handlePlansIndex } from '../src/resources/plans-index.js';
 import type { ResourceContext } from '../src/types.js';
 
@@ -24,7 +24,7 @@ describe('return-plan-index', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -103,7 +103,7 @@ describe('include-status-summary', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -170,7 +170,7 @@ describe('sort-by-plan-number', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {

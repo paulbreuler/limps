@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handleDecisionsLog } from '../src/resources/decisions-log.js';
 import type { ResourceContext } from '../src/types.js';
 
@@ -24,7 +24,7 @@ describe('return-decisions-log', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -83,7 +83,7 @@ describe('extract-decisions', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -145,7 +145,7 @@ describe('filter-by-date-range', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
