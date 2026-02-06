@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -757,5 +757,42 @@ describe('index-all-paths', () => {
     const result2 = await indexAllPaths(db!, [testDir1], ['.md']);
     expect(result2.indexed).toBe(0);
     expect(result2.skipped).toBe(1);
+  });
+
+  it('should not warn when file count is below threshold', async () => {
+    // Create a small number of files (well under 200)
+    for (let i = 0; i < 5; i++) {
+      writeFileSync(join(testDir1, `doc-${i}.md`), `# Doc ${i}\n\nContent.`, 'utf-8');
+    }
+
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await indexAllPaths(db!, [testDir1], ['.md']);
+      const warningCalls = spy.mock.calls.filter((args) =>
+        String(args[0]).includes('Warning: About to index')
+      );
+      expect(warningCalls).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('should warn when file count exceeds threshold', async () => {
+    // Create >200 files to trigger the warning
+    for (let i = 0; i < 201; i++) {
+      writeFileSync(join(testDir1, `doc-${i}.md`), `# Doc ${i}\n\nContent.`, 'utf-8');
+    }
+
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await indexAllPaths(db!, [testDir1], ['.md']);
+      const warningCalls = spy.mock.calls.filter((args) =>
+        String(args[0]).includes('Warning: About to index')
+      );
+      expect(warningCalls).toHaveLength(1);
+      expect(String(warningCalls[0][0])).toContain('201');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
