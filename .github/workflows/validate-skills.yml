@@ -1,0 +1,43 @@
+name: Validate Skills Manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/**'
+      - 'scripts/generate-skills-manifest.js'
+      - 'skills.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.claude/skills/**'
+      - 'scripts/generate-skills-manifest.js'
+      - 'skills.yaml'
+
+jobs:
+  validate-manifest:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Generate manifest
+        run: node scripts/generate-skills-manifest.js
+
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain skills.yaml skills-limps.yaml)" ]; then
+            echo "❌ skills.yaml or skills-limps.yaml are out of date!"
+            echo "Run 'npm run skills:manifest' locally and commit the changes."
+            git diff skills.yaml skills-limps.yaml
+            exit 1
+          else
+            echo "✅ Skills manifest is up to date"
+          fi

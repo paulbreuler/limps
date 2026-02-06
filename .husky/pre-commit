@@ -4,6 +4,12 @@ cd packages/limps && npx lint-staged
 # Stage any auto-fixed files from lint-staged before running full checks
 git add -u
 
+# Regenerate skills manifest if skills changed
+if git diff --cached --name-only | grep -q "\.claude/skills/"; then
+  cd - > /dev/null && npm run skills:manifest
+  git add skills.yaml skills-limps.yaml
+fi
+
 # Run validation from root (format check, lint, type-check, build across workspaces)
 # Tests are intentionally skipped to avoid flaky pre-commit failures.
 cd - > /dev/null && npm run format:check && npm run lint && npm run type-check && npm run build

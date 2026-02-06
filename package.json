@@ -14,7 +14,8 @@
     "type-check": "npm run type-check --workspaces --if-present",
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
     "ci": "npm run validate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "skills:manifest": "node scripts/generate-skills-manifest.js"
   },
   "devDependencies": {
     "husky": "^9.1.7"
