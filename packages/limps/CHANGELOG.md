@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.13.0](https://github.com/paulbreuler/limps/compare/limps-v2.12.0...limps-v2.13.0) (2026-02-06)
+
+
+### Features
+
+* **graph:** implement entity resolution with hybrid retrieval ([#82](https://github.com/paulbreuler/limps/issues/82)) ([57fae02](https://github.com/paulbreuler/limps/commit/57fae0218a1a972acc1729c1ff30b2a88b8e6865))
+* **limps:** agent frontmatter prevention, repair, and plans-summary fix, opencode mcp config ([#81](https://github.com/paulbreuler/limps/issues/81)) ([cdeb236](https://github.com/paulbreuler/limps/commit/cdeb236d48a79901d77e2a30c6615718152dd7ac))
+* **limps:** finalize knowledge graph CLI, MCP tools, and harden adversarial findings ([#83](https://github.com/paulbreuler/limps/issues/83)) ([7399b60](https://github.com/paulbreuler/limps/commit/7399b6051f7e6b5d5cb9d18fc2bcfe6aa5adb6f2))
+
 ## [2.12.0](https://github.com/paulbreuler/limps/compare/limps-v2.11.0...limps-v2.12.0) (2026-02-04)
 
 
