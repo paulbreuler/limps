@@ -359,6 +359,41 @@ describe('process-doc', () => {
     });
   });
 
+  describe('result-size-limit', () => {
+    it('should return isError when result exceeds 512KB', async () => {
+      const filePath = join(repoRoot, 'test.md');
+      writeFileSync(filePath, 'Test content', 'utf-8');
+
+      // Generate output larger than 512KB (524288 bytes)
+      const result = await handleProcessDoc(
+        {
+          path: 'test.md',
+          code: '"a".repeat(600000)',
+        },
+        context
+      );
+
+      expect(result.isError).toBe(true);
+      const resultText = result.content[0].text;
+      expect(resultText.toLowerCase()).toContain('result size');
+    });
+
+    it('should allow results under 512KB', async () => {
+      const filePath = join(repoRoot, 'test.md');
+      writeFileSync(filePath, 'Test content', 'utf-8');
+
+      const result = await handleProcessDoc(
+        {
+          path: 'test.md',
+          code: '"a".repeat(1000)',
+        },
+        context
+      );
+
+      expect(result.isError).toBeFalsy();
+    });
+  });
+
   describe('query-structure', () => {
     it('should handle structured extraction', async () => {
       const filePath = join(repoRoot, 'test.md');

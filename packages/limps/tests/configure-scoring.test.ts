@@ -186,4 +186,16 @@ describe('configure-scoring', () => {
     const invalidWeight = await handleConfigureScoring({ weights: { priority: -1 } }, context);
     expect(invalidWeight.isError).toBe(true);
   });
+
+  it('rejects extreme weight values above 1000', async () => {
+    const result = await handleConfigureScoring({ weights: { priority: 1001 } }, context);
+    expect(result.isError).toBe(true);
+    const text = result.content[0].text;
+    expect(text).toContain('priority');
+  });
+
+  it('accepts weight values at the 1000 boundary', async () => {
+    const result = await handleConfigureScoring({ weights: { priority: 1000 } }, context);
+    expect(result.isError).toBeFalsy();
+  });
 });

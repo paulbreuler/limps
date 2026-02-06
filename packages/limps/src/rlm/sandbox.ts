@@ -94,6 +94,14 @@ export interface RlmEnvironment {
   dispose(): void;
 }
 
+/**
+ * Sanitize error messages: strip HTML-like tags and truncate to 500 chars.
+ */
+function sanitizeErrorMessage(msg: string): string {
+  const stripped = msg.replace(/<[^>]*>/g, '');
+  return stripped.length > 500 ? stripped.slice(0, 500) + '...' : stripped;
+}
+
 // Cached QuickJS module
 let quickJSModule: QuickJSWASMModule | null = null;
 
@@ -225,7 +233,7 @@ export async function createEnvironment(
           throw new MemoryError(opts.memoryLimit);
         }
 
-        throw new Error(`Execution error: ${errorStr}`);
+        throw new Error(`Execution error: ${sanitizeErrorMessage(errorStr)}`);
       }
 
       // Get result value

@@ -261,6 +261,39 @@ describe('process-docs', () => {
     });
   });
 
+  describe('result-size-limit', () => {
+    it('should return isError when result exceeds 512KB', async () => {
+      writeFileSync(join(repoRoot, 'doc1.md'), 'Test content', 'utf-8');
+
+      // Generate output larger than 512KB
+      const result = await handleProcessDocs(
+        {
+          paths: ['doc1.md'],
+          code: '"a".repeat(600000)',
+        },
+        context
+      );
+
+      expect(result.isError).toBe(true);
+      const resultText = result.content[0].text;
+      expect(resultText.toLowerCase()).toContain('result size');
+    });
+
+    it('should allow results under 512KB', async () => {
+      writeFileSync(join(repoRoot, 'doc1.md'), 'Test content', 'utf-8');
+
+      const result = await handleProcessDocs(
+        {
+          paths: ['doc1.md'],
+          code: '"a".repeat(1000)',
+        },
+        context
+      );
+
+      expect(result.isError).toBeFalsy();
+    });
+  });
+
   describe('multi-aggregation', () => {
     it('should perform cross-document aggregation', async () => {
       writeFileSync(join(repoRoot, 'doc1.md'), 'Content with word count', 'utf-8');

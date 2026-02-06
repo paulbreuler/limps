@@ -292,6 +292,40 @@ describe('sandbox.ts', () => {
     });
   });
 
+  describe('error message sanitization', () => {
+    it('should strip HTML-like tags from error messages', async () => {
+      const doc: DocVariable = {
+        content: 'test',
+        metadata: { path: 'test.md', size: 4, lines: 1, modified: '2026-01-22T00:00:00.000Z' },
+        path: 'test.md',
+      };
+
+      env = await createEnvironment(doc);
+      await expect(env.execute('throw new Error("<script>alert(1)</script>")')).rejects.toThrow(
+        /^(?!.*<script>)/
+      );
+    });
+
+    it('should truncate very long error messages', async () => {
+      const doc: DocVariable = {
+        content: 'test',
+        metadata: { path: 'test.md', size: 4, lines: 1, modified: '2026-01-22T00:00:00.000Z' },
+        path: 'test.md',
+      };
+
+      env = await createEnvironment(doc);
+      try {
+        await env.execute(`throw new Error("x".repeat(2000))`);
+        expect.fail('Should have thrown');
+      } catch (error) {
+        const msg = (error as Error).message;
+        // The full message includes "Execution error: " prefix + sanitized content
+        // Sanitized content should be at most 500 chars
+        expect(msg.length).toBeLessThanOrEqual(600);
+      }
+    });
+  });
+
   describe('dispose', () => {
     it('should clean up resources', async () => {
       const doc: DocVariable = {
