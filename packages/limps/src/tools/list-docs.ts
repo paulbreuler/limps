@@ -15,7 +15,12 @@ import { notFound } from '../utils/errors.js';
  * Input schema for list_docs tool.
  */
 export const ListDocsInputSchema = z.object({
-  path: z.string().default('').describe('Directory path relative to repo root'),
+  path: z
+    .string()
+    .default('')
+    .describe(
+      'Directory path relative to the base path (first docsPaths entry if configured, otherwise plansPath)'
+    ),
   pattern: z.string().optional().describe('Glob pattern, e.g., "*.md"'),
   depth: z.number().int().min(1).max(5).default(2).describe('Max directory depth'),
   includeHidden: z.boolean().default(false).describe('Include hidden files'),
@@ -48,14 +53,15 @@ export interface ListDocsOutput {
 }
 
 /**
- * Get repository root from config.
- * Uses the first docsPath entry as the repo root, or falls back to plansPath.
+ * Get the base path for document listing.
+ * Returns the first docsPaths entry if configured (additional indexed paths),
+ * otherwise falls back to plansPath (the primary indexed path).
  */
-function getRepoRoot(config: ToolContext['config']): string {
+function getDocsRoot(config: ToolContext['config']): string {
   if (config.docsPaths && config.docsPaths.length > 0) {
     return config.docsPaths[0];
   }
-  // Fallback: use plansPath itself, not its parent, to avoid indexing the entire repo
+  // Fallback: use plansPath itself as the base path
   return config.plansPath;
 }
 
@@ -71,7 +77,7 @@ function matchesPattern(name: string, pattern: string): boolean {
  */
 async function listDirectoryRecursive(
   dirPath: string,
-  repoRoot: string,
+  docsRoot: string,
   relativePath: string,
   options: {
     pattern?: string;
@@ -148,7 +154,7 @@ async function listDirectoryRecursive(
 
       // Recurse if within depth limit
       if (options.currentDepth < options.maxDepth) {
-        const nestedEntries = await listDirectoryRecursive(entryPath, repoRoot, entryRelativePath, {
+        const nestedEntries = await listDirectoryRecursive(entryPath, docsRoot, entryRelativePath, {
           ...options,
           currentDepth: options.currentDepth + 1,
         });
@@ -189,24 +195,24 @@ export async function handleListDocs(
   const { config } = context;
 
   try {
-    // Get repo root
-    const repoRoot = getRepoRoot(config);
+    // Get base path for document listing
+    const docsRoot = getDocsRoot(config);
 
     // Validate path (for directory, we allow empty string for root)
     const dirPath = path || '';
     let validated;
     if (!dirPath) {
-      // Empty path means repo root
+      // Empty path means base path
       validated = {
         relative: '',
-        absolute: repoRoot,
+        absolute: docsRoot,
         type: 'other' as const,
         directory: '',
         filename: '',
         extension: '',
       };
     } else {
-      validated = validatePath(dirPath, repoRoot);
+      validated = validatePath(dirPath, docsRoot);
     }
 
     // Check if path exists and is a directory
@@ -229,7 +235,7 @@ export async function handleListDocs(
     }
 
     // List directory entries
-    const entries = await listDirectoryRecursive(targetPath, repoRoot, validated.relative, {
+    const entries = await listDirectoryRecursive(targetPath, docsRoot, validated.relative, {
       pattern,
       maxDepth: depth,
       currentDepth: 0,
