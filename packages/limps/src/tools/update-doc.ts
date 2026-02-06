@@ -4,9 +4,9 @@
 
 import { z } from 'zod';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { dirname } from 'path';
 import { validatePath, isProtectedPlanFile } from '../utils/paths.js';
 import { notFound, permissionDenied, noSpaceError } from '../utils/errors.js';
+import { getRepoRoot } from '../utils/repo-root.js';
 import { createBackup } from '../utils/backup.js';
 import { FrontmatterHandler } from '../utils/frontmatter.js';
 import { indexDocument } from '../indexer.js';
@@ -75,13 +75,6 @@ export interface UpdateDocOutput {
     additions: number;
     deletions: number;
   };
-}
-
-/**
- * Get repository root from config.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
 }
 
 /**

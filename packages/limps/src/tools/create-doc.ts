@@ -7,6 +7,7 @@ import { existsSync, writeFileSync, mkdirSync, statSync } from 'fs';
 import { dirname } from 'path';
 import { validatePath, isWritablePath, type DocType } from '../utils/paths.js';
 import { alreadyExists, restrictedPath, permissionDenied, noSpaceError } from '../utils/errors.js';
+import { getRepoRoot } from '../utils/repo-root.js';
 import { indexDocument } from '../indexer.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
@@ -64,14 +65,6 @@ type: "research"
   example: '',
   none: '',
 };
-
-/**
- * Get repository root from config.
- * Assumes plansPath is ../plans relative to .mcp, so dirname gives repo root.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
-}
 
 /**
  * Apply template to content, replacing {{DATE}} with current date.

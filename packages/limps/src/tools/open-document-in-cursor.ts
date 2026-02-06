@@ -4,13 +4,13 @@
 
 import { z } from 'zod';
 import { existsSync } from 'fs';
-import { dirname } from 'path';
 import { spawn } from 'child_process';
 import open from 'open';
 import which from 'which';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
 import { notFound } from '../utils/errors.js';
+import { getRepoRoot } from '../utils/repo-root.js';
 
 /**
  * Input schema for open_document_in_cursor tool.
@@ -31,19 +31,6 @@ export interface OpenDocumentOutput {
   method?: 'uri' | 'cli'; // Method used to open file
   message?: string;
   error?: string; // Error message if failed
-}
-
-/**
- * Get repository root from config.
- * Uses the first docsPath entry as the repo root, or derives from plansPath.
- */
-function getRepoRoot(config: ToolContext['config']): string {
-  // Prefer docsPaths[0] if it exists (it's the repo root)
-  if (config.docsPaths && config.docsPaths.length > 0) {
-    return config.docsPaths[0];
-  }
-  // Fallback: use plansPath parent directory
-  return dirname(config.plansPath);
 }
 
 /**

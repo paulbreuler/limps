@@ -8,11 +8,12 @@
 import { z } from 'zod';
 import { readFile, stat, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname, isAbsolute } from 'path';
+import { join, isAbsolute } from 'path';
 import micromatch from 'micromatch';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
 import { validationError } from '../utils/errors.js';
+import { getRepoRoot } from '../utils/repo-root.js';
 import { createEnvironment, type DocVariable } from '../rlm/sandbox.js';
 import { validateCode } from '../rlm/security.js';
 import { processSubCalls } from '../rlm/recursion.js';
@@ -69,16 +70,6 @@ export interface ProcessDocsOutput {
 
 /** Maximum result size in bytes (512KB). */
 const MAX_RESULT_SIZE_BYTES = 512 * 1024;
-
-/**
- * Get repository root from config.
- */
-function getRepoRoot(config: ToolContext['config']): string {
-  if (config.docsPaths && config.docsPaths.length > 0) {
-    return config.docsPaths[0];
-  }
-  return dirname(config.plansPath);
-}
 
 /**
  * Recursively find files matching a glob pattern.

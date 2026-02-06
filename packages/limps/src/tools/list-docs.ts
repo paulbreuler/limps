@@ -5,11 +5,12 @@
 import { z } from 'zod';
 import { readdir, lstat } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import micromatch from 'micromatch';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
 import { notFound } from '../utils/errors.js';
+import { getRepoRoot } from '../utils/repo-root.js';
 
 /**
  * Input schema for list_docs tool.
@@ -45,19 +46,6 @@ export interface ListDocsOutput {
   path: string;
   entries: DirEntry[];
   total: number;
-}
-
-/**
- * Get repository root from config.
- * Uses the first docsPath entry as the repo root, or derives from plansPath.
- */
-function getRepoRoot(config: ToolContext['config']): string {
-  // Prefer docsPaths[0] if it exists (it's the repo root)
-  if (config.docsPaths && config.docsPaths.length > 0) {
-    return config.docsPaths[0];
-  }
-  // Fallback: use plansPath parent directory
-  return dirname(config.plansPath);
 }
 
 /**

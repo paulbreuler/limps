@@ -7,6 +7,7 @@ import { existsSync, readFileSync, mkdirSync, renameSync, unlinkSync } from 'fs'
 import { join, dirname, basename, relative } from 'path';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath, isWritablePath, isProtectedPlanFile } from '../utils/paths.js';
+import { getRepoRoot } from '../utils/repo-root.js';
 import { createBackup, formatTimestamp } from '../utils/backup.js';
 import { notFound, restrictedPath, DocumentError } from '../utils/errors.js';
 import { removeDocument } from '../indexer.js';
@@ -49,13 +50,6 @@ export interface DeleteDocOutput {
   preview?: string;
   trash?: string;
   backup?: string;
-}
-
-/**
- * Get repository root from config.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
 }
 
 /**

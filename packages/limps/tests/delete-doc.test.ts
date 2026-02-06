@@ -38,6 +38,7 @@ describe('delete-doc.ts', () => {
     // Create context
     const config: ServerConfig = {
       plansPath: join(testDir, 'plans'),
+      docsPaths: [testDir],
       dataPath: join(testDir, 'data'),
       scoring: {
         weights: {
