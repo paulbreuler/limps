@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.13.1](https://github.com/paulbreuler/limps/compare/limps-v2.13.0...limps-v2.13.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* **config:** remove docsPaths, validate paths on startup, add e2e tests ([#89](https://github.com/paulbreuler/limps/issues/89)) ([c9253d1](https://github.com/paulbreuler/limps/commit/c9253d1536be0b413a3a41e9363ba22288178514))
+* **config:** remove OS-level config fallback and auto-create behavior ([#91](https://github.com/paulbreuler/limps/issues/91)) ([f1655dd](https://github.com/paulbreuler/limps/commit/f1655dd43158a865bc22db61d465b1a11ff0a6a5))
+
 ## [2.13.0](https://github.com/paulbreuler/limps/compare/limps-v2.12.0...limps-v2.13.0) (2026-02-06)
 
 
