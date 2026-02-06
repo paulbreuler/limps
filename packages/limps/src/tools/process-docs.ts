@@ -67,6 +67,9 @@ export interface ProcessDocsOutput {
   };
 }
 
+/** Maximum result size in bytes (512KB). */
+const MAX_RESULT_SIZE_BYTES = 512 * 1024;
+
 /**
  * Get repository root from config.
  */
@@ -295,6 +298,19 @@ export async function handleProcessDocs(
       // Calculate result size
       const resultJson = JSON.stringify(execResult.result);
       const resultSize = Buffer.byteLength(resultJson, 'utf-8');
+
+      // Guard: reject oversized results
+      if (resultSize > MAX_RESULT_SIZE_BYTES) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Result size ${resultSize} bytes exceeds limit of ${MAX_RESULT_SIZE_BYTES} bytes (${Math.round(MAX_RESULT_SIZE_BYTES / 1024)}KB). Use filtering to reduce output.`,
+            },
+          ],
+          isError: true,
+        };
+      }
 
       // Build output
       const output: ProcessDocsOutput = {

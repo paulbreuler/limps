@@ -74,6 +74,47 @@ describe('GraphStorage', () => {
     expect(neighbors[0]?.canonicalId).toBe(target.canonicalId);
   });
 
+  it('deduplicates neighbors when multiple relationship types exist', () => {
+    const source = storage.upsertEntity({
+      type: 'plan',
+      canonicalId: 'plan:0004',
+      name: 'Plan 0004',
+      metadata: {},
+    });
+    const target = storage.upsertEntity({
+      type: 'file',
+      canonicalId: 'file:src/events/bus.ts',
+      name: 'bus.ts',
+      metadata: {},
+    });
+
+    // Create multiple relationship types to the same target
+    storage.upsertRelationship({
+      sourceId: source.id,
+      targetId: target.id,
+      relationType: 'CONTAINS',
+      confidence: 1,
+      metadata: {},
+    });
+    storage.upsertRelationship({
+      sourceId: source.id,
+      targetId: target.id,
+      relationType: 'MODIFIES',
+      confidence: 1,
+      metadata: {},
+    });
+
+    // Without relationType filter - should return unique neighbors only
+    const neighbors = storage.getNeighbors(source.id);
+    expect(neighbors).toHaveLength(1);
+    expect(neighbors[0]?.canonicalId).toBe(target.canonicalId);
+
+    // With relationType filter - should still deduplicate
+    const containsNeighbors = storage.getNeighbors(source.id, 'CONTAINS');
+    expect(containsNeighbors).toHaveLength(1);
+    expect(containsNeighbors[0]?.canonicalId).toBe(target.canonicalId);
+  });
+
   it('finds paths with depth and path limits', () => {
     const a = storage.upsertEntity({
       type: 'plan',

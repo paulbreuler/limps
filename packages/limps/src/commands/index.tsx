@@ -42,6 +42,7 @@ export default function DefaultCommand(): React.ReactNode {
       {'  '}status{'        '}Show plan progress{'\n'}
       {'  '}version{'        '}Show version information{'\n'}
       {'  '}config{'        '}Manage project configuration{'\n'}
+      {'  '}graph{'         '}Knowledge graph commands{'\n'}
       {'\n'}
       Run <Text color="green">limps {'<command>'}</Text> without args for usage help.{'\n'}
       Run <Text color="green">limps {'<command>'} --help</Text> for full documentation.

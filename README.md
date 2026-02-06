@@ -363,13 +363,37 @@ Config location varies by OS:
 
 ## MCP Tools
 
-limps exposes 15 MCP tools for AI assistants:
+limps exposes MCP tools for AI assistants:
 
 | Category | Tools |
 |----------|-------|
 | **Documents** | `process_doc`, `process_docs`, `create_doc`, `update_doc`, `delete_doc`, `list_docs`, `search_docs`, `manage_tags`, `open_document_in_cursor` |
 | **Plans** | `create_plan`, `list_plans`, `list_agents`, `get_plan_status` |
 | **Tasks** | `get_next_task`, `update_task_status` |
+| **Knowledge Graph** | `graph` (unified: health, search, trace, entity, overlap, reindex, check, suggest) |
+
+### Knowledge Graph
+
+The knowledge graph provides a structured, queryable representation of plans, agents, features, files, and their relationships:
+
+```bash
+# Build the graph from plan files
+limps graph reindex
+
+# Check graph health and conflicts
+limps graph health --json
+
+# Search entities
+limps graph search "auth" --json
+
+# Trace relationships
+limps graph trace plan:0042 --direction down
+
+# Detect conflicts (file contention, circular deps, stale WIP)
+limps graph check --json
+```
+
+See [Knowledge Graph Architecture](docs/knowledge-graph.md) and [CLI Reference](docs/cli-reference.md) for details.
 
 ## Skills
 

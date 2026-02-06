@@ -31,6 +31,7 @@ import { CheckDriftInputSchema, handleCheckDrift } from './check-drift.js';
 import { InferStatusInputSchema, handleInferStatus } from './infer-status.js';
 import { GetProposalsInputSchema, handleGetProposals } from './get-proposals.js';
 import { ApplyProposalInputSchema, handleApplyProposal } from './apply-proposal.js';
+import { GraphInputSchema, handleGraph } from './graph.js';
 
 export const CORE_TOOL_NAMES = [
   'create_plan',
@@ -55,6 +56,7 @@ export const CORE_TOOL_NAMES = [
   'infer_status',
   'get_proposals',
   'apply_proposal',
+  'graph',
 ] as const;
 
 const ReindexDocsInputSchema = z.object({}).strict();
@@ -521,6 +523,31 @@ Use minConfidence (0–1) to filter low-confidence suggestions.`,
     async (input) => {
       const parsed = ApplyProposalInputSchema.parse(input);
       return handleApplyProposal(parsed, context);
+    }
+  );
+
+  // Knowledge Graph Tool (single entry point for all graph operations)
+  registerTool(
+    'graph',
+    `Query and manage the knowledge graph of plans, agents, features, and their relationships.
+
+Commands:
+- health: Get graph statistics and conflict summary
+- search: Search entities (requires: query. optional: topK, recipe)
+- trace: Trace entity relationships (requires: entityId. optional: direction, depth)
+- entity: Get details for a specific entity (requires: entityId)
+- overlap: Find overlapping features (optional: planId, threshold)
+- reindex: Rebuild graph from plan files (optional: planId, incremental)
+- check: Run conflict detection (optional: type — file_contention|feature_overlap|circular_dependency|stale_wip)
+- suggest: Get suggestions (requires: type — consolidate|next-task. optional: planId)
+
+Entity ID format: type:id (e.g. plan:0042, agent:0042#003, feature:0042#1)
+
+For full CLI usage run \`limps graph <command> --help\`.`,
+    GraphInputSchema.shape,
+    async (input) => {
+      const parsed = GraphInputSchema.parse(input);
+      return handleGraph(parsed, context);
     }
   );
 }

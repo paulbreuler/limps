@@ -262,7 +262,7 @@ export class GraphStorage {
       const rows = this.db
         .prepare(
           `
-          SELECT e.*
+          SELECT DISTINCT e.*
           FROM relationships r
           JOIN entities e ON e.id = r.target_id
           WHERE r.source_id = ? AND r.relation_type = ?
@@ -275,7 +275,7 @@ export class GraphStorage {
     const rows = this.db
       .prepare(
         `
-        SELECT e.*
+        SELECT DISTINCT e.*
         FROM relationships r
         JOIN entities e ON e.id = r.target_id
         WHERE r.source_id = ?

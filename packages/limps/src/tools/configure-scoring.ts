@@ -108,6 +108,9 @@ function validateWeights(weights: Partial<ScoringWeights> | undefined): string[]
     if (value < 0) {
       errors.push(`Weight "${key}" must be non-negative.`);
     }
+    if (value > 1000) {
+      errors.push(`Weight "${key}" exceeds maximum allowed value of 1000.`);
+    }
   }
   return errors;
 }
