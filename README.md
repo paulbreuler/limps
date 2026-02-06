@@ -494,9 +494,26 @@ This repo ships Claude Code slash commands in [`.claude/commands/`](/.claude/com
 
 **Vercel Skills** (for other AI IDEs):
 
+Install the limps planning skill to get AI-powered guidance for plan creation, agent workflows, and task management:
+
 ```bash
-npx skills add paulbreuler/limps/skills/limps-planning
+# Install only the limps planning skill (recommended for consumers)
+npx skills add https://github.com/sudosandwich/limps/tree/main/.claude/skills/limps-plan-operations
+
+# Or install all available skills
+npx skills add sudosandwich/limps
 ```
+
+**Available Skills:**
+
+| Skill | Description |
+|-------|-------------|
+| `limps-plan-operations` | Plan identification, artifact loading, distillation rules, and lifecycle guidance using limps MCP tools |
+| `mcp-code-review` | Security-focused code review for MCP servers and LLM safety |
+| `branch-code-review` | General code review for design, maintainability, and correctness |
+| `git-commit-best-practices` | Conventional commits and repository best practices |
+
+See [`skills.yaml`](./skills.yaml) for the complete manifest.
 
 ## Extensions
 
