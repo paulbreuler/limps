@@ -27,9 +27,23 @@ function runCli(
   exitCode: number;
 }> {
   return new Promise((resolve) => {
+    // Build env by filtering out keys overridden with undefined
+    // to prevent them from being stringified as "undefined" by spawn
+    const overrides = options?.env ?? {};
+    const removedKeys = new Set(
+      Object.entries(overrides)
+        .filter(([, v]) => v === undefined)
+        .map(([k]) => k)
+    );
+    const env = Object.fromEntries(
+      Object.entries({ ...process.env, ...overrides }).filter(
+        ([k, v]) => v !== undefined && !removedKeys.has(k)
+      )
+    );
+
     const child = spawn('node', [CLI_PATH, ...args], {
       cwd: options?.cwd || process.cwd(),
-      env: { ...process.env, ...options?.env },
+      env,
     });
 
     let stdout = '';
