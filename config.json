@@ -1,11 +1,5 @@
 {
   "plansPath": "./plans",
-  "docsPaths": [
-    "."
-  ],
-  "fileExtensions": [
-    ".md"
-  ],
   "dataPath": "./data",
   "scoring": {
     "weights": {},

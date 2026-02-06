@@ -534,6 +534,14 @@ export async function indexAllPaths(
     }
   }
 
+  // Warn if indexing a large number of files
+  if (allFiles.length > 50) {
+    console.error(`⚠️  Warning: About to index ${allFiles.length} files`);
+    console.error(`   This may take a while on first startup`);
+    console.error(`   Paths being indexed: ${paths.join(', ')}`);
+    console.error(`   Consider narrowing docsPaths if this wasn't intentional`);
+  }
+
   // Process files with limited concurrency
   const concurrency = 10;
   for (let i = 0; i < allFiles.length; i += concurrency) {
