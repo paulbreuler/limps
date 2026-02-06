@@ -534,6 +534,16 @@ export async function indexAllPaths(
     }
   }
 
+  // Warn if indexing suspiciously large number of files or root-like paths
+  const hasRootPath = paths.some((p) => p === '.' || p === './' || p === '/' || p.endsWith('/.'));
+  const isSuspiciousCount = allFiles.length > 200 || (hasRootPath && allFiles.length > 50);
+  if (isSuspiciousCount) {
+    console.error(`⚠️  Warning: About to index ${allFiles.length} files`);
+    console.error(`   This may take a while on first startup`);
+    console.error(`   Paths being indexed: ${paths.join(', ')}`);
+    console.error(`   If this wasn't intentional, check your configuration`);
+  }
+
   // Process files with limited concurrency
   const concurrency = 10;
   for (let i = 0; i < allFiles.length; i += concurrency) {

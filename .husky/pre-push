@@ -1,0 +1,2 @@
+# Run full test suite before pushing to catch regressions early
+npm test

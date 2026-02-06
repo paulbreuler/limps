@@ -86,7 +86,7 @@ export interface HealthConfig {
 export interface ServerConfig {
   configVersion?: number; // Config schema version for migrations
   plansPath: string;
-  docsPaths?: string[]; // Additional paths to index
+  docsPaths?: string[]; // ADDITIONAL paths to index beyond plansPath. Use with caution - indexing entire repos (e.g., ["."]) can be slow
   fileExtensions?: string[]; // File types to index (default: ['.md'])
   dataPath: string;
   scoring: {
@@ -282,11 +282,15 @@ export const DEFAULT_DEBOUNCE_DELAY = 200;
 
 /**
  * Default server configuration.
+ *
+ * Note: docsPaths is intentionally undefined by default. Only plansPath is indexed
+ * unless additional docsPaths are explicitly configured. This prevents accidentally
+ * indexing entire repositories which can cause slow startup times.
  */
 const DEFAULT_CONFIG: ServerConfig = {
   configVersion: CURRENT_CONFIG_VERSION,
   plansPath: './plans',
-  docsPaths: undefined,
+  docsPaths: undefined, // Only plansPath indexed by default - add docsPaths explicitly if needed
   fileExtensions: undefined,
   dataPath: './data',
   scoring: {
