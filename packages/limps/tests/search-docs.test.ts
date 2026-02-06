@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handleSearchDocs } from '../src/tools/search-docs.js';
 import type { ToolContext } from '../src/types.js';
 
@@ -41,7 +41,7 @@ describe('search-query', () => {
     );
     await indexDocument(db, doc2Path);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -102,7 +102,7 @@ describe('search-ranking', () => {
     writeFileSync(doc2Path, '# Low Relevance\n\nThis document mentions search term once.', 'utf-8');
     await indexDocument(db, doc2Path);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -162,7 +162,7 @@ describe('limit-results', () => {
       await indexDocument(db, docPath);
     }
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -220,7 +220,7 @@ describe('empty-results', () => {
     );
     await indexDocument(db, docPath);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -291,7 +291,7 @@ It also mentions machine learning again.
     );
     await indexDocument(db, docPath);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {

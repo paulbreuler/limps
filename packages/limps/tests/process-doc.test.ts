@@ -11,7 +11,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handleProcessDoc } from '../src/tools/process-doc.js';
 import type { ToolContext } from '../src/types.js';
 import { MockSamplingClient } from '../src/rlm/sampling.js';
@@ -32,7 +32,7 @@ describe('process-doc', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = join(repoRoot, 'plans');
     config.docsPaths = [repoRoot];
 

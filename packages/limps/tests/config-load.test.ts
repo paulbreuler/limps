@@ -77,12 +77,9 @@ describe('config-load', () => {
     expect(extensionConfig.cacheDir).toBe('~/Library/Application Support/limps-headless');
   });
 
-  it('should use default configuration when file does not exist', () => {
-    const config = loadConfig(configPath);
-    expect(config.plansPath).toBeDefined();
-    expect(config.dataPath).toBeDefined();
-    // File should be created with defaults
-    expect(existsSync(configPath)).toBe(true);
+  it('should throw when config file does not exist', () => {
+    const missingPath = join(configDir, 'nonexistent', 'config.json');
+    expect(() => loadConfig(missingPath)).toThrow('Config file not found');
   });
 
   it('should resolve paths relative to config file location', () => {

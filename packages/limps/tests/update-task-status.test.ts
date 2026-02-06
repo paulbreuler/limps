@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handleUpdateTaskStatus } from '../src/tools/update-task-status.js';
 import type { ToolContext } from '../src/types.js';
 
@@ -39,7 +39,7 @@ Dependencies: None
     writeFileSync(planFile, planContent, 'utf-8');
     await indexDocument(db, planFile);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -107,7 +107,7 @@ Dependencies: None
     writeFileSync(planFile, planContent, 'utf-8');
     await indexDocument(db, planFile);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -170,7 +170,7 @@ describe('handle-invalid-task', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -245,7 +245,7 @@ Extract import/JSX/behavior evidence with locations.
     writeFileSync(planFile, planContent, 'utf-8');
     await indexDocument(db, planFile);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {

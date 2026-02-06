@@ -12,7 +12,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
 import { initializeDatabase, createSchema } from '../src/indexer.js';
-import { loadConfig } from '../src/config.js';
+import { createTestConfig } from './test-config-helper.js';
 import { handleCreatePlan } from '../src/tools/create-plan.js';
 import type { ToolContext } from '../src/types.js';
 
@@ -32,7 +32,7 @@ describe('create-plan-valid', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -87,7 +87,7 @@ describe('next-plan-number', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -143,7 +143,7 @@ describe('reject-duplicate', () => {
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {
@@ -227,7 +227,7 @@ Description: {{DESCRIPTION}}
 `;
     writeFileSync(join(templateDir, 'plan.md'), templateContent, 'utf-8');
 
-    const config = loadConfig(join(testDir, 'config.json'));
+    const config = createTestConfig(testDir);
     config.plansPath = plansDir;
 
     context = {

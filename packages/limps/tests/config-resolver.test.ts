@@ -29,8 +29,7 @@ describe('resolveConfigPath', () => {
     }
   });
 
-  it('returns OS config path when no overrides are set', () => {
-    const resolved = resolveConfigPath();
-    expect(resolved).toBe(join(testDir, 'limps', 'config.json'));
+  it('throws when no overrides are set', () => {
+    expect(() => resolveConfigPath()).toThrow('No config found');
   });
 });
