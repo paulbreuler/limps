@@ -11,7 +11,7 @@ import {
 } from './config.js';
 import { createServer, startServer } from './server.js';
 import { resolve } from 'path';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import type { FSWatcher } from 'chokidar';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import {
@@ -54,26 +54,46 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   const fileExtensions = getFileExtensions(config);
   const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian'];
 
-  // Initial indexing
-  const result = await indexAllPaths(db, docsPaths, fileExtensions, ignorePatterns);
-  console.error(
-    `Indexed ${result.indexed} documents (${result.updated} updated, ${result.skipped} skipped)`
-  );
-  console.error(`Paths: ${docsPaths.join(', ')}`);
-  console.error(`Extensions: ${fileExtensions.join(', ')}`);
-  if (result.errors.length > 0) {
-    console.error(`Indexing errors: ${result.errors.length}`);
-    for (const err of result.errors) {
-      console.error(`  - ${err.path}: ${err.error}`);
+  // Validate paths before indexing — filter to only existing directories
+  const validPaths = docsPaths.filter((p) => existsSync(p));
+  if (!existsSync(config.plansPath)) {
+    console.error(
+      '[limps] plansPath does not exist: ' +
+        config.plansPath +
+        '. Document indexing will be skipped.'
+    );
+    console.error('[limps] To configure plansPath, add it to your limps configuration file.');
+  }
+  for (const p of docsPaths) {
+    if (!existsSync(p) && p !== config.plansPath) {
+      console.error(`[limps] docsPaths entry does not exist: ${p} (skipping)`);
     }
+  }
+
+  // Initial indexing (only valid paths)
+  if (validPaths.length > 0) {
+    const result = await indexAllPaths(db, validPaths, fileExtensions, ignorePatterns);
+    console.error(
+      `Indexed ${result.indexed} documents (${result.updated} updated, ${result.skipped} skipped)`
+    );
+    console.error(`Paths: ${validPaths.join(', ')}`);
+    console.error(`Extensions: ${fileExtensions.join(', ')}`);
+    if (result.errors.length > 0) {
+      console.error(`Indexing errors: ${result.errors.length}`);
+      for (const err of result.errors) {
+        console.error(`  - ${err.path}: ${err.error}`);
+      }
+    }
+  } else {
+    console.error('No valid paths to index.');
   }
 
   // Capture db reference for watcher callback
   const dbRef = db;
 
-  // Start file watcher
+  // Start file watcher (only watch valid paths)
   watcher = startWatcher(
-    docsPaths,
+    validPaths,
     async (path, event) => {
       if (event === 'unlink') {
         await removeDocument(dbRef, path);
@@ -88,7 +108,7 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
     DEFAULT_DEBOUNCE_DELAY,
     DEFAULT_SETTLE_DELAY
   );
-  console.error(`File watcher started for ${docsPaths.length} path(s)`);
+  console.error(`File watcher started for ${validPaths.length} path(s)`);
 
   // Create and start server
   const server = await createServer(config, db);
