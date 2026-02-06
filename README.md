@@ -513,7 +513,7 @@ npx skills add sudosandwich/limps
 | `branch-code-review` | General code review for design, maintainability, and correctness |
 | `git-commit-best-practices` | Conventional commits and repository best practices |
 
-See [`skills.yaml`](./skills.yaml) for the complete manifest.
+See [`skills.yaml`](./skills.yaml) for the complete manifest of the `.claude/skills` packages installed via `npx skills add` above; the separate `skills/limps-planning/` package in this repo is a legacy distribution and new consumers should prefer the `.claude/skills` method.
 
 ## Extensions
 

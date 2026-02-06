@@ -2,15 +2,15 @@
 # Do not edit manually - run the script to regenerate
 
 skills:
-  - name: branch-code-review
-    path: .claude/skills/branch-code-review
-    description: Review changes on the current branch versus main for design, maintainability, and correctness. Use when a general code review is requested.
-  - name: git-commit-best-practices
-    path: .claude/skills/git-commit-best-practices
-    description: Guide for creating well-structured, meaningful Git commits following conventional commits and repository best practices. Use when creating commits, amending commit messages, or reviewing commit history.
-  - name: limps-plan-operations
-    path: .claude/skills/limps-plan-operations
-    description: Common operations and planning principles for limps feature plans. Covers plan identification, artifact loading, distillation rules, and lifecycle guidance using limps MCP tools.
-  - name: mcp-code-review
-    path: .claude/skills/mcp-code-review
-    description: Review code for correctness, security, and LLM/MCP safety in this repo. Use when a code review, security review, or MCP/LLM audit is requested.
+  - name: "branch-code-review"
+    path: ".claude/skills/branch-code-review"
+    description: "Review changes on the current branch versus main for design, maintainability, and correctness. Use when a general code review is requested."
+  - name: "git-commit-best-practices"
+    path: ".claude/skills/git-commit-best-practices"
+    description: "Guide for creating well-structured, meaningful Git commits following conventional commits and repository best practices. Use when creating commits, amending commit messages, or reviewing commit history."
+  - name: "limps-plan-operations"
+    path: ".claude/skills/limps-plan-operations"
+    description: "Common operations and planning principles for limps feature plans. Covers plan identification, artifact loading, distillation rules, and lifecycle guidance using limps MCP tools."
+  - name: "mcp-code-review"
+    path: ".claude/skills/mcp-code-review"
+    description: "Review code for correctness, security, and LLM/MCP safety in this repo. Use when a code review, security review, or MCP/LLM audit is requested."

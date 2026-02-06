@@ -7,12 +7,14 @@ on:
       - '.claude/skills/**'
       - 'scripts/generate-skills-manifest.js'
       - 'skills.yaml'
+      - 'skills-limps.yaml'
   pull_request:
     branches: [main]
     paths:
       - '.claude/skills/**'
       - 'scripts/generate-skills-manifest.js'
       - 'skills.yaml'
+      - 'skills-limps.yaml'
 
 jobs:
   validate-manifest:

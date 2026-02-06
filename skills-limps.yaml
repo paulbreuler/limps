@@ -1,7 +1,7 @@
 # Limps Planning Skills Package
-# Install: npx skills add owner/repo --path .claude/skills/limps-plan-operations
+# Install: npx skills add https://github.com/sudosandwich/limps/tree/main/.claude/skills/limps-plan-operations
 
 skills:
-  - name: limps-plan-operations
-    path: .claude/skills/limps-plan-operations
-    description: Common operations and planning principles for limps feature plans. Covers plan identification, artifact loading, distillation rules, and lifecycle guidance using limps MCP tools.
+  - name: "limps-plan-operations"
+    path: ".claude/skills/limps-plan-operations"
+    description: "Common operations and planning principles for limps feature plans. Covers plan identification, artifact loading, distillation rules, and lifecycle guidance using limps MCP tools."
