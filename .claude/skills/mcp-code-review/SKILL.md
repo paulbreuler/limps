@@ -80,6 +80,12 @@ Use this structure:
 - Suggested: ...
 ```
 
+## Graph & Multi-Operation Tool Patterns
+When reviewing MCP tools, check:
+- **Unified tool pattern**: Multi-operation tools (like `graph` with subcommands: health, search, trace, check, suggest, reindex) should validate the `operation` parameter and dispatch correctly.
+- **Graph DB error handling**: Tools that use `better-sqlite3` must handle DB open failures, missing tables, and corrupt data gracefully.
+- **Input validation**: All MCP tool schemas should validate inputs before processing. Check for path traversal, SQL injection in FTS queries, and oversized inputs.
+
 ## Notes
 - Prefer `ReadFile`, `Grep`, `Glob` over shell tools for code inspection.
 - Avoid speculative claims; cite code or call out uncertainty.

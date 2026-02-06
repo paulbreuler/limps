@@ -4,7 +4,7 @@
 
 [![npm](https://img.shields.io/npm/v/@sudosandwich/limps)](https://www.npmjs.com/package/@sudosandwich/limps)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Tests](https://img.shields.io/badge/Tests-899%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-1167%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-%3E70%25-brightgreen)
 [![MCP Badge](https://lobehub.com/badge/mcp/paulbreuler-limps)](https://lobehub.com/mcp/paulbreuler-limps)
 
@@ -15,6 +15,7 @@
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [How I Use limps](#how-i-use-limps)
+- [Health & Automation](#health--automation)
 - [How You Can Use It](#how-you-can-use-it)
 - [Why limps?](#why-limps)
 - [Installation](#installation)
@@ -25,7 +26,7 @@
 - [Configuration](#configuration)
 - [Environment Variables](#environment-variables)
 - [MCP Tools](#mcp-tools)
-- [Skills](#skills)
+- [Skills & Commands](#skills--commands)
 - [Extensions](#extensions)
 - [Obsidian Compatibility](#obsidian-compatibility)
 - [Development](#development)
@@ -60,6 +61,10 @@ Run this in the folder where you want to keep the docs and that's it. Your AI as
 - **Sandboxed document processing** via `process_doc(s)` helpers
 - **Multi-client sync** for Cursor, Claude, Codex, and more
 - **Extensions** for domain-specific tooling (e.g., limps-headless)
+- **Knowledge graph** — Entity extraction, hybrid retrieval, conflict detection, and graph-based suggestions
+- **Health automation** — Staleness detection, code drift checks, status inference, and auto-fix proposals
+- **Advanced task scoring** — Dependency-aware prioritization with per-plan/agent weight overrides
+- **MCP Registry** — Published to the official MCP Registry (`registry.modelcontextprotocol.io`)
 
 ### What to know before you start
 
@@ -84,6 +89,7 @@ Commands and tools I use most often:
 - **Read**: `list_plans`, `list_agents`, `list_docs`, `search_docs`, `get_plan_status`
 - **Update**: `update_doc`, `update_task_status`, `manage_tags`
 - **Close**: `update_task_status` (e.g., `PASS`), `delete_doc` if needed
+- **Analyze**: `graph health`, `graph search`, `graph check`, `health check`
 
 Full lists are below in "CLI Commands" and "MCP Tools."
 
@@ -111,13 +117,13 @@ Key ideas:
 
 ### Supported Clients
 
-| Client | Config Location | Command |
-|--------|----------------|---------|
-| **Cursor** | `.cursor/mcp.json` (local) | `limps config sync-mcp --client cursor` |
-| **Claude Code** | `.mcp.json` (local) | `limps config sync-mcp --client claude-code` |
-| **Claude Desktop** | Global config | `limps config sync-mcp --client claude --global` |
-| **OpenAI Codex** | `~/.codex/config.toml` | `limps config sync-mcp --client codex --global` |
-| **ChatGPT** | Manual setup | `limps config sync-mcp --client chatgpt --print` |
+| Client             | Config Location            | Command                                          |
+| ------------------ | -------------------------- | ------------------------------------------------ |
+| **Cursor**         | `.cursor/mcp.json` (local) | `limps config sync-mcp --client cursor`          |
+| **Claude Code**    | `.mcp.json` (local)        | `limps config sync-mcp --client claude-code`     |
+| **Claude Desktop** | Global config              | `limps config sync-mcp --client claude --global` |
+| **OpenAI Codex**   | `~/.codex/config.toml`     | `limps config sync-mcp --client codex --global`  |
+| **ChatGPT**        | Manual setup               | `limps config sync-mcp --client chatgpt --print` |
 
 > **Note:** By default, `sync-mcp` writes to local/project configs. Use `--global` for user-level configs.
 
@@ -227,7 +233,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "limps": {
       "command": "npx",
-      "args": ["-y", "@sudosandwich/limps", "serve", "--config", "/path/to/config.json"]
+      "args": [
+        "-y",
+        "@sudosandwich/limps",
+        "serve",
+        "--config",
+        "/path/to/config.json"
+      ]
     }
   }
 }
@@ -245,7 +257,15 @@ On Windows, use `cmd /c` to run `npx`:
   "mcpServers": {
     "limps": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "@sudosandwich/limps", "serve", "--config", "C:\\path\\to\\config.json"]
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@sudosandwich/limps",
+        "serve",
+        "--config",
+        "C:\\path\\to\\config.json"
+      ]
     }
   }
 }
@@ -312,15 +332,49 @@ limps config show             # Display current config
 limps config sync-mcp         # Add projects to MCP clients
 ```
 
+### Health & Automation
+
+```bash
+limps health check              # Aggregate all health signals
+limps health staleness [plan]   # Find stale plans/agents
+limps health drift [plan]       # Detect file reference drift
+limps health inference [plan]   # Suggest status updates
+limps proposals list             # List auto-fix proposals
+limps proposals apply <id>       # Apply a proposal
+limps proposals apply-safe       # Apply all safe proposals
+```
+
+### Knowledge Graph
+
+```bash
+limps graph reindex              # Build/rebuild graph
+limps graph health               # Graph stats and conflicts
+limps graph search <query>       # Search entities
+limps graph trace <entity>       # Trace relationships
+limps graph entity <id>          # Entity details
+limps graph overlap              # Find overlapping features
+limps graph check [type]         # Run conflict detection
+limps graph suggest <type>       # Graph-based suggestions
+limps graph watch                # Watch and update incrementally
+```
+
+### Scoring & Repair
+
+```bash
+limps score-all <plan>           # Score all agents in a plan
+limps score-task <task-id>       # Score a single task
+limps repair-plans [--fix]       # Check/fix agent frontmatter
+```
+
 ## Configuration
 
 Config location varies by OS:
 
-| OS | Path |
-|----|------|
-| macOS | `~/Library/Application Support/limps/config.json` |
-| Linux | `~/.config/limps/config.json` |
-| Windows | `%APPDATA%\limps\config.json` |
+| OS      | Path                                              |
+| ------- | ------------------------------------------------- |
+| macOS   | `~/Library/Application Support/limps/config.json` |
+| Linux   | `~/.config/limps/config.json`                     |
+| Windows | `%APPDATA%\limps\config.json`                     |
 
 ### Config Options
 
@@ -341,23 +395,25 @@ Config location varies by OS:
 }
 ```
 
-| Option | Description |
-|--------|-------------|
-| `plansPath` | Directory for structured plans (`NNNN-name/` with agents) |
-| `docsPaths` | Additional directories to index |
-| `fileExtensions` | File types to index (default: `.md`) |
-| `dataPath` | SQLite database location |
-| `tools` | Tool allowlist/denylist filtering |
-| `extensions` | Extension packages to load |
-| `scoring` | Task prioritization weights and biases |
+| Option           | Description                                                |
+| ---------------- | ---------------------------------------------------------- |
+| `plansPath`      | Directory for structured plans (`NNNN-name/` with agents)  |
+| `docsPaths`      | Additional directories to index                            |
+| `fileExtensions` | File types to index (default: `.md`)                       |
+| `dataPath`       | SQLite database location                                   |
+| `tools`          | Tool allowlist/denylist filtering                          |
+| `extensions`     | Extension packages to load                                 |
+| `scoring`        | Task prioritization weights and biases                     |
+| `graph`          | Knowledge graph settings (e.g., entity extraction options) |
+| `retrieval`      | Search recipe configuration for hybrid retrieval           |
 
 ## Environment Variables
 
-| Variable | Description | Example |
-|---|---|---|
-| `LIMPS_PROJECT` | Select active project for CLI commands | `LIMPS_PROJECT=project-b limps list-plans` |
-| `LIMPS_ALLOWED_TOOLS` | Comma-separated allowlist; only these tools are registered | `LIMPS_ALLOWED_TOOLS="list_docs,search_docs"` |
-| `LIMPS_DISABLED_TOOLS` | Comma-separated denylist; tools to hide | `LIMPS_DISABLED_TOOLS="process_doc,process_docs"` |
+| Variable               | Description                                                | Example                                           |
+| ---------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| `LIMPS_PROJECT`        | Select active project for CLI commands                     | `LIMPS_PROJECT=project-b limps list-plans`        |
+| `LIMPS_ALLOWED_TOOLS`  | Comma-separated allowlist; only these tools are registered | `LIMPS_ALLOWED_TOOLS="list_docs,search_docs"`     |
+| `LIMPS_DISABLED_TOOLS` | Comma-separated denylist; tools to hide                    | `LIMPS_DISABLED_TOOLS="process_doc,process_docs"` |
 
 **Precedence:** `config.tools` overrides env vars. If allowlist is set, denylist is ignored.
 
@@ -365,16 +421,17 @@ Config location varies by OS:
 
 limps exposes MCP tools for AI assistants:
 
-| Category | Tools |
-|----------|-------|
-| **Documents** | `process_doc`, `process_docs`, `create_doc`, `update_doc`, `delete_doc`, `list_docs`, `search_docs`, `manage_tags`, `open_document_in_cursor` |
-| **Plans** | `create_plan`, `list_plans`, `list_agents`, `get_plan_status` |
-| **Tasks** | `get_next_task`, `update_task_status` |
-| **Knowledge Graph** | `graph` (unified: health, search, trace, entity, overlap, reindex, check, suggest) |
+| Category            | Tools                                                                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Documents**       | `process_doc`, `process_docs`, `create_doc`, `update_doc`, `delete_doc`, `list_docs`, `search_docs`, `manage_tags`, `open_document_in_cursor` |
+| **Plans**           | `create_plan`, `list_plans`, `list_agents`, `get_plan_status`                                                                                 |
+| **Tasks**           | `get_next_task`, `update_task_status`, `configure_scoring`                                                                                    |
+| **Health**          | `check_staleness`, `check_drift`, `infer_status`, `get_proposals`, `apply_proposal`                                                           |
+| **Knowledge Graph** | `graph` (unified: health, search, trace, entity, overlap, reindex, check, suggest)                                                            |
 
 ### Knowledge Graph
 
-The knowledge graph provides a structured, queryable representation of plans, agents, features, files, and their relationships:
+The knowledge graph builds a structured, queryable representation of your planning documents. It extracts 6 entity types (**plan**, **agent**, **feature**, **file**, **tag**, **concept**) and their relationships (ownership, dependency, modification, tagging, conceptual links). Use it to find conflicts, trace dependencies, and get graph-based suggestions.
 
 ```bash
 # Build the graph from plan files
@@ -391,21 +448,55 @@ limps graph trace plan:0042 --direction down
 
 # Detect conflicts (file contention, circular deps, stale WIP)
 limps graph check --json
+
+# Get graph-based suggestions
+limps graph suggest dependency-order
 ```
 
 See [Knowledge Graph Architecture](docs/knowledge-graph.md) and [CLI Reference](docs/cli-reference.md) for details.
 
-## Skills
+### Health & Automation
 
-This repo includes a limps planning skill for AI IDEs in `skills/limps-planning`.
+limps includes automated health checks that detect issues and suggest fixes:
 
-Install from GitHub:
+- **Staleness** — Flags plans/agents not updated within configurable thresholds
+- **Code drift** — Detects when agent frontmatter references files that no longer exist
+- **Status inference** — Suggests status changes based on dependency completion and body content
+- **Proposals** — Aggregates all suggestions into reviewable, apply-able fixes
+
+```bash
+limps health check --json        # Run all checks
+limps proposals apply-safe       # Auto-apply safe fixes
+```
+
+## Skills & Commands
+
+This repo ships Claude Code slash commands in [`.claude/commands/`](/.claude/commands/) and a [Vercel Skills](https://github.com/vercel-labs/skills) skill in `skills/limps-planning`.
+
+**Claude Code commands** (available automatically when limps is your working directory):
+
+| Command                | Description                           |
+| ---------------------- | ------------------------------------- |
+| `/create-feature-plan` | Create a full TDD plan with agents    |
+| `/run-agent`           | Pick up and execute the next agent    |
+| `/close-feature-agent` | Mark an agent PASS and clean up       |
+| `/update-feature-plan` | Revise an existing plan               |
+| `/audit-plan`          | Audit a plan for completeness         |
+| `/list-feature-plans`  | List all plans with status            |
+| `/plan-list-agents`    | List agents in a plan                 |
+| `/plan-check-status`   | Check plan progress                   |
+| `/pr-create`           | Create a PR from the current branch   |
+| `/pr-check-and-fix`    | Fix CI failures and update PR         |
+| `/pr-comments`         | Review and respond to PR comments     |
+| `/review-branch`       | General code review of current branch |
+| `/review-mcp`          | Review code for MCP/LLM safety        |
+| `/attack-cli-mcp`      | Stress-test CLI + MCP for robustness  |
+
+**Vercel Skills** (for other AI IDEs):
 
 ```bash
 npx skills add paulbreuler/limps/skills/limps-planning
 ```
-
-The skill focuses on selecting the right limps tools for common planning workflows.
 
 ## Extensions
 
@@ -463,34 +554,29 @@ limps manages planning for [runi](https://github.com/paulbreuler/runi), using a 
 
 ## Creating a feature plan
 
-This flow is used by the **create-feature-plan** command you can find in [claude/commands](/.claude/commands/) along with other useful commands and skills. These can be followed manually with MCP tools. The docs path is whatever folder limps is pointed at (any directory, not necessarily a repo).
+The fastest way is the `/create-feature-plan` slash command (Claude Code) — it handles numbering, doc creation, and agent distillation automatically via MCP tools. See [`.claude/commands/create-feature-plan.md`](/.claude/commands/create-feature-plan.md) for the full spec.
 
-1. **Gather context** — Project name and scope, work type (`refactor` | `overhaul` | `features`), tech stack, prototype/reference docs, known gotchas.
-2. **Create planning docs** — Use MCP:
-   - `list_docs` on `plans/` to get the next plan number (max existing + 1).
-   - `create_plan` with name `NNNN-descriptive-name` and a short description.
-   - `create_doc` for: `{plan-name}-plan.md` (full specs), `interfaces.md`, `README.md`, `gotchas.md` (template). Use template `none` for plan/interfaces/README, `addendum` for gotchas if available.
-3. **Assign features to agents** — Group by file ownership and dependencies; 2–4 features per agent; minimize cross-agent conflicts.
-4. **Distill agent files** — For each agent, `create_doc` at `plans/NNNN-name/agents/NNN_agent_descriptive-name.agent.md` (template `none`). Extract from the plan: feature IDs + TL;DRs, interface contracts, files to create/modify, test IDs, TDD one-liners, brief gotchas. Target ~200–400 lines per agent.
-5. **Validate** — Agent files self-contained; interfaces consistent; dependency graph and file ownership correct; each agent file <500 lines.
+You can also run the same steps manually with MCP tools:
 
-Resulting layout:
+1. `list_plans` → determine next plan number
+2. `create_plan` → scaffold the plan directory
+3. `create_doc` → add plan, interfaces, README, and agent files
+4. `update_task_status` → track progress
+
+Plans follow this layout:
 
 ```
 NNNN-descriptive-name/
 ├── README.md
-├── {plan-name}-plan.md
+├── NNNN-descriptive-name-plan.md
 ├── interfaces.md
-├── gotchas.md
 └── agents/
     ├── 000_agent_infrastructure.agent.md
-    ├── 001_agent_....agent.md
+    ├── 001_agent_feature-a.agent.md
     └── ...
 ```
 
-### Why the prefixes?
-
-I chose this to keep things lexicographically ordered and easier to reference in chat. "Show me the next agent or agents we can run now in plan NNNN-plan-name", and the MCP will run the tool to process the agents applying weights and biases to choose the next best task or tasks that can run in parallel.
+Numbered prefixes keep plans and agents lexicographically ordered. `get_next_task` uses the agent number (plus dependency and workload scores) to suggest what to work on next.
 
 ## Deep Dive
 
@@ -530,11 +616,11 @@ files:
 
 `get_next_task` returns tasks scored by:
 
-| Component | Max Points | Description |
-|-----------|------------|-------------|
-| Dependency | 40 | All dependencies satisfied = 40, else 0 |
-| Priority | 30 | Based on agent number (lower = higher priority) |
-| Workload | 30 | Based on file count (fewer = higher score) |
+| Component  | Max Points | Description                                     |
+| ---------- | ---------- | ----------------------------------------------- |
+| Dependency | 40         | All dependencies satisfied = 40, else 0         |
+| Priority   | 30         | Based on agent number (lower = higher priority) |
+| Workload   | 30         | Based on file count (fewer = higher score)      |
 
 **Biases** adjust final scores:
 
@@ -559,11 +645,11 @@ files:
 
 ```typescript
 await process_doc({
-  path: 'plans/0001-feature/plan.md',
+  path: "plans/0001-feature/plan.md",
   code: `
     const features = extractFeatures(doc.content);
     return features.filter(f => f.status === 'GAP');
-  `
+  `,
 });
 ```
 
@@ -579,11 +665,11 @@ await process_doc({
 
 ```typescript
 await process_doc({
-  path: 'plans/0001/plan.md',
-  code: 'extractFeatures(doc.content)',
-  sub_query: 'Summarize each feature',
+  path: "plans/0001/plan.md",
+  code: "extractFeatures(doc.content)",
+  sub_query: "Summarize each feature",
   allow_llm: true,
-  llm_policy: 'force'  // or 'auto' (skips small results)
+  llm_policy: "force", // or 'auto' (skips small results)
 });
 ```
 
@@ -594,12 +680,12 @@ await process_doc({
 
 Progressive disclosure via resources:
 
-| Resource | Description |
-|----------|-------------|
-| `plans://index` | List of all plans (minimal) |
+| Resource          | Description                  |
+| ----------------- | ---------------------------- |
+| `plans://index`   | List of all plans (minimal)  |
 | `plans://summary` | Plan summaries with key info |
-| `plans://full` | Full plan documents |
-| `decisions://log` | Decision log entries |
+| `plans://full`    | Full plan documents          |
+| `decisions://log` | Decision log entries         |
 
 </details>
 
@@ -622,6 +708,7 @@ Start work on the next available task.
 ```
 
 This integrates with limps MCP tools for seamless task management.
+
 </details>
 
 ---

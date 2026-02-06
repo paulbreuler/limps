@@ -156,8 +156,8 @@ Next Steps
 
 - Agent work complete
 - Dependent agents can now proceed
-- Run `limps status <plan-name>` to assess overall plan status
-- Run `limps next-task <plan-name>` to get next task
+- Use `get_plan_status` MCP tool to assess overall plan status
+- Use `get_next_task` MCP tool to get next task
 ```
 
 **Critical Formatting Rules:**
@@ -210,7 +210,7 @@ close-feature-agent  ←── YOU ARE HERE
     ↓
 [if interfaces changed] → update-feature-plan → regenerate affected agents
     ↓
-limps next-task (get next task)
+get_next_task MCP tool (get next task)
     ↓
 run-agent (start next task)
     ↓
@@ -225,16 +225,20 @@ close-feature-agent
 
 After closing an agent, use these commands to continue work:
 
-1. **Assess overall plan status**: Run `limps status <plan-name>` to assess all agent statuses
-2. **Get next task**: Use `limps next-task <plan-name>` to get the next best task
-3. **Start next task**: Use `/run-agent <plan-name>` to start the next task
+1. **Infer status updates**: Use `infer_status` MCP tool on the plan to see if other agents' statuses should change based on the newly completed work
+2. **Check file references**: Use `check_drift` MCP tool to verify file references are still valid across the plan
+3. **Assess overall plan status**: Use `get_plan_status` MCP tool to assess all agent statuses
+4. **Get next task**: Use `get_next_task` MCP tool to get the next best task
+5. **Start next task**: Use `/run-agent <plan-name>` to start the next task
 
 ### Recommended Post-Close Workflow
 
 ```
 1. Close agent: /close-feature-agent [agent-path]
-2. Get next task: `limps next-task <plan-name>`
-3. Start next task: /run-agent <plan-name>
+2. Infer status: `infer_status` MCP tool (check if other agents should update)
+3. Check drift: `check_drift` MCP tool (verify file references)
+4. Get next task: `get_next_task` MCP tool
+5. Start next task: /run-agent <plan-name>
 ```
 
 ## Command Flags

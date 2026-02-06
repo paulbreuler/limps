@@ -32,15 +32,15 @@ This will:
 - Show clickable links to agent files
 - Display instructions for running specific agents
 
-If no plan is specified, you can use `limps list-plans` to see available plans first.
+If no plan is specified, use `list_plans` MCP tool to see available plans first.
 
 ## Instructions for Claude
 
 **When this command is invoked, you must:**
 
-1. **Run the list-agents command:**
-   - If `--plan` provided: Use `limps list-agents <plan-name>` or limps MCP `list_agents` tool
-   - Otherwise: Ask user which plan to list, or use `limps list-plans` to show available plans
+1. **List agents using MCP tool:**
+   - If `--plan` provided: Use `list_agents` MCP tool (server: `limps`) with the plan ID
+   - Otherwise: Ask user which plan to list, or use `list_plans` MCP tool to show available plans
 
 2. **Display the output:**
    - Show the formatted list of agents
@@ -67,7 +67,7 @@ If no plan is specified, you can use `limps list-plans` to see available plans f
 - You want to auto-select the next best agent
 - You're ready to start working and don't care which agent
 
-**Use `limps status <plan-name>` instead when:**
+**Use `get_plan_status` MCP tool instead when:**
 
 - You need detailed plan status
 - You want to see completion percentages and blocked agents
@@ -85,9 +85,7 @@ This command helps you find agents, then use `/run-agent --agent [agent-file-pat
 ## Example Output
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 Agents in Plan: 0004-feature-name
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Agents in Plan: 0004-feature-name
 
 Agent 0: Accessibility Foundation Early
   Features: #1, #2
@@ -106,9 +104,7 @@ Agent 2: Status & Timing Columns
 
   (3 agent(s) in completed/ directory)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💡 To run a specific agent:
+To run a specific agent:
    /run-agent --agent [agent-file-path]
    Or click the agent file link above
 ```
@@ -117,7 +113,6 @@ Agent 2: Status & Timing Columns
 
 - Only shows active agents (excludes `completed/` directory)
 - Agent files are clickable and open directly in Cursor
-- Agent numbers come from filename prefix (`<NNN>_agent_` or `agent_<N>_` for backward compatibility)
-- Agent files should use zero-padded 3-digit format (000, 001, 002, ...) for proper lexicographical ordering
-- Status is parsed from agent file `**Status:**` markers
+- Agent file naming: `NNN_agent_descriptive-name.agent.md` (zero-padded 3-digit prefix)
+- Status is parsed from agent file frontmatter
 - Use this to find agents, then run with `/run-agent --agent [path]`
