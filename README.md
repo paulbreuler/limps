@@ -475,16 +475,22 @@ This repo ships Claude Code slash commands in [`.claude/commands/`](/.claude/com
 
 **Claude Code commands** (available automatically when limps is your working directory):
 
-| Command                | Description                         |
-| ---------------------- | ----------------------------------- |
-| `/create-feature-plan` | Create a full TDD plan with agents  |
-| `/run-agent`           | Pick up and execute the next agent  |
-| `/close-feature-agent` | Mark an agent PASS and clean up     |
-| `/update-feature-plan` | Revise an existing plan             |
-| `/audit-plan`          | Audit a plan for completeness       |
-| `/list-feature-plans`  | List all plans with status          |
-| `/plan-check-status`   | Check plan progress                 |
-| `/pr-create`           | Create a PR from the current branch |
+| Command                | Description                           |
+| ---------------------- | ------------------------------------- |
+| `/create-feature-plan` | Create a full TDD plan with agents    |
+| `/run-agent`           | Pick up and execute the next agent    |
+| `/close-feature-agent` | Mark an agent PASS and clean up       |
+| `/update-feature-plan` | Revise an existing plan               |
+| `/audit-plan`          | Audit a plan for completeness         |
+| `/list-feature-plans`  | List all plans with status            |
+| `/plan-list-agents`    | List agents in a plan                 |
+| `/plan-check-status`   | Check plan progress                   |
+| `/pr-create`           | Create a PR from the current branch   |
+| `/pr-check-and-fix`    | Fix CI failures and update PR         |
+| `/pr-comments`         | Review and respond to PR comments     |
+| `/review-branch`       | General code review of current branch |
+| `/review-mcp`          | Review code for MCP/LLM safety        |
+| `/attack-cli-mcp`      | Stress-test CLI + MCP for robustness  |
 
 **Vercel Skills** (for other AI IDEs):
 
