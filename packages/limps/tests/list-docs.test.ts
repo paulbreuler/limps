@@ -185,6 +185,28 @@ describe('list-docs', () => {
     });
   });
 
+  it('should use plansPath as root when docsPaths is not configured', async () => {
+    // Simulate no docsPaths configured (the default)
+    const plansDir = join(repoRoot, 'plans');
+    mkdirSync(plansDir, { recursive: true });
+    writeFileSync(join(plansDir, 'plan.md'), 'content', 'utf-8');
+
+    const configNoDocs = createTestConfig(testDir);
+    configNoDocs.plansPath = plansDir;
+    configNoDocs.docsPaths = undefined;
+
+    const ctxNoDocs: ToolContext = { db: db!, config: configNoDocs };
+    const result = await handleListDocs({ path: '' }, ctxNoDocs);
+
+    expect(result.isError).toBeFalsy();
+    const output = JSON.parse(result.content[0].text);
+    // Should list contents of plansPath, not its parent
+    const names = output.entries.map((e: any) => e.name);
+    expect(names).toContain('plan.md');
+    // Should NOT contain sibling directories of plansPath (i.e. repo root contents)
+    expect(names).not.toContain('plans');
+  });
+
   it('should return error for non-existent directory', async () => {
     const result = await handleListDocs({ path: 'nonexistent' }, context);
 

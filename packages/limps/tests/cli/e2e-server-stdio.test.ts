@@ -161,4 +161,100 @@ status: WIP
     expect(stderr).toContain('[limps] plansPath does not exist');
     expect(stderr).toContain('No valid paths to index');
   }, 20_000);
+
+  it('should scope list_docs to plansPath when docsPaths is not configured', async () => {
+    // Regression test: without docsPaths, list_docs must NOT traverse the parent
+    // directory of plansPath. Previously getRepoRoot() used dirname(plansPath),
+    // which resolved to the entire repo and could exhaust file descriptors.
+    const plansDir = join(testDir, 'plans');
+    mkdirSync(plansDir, { recursive: true });
+    writeFileSync(join(plansDir, 'plan.md'), '# Plan', 'utf-8');
+    // Sibling file at the parent (testDir) level — must NOT appear in results
+    writeFileSync(join(testDir, 'should-not-appear.md'), '# Nope', 'utf-8');
+
+    const configPath = join(testDir, 'config.json');
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        plansPath: plansDir,
+        dataPath: join(testDir, 'data'),
+        scoring: {
+          weights: { dependency: 40, priority: 30, workload: 30 },
+          biases: {},
+        },
+        // Intentionally NO docsPaths — this is the default config shape
+      }),
+      'utf-8'
+    );
+
+    // Spawn server, send initialize, then call list_docs
+    const result = await new Promise<{ stdout: string; stderr: string }>((resolve) => {
+      const child = spawn('node', [INDEX_PATH, '--config', configPath], {
+        env: { ...process.env },
+      });
+
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+      let sentToolCall = false;
+
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        child.kill('SIGTERM');
+        resolve({ stdout, stderr });
+      };
+
+      child.stdout?.on('data', (data) => {
+        stdout += data.toString();
+        // After initialize response, send the list_docs tool call
+        if (!sentToolCall && stdout.includes('"id":1')) {
+          sentToolCall = true;
+          const toolCall = JSON.stringify({
+            jsonrpc: '2.0',
+            id: 2,
+            method: 'tools/call',
+            params: {
+              name: 'list_docs',
+              arguments: { path: '', depth: 1 },
+            },
+          });
+          child.stdin?.write(toolCall + '\n');
+        }
+        // Once we get the tool response, finish
+        if (sentToolCall && stdout.includes('"id":2')) {
+          setTimeout(finish, 200);
+        }
+      });
+
+      child.stderr?.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', () => {
+        if (!settled) {
+          settled = true;
+          resolve({ stdout, stderr });
+        }
+      });
+
+      // Send initialize message to kick things off
+      child.stdin?.write(INITIALIZE_MESSAGE + '\n');
+
+      setTimeout(finish, 15_000);
+    });
+
+    // The tool response must contain plan.md but NOT the sibling file
+    expect(result.stdout).toContain('plan.md');
+    expect(result.stdout).not.toContain('should-not-appear.md');
+
+    // Verify indexed file count is small (only plansPath contents)
+    expect(result.stderr).toMatch(/Indexed \d+ documents/);
+    const indexedMatch = result.stderr.match(/Indexed (\d+) documents/);
+    if (indexedMatch) {
+      const indexedCount = parseInt(indexedMatch[1], 10);
+      // With only one plan.md, should be a very small number
+      expect(indexedCount).toBeLessThan(10);
+    }
+  }, 20_000);
 });
