@@ -36,6 +36,7 @@ interface Session {
   transport: StreamableHTTPServerTransport;
   server: McpServer & { loadedExtensions?: LoadedExtension[] };
   createdAt: Date;
+  lastActiveAt: Date;
 }
 
 const sessions = new Map<string, Session>();
@@ -44,6 +45,7 @@ let resources: ServerResources | null = null;
 let httpServer: HttpServer | null = null;
 let startTime: Date | null = null;
 let rateLimiter: RateLimiter | null = null;
+let cleanupInterval: NodeJS.Timeout | null = null;
 
 /**
  * Start the HTTP MCP server.
@@ -80,6 +82,20 @@ export async function startHttpServer(configPathArg?: string): Promise<{
   const rateLimitConfig = httpConfig.rateLimit ?? { maxRequests: 100, windowMs: 60000 };
   rateLimiter = createRateLimiter(rateLimitConfig.maxRequests, rateLimitConfig.windowMs);
 
+  // Start session idle timeout cleanup
+  const sessionTimeoutMs = httpConfig.sessionTimeoutMs ?? 30 * 60 * 1000;
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [sessionId, session] of sessions) {
+      if (now - session.lastActiveAt.getTime() > sessionTimeoutMs) {
+        console.error(`Session ${maskSessionId(sessionId)} timed out after idle`);
+        cleanupSession(sessionId).catch((err) => {
+          console.error(`Error cleaning up timed-out session ${maskSessionId(sessionId)}:`, err);
+        });
+      }
+    }
+  }, 60_000);
+
   httpServer = createHttpServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
@@ -114,15 +130,17 @@ export async function startHttpServer(configPathArg?: string): Promise<{
       return;
     }
 
-    // CORS headers for browser-based MCP clients
-    const corsOrigin = httpConfig.corsOrigin ?? '*';
-    res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
-    res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
+    // CORS headers for browser-based MCP clients (skip when corsOrigin is empty)
+    const corsOrigin = httpConfig.corsOrigin ?? '';
+    if (corsOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
+      res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
+    }
 
     if (req.method === 'OPTIONS') {
-      res.writeHead(204);
+      res.writeHead(corsOrigin ? 204 : 405);
       res.end();
       return;
     }
@@ -136,6 +154,7 @@ export async function startHttpServer(configPathArg?: string): Promise<{
           sessions: sessions.size,
           uptime: startTime ? Math.floor((Date.now() - startTime.getTime()) / 1000) : 0,
           pid: process.pid,
+          sessionTimeoutMs,
         })
       );
       return;
@@ -178,6 +197,7 @@ export async function startHttpServer(configPathArg?: string): Promise<{
       if (sessionId && sessions.has(sessionId)) {
         const session = sessions.get(sessionId);
         if (session) {
+          session.lastActiveAt = new Date();
           await session.transport.handleRequest(req, res);
         }
         return;
@@ -240,7 +260,8 @@ async function handleNewSession(req: IncomingMessage, res: ServerResponse): Prom
     sessionIdGenerator: (): string => randomUUID(),
     onsessioninitialized: (sessionId: string): void => {
       // Store the session once the MCP handshake completes
-      sessions.set(sessionId, { transport, server, createdAt: new Date() });
+      const now = new Date();
+      sessions.set(sessionId, { transport, server, createdAt: now, lastActiveAt: now });
       console.error(`MCP session created: ${maskSessionId(sessionId)}`);
     },
   });
@@ -281,6 +302,12 @@ async function cleanupSession(sessionId: string): Promise<void> {
  * Gracefully stop the HTTP server and all sessions.
  */
 export async function stopHttpServer(): Promise<void> {
+  // Stop session cleanup interval
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+  }
+
   // Close all active sessions
   for (const [sessionId, session] of sessions) {
     try {

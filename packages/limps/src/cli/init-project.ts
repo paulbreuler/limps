@@ -132,8 +132,32 @@ export function initProject(projectName: string, docsPath?: string): string {
   );
   lines.push('');
 
+  // HTTP transport alternative
+  lines.push('--- HTTP Transport (alternative) ---\n');
+  lines.push('Start the persistent HTTP server:');
+  lines.push(`  ${localPlannerPath} start --config "${configPath}"\n`);
+  lines.push('Then configure your MCP client to use HTTP transport:\n');
+  lines.push(
+    JSON.stringify(
+      {
+        mcpServers: {
+          [projectName]: {
+            transport: { type: 'http', url: 'http://127.0.0.1:4269/mcp' },
+          },
+        },
+      },
+      null,
+      2
+    )
+  );
+  lines.push('');
+  lines.push('Manage the daemon:');
+  lines.push(`  ${localPlannerPath} status-server   # Check if running`);
+  lines.push(`  ${localPlannerPath} stop             # Stop the daemon`);
+  lines.push('');
+
   // Test command
-  lines.push('To test the server:');
+  lines.push('To test the server (stdio):');
   lines.push(`  ${localPlannerPath} --config "${configPath}"`);
 
   return lines.join('\n');

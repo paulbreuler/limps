@@ -190,6 +190,7 @@ describe('HTTP Server E2E', () => {
         port,
         host,
         maxSessions: 10,
+        corsOrigin: '*', // Explicit — default is '' (no CORS headers)
         // High rate limit so it doesn't interfere with tests in this suite
         rateLimit: { maxRequests: 1000, windowMs: 60000 },
       },

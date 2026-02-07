@@ -96,8 +96,9 @@ export interface HttpServerConfig {
   host: string;
   maxBodySize?: number; // Maximum request body size in bytes (default: 10MB)
   maxSessions?: number; // Maximum concurrent MCP sessions (default: 100)
-  corsOrigin?: string; // CORS origin (default: '*', use specific origin for production)
+  corsOrigin?: string; // CORS origin (default: '', no CORS headers)
   rateLimit?: RateLimitConfig; // Rate limiting configuration
+  sessionTimeoutMs?: number; // Session idle timeout in ms (default: 30 min)
 }
 
 /**
@@ -108,11 +109,12 @@ export const DEFAULT_HTTP_SERVER_CONFIG: HttpServerConfig = {
   host: '127.0.0.1',
   maxBodySize: 10 * 1024 * 1024, // 10MB
   maxSessions: 100,
-  corsOrigin: '*', // Allow all origins by default (safe for localhost)
+  corsOrigin: '', // No CORS headers by default (secure for localhost)
   rateLimit: {
     maxRequests: 100,
     windowMs: 60 * 1000, // 1 minute
   },
+  sessionTimeoutMs: 30 * 60 * 1000, // 30 minutes
 };
 
 /**
@@ -830,13 +832,25 @@ export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
     );
   }
 
-  // Validate corsOrigin (can be '*' or any valid URL pattern)
-  if (merged.corsOrigin !== undefined && merged.corsOrigin !== '*') {
+  // Validate sessionTimeoutMs (1 min to 24 hr)
+  if (
+    merged.sessionTimeoutMs !== undefined &&
+    (merged.sessionTimeoutMs < 60_000 || merged.sessionTimeoutMs > 86_400_000)
+  ) {
+    throw new Error(
+      `Invalid HTTP server sessionTimeoutMs: ${merged.sessionTimeoutMs}. ` +
+        `Expected a number between 60000 (1 min) and 86400000 (24 hr).`
+    );
+  }
+
+  // Validate corsOrigin (can be '' for no CORS, '*' for all, or a valid URL)
+  if (merged.corsOrigin !== undefined && merged.corsOrigin !== '*' && merged.corsOrigin !== '') {
     try {
       new URL(merged.corsOrigin);
     } catch {
       throw new Error(
-        `Invalid HTTP server corsOrigin: "${merged.corsOrigin}". ` + `Expected '*' or a valid URL.`
+        `Invalid HTTP server corsOrigin: "${merged.corsOrigin}". ` +
+          `Expected '', '*', or a valid URL.`
       );
     }
   }

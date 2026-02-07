@@ -306,9 +306,50 @@ limps config sync-mcp --client chatgpt --print
 
 ## Transport
 
-- **Current**: stdio (local MCP server, launched by your client).
+### stdio (default)
+
+Your MCP client spawns `limps serve` as a child process. No daemon required.
+
+### HTTP (persistent daemon)
+
+Run limps as a long-lived HTTP server that multiple clients can connect to:
+
+```bash
+# Start the daemon
+limps start --config /path/to/config.json
+
+# Check status
+limps status-server
+
+# Stop the daemon
+limps stop
+```
+
+Configure your MCP client to use HTTP transport:
+
+```json
+{
+  "mcpServers": {
+    "limps": {
+      "transport": { "type": "http", "url": "http://127.0.0.1:4269/mcp" }
+    }
+  }
+}
+```
+
+Server config options (set in `config.json` under `"server"`):
+
+| Option             | Default        | Description                              |
+| ------------------ | -------------- | ---------------------------------------- |
+| `port`             | `4269`         | HTTP listen port                         |
+| `host`             | `127.0.0.1`   | Bind address                             |
+| `maxSessions`      | `100`          | Maximum concurrent MCP sessions          |
+| `sessionTimeoutMs` | `1800000`      | Session idle timeout in ms (30 min)      |
+| `corsOrigin`       | `""` (none)    | CORS origin (`""`, `"*"`, or a URL)      |
+| `maxBodySize`      | `10485760`     | Max request body in bytes (10 MB)        |
+| `rateLimit`        | `100 req/min`  | Rate limit per client IP                 |
+
 - **Remote clients**: Use an MCP-compatible proxy for HTTPS clients (e.g., ChatGPT).
-- **Roadmap**: SSE/HTTP transports are planned but not implemented yet.
 
 ## CLI Commands
 
@@ -325,7 +366,10 @@ limps next-task <plan>        # Get highest-priority available task
 
 ```bash
 limps init <name>             # Initialize new project
-limps serve                   # Start MCP server
+limps serve                   # Start MCP server (stdio)
+limps start                   # Start persistent HTTP daemon
+limps stop                    # Stop HTTP daemon
+limps status-server           # Show HTTP daemon status
 limps config list             # Show registered projects
 limps config use <name>       # Switch active project
 limps config show             # Display current config
@@ -404,6 +448,7 @@ Config location varies by OS:
 | `tools`          | Tool allowlist/denylist filtering                          |
 | `extensions`     | Extension packages to load                                 |
 | `scoring`        | Task prioritization weights and biases                     |
+| `server`         | HTTP daemon settings (port, host, CORS, sessions, timeout) |
 | `graph`          | Knowledge graph settings (e.g., entity extraction options) |
 | `retrieval`      | Search recipe configuration for hybrid retrieval           |
 
