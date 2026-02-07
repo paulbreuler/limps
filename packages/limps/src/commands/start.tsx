@@ -78,10 +78,17 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
           });
           child.unref();
 
-          // Wait briefly for the daemon to start and write PID file
-          await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+          // Poll for daemon startup with timeout (max 5s)
+          const startTime = Date.now();
+          const timeout = 5000;
+          const pollInterval = 200;
+          let daemon = null;
 
-          const daemon = getRunningDaemon(pidFilePath);
+          while (Date.now() - startTime < timeout) {
+            daemon = getRunningDaemon(pidFilePath);
+            if (daemon) break;
+            await new Promise<void>((resolve) => setTimeout(resolve, pollInterval));
+          }
           if (daemon) {
             setStatus(
               `limps daemon started (PID ${daemon.pid}) on http://${daemon.host}:${daemon.port}/mcp`

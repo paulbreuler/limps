@@ -3,7 +3,7 @@ import Pastel from 'pastel';
 import { getPackageVersion } from './utils/version.js';
 import { startHttpServer, stopHttpServer } from './server-http.js';
 
-// Check if running start --foreground — needs to stay alive without Ink
+// Check if running start command with --foreground flag — bypass Ink for clean stdio
 const args = process.argv.slice(2);
 const isStartForeground = args[0] === 'start' && args.includes('--foreground');
 const wantsHelp =

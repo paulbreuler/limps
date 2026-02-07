@@ -733,12 +733,57 @@ export function getMaxDepth(config: ServerConfig): number {
 }
 
 /**
+ * Valid host patterns for HTTP server.
+ * Supports IPv4, IPv6, and hostname formats.
+ */
+const VALID_HOST_PATTERNS = [
+  /^127\.\d+\.\d+\.\d+$/, // 127.x.x.x (loopback)
+  /^0\.0\.0\.0$/, // All interfaces
+  /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/, // IPv4
+  /^[\da-fA-F:]+$/, // IPv6
+  /^[a-zA-Z0-9][-a-zA-Z0-9]*$/, // Simple hostnames
+  /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z0-9][-a-zA-Z0-9.]*$/, // FQDN
+];
+
+/**
+ * Validate host string format.
+ *
+ * @param host - Host string to validate
+ * @returns true if valid
+ */
+function isValidHost(host: string): boolean {
+  return VALID_HOST_PATTERNS.some((pattern) => pattern.test(host));
+}
+
+/**
  * Get HTTP server configuration from config.
  * Returns configured values merged with defaults.
+ * Validates host format to prevent binding issues.
+ *
+ * @param config - Server configuration
+ * @returns Validated HTTP server configuration
+ * @throws Error if host format is invalid
  */
 export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
-  return {
+  const merged = {
     ...DEFAULT_HTTP_SERVER_CONFIG,
     ...(config.server ?? {}),
   };
+
+  // Validate host format
+  if (!isValidHost(merged.host)) {
+    throw new Error(
+      `Invalid HTTP server host: "${merged.host}". ` +
+        `Expected an IP address (127.0.0.1, 0.0.0.0) or hostname.`
+    );
+  }
+
+  // Validate port range
+  if (merged.port < 1 || merged.port > 65535) {
+    throw new Error(
+      `Invalid HTTP server port: ${merged.port}. ` + `Expected a number between 1 and 65535.`
+    );
+  }
+
+  return merged;
 }
