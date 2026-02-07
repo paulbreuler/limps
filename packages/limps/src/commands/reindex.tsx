@@ -4,15 +4,13 @@ import { z } from 'zod';
 import { resolve } from 'path';
 import { mkdirSync } from 'fs';
 import { loadConfig, getAllDocsPaths, getFileExtensions } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
 import { initializeDatabase, createSchema, clearIndex, indexAllPaths } from '../indexer.js';
-import { getProjectTipLine } from '../utils/cli-help.js';
 
 export const description = 'Clear and rebuild the document search index';
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
 });
 
 interface Props {
@@ -34,9 +32,7 @@ export default function ReindexCommand({ options }: Props): React.ReactNode {
     const run = async (): Promise<void> => {
       let db: ReturnType<typeof initializeDatabase> | null = null;
       try {
-        const configPath = options.project
-          ? resolveProjectConfigPath(options.project)
-          : resolveConfigPath(options.config);
+        const configPath = resolveConfigPath(options.config);
         const config = loadConfig(configPath);
         mkdirSync(config.dataPath, { recursive: true });
         const dbPath = resolve(config.dataPath, 'documents.sqlite');
@@ -68,7 +64,7 @@ export default function ReindexCommand({ options }: Props): React.ReactNode {
     };
 
     void run();
-  }, [options.config, options.project]);
+  }, [options.config]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;
@@ -86,8 +82,6 @@ export default function ReindexCommand({ options }: Props): React.ReactNode {
       {'\n'}
       Extensions: {result.extensions.join(', ')}
       {result.errors.length > 0 ? `\nErrors: ${result.errors.length}` : ''}
-      {'\n'}
-      {getProjectTipLine()}
     </Text>
   );
 }

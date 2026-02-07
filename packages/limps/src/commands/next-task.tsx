@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { useState, useEffect } from 'react';
 import { getNextTaskData, type TaskScoreBreakdown } from '../cli/next-task.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
+import { buildHelpOutput } from '../utils/cli-help.js';
 import { NextTask } from '../components/NextTask.js';
 import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
 
@@ -14,7 +14,6 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -28,11 +27,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
   const help = buildHelpOutput({
     usage: 'limps next-task <plan> [options]',
     arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
-    options: [
-      '--config Path to config file',
-      '--project Registered project name',
-      '--json Output as JSON',
-    ],
+    options: ['--config Path to config file', '--json Output as JSON'],
     examples: ['limps next-task 4', 'limps next-task 0004-my-feature', 'limps next-task 4 --json'],
     sections: [
       {
@@ -44,8 +39,6 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
         ],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
   const jsonMode = isJsonMode(options);
 
@@ -62,9 +55,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
               1
             );
           }
-          const configPath = options.project
-            ? resolveProjectConfigPath(options.project)
-            : resolveConfigPath(options.config);
+          const configPath = resolveConfigPath(options.config);
           const config = loadConfig(configPath);
           const data = await getNextTaskData(config, planId, { suppressWarnings: true });
           if ('error' in data) {
@@ -83,7 +74,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
       void run();
     }, 0);
     return () => clearTimeout(timer);
-  }, [help.meta, jsonMode, options.config, options.project, planId]);
+  }, [help.meta, jsonMode, options.config, planId]);
 
   if (jsonMode) {
     return null;
@@ -100,9 +91,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
   useEffect(() => {
     const run = async (): Promise<void> => {
       try {
-        const configPath = options.project
-          ? resolveProjectConfigPath(options.project)
-          : resolveConfigPath(options.config);
+        const configPath = resolveConfigPath(options.config);
         const config = loadConfig(configPath);
         const data = await getNextTaskData(config, planId);
         setResult(data);
@@ -111,7 +100,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
       }
     };
     void run();
-  }, [planId, options.config, options.project]);
+  }, [planId, options.config]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../../utils/cli-help.js';
+import { resolveConfigPath } from '../../utils/config-resolver.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
 import { handleJsonOutput, isJsonMode } from '../../cli/json-output.js';
 import { openGraphDb } from '../../cli/graph-db.js';
 import { graphSuggest, type GraphSuggestType } from '../../cli/graph-suggest.js';
@@ -14,7 +14,6 @@ export const args = z.tuple([z.string().describe('suggestion type: consolidate o
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -27,28 +26,20 @@ const VALID_TYPES = ['consolidate', 'next-task'];
 
 export default function GraphSuggestCommand({ args, options }: Props): React.ReactNode {
   const [typeArg] = args;
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
   const jsonMode = isJsonMode(options);
 
   const help = buildHelpOutput({
     usage: 'limps graph suggest <type> [options]',
     arguments: ['type  Suggestion type: consolidate, next-task'],
-    options: [
-      '--config Path to config file',
-      '--project Registered project name',
-      '--json Output as JSON',
-    ],
+    options: ['--config Path to config file', '--json Output as JSON'],
     sections: [
       {
         title: 'Examples',
         lines: ['limps graph suggest consolidate', 'limps graph suggest next-task --json'],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
 
   const suggestType = VALID_TYPES.includes(typeArg) ? (typeArg as GraphSuggestType) : undefined;

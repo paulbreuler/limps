@@ -2,8 +2,8 @@ import React from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../../utils/cli-help.js';
+import { resolveConfigPath } from '../../utils/config-resolver.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
 import { applyProposal } from '../../cli/proposals.js';
 
 export const description = 'Apply a single proposal by id (creates backup)';
@@ -14,7 +14,6 @@ export const args = z.tuple([
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   confirm: z.boolean().optional().describe('Must be true to apply'),
   plan: z.string().optional().describe('Plan id to scope proposal lookup'),
 });
@@ -26,9 +25,7 @@ interface Props {
 
 export default function ProposalsApplyCommand({ args, options }: Props): React.ReactNode {
   const [proposalId] = args;
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
 
   const help = buildHelpOutput({
@@ -36,7 +33,6 @@ export default function ProposalsApplyCommand({ args, options }: Props): React.R
     arguments: ['proposal-id Proposal id from limps proposals'],
     options: [
       '--config Path to config file',
-      '--project Registered project name',
       '--confirm Must be true to apply',
       '--plan Plan id to scope lookup',
     ],
@@ -49,8 +45,6 @@ export default function ProposalsApplyCommand({ args, options }: Props): React.R
         ],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
 
   if (!proposalId) {

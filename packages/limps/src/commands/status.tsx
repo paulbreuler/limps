@@ -3,8 +3,8 @@ import { Text } from 'ink';
 import { z } from 'zod';
 import { getPlanStatusSummary, getAgentStatusSummary } from '../cli/status.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
+import { buildHelpOutput } from '../utils/cli-help.js';
 import { PlanStatus } from '../components/PlanStatus.js';
 import { AgentStatus } from '../components/AgentStatus.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
@@ -17,7 +17,6 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
   agent: z
     .string()
@@ -75,16 +74,13 @@ function AgentStatusLoader({
 
 export default function StatusCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
   const help = buildHelpOutput({
     usage: 'limps status <plan> [options]',
     arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
     options: [
       '--config Path to config file',
-      '--project Registered project name',
       '--json Output as JSON',
       '--agent Show detailed status for specific agent',
     ],
@@ -102,8 +98,6 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
         lines: ['limps status 4', 'limps status 0004-my-feature', 'limps status 4 --json'],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
   const jsonMode = isJsonMode(options);
 

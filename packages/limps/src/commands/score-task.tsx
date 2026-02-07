@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { getScoredTaskById } from '../cli/next-task.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
+import { buildHelpOutput } from '../utils/cli-help.js';
 import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
 
 export const description = 'Show scoring breakdown for a task';
@@ -13,7 +13,6 @@ export const args = z.tuple([z.string().describe('task id (e.g., 0004-feature#00
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -27,18 +26,8 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
   const help = buildHelpOutput({
     usage: 'limps score-task <task-id> [options]',
     arguments: ['task-id Task ID (e.g., "0004-feature#001")'],
-    options: [
-      '--config Path to config file',
-      '--project Registered project name',
-      '--json Output as JSON',
-    ],
-    examples: [
-      'limps score-task 0004-feature#001',
-      'limps score-task 0004-feature#001 --project runi-planning-docs',
-      'limps score-task 0004-feature#001 --json',
-    ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
+    options: ['--config Path to config file', '--json Output as JSON'],
+    examples: ['limps score-task 0004-feature#001', 'limps score-task 0004-feature#001 --json'],
   });
   const jsonMode = isJsonMode(options);
 
@@ -54,9 +43,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
             1
           );
         }
-        const configPath = options.project
-          ? resolveProjectConfigPath(options.project)
-          : resolveConfigPath(options.config);
+        const configPath = resolveConfigPath(options.config);
         const config = loadConfig(configPath);
         const result = getScoredTaskById(config, taskId, { suppressWarnings: true });
         if ('error' in result) {
@@ -73,7 +60,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [help.meta, jsonMode, options.config, options.project, taskId]);
+  }, [help.meta, jsonMode, options.config, taskId]);
 
   if (jsonMode) {
     return null;
@@ -84,9 +71,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
   }
 
   try {
-    const configPath = options.project
-      ? resolveProjectConfigPath(options.project)
-      : resolveConfigPath(options.config);
+    const configPath = resolveConfigPath(options.config);
     const config = loadConfig(configPath);
     const result = getScoredTaskById(config, taskId);
     if ('error' in result) {

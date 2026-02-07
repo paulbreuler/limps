@@ -1,23 +1,11 @@
 /**
  * Project initialization for limps CLI.
+ * Creates a local .limps/ directory alongside the project docs.
  */
 
-import { resolve } from 'path';
+import { resolve, basename } from 'path';
 import { mkdirSync, existsSync, writeFileSync } from 'fs';
-import { homedir } from 'os';
 import which from 'which';
-import { getOSConfigPath, getOSBasePath, getOSDataPath } from '../utils/os-paths.js';
-import { registerProject } from './registry.js';
-
-/**
- * Expand tilde in path to full home directory path.
- */
-function expandTilde(path: string): string {
-  if (path.startsWith('~/')) {
-    return resolve(homedir(), path.slice(2));
-  }
-  return resolve(path);
-}
 
 /**
  * Get the full path to the limps executable.
@@ -34,21 +22,18 @@ function getLocalPlannerPath(): string {
 /**
  * Initialize a new project configuration.
  *
- * @param projectName - Name of the project (e.g., "runi-planning")
- * @param docsPath - Optional path to documentation directory
+ * Creates `<targetPath>/.limps/config.json` and `<targetPath>/.limps/data/`.
+ * The plansPath is set to `<targetPath>/plans` if it exists, otherwise `<targetPath>`.
+ * The docsPaths is set to `[<targetPath>]`.
+ *
+ * @param targetPath - Directory to initialize (defaults to ".")
  * @returns Output message for the CLI
  */
-export function initProject(projectName: string, docsPath?: string): string {
-  const basePath = getOSBasePath(projectName);
-  const configPath = getOSConfigPath(projectName);
-  const dataPath = getOSDataPath(projectName);
-
-  // Expand tilde in docsPath if provided
-  const resolvedDocsPath = docsPath ? expandTilde(docsPath) : null;
-  const defaultDocsPath = resolve(homedir(), 'Documents', projectName);
-
-  // Create directory
-  mkdirSync(basePath, { recursive: true });
+export function initProject(targetPath = '.'): string {
+  const resolvedPath = resolve(targetPath);
+  const limpsDir = resolve(resolvedPath, '.limps');
+  const configPath = resolve(limpsDir, 'config.json');
+  const dataPath = resolve(limpsDir, 'data');
 
   // Check if config already exists
   if (existsSync(configPath)) {
@@ -57,15 +42,20 @@ export function initProject(projectName: string, docsPath?: string): string {
     );
   }
 
+  // Create .limps/data directory
+  mkdirSync(dataPath, { recursive: true });
+
+  // Determine plansPath: use <path>/plans if it exists, otherwise <path>
+  const plansCandidate = resolve(resolvedPath, 'plans');
+  const plansPath = existsSync(plansCandidate) ? plansCandidate : resolvedPath;
+
   // Create default config with absolute paths
   const config = {
     configVersion: 1,
-    plansPath: resolvedDocsPath
-      ? resolve(resolvedDocsPath, 'plans')
-      : resolve(defaultDocsPath, 'plans'),
-    docsPaths: [resolvedDocsPath || defaultDocsPath],
+    plansPath,
+    docsPaths: [resolvedPath],
     fileExtensions: ['.md'],
-    dataPath: dataPath,
+    dataPath,
     scoring: {
       weights: {
         dependency: 40,
@@ -78,18 +68,20 @@ export function initProject(projectName: string, docsPath?: string): string {
 
   writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-  // Auto-register in the project registry
-  registerProject(projectName, configPath);
-
   // Get the full path to limps executable
   const localPlannerPath = getLocalPlannerPath();
+  const projectName = basename(resolvedPath) || 'limps';
 
   const lines: string[] = [];
-  lines.push(`\nCreated ${projectName} configuration\n`);
-  lines.push(`Project "${projectName}" registered in limps.`);
-  lines.push(`Run \`limps config use ${projectName}\` to set as default.\n`);
+  lines.push(`\nInitialized limps in ${limpsDir}\n`);
   lines.push(`Config: ${configPath}`);
   lines.push(`Data:   ${dataPath}`);
+  lines.push(`Plans:  ${plansPath}`);
+  lines.push('');
+
+  // Usage hint
+  lines.push('Use --config to pass the config path to limps commands:\n');
+  lines.push(`  ${localPlannerPath} list-plans --config "${configPath}"`);
   lines.push('');
 
   // Cursor settings snippet
@@ -132,9 +124,33 @@ export function initProject(projectName: string, docsPath?: string): string {
   );
   lines.push('');
 
+  // HTTP transport alternative
+  lines.push('--- HTTP Transport (alternative) ---\n');
+  lines.push('Start the persistent HTTP server:');
+  lines.push(`  ${localPlannerPath} start --config "${configPath}"\n`);
+  lines.push('Then configure your MCP client to use HTTP transport:\n');
+  lines.push(
+    JSON.stringify(
+      {
+        mcpServers: {
+          [projectName]: {
+            transport: { type: 'http', url: 'http://127.0.0.1:4269/mcp' },
+          },
+        },
+      },
+      null,
+      2
+    )
+  );
+  lines.push('');
+  lines.push('Manage the daemon:');
+  lines.push(`  ${localPlannerPath} status-server --config "${configPath}"  # Check if running`);
+  lines.push(`  ${localPlannerPath} stop --config "${configPath}"            # Stop the daemon`);
+  lines.push('');
+
   // Test command
-  lines.push('To test the server:');
-  lines.push(`  ${localPlannerPath} --config "${configPath}"`);
+  lines.push('To test the server (stdio):');
+  lines.push(`  ${localPlannerPath} serve --config "${configPath}"`);
 
   return lines.join('\n');
 }

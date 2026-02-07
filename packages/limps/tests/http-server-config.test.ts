@@ -20,11 +20,12 @@ describe('http-server-config', () => {
         host: '127.0.0.1',
         maxBodySize: 10 * 1024 * 1024, // 10MB
         maxSessions: 100,
-        corsOrigin: '*',
+        corsOrigin: '',
         rateLimit: {
           maxRequests: 100,
           windowMs: 60000,
         },
+        sessionTimeoutMs: 30 * 60 * 1000,
       });
     });
 
@@ -226,9 +227,74 @@ describe('http-server-config', () => {
     });
   });
 
-  describe('corsOrigin configuration', () => {
-    it('should use default corsOrigin of *', () => {
+  describe('sessionTimeoutMs configuration', () => {
+    it('should use default sessionTimeoutMs of 30 minutes', () => {
       const result = getHttpServerConfig(baseConfig);
+      expect(result.sessionTimeoutMs).toBe(30 * 60 * 1000);
+    });
+
+    it('should allow custom sessionTimeoutMs', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { sessionTimeoutMs: 10 * 60 * 1000 },
+      });
+      expect(result.sessionTimeoutMs).toBe(10 * 60 * 1000);
+    });
+
+    it('should reject sessionTimeoutMs less than 1 minute', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { sessionTimeoutMs: 30_000 },
+        })
+      ).toThrow('Invalid HTTP server sessionTimeoutMs');
+    });
+
+    it('should reject sessionTimeoutMs greater than 24 hours', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { sessionTimeoutMs: 100_000_000 },
+        })
+      ).toThrow('Invalid HTTP server sessionTimeoutMs');
+    });
+
+    it('should accept boundary value of 60000 (1 min)', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { sessionTimeoutMs: 60_000 },
+      });
+      expect(result.sessionTimeoutMs).toBe(60_000);
+    });
+
+    it('should accept boundary value of 86400000 (24 hr)', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { sessionTimeoutMs: 86_400_000 },
+      });
+      expect(result.sessionTimeoutMs).toBe(86_400_000);
+    });
+  });
+
+  describe('corsOrigin configuration', () => {
+    it('should use default corsOrigin of empty string (no CORS)', () => {
+      const result = getHttpServerConfig(baseConfig);
+      expect(result.corsOrigin).toBe('');
+    });
+
+    it('should accept empty string as valid corsOrigin', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { corsOrigin: '' },
+      });
+      expect(result.corsOrigin).toBe('');
+    });
+
+    it('should accept wildcard as corsOrigin', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { corsOrigin: '*' },
+      });
       expect(result.corsOrigin).toBe('*');
     });
 

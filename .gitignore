@@ -55,3 +55,4 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 opencode.json
+**/.limps/config.json

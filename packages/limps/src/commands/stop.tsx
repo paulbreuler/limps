@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon, removePidFile } from '../pidfile.js';
 
 export const description = 'Stop the limps HTTP server';
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
 });
 
 interface Props {
@@ -25,9 +24,7 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     try {
-      const configPath = opts.project
-        ? resolveProjectConfigPath(opts.project)
-        : resolveConfigPath(opts.config);
+      const configPath = resolveConfigPath(opts.config);
       const config = loadConfig(configPath);
       const pidFilePath = getPidFilePath(config.dataPath);
       const daemon = getRunningDaemon(pidFilePath);
@@ -85,7 +82,7 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
       if (checkInterval) clearInterval(checkInterval);
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [opts.config, opts.project]);
+  }, [opts.config]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

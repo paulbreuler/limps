@@ -6,7 +6,7 @@ import { resolveConfigPath } from '../../utils/config-resolver.js';
 export const description = 'Upgrade config schema to the latest version';
 
 export const options = z.object({
-  all: z.boolean().optional().describe('Upgrade all registered projects'),
+  config: z.string().optional().describe('Path to config file'),
 });
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
 
 export default function ConfigUpgradeCommand({ options }: Props): React.ReactNode {
   try {
-    const output = configUpgrade(() => resolveConfigPath(), { all: options.all });
+    const output = configUpgrade(() => resolveConfigPath(options.config));
     return <Text>{output}</Text>;
   } catch (error) {
     return <Text color="red">Error: {(error as Error).message}</Text>;

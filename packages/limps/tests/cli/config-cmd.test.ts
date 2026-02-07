@@ -3,12 +3,10 @@ import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import type * as osModule from 'os';
-import * as osPaths from '../../src/utils/os-paths.js';
 
-// Track the mock homedir value
+// Track the mock homedir value (needed for configAdd* tests that locate client config dirs)
 let mockHomedirValue: string | null = null;
 
-// Mock the os module's homedir function - must be before importing modules that use it
 vi.mock('os', async (importOriginal) => {
   const actual = (await importOriginal()) as typeof osModule;
   return {
@@ -19,32 +17,18 @@ vi.mock('os', async (importOriginal) => {
 
 import * as toml from '@iarna/toml';
 import {
-  configList,
-  configUse,
   configShow,
   configPath,
   configUpgrade,
-  configAdd,
-  configRemove,
-  configSet,
-  configDiscover,
-  configMigrate,
   configAddClaude,
   configAddCursor,
   configAddCodex,
   configAddLocalMcp,
-  hasLocalMcpJson,
   generateChatGptInstructions,
   generateConfigForPrint,
   configUpdate,
 } from '../../src/cli/config-cmd.js';
-import { getAdapter } from '../../src/cli/mcp-client-adapter.js';
-import {
-  registerProject,
-  setCurrentProject,
-  loadRegistry,
-  unregisterProject,
-} from '../../src/cli/registry.js';
+import { getAdapter, LocalMcpAdapter } from '../../src/cli/mcp-client-adapter.js';
 
 describe('config-cmd', () => {
   let testDir: string;
@@ -57,17 +41,6 @@ describe('config-cmd', () => {
     );
     configDir = join(testDir, 'configs');
     mkdirSync(configDir, { recursive: true });
-
-    // Mock OS path functions to use test directory
-    vi.spyOn(osPaths, 'getOSBasePath').mockImplementation((appName?: string) => {
-      return join(testDir, appName || 'limps');
-    });
-    vi.spyOn(osPaths, 'getOSConfigPath').mockImplementation((appName?: string) => {
-      return join(testDir, appName || 'limps', 'config.json');
-    });
-    vi.spyOn(osPaths, 'getOSDataPath').mockImplementation((appName?: string) => {
-      return join(testDir, appName || 'limps', 'data');
-    });
   });
 
   afterEach(() => {
@@ -77,9 +50,12 @@ describe('config-cmd', () => {
     }
   });
 
-  // Helper to create a valid config file
+  // Helper to create a valid config file inside a named project directory
+  // so that basename(dirname(configPath)) gives a meaningful server name
   function createConfig(name: string): string {
-    const configPath = join(configDir, `${name}-config.json`);
+    const projectDir = join(configDir, name);
+    mkdirSync(projectDir, { recursive: true });
+    const cfgPath = join(projectDir, 'config.json');
     const config = {
       plansPath: join(testDir, name, 'plans'),
       dataPath: join(testDir, name, 'data'),
@@ -92,96 +68,15 @@ describe('config-cmd', () => {
         biases: {},
       },
     };
-    writeFileSync(configPath, JSON.stringify(config, null, 2));
-    return configPath;
+    writeFileSync(cfgPath, JSON.stringify(config, null, 2));
+    return cfgPath;
   }
-
-  describe('configList', () => {
-    it('returns message when no projects registered', () => {
-      const output = configList();
-
-      expect(output).toContain('No projects registered');
-      expect(output).toContain('limps init');
-    });
-
-    it('lists all registered projects', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
-
-      const output = configList();
-
-      expect(output).toContain('project-a');
-      expect(output).toContain('project-b');
-      expect(output).toContain(configA);
-      expect(output).toContain(configB);
-    });
-
-    it('marks current project with asterisk', () => {
-      const configA = createConfig('project-a');
-      registerProject('project-a', configA);
-      setCurrentProject('project-a');
-
-      const output = configList();
-
-      expect(output).toContain('*');
-    });
-
-    it('shows missing indicator for deleted config files', () => {
-      registerProject('missing-project', '/nonexistent/config.json');
-
-      const output = configList();
-
-      expect(output).toContain('(missing)');
-    });
-  });
-
-  describe('configUse', () => {
-    it('switches to specified project', () => {
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
-
-      const output = configUse('my-project');
-
-      expect(output).toContain('Switched to project "my-project"');
-
-      const registry = loadRegistry();
-      expect(registry.current).toBe('my-project');
-    });
-
-    it('throws error for unknown project', () => {
-      expect(() => configUse('nonexistent')).toThrow('Project not found: nonexistent');
-    });
-
-    it('registers and switches when name exists in default discovery location', () => {
-      const projectDir = join(testDir, 'limps', 'projects', 'use-discover-project');
-      mkdirSync(projectDir, { recursive: true });
-      const config = {
-        plansPath: join(projectDir, 'plans'),
-        dataPath: join(projectDir, 'data'),
-        scoring: {
-          weights: { dependency: 40, priority: 30, workload: 30 },
-          biases: {},
-        },
-      };
-      writeFileSync(join(projectDir, 'config.json'), JSON.stringify(config, null, 2));
-
-      const output = configUse('use-discover-project');
-
-      expect(output).toContain('Registered and switched to project "use-discover-project"');
-      const registry = loadRegistry();
-      expect(registry.projects['use-discover-project']).toBeDefined();
-      expect(registry.current).toBe('use-discover-project');
-    });
-  });
 
   describe('configShow', () => {
     it('shows configuration for resolved config path', () => {
-      const configPath = createConfig('test-project');
+      const cfgPath = createConfig('test-project');
 
-      const output = configShow(() => configPath);
+      const output = configShow(() => cfgPath);
 
       expect(output).toContain('Config file:');
       expect(output).toContain('plansPath:');
@@ -196,7 +91,9 @@ describe('config-cmd', () => {
     });
 
     it('shows scoring config when present', () => {
-      const configPath = join(configDir, 'scoring-config.json');
+      const cfgPath = join(configDir, 'scoring-project');
+      mkdirSync(cfgPath, { recursive: true });
+      const scoringConfigPath = join(cfgPath, 'config.json');
       const config = {
         plansPath: join(testDir, 'plans'),
         dataPath: join(testDir, 'data'),
@@ -209,9 +106,9 @@ describe('config-cmd', () => {
           biases: {},
         },
       };
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      writeFileSync(scoringConfigPath, JSON.stringify(config, null, 2));
 
-      const output = configShow(() => configPath);
+      const output = configShow(() => scoringConfigPath);
 
       expect(output).toContain('scoring:');
       expect(output).toContain('weights:');
@@ -223,7 +120,9 @@ describe('config-cmd', () => {
     });
 
     it('shows scoring biases when present', () => {
-      const configPath = join(configDir, 'biases-config.json');
+      const cfgDir = join(configDir, 'biases-project');
+      mkdirSync(cfgDir, { recursive: true });
+      const cfgPath = join(cfgDir, 'config.json');
       const config = {
         plansPath: join(testDir, 'plans'),
         dataPath: join(testDir, 'data'),
@@ -240,9 +139,9 @@ describe('config-cmd', () => {
           },
         },
       };
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
-      const output = configShow(() => configPath);
+      const output = configShow(() => cfgPath);
 
       expect(output).toContain('scoring:');
       expect(output).toContain('biases:');
@@ -259,7 +158,9 @@ describe('config-cmd', () => {
     });
 
     it('shows both weights and biases together', () => {
-      const configPath = join(configDir, 'full-scoring-config.json');
+      const cfgDir = join(configDir, 'full-scoring-project');
+      mkdirSync(cfgDir, { recursive: true });
+      const cfgPath = join(cfgDir, 'config.json');
       const config = {
         plansPath: join(testDir, 'plans'),
         dataPath: join(testDir, 'data'),
@@ -274,9 +175,9 @@ describe('config-cmd', () => {
           },
         },
       };
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
-      const output = configShow(() => configPath);
+      const output = configShow(() => cfgPath);
 
       expect(output).toContain('scoring:');
       expect(output).toContain('weights:');
@@ -300,505 +201,15 @@ describe('config-cmd', () => {
 
   describe('configUpgrade', () => {
     it('upgrades a single resolved config path', () => {
-      const configPath = join(configDir, 'upgrade-config.json');
-      writeFileSync(
-        configPath,
-        JSON.stringify({ plansPath: './plans', dataPath: './data' }, null, 2)
-      );
+      const cfgDir = join(configDir, 'upgrade-project');
+      mkdirSync(cfgDir, { recursive: true });
+      const cfgPath = join(cfgDir, 'config.json');
+      writeFileSync(cfgPath, JSON.stringify({ plansPath: './plans', dataPath: './data' }, null, 2));
 
-      const output = configUpgrade(() => configPath);
+      const output = configUpgrade(() => cfgPath);
 
       expect(output).toContain('Config upgraded to version');
-      expect(output).toContain(configPath);
-    });
-
-    it('upgrades all registered configs and reports missing ones', () => {
-      const configA = createConfig('upgrade-a');
-      registerProject('upgrade-a', configA);
-      registerProject('upgrade-missing', join(configDir, 'missing.json'));
-
-      const output = configUpgrade(() => configA, { all: true });
-
-      expect(output).toContain('Upgrading registered project configs');
-      expect(output).toContain('upgrade-a');
-      expect(output).toContain('upgrade-missing');
-      expect(output).toContain('missing');
-    });
-  });
-
-  describe('configAdd', () => {
-    it('registers an existing config file', () => {
-      const existingConfig = createConfig('legacy');
-
-      const output = configAdd('legacy-project', existingConfig);
-
-      expect(output).toContain('Registered project "legacy-project"');
-      expect(output).toContain(existingConfig);
-
-      const registry = loadRegistry();
-      expect(registry.projects['legacy-project']).toBeDefined();
-      expect(registry.projects['legacy-project'].configPath).toBe(existingConfig);
-    });
-
-    it('throws error when path does not exist', () => {
-      expect(() => configAdd('bad', '/nonexistent/config.json')).toThrow('Path not found');
-    });
-
-    it('throws error when config file is invalid', () => {
-      const invalidConfig = join(configDir, 'invalid.json');
-      writeFileSync(invalidConfig, 'not json');
-
-      expect(() => configAdd('invalid', invalidConfig)).toThrow('Invalid config file');
-    });
-
-    it('creates config in OS location when given a directory without config.json', () => {
-      const projectDir = join(configDir, 'dir-project');
-      mkdirSync(projectDir, { recursive: true });
-      mkdirSync(join(projectDir, 'plans'), { recursive: true });
-
-      const result = configAdd('dir-proj', projectDir);
-
-      expect(result).toContain('Created config and registered project "dir-proj"');
-      expect(result).toContain('Config:');
-      expect(result).toContain('Plans path:');
-      expect(result).toContain('Data path:');
-      expect(result).toContain('Docs path:');
-
-      // Check config was created under limps (testDir/limps/dir-proj/)
-      const expectedConfigPath = join(testDir, 'limps', 'projects', 'dir-proj', 'config.json');
-      expect(existsSync(expectedConfigPath)).toBe(true);
-
-      // Check registry was updated with OS config path
-      const registry = loadRegistry();
-      expect(registry.projects['dir-proj']).toBeDefined();
-      expect(registry.projects['dir-proj'].configPath).toBe(expectedConfigPath);
-
-      // Check config content points to the user's directory
-      const config = JSON.parse(readFileSync(expectedConfigPath, 'utf-8'));
-      expect(config.plansPath).toBe(join(projectDir, 'plans'));
-      expect(config.docsPaths).toEqual([projectDir]);
-      expect(config.dataPath).toBe(join(testDir, 'limps', 'projects', 'dir-proj', 'data'));
-    });
-
-    it('uses directory as plansPath when no plans subdirectory exists', () => {
-      const projectDir = join(configDir, 'flat-dir');
-      mkdirSync(projectDir, { recursive: true });
-      // No plans subdirectory
-
-      const result = configAdd('flat-proj', projectDir);
-
-      expect(result).toContain('Created config and registered project "flat-proj"');
-
-      // Check config content - plansPath should be the directory itself
-      const expectedConfigPath = join(testDir, 'limps', 'projects', 'flat-proj', 'config.json');
-      const config = JSON.parse(readFileSync(expectedConfigPath, 'utf-8'));
-      expect(config.plansPath).toBe(projectDir); // Uses the directory directly
-      expect(config.docsPaths).toEqual([projectDir]);
-    });
-
-    it('uses existing config.json when given a directory with config', () => {
-      const projectDir = join(configDir, 'dir-with-config');
-      mkdirSync(projectDir, { recursive: true });
-
-      // Create a config file in the directory
-      const existingConfig = join(projectDir, 'config.json');
-      writeFileSync(
-        existingConfig,
-        JSON.stringify({
-          configVersion: 1,
-          plansPath: './my-plans',
-          dataPath: './my-data',
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-
-      const result = configAdd('dir-existing', projectDir);
-
-      expect(result).toContain('Registered project "dir-existing" with config:');
-      expect(result).toContain(existingConfig);
-
-      const registry = loadRegistry();
-      expect(registry.projects['dir-existing']).toBeDefined();
-      expect(registry.projects['dir-existing'].configPath).toBe(existingConfig);
-    });
-  });
-
-  describe('configRemove', () => {
-    it('removes project from registry and deletes config when under discovery root', () => {
-      // Config must be under limps (discovery root) for delete to run
-      const projectDir = join(testDir, 'limps', 'projects', 'to-remove');
-      mkdirSync(projectDir, { recursive: true });
-      const configPath = join(projectDir, 'config.json');
-      writeFileSync(
-        configPath,
-        JSON.stringify({
-          plansPath: join(projectDir, 'plans'),
-          dataPath: join(projectDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('to-remove', configPath);
-
-      const output = configRemove('to-remove');
-
-      expect(output).toContain('Removed project "to-remove"');
-      expect(output).toContain('deleted config');
-
-      const registry = loadRegistry();
-      expect(registry.projects['to-remove']).toBeUndefined();
-      expect(existsSync(configPath)).toBe(false);
-    });
-
-    it('deletes config file and project dir when config is at discoveryRoot/<name>/config.json', () => {
-      const projectDir = join(testDir, 'limps', 'projects', 'remove-project');
-      mkdirSync(projectDir, { recursive: true });
-      const configFilePath = join(projectDir, 'config.json');
-      writeFileSync(
-        configFilePath,
-        JSON.stringify({
-          plansPath: join(projectDir, 'plans'),
-          dataPath: join(projectDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('remove-project', configFilePath);
-
-      const output = configRemove('remove-project');
-
-      expect(output).toContain('Removed project "remove-project"');
-      expect(output).toContain('deleted config and project directory');
-      const registry = loadRegistry();
-      expect(registry.projects['remove-project']).toBeUndefined();
-      expect(existsSync(configFilePath)).toBe(false);
-      expect(existsSync(projectDir)).toBe(false);
-    });
-
-    it('removes project by config path and deletes config file', () => {
-      const projectDir = join(testDir, 'limps', 'projects', 'chippy');
-      mkdirSync(projectDir, { recursive: true });
-      const configFilePath = join(projectDir, 'config.json');
-      writeFileSync(
-        configFilePath,
-        JSON.stringify({
-          plansPath: join(projectDir, 'plans'),
-          dataPath: join(projectDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('chippy', configFilePath);
-
-      const output = configRemove(configFilePath);
-
-      expect(output).toContain('Removed project "chippy"');
-      expect(output).toContain('deleted config');
-      const registry = loadRegistry();
-      expect(registry.projects['chippy']).toBeUndefined();
-      expect(existsSync(configFilePath)).toBe(false);
-    });
-
-    it('throws error for unknown project', () => {
-      expect(() => configRemove('nonexistent')).toThrow('Project not found: nonexistent');
-    });
-
-    it('rejects path outside application config directory', () => {
-      const outsideDir = join(tmpdir(), `limps-remove-outside-${Date.now()}`);
-      mkdirSync(outsideDir, { recursive: true });
-      const configFilePath = join(outsideDir, 'config.json');
-      writeFileSync(
-        configFilePath,
-        JSON.stringify({
-          plansPath: join(outsideDir, 'plans'),
-          dataPath: join(outsideDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('outside', configFilePath);
-
-      expect(() => configRemove(configFilePath)).toThrow(
-        'Invalid path: must be under application config directory'
-      );
-
-      const registry = loadRegistry();
-      expect(registry.projects['outside']).toBeDefined();
-      rmSync(outsideDir, { recursive: true, force: true });
-    });
-
-    it('rejects path that does not end with config.json', () => {
-      expect(() => configRemove('/etc/passwd')).toThrow(
-        'Invalid path: must point to a config.json file'
-      );
-    });
-  });
-
-  describe('configSet', () => {
-    it('registers and sets current from config path', () => {
-      // Create a config in a named directory
-      const projectDir = join(configDir, 'my-project');
-      mkdirSync(projectDir, { recursive: true });
-      const configFilePath = join(projectDir, 'config.json');
-      const config = {
-        plansPath: join(testDir, 'plans'),
-        dataPath: join(testDir, 'data'),
-        scoring: {
-          weights: {
-            dependency: 40,
-            priority: 30,
-            workload: 30,
-          },
-          biases: {},
-        },
-      };
-      writeFileSync(configFilePath, JSON.stringify(config, null, 2));
-
-      const output = configSet(configFilePath);
-
-      expect(output).toContain('my-project');
-      expect(output).toContain('Registered and switched');
-
-      const registry = loadRegistry();
-      expect(registry.current).toBe('my-project');
-      expect(registry.projects['my-project'].configPath).toBe(configFilePath);
-    });
-
-    it('switches to existing project if already registered', () => {
-      const configFilePath = createConfig('existing');
-      registerProject('existing', configFilePath);
-
-      const output = configSet(configFilePath);
-
-      expect(output).toContain('Switched to project "existing"');
-    });
-
-    it('throws error when config file does not exist', () => {
-      expect(() => configSet('/nonexistent/config.json')).toThrow('Config file not found');
-    });
-
-    it('throws error when config file is invalid', () => {
-      const invalidConfig = join(configDir, 'bad-project', 'config.json');
-      mkdirSync(dirname(invalidConfig), { recursive: true });
-      writeFileSync(invalidConfig, 'not json');
-
-      expect(() => configSet(invalidConfig)).toThrow('Invalid config file');
-    });
-  });
-
-  describe('configDiscover', () => {
-    it('returns message when no new projects found', () => {
-      const output = configDiscover();
-
-      expect(output).toContain('No new projects discovered');
-    });
-
-    it('discovers projects in default locations without auto-registering', () => {
-      // Create a project under limps (discovery root)
-      const projectDir = join(testDir, 'limps', 'projects', 'discover-project');
-      mkdirSync(projectDir, { recursive: true });
-      const config = {
-        plansPath: join(projectDir, 'plans'),
-        dataPath: join(projectDir, 'data'),
-        scoring: {
-          weights: {
-            dependency: 40,
-            priority: 30,
-            workload: 30,
-          },
-          biases: {},
-        },
-      };
-      writeFileSync(join(projectDir, 'config.json'), JSON.stringify(config, null, 2));
-
-      const output = configDiscover();
-
-      expect(output).toContain('Discovered');
-      expect(output).toContain('discover-project');
-
-      const registry = loadRegistry();
-      expect(registry.projects['discover-project']).toBeUndefined();
-    });
-
-    it('skips non-limps configs (only lists configs with plansPath, dataPath, scoring)', () => {
-      const projectDir = join(testDir, 'limps', 'projects', 'other-app');
-      mkdirSync(projectDir, { recursive: true });
-      writeFileSync(
-        join(projectDir, 'config.json'),
-        JSON.stringify({ apiKey: 'x', theme: 'dark' }, null, 2)
-      );
-
-      const output = configDiscover();
-
-      expect(output).not.toContain('other-app');
-    });
-
-    it('skips already registered projects', () => {
-      // Create and register a project under limps
-      const projectDir = join(testDir, 'limps', 'projects', 'already-registered');
-      mkdirSync(projectDir, { recursive: true });
-      const configFilePath = join(projectDir, 'config.json');
-      const config = {
-        plansPath: join(projectDir, 'plans'),
-        dataPath: join(projectDir, 'data'),
-        scoring: {
-          weights: {
-            dependency: 40,
-            priority: 30,
-            workload: 30,
-          },
-          biases: {},
-        },
-      };
-      writeFileSync(configFilePath, JSON.stringify(config, null, 2));
-      registerProject('already-registered', configFilePath);
-
-      const output = configDiscover();
-
-      expect(output).toContain('No new projects discovered');
-    });
-  });
-
-  describe('configMigrate', () => {
-    it('returns message when no configs to migrate (all already under limps/projects)', () => {
-      const projectDir = join(testDir, 'limps', 'projects', 'already-there');
-      mkdirSync(projectDir, { recursive: true });
-      const configPath = join(projectDir, 'config.json');
-      writeFileSync(
-        configPath,
-        JSON.stringify({
-          plansPath: join(projectDir, 'plans'),
-          dataPath: join(projectDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('already-there', configPath);
-
-      const output = configMigrate();
-
-      expect(output).toContain('No configs to migrate');
-      expect(output).toContain('already under limps/projects');
-    });
-
-    it('migrates registered project from configDir to limps/projects/', () => {
-      const configPath = createConfig('migrate-me');
-      registerProject('migrate-me', configPath);
-
-      const output = configMigrate();
-
-      expect(output).toContain('Migrating configs into limps/projects');
-      expect(output).toContain('migrate-me');
-      expect(output).toContain('→');
-      expect(output).toContain('Reversal log:');
-      const registry = loadRegistry();
-      const expectedPath = join(testDir, 'limps', 'projects', 'migrate-me', 'config.json');
-      expect(registry.projects['migrate-me'].configPath).toBe(expectedPath);
-      expect(existsSync(expectedPath)).toBe(true);
-    });
-
-    it('writes migration log with moves and reverse instructions', () => {
-      const projectDir = join(testDir, 'limps', 'log-project');
-      mkdirSync(projectDir, { recursive: true });
-      const sourceConfigPath = join(projectDir, 'config.json');
-      writeFileSync(
-        sourceConfigPath,
-        JSON.stringify({
-          plansPath: join(projectDir, 'plans'),
-          dataPath: join(projectDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('log-project', sourceConfigPath);
-
-      const output = configMigrate();
-
-      expect(output).toContain('Reversal log:');
-      const logMatch = output.match(/Reversal log: (.+)/);
-      expect(logMatch).toBeTruthy();
-      const logPath = logMatch![1].trim();
-      expect(existsSync(logPath)).toBe(true);
-      const log = JSON.parse(readFileSync(logPath, 'utf-8'));
-      expect(log.timestamp).toBeDefined();
-      expect(log.command).toBe('limps config migrate');
-      expect(log.moves).toHaveLength(1);
-      expect(log.moves[0].name).toBe('log-project');
-      expect(log.moves[0].sourcePath).toBe(sourceConfigPath);
-      expect(log.moves[0].targetPath).toBe(
-        join(testDir, 'limps', 'projects', 'log-project', 'config.json')
-      );
-      expect(log.reverseInstructions).toContain('To reverse');
-      expect(log.reverseInstructions).toContain('log-project');
-    });
-
-    it('repairs all path fields in migrated config JSON (plansPath, dataPath, docsPaths)', () => {
-      const projectDir = join(testDir, 'limps', 'path-repair-project');
-      mkdirSync(projectDir, { recursive: true });
-      const configFilePath = join(projectDir, 'config.json');
-      const plansPath = join(projectDir, 'plans');
-      const dataPath = join(projectDir, 'data');
-      const docsPath = join(projectDir, 'docs');
-      writeFileSync(
-        configFilePath,
-        JSON.stringify({
-          plansPath,
-          dataPath,
-          docsPaths: [docsPath],
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      registerProject('path-repair-project', configFilePath);
-
-      configMigrate();
-
-      const targetPath = join(testDir, 'limps', 'projects', 'path-repair-project', 'config.json');
-      expect(existsSync(targetPath)).toBe(true);
-      expect(existsSync(configFilePath)).toBe(false);
-      expect(existsSync(projectDir)).toBe(false);
-      const migrated = JSON.parse(readFileSync(targetPath, 'utf-8'));
-      const targetDir = join(testDir, 'limps', 'projects', 'path-repair-project');
-      expect(migrated.plansPath).toBe(join(targetDir, 'plans'));
-      expect(migrated.dataPath).toBe(join(targetDir, 'data'));
-      expect(migrated.docsPaths).toEqual([join(targetDir, 'docs')]);
-    });
-
-    it('pulls from flat limps layout (limps/<name>/config.json) into projects/', () => {
-      const flatDir = join(testDir, 'limps', 'flat-project');
-      mkdirSync(flatDir, { recursive: true });
-      writeFileSync(
-        join(flatDir, 'config.json'),
-        JSON.stringify({
-          plansPath: join(flatDir, 'plans'),
-          dataPath: join(flatDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-
-      const output = configMigrate();
-
-      expect(output).toContain('flat-project');
-      const registry = loadRegistry();
-      const expectedPath = join(testDir, 'limps', 'projects', 'flat-project', 'config.json');
-      expect(registry.projects['flat-project'].configPath).toBe(expectedPath);
-      expect(existsSync(expectedPath)).toBe(true);
-      expect(existsSync(flatDir)).toBe(false);
-    });
-
-    it('pulls from old sibling layout (parent of limps/<name>/config.json) into projects/', () => {
-      const siblingDir = join(testDir, 'sibling-project');
-      mkdirSync(siblingDir, { recursive: true });
-      writeFileSync(
-        join(siblingDir, 'config.json'),
-        JSON.stringify({
-          plansPath: join(siblingDir, 'plans'),
-          dataPath: join(siblingDir, 'data'),
-          scoring: { weights: { dependency: 40, priority: 30, workload: 30 }, biases: {} },
-        })
-      );
-      // getOSBasePath('limps') returns testDir/limps, so parent is testDir
-      const output = configMigrate();
-
-      expect(output).toContain('sibling-project');
-      const registry = loadRegistry();
-      const expectedPath = join(testDir, 'limps', 'projects', 'sibling-project', 'config.json');
-      expect(registry.projects['sibling-project'].configPath).toBe(expectedPath);
-      expect(existsSync(expectedPath)).toBe(true);
-      expect(existsSync(siblingDir)).toBe(false);
+      expect(output).toContain(cfgPath);
     });
   });
 
@@ -807,7 +218,6 @@ describe('config-cmd', () => {
     let claudeConfigPath: string;
 
     beforeEach(() => {
-      // Mock homedir to use test directory
       mockHomedirValue = testDir;
       claudeConfigDir = join(testDir, 'Library', 'Application Support', 'Claude');
       claudeConfigPath = join(claudeConfigDir, 'claude_desktop_config.json');
@@ -818,13 +228,10 @@ describe('config-cmd', () => {
       mockHomedirValue = null;
     });
 
-    it('adds all registered projects to Claude Desktop config', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
+    it('adds a single project to Claude Desktop config', () => {
+      const cfgPath = createConfig('project-a');
 
-      const output = configAddClaude(() => configA);
+      const output = configAddClaude(cfgPath);
 
       expect(output).toContain('Added');
       expect(output).toContain('claude_desktop_config.json');
@@ -832,29 +239,20 @@ describe('config-cmd', () => {
       const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
       expect(claudeConfig.mcpServers).toBeDefined();
       expect(claudeConfig.mcpServers['limps-planning-project-a']).toBeDefined();
-      expect(claudeConfig.mcpServers['limps-planning-project-b']).toBeDefined();
       expect(claudeConfig.mcpServers['limps-planning-project-a'].command).toBe('npx');
       expect(claudeConfig.mcpServers['limps-planning-project-a'].args).toEqual([
         '-y',
         '@sudosandwich/limps',
         'serve',
         '--config',
-        configA,
-      ]);
-      expect(claudeConfig.mcpServers['limps-planning-project-b'].args).toEqual([
-        '-y',
-        '@sudosandwich/limps',
-        'serve',
-        '--config',
-        configB,
+        cfgPath,
       ]);
     });
 
     it('creates Claude Desktop config if it does not exist', () => {
-      const configPath = createConfig('new-project');
-      registerProject('new-project', configPath);
+      const cfgPath = createConfig('new-project');
 
-      configAddClaude(() => configPath);
+      configAddClaude(cfgPath);
 
       expect(existsSync(claudeConfigPath)).toBe(true);
       const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
@@ -873,74 +271,26 @@ describe('config-cmd', () => {
       };
       writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2));
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      configAddClaude(() => configPath);
+      configAddClaude(cfgPath);
 
       const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
       expect(claudeConfig.mcpServers['other-server']).toBeDefined();
       expect(claudeConfig.mcpServers['limps-planning-my-project']).toBeDefined();
     });
 
-    it('filters projects when project list is provided', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      const configC = createConfig('project-c');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
-      registerProject('project-c', configC);
+    it('returns message listing added server', () => {
+      const cfgPath = createConfig('project-a');
 
-      configAddClaude(() => configA, ['project-a', 'project-c']);
-
-      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
-      expect(claudeConfig.mcpServers['limps-planning-project-a']).toBeDefined();
-      expect(claudeConfig.mcpServers['limps-planning-project-b']).toBeUndefined();
-      expect(claudeConfig.mcpServers['limps-planning-project-c']).toBeDefined();
-    });
-
-    it('skips projects with missing config files', () => {
-      const configA = createConfig('project-a');
-      registerProject('project-a', configA);
-      registerProject('missing-project', '/nonexistent/config.json');
-
-      const output = configAddClaude(() => configA);
-
-      const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
-      expect(claudeConfig.mcpServers['limps-planning-project-a']).toBeDefined();
-      expect(claudeConfig.mcpServers['limps-planning-missing-project']).toBeUndefined();
-      expect(output).toContain('project-a');
-    });
-
-    it('returns message listing all added servers', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
-
-      const output = configAddClaude(() => configA);
+      const output = configAddClaude(cfgPath);
 
       expect(output).toContain('limps-planning-project-a');
-      expect(output).toContain('limps-planning-project-b');
       expect(output).toContain('Restart Claude Desktop');
     });
 
-    it('throws error when no projects are registered', () => {
-      expect(() => configAddClaude(() => '/nonexistent/config.json')).toThrow(
-        'Limps config not found'
-      );
-    });
-
-    it('throws error when registry is empty', () => {
-      // Clear registry by removing all projects
-      const registry = loadRegistry();
-      const projectNames = Object.keys(registry.projects);
-      for (const name of projectNames) {
-        unregisterProject(name);
-      }
-
-      const configPath = createConfig('test');
-      expect(() => configAddClaude(() => configPath)).toThrow('No projects registered');
+    it('throws error when config file does not exist', () => {
+      expect(() => configAddClaude('/nonexistent/config.json')).toThrow('Limps config not found');
     });
 
     it('overwrites existing limps server entries', () => {
@@ -954,10 +304,9 @@ describe('config-cmd', () => {
       };
       writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2));
 
-      const configA = createConfig('project-a');
-      registerProject('project-a', configA);
+      const cfgPath = createConfig('project-a');
 
-      configAddClaude(() => configA);
+      configAddClaude(cfgPath);
 
       const claudeConfig = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
       expect(claudeConfig.mcpServers['limps-planning-project-a'].command).toBe('npx');
@@ -970,34 +319,9 @@ describe('config-cmd', () => {
       };
       writeFileSync(claudeConfigPath, JSON.stringify(existingConfig, null, 2));
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      expect(() => configAddClaude(() => configPath)).toThrow('mcpServers');
-    });
-
-    it('throws error when all projects have missing config files', () => {
-      // Create a valid config to pass the initial validation
-      const validConfig = createConfig('temp-valid');
-      registerProject('missing-1', '/nonexistent/config1.json');
-      registerProject('missing-2', '/nonexistent/config2.json');
-
-      // Filter to only the missing projects
-      expect(() => configAddClaude(() => validConfig, ['missing-1', 'missing-2'])).toThrow(
-        'missing-1'
-      );
-      expect(() => configAddClaude(() => validConfig, ['missing-1', 'missing-2'])).toThrow(
-        'missing-2'
-      );
-    });
-
-    it('throws error when filtered projects do not exist', () => {
-      const configA = createConfig('project-a');
-      registerProject('project-a', configA);
-
-      expect(() => configAddClaude(() => configA, ['nonexistent-project'])).toThrow(
-        'No matching projects found'
-      );
+      expect(() => configAddClaude(cfgPath)).toThrow('mcpServers');
     });
   });
 
@@ -1007,12 +331,9 @@ describe('config-cmd', () => {
     let originalXdgConfigHome: string | undefined;
 
     beforeEach(() => {
-      // Mock homedir to use test directory
       mockHomedirValue = testDir;
-      // Clear XDG_CONFIG_HOME to ensure consistent behavior across CI environments
       originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
       delete process.env.XDG_CONFIG_HOME;
-      // Cursor uses VS Code settings.json location
       if (process.platform === 'darwin') {
         cursorConfigDir = join(testDir, 'Library', 'Application Support', 'Cursor', 'User');
       } else if (process.platform === 'win32') {
@@ -1026,19 +347,15 @@ describe('config-cmd', () => {
 
     afterEach(() => {
       mockHomedirValue = null;
-      // Restore XDG_CONFIG_HOME
       if (originalXdgConfigHome !== undefined) {
         process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
       }
     });
 
-    it('adds all registered projects to Cursor config', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
+    it('adds a single project to Cursor config', () => {
+      const cfgPath = createConfig('project-a');
 
-      const output = configAddCursor(() => configA);
+      const output = configAddCursor(cfgPath);
 
       expect(output).toContain('Added');
       expect(output).toContain('settings.json');
@@ -1046,20 +363,18 @@ describe('config-cmd', () => {
       const cursorConfig = JSON.parse(readFileSync(cursorConfigPath, 'utf-8'));
       expect(cursorConfig['mcp.servers']).toBeDefined();
       expect(cursorConfig['mcp.servers']['limps-planning-project-a']).toBeDefined();
-      expect(cursorConfig['mcp.servers']['limps-planning-project-b']).toBeDefined();
       expect(cursorConfig['mcp.servers']['limps-planning-project-a'].command).toBe('limps');
       expect(cursorConfig['mcp.servers']['limps-planning-project-a'].args).toEqual([
         'serve',
         '--config',
-        configA,
+        cfgPath,
       ]);
     });
 
     it('creates Cursor config if it does not exist', () => {
-      const configPath = createConfig('new-project');
-      registerProject('new-project', configPath);
+      const cfgPath = createConfig('new-project');
 
-      configAddCursor(() => configPath);
+      configAddCursor(cfgPath);
 
       expect(existsSync(cursorConfigPath)).toBe(true);
       const cursorConfig = JSON.parse(readFileSync(cursorConfigPath, 'utf-8'));
@@ -1079,10 +394,9 @@ describe('config-cmd', () => {
       };
       writeFileSync(cursorConfigPath, JSON.stringify(existingConfig, null, 2));
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      configAddCursor(() => configPath);
+      configAddCursor(cfgPath);
 
       const cursorConfig = JSON.parse(readFileSync(cursorConfigPath, 'utf-8'));
       expect(cursorConfig['editor.formatOnSave']).toBe(true);
@@ -1096,10 +410,9 @@ describe('config-cmd', () => {
       };
       writeFileSync(cursorConfigPath, JSON.stringify(existingConfig, null, 2));
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      expect(() => configAddCursor(() => configPath)).toThrow('mcp.servers');
+      expect(() => configAddCursor(cfgPath)).toThrow('mcp.servers');
     });
   });
 
@@ -1118,13 +431,10 @@ describe('config-cmd', () => {
       mockHomedirValue = null;
     });
 
-    it('adds limps servers to Codex TOML config', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
+    it('adds limps server to Codex TOML config', () => {
+      const cfgPath = createConfig('project-a');
 
-      const output = configAddCodex(() => configA);
+      const output = configAddCodex(cfgPath);
 
       expect(output).toContain('OpenAI Codex');
       expect(output).toContain('config.toml');
@@ -1133,14 +443,13 @@ describe('config-cmd', () => {
       const servers = parsed.mcp_servers as Record<string, unknown>;
       expect(servers).toBeDefined();
       expect(servers['limps-planning-project-a']).toBeDefined();
-      expect(servers['limps-planning-project-b']).toBeDefined();
       expect((servers['limps-planning-project-a'] as Record<string, unknown>).command).toBe(
         'limps'
       );
       expect((servers['limps-planning-project-a'] as Record<string, unknown>).args).toEqual([
         'serve',
         '--config',
-        configA,
+        cfgPath,
       ]);
     });
 
@@ -1156,10 +465,9 @@ describe('config-cmd', () => {
       });
       writeFileSync(codexConfigPath, existingToml, 'utf-8');
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      configAddCodex(() => configPath);
+      configAddCodex(cfgPath);
 
       const parsed = toml.parse(readFileSync(codexConfigPath, 'utf-8')) as Record<string, unknown>;
       expect(parsed.theme).toBe('dark');
@@ -1174,10 +482,9 @@ describe('config-cmd', () => {
       });
       writeFileSync(codexConfigPath, existingToml, 'utf-8');
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      expect(() => configAddCodex(() => configPath)).toThrow('mcp_servers');
+      expect(() => configAddCodex(cfgPath)).toThrow('mcp_servers');
     });
   });
 
@@ -1186,23 +493,19 @@ describe('config-cmd', () => {
     let originalCwd: string;
 
     beforeEach(() => {
-      // Save original cwd
       originalCwd = process.cwd();
-      // Change to test directory
       process.chdir(testDir);
       localMcpPath = join(testDir, '.mcp.json');
     });
 
     afterEach(() => {
-      // Restore original cwd
       process.chdir(originalCwd);
     });
 
     it('creates local .mcp.json if it does not exist', () => {
-      const configPath = createConfig('new-project');
-      registerProject('new-project', configPath);
+      const cfgPath = createConfig('new-project');
 
-      const output = configAddLocalMcp(() => configPath);
+      const output = configAddLocalMcp(cfgPath);
 
       expect(output).toContain('.mcp.json');
       expect(output).toContain('Added');
@@ -1212,13 +515,10 @@ describe('config-cmd', () => {
       expect(localConfig.mcpServers['limps-planning-new-project']).toBeDefined();
     });
 
-    it('adds all registered projects to local .mcp.json', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
+    it('adds a single project to local .mcp.json', () => {
+      const cfgPath = createConfig('project-a');
 
-      const output = configAddLocalMcp(() => configA);
+      const output = configAddLocalMcp(cfgPath);
 
       expect(output).toContain('Added');
       expect(output).toContain('.mcp.json');
@@ -1226,12 +526,11 @@ describe('config-cmd', () => {
       const localConfig = JSON.parse(readFileSync(localMcpPath, 'utf-8'));
       expect(localConfig.mcpServers).toBeDefined();
       expect(localConfig.mcpServers['limps-planning-project-a']).toBeDefined();
-      expect(localConfig.mcpServers['limps-planning-project-b']).toBeDefined();
       expect(localConfig.mcpServers['limps-planning-project-a'].command).toBe('limps');
       expect(localConfig.mcpServers['limps-planning-project-a'].args).toEqual([
         'serve',
         '--config',
-        configA,
+        cfgPath,
       ]);
     });
 
@@ -1246,35 +545,23 @@ describe('config-cmd', () => {
       };
       writeFileSync(localMcpPath, JSON.stringify(existingConfig, null, 2));
 
-      const configPath = createConfig('my-project');
-      registerProject('my-project', configPath);
+      const cfgPath = createConfig('my-project');
 
-      configAddLocalMcp(() => configPath);
+      configAddLocalMcp(cfgPath);
 
       const localConfig = JSON.parse(readFileSync(localMcpPath, 'utf-8'));
       expect(localConfig.mcpServers['other-server']).toBeDefined();
       expect(localConfig.mcpServers['limps-planning-my-project']).toBeDefined();
     });
 
-    it('detects local .mcp.json existence', () => {
-      // Initially should not exist
-      expect(hasLocalMcpJson()).toBe(false);
-
-      // Create the file
-      writeFileSync(localMcpPath, JSON.stringify({ mcpServers: {} }, null, 2));
-
-      // Now should exist
-      expect(hasLocalMcpJson()).toBe(true);
-    });
-
     it('handles custom path for .mcp.json', () => {
       const customPath = join(testDir, 'custom', '.mcp.json');
       mkdirSync(dirname(customPath), { recursive: true });
 
-      const configPath = createConfig('custom-project');
-      registerProject('custom-project', configPath);
+      const cfgPath = createConfig('custom-project');
+      const adapter = new LocalMcpAdapter('custom', customPath);
 
-      const output = configAddLocalMcp(() => configPath, undefined, customPath);
+      const output = configAddLocalMcp(cfgPath, adapter);
 
       expect(output).toContain('Added');
       expect(output).toContain(customPath);
@@ -1285,36 +572,34 @@ describe('config-cmd', () => {
   });
 
   describe('generateChatGptInstructions', () => {
-    it('outputs ChatGPT connector instructions with project names', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
+    it('outputs ChatGPT connector instructions for a single project', () => {
+      const cfgPath = createConfig('project-a');
 
-      const output = generateChatGptInstructions(() => configA);
+      const output = generateChatGptInstructions(cfgPath);
 
       expect(output).toContain('ChatGPT');
-      expect(output).toContain('project-a');
-      expect(output).toContain('project-b');
+      expect(output).toContain('limps-planning-project-a');
       expect(output).toContain('Server URL');
       expect(output).toContain('Authentication');
+    });
+
+    it('throws error when config file does not exist', () => {
+      expect(() => generateChatGptInstructions('/nonexistent/config.json')).toThrow(
+        'Limps config not found'
+      );
     });
   });
 
   describe('generateConfigForPrint', () => {
     it('generates config JSON for Claude Desktop', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
+      const cfgPath = createConfig('project-a');
 
       const adapter = getAdapter('claude');
-      const output = generateConfigForPrint(adapter, () => configA);
+      const output = generateConfigForPrint(adapter, cfgPath);
 
       expect(output).toContain('Claude Desktop Configuration');
       expect(output).toContain('mcpServers');
       expect(output).toContain('limps-planning-project-a');
-      expect(output).toContain('limps-planning-project-b');
       expect(output).toContain('npx');
       expect(output).toContain('@sudosandwich/limps');
       // Should contain valid JSON
@@ -1327,11 +612,10 @@ describe('config-cmd', () => {
     });
 
     it('generates config JSON for Cursor', () => {
-      const configA = createConfig('project-a');
-      registerProject('project-a', configA);
+      const cfgPath = createConfig('project-a');
 
       const adapter = getAdapter('cursor');
-      const output = generateConfigForPrint(adapter, () => configA);
+      const output = generateConfigForPrint(adapter, cfgPath);
 
       expect(output).toContain('Cursor Configuration');
       expect(output).toContain('mcp.servers');
@@ -1347,11 +631,10 @@ describe('config-cmd', () => {
     });
 
     it('generates config TOML for OpenAI Codex', () => {
-      const configA = createConfig('project-a');
-      registerProject('project-a', configA);
+      const cfgPath = createConfig('project-a');
 
       const adapter = getAdapter('codex');
-      const output = generateConfigForPrint(adapter, () => configA);
+      const output = generateConfigForPrint(adapter, cfgPath);
 
       expect(output).toContain('OpenAI Codex Configuration');
       expect(output).toContain('mcp_servers');
@@ -1365,59 +648,43 @@ describe('config-cmd', () => {
       const servers = parsed.mcp_servers as Record<string, unknown>;
       expect(servers['limps-planning-project-a']).toBeDefined();
     });
-
-    it('filters projects when project list is provided', () => {
-      const configA = createConfig('project-a');
-      const configB = createConfig('project-b');
-      registerProject('project-a', configA);
-      registerProject('project-b', configB);
-
-      const adapter = getAdapter('claude');
-      const output = generateConfigForPrint(adapter, () => configA, ['project-a']);
-
-      expect(output).toContain('limps-planning-project-a');
-      expect(output).not.toContain('limps-planning-project-b');
-    });
   });
 
   describe('configUpdate', () => {
     it('updates plansPath in project config', () => {
-      const configPath = createConfig('update-test');
-      registerProject('update-test', configPath);
+      const cfgPath = createConfig('update-test');
 
-      const output = configUpdate('update-test', {
+      const output = configUpdate(cfgPath, {
         plansPath: '~/new/plans/path',
       });
 
-      expect(output).toContain('Updated project "update-test"');
+      expect(output).toContain('Updated configuration');
       expect(output).toContain('plansPath');
       expect(output).toContain('~/new/plans/path');
 
-      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const updatedConfig = JSON.parse(readFileSync(cfgPath, 'utf-8'));
       expect(updatedConfig.plansPath).toBe('~/new/plans/path');
     });
 
     it('updates docsPaths in project config', () => {
-      const configPath = createConfig('docs-test');
-      registerProject('docs-test', configPath);
+      const cfgPath = createConfig('docs-test');
 
-      const output = configUpdate('docs-test', {
+      const output = configUpdate(cfgPath, {
         docsPath: '~/new/docs/path',
       });
 
-      expect(output).toContain('Updated project "docs-test"');
+      expect(output).toContain('Updated configuration');
       expect(output).toContain('docsPaths');
       expect(output).toContain('~/new/docs/path');
 
-      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const updatedConfig = JSON.parse(readFileSync(cfgPath, 'utf-8'));
       expect(updatedConfig.docsPaths).toEqual(['~/new/docs/path']);
     });
 
     it('updates both plansPath and docsPath together', () => {
-      const configPath = createConfig('both-test');
-      registerProject('both-test', configPath);
+      const cfgPath = createConfig('both-test');
 
-      const output = configUpdate('both-test', {
+      const output = configUpdate(cfgPath, {
         plansPath: '~/new/plans',
         docsPath: '~/new/docs',
       });
@@ -1425,61 +692,38 @@ describe('config-cmd', () => {
       expect(output).toContain('plansPath');
       expect(output).toContain('docsPaths');
 
-      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const updatedConfig = JSON.parse(readFileSync(cfgPath, 'utf-8'));
       expect(updatedConfig.plansPath).toBe('~/new/plans');
       expect(updatedConfig.docsPaths).toEqual(['~/new/docs']);
     });
 
     it('preserves other config fields when updating', () => {
-      const configPath = createConfig('preserve-test');
-      // Add extra fields to the config
-      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const cfgPath = createConfig('preserve-test');
+      const config = JSON.parse(readFileSync(cfgPath, 'utf-8'));
       config.fileExtensions = ['.md', '.txt'];
       config.customField = 'should-stay';
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
-      registerProject('preserve-test', configPath);
+      writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
-      configUpdate('preserve-test', { plansPath: '~/updated/plans' });
+      configUpdate(cfgPath, { plansPath: '~/updated/plans' });
 
-      const updatedConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const updatedConfig = JSON.parse(readFileSync(cfgPath, 'utf-8'));
       expect(updatedConfig.plansPath).toBe('~/updated/plans');
       expect(updatedConfig.fileExtensions).toEqual(['.md', '.txt']);
       expect(updatedConfig.customField).toBe('should-stay');
     });
 
     it('returns message when no changes specified', () => {
-      const configPath = createConfig('no-change');
-      registerProject('no-change', configPath);
+      const cfgPath = createConfig('no-change');
 
-      const output = configUpdate('no-change', {});
+      const output = configUpdate(cfgPath, {});
 
       expect(output).toContain('No changes specified');
       expect(output).toContain('--plans-path');
       expect(output).toContain('--docs-path');
     });
 
-    it('throws error for unknown project', () => {
-      expect(() => configUpdate('nonexistent', { plansPath: '/some/path' })).toThrow(
-        'Project "nonexistent" not found'
-      );
-    });
-
-    it('lists available projects in error message', () => {
-      const configPath = createConfig('exists');
-      registerProject('exists', configPath);
-
-      try {
-        configUpdate('nonexistent', { plansPath: '/some/path' });
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect((error as Error).message).toContain('exists');
-      }
-    });
-
     it('throws error when config file does not exist', () => {
-      registerProject('missing-config', '/nonexistent/config.json');
-
-      expect(() => configUpdate('missing-config', { plansPath: '/some/path' })).toThrow(
+      expect(() => configUpdate('/nonexistent/config.json', { plansPath: '/some/path' })).toThrow(
         'Config file not found'
       );
     });
