@@ -6,7 +6,8 @@
  * at `/etc/passwd` (or similar) would be indexed into FTS5.
  */
 
-import { lstatSync } from 'fs';
+import { lstatSync, realpathSync } from 'fs';
+import { dirname, relative, isAbsolute } from 'path';
 
 /**
  * Result of a path safety check.
@@ -72,5 +73,82 @@ export function isSymlink(fullPath: string): boolean {
     return lstatSync(fullPath).isSymbolicLink();
   } catch {
     return false;
+  }
+}
+
+/**
+ * Check if a path or any of its ancestor directories are symlinks.
+ *
+ * This prevents traversal attacks via symlinked parent directories
+ * (e.g., `plans/linked/secret.md` where `plans/linked` is a symlink).
+ *
+ * @param fullPath - Absolute path to check
+ * @param root - Root directory to stop checking at
+ * @returns PathSafetyResult indicating if any ancestor is a symlink
+ */
+export function checkSymlinkAncestors(fullPath: string, root: string): PathSafetyResult {
+  try {
+    // Normalize both paths to absolute
+    if (!isAbsolute(fullPath) || !isAbsolute(root)) {
+      return { safe: false, reason: 'paths must be absolute' };
+    }
+
+    // Check that fullPath is actually under root
+    const rel = relative(root, fullPath);
+    if (rel.startsWith('..') || isAbsolute(rel)) {
+      return { safe: false, reason: 'path is outside root' };
+    }
+
+    // Walk up from fullPath to root, checking each component
+    let current = fullPath;
+    while (current !== root) {
+      if (isSymlink(current)) {
+        return {
+          safe: false,
+          reason: `ancestor directory is a symlink: ${current}`,
+        };
+      }
+      const parent = dirname(current);
+      // Prevent infinite loop at filesystem root (dirname('/') === '/')
+      if (parent === current) {
+        break;
+      }
+      current = parent;
+    }
+
+    return { safe: true };
+  } catch {
+    return { safe: false, reason: 'cannot check ancestor symlinks' };
+  }
+}
+
+/**
+ * Check if a path's realpath is contained within a root directory.
+ *
+ * This prevents symlink traversal by verifying the resolved path
+ * stays within the intended directory tree.
+ *
+ * @param fullPath - Absolute path to check
+ * @param root - Root directory that should contain the path
+ * @returns PathSafetyResult indicating containment
+ */
+export function checkPathContainment(fullPath: string, root: string): PathSafetyResult {
+  try {
+    // Resolve both paths to their real locations
+    const realPath = realpathSync(fullPath);
+    const realRoot = realpathSync(root);
+
+    // Check if realPath is under realRoot
+    const rel = relative(realRoot, realPath);
+    if (rel.startsWith('..') || isAbsolute(rel)) {
+      return {
+        safe: false,
+        reason: `resolved path escapes root: ${realPath} not in ${realRoot}`,
+      };
+    }
+
+    return { safe: true };
+  } catch {
+    return { safe: false, reason: 'cannot resolve real paths' };
   }
 }

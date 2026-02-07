@@ -1,6 +1,6 @@
 import { PathFilter } from './utils/pathfilter.js';
 import { relative, sep } from 'path';
-import { isSymlink } from './utils/fs-safety.js';
+import { isSymlink, checkSymlinkAncestors } from './utils/fs-safety.js';
 import { DEFAULT_MAX_DEPTH } from './config.js';
 import {
   ParcelWatcherBackend,
@@ -227,8 +227,31 @@ export async function startWatcher(
       }
 
       // Symlink check (skip for delete events — file is already gone)
-      if (mapped !== 'unlink' && isSymlink(filePath)) {
-        continue;
+      // Check both the file itself and all ancestor directories
+      if (mapped !== 'unlink') {
+        if (isSymlink(filePath)) {
+          continue;
+        }
+
+        // Check if any ancestor directory is a symlink
+        // Find the base path being watched for this file
+        const matchedBase = paths.find((base) => {
+          const prefix = base.endsWith(sep) ? base : base + sep;
+          return filePath === base || filePath.startsWith(prefix);
+        });
+
+        if (!matchedBase) {
+          // Event path doesn't match any watched directory - skip it
+          console.error(
+            `Watcher event for unexpected path (not under any watched dir): ${filePath}`
+          );
+          continue;
+        }
+
+        const ancestorCheck = checkSymlinkAncestors(filePath, matchedBase);
+        if (!ancestorCheck.safe) {
+          continue;
+        }
       }
 
       // PathFilter check
