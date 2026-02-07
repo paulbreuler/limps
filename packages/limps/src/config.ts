@@ -81,6 +81,41 @@ export interface HealthConfig {
 }
 
 /**
+ * Rate limiting configuration.
+ */
+export interface RateLimitConfig {
+  maxRequests: number; // Maximum requests per window
+  windowMs: number; // Time window in milliseconds
+}
+
+/**
+ * HTTP server configuration.
+ */
+export interface HttpServerConfig {
+  port: number;
+  host: string;
+  maxBodySize?: number; // Maximum request body size in bytes (default: 10MB)
+  maxSessions?: number; // Maximum concurrent MCP sessions (default: 100)
+  corsOrigin?: string; // CORS origin (default: '*', use specific origin for production)
+  rateLimit?: RateLimitConfig; // Rate limiting configuration
+}
+
+/**
+ * Default HTTP server configuration.
+ */
+export const DEFAULT_HTTP_SERVER_CONFIG: HttpServerConfig = {
+  port: 4269,
+  host: '127.0.0.1',
+  maxBodySize: 10 * 1024 * 1024, // 10MB
+  maxSessions: 100,
+  corsOrigin: '*', // Allow all origins by default (safe for localhost)
+  rateLimit: {
+    maxRequests: 100,
+    windowMs: 60 * 1000, // 1 minute
+  },
+};
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -98,6 +133,7 @@ export interface ServerConfig {
   };
   tools?: ToolFilteringConfig;
   retrieval?: RetrievalConfig;
+  server?: Partial<HttpServerConfig>; // HTTP server settings (port, host)
   health?: HealthConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
@@ -713,4 +749,97 @@ export function getMaxFileSize(config: ServerConfig): number {
  */
 export function getMaxDepth(config: ServerConfig): number {
   return config.maxDepth ?? DEFAULT_MAX_DEPTH;
+}
+
+import { isIPv6 } from 'net';
+
+/**
+ * Valid host patterns for HTTP server.
+ * Supports IPv4, IPv6, and hostname formats.
+ */
+const VALID_HOST_PATTERNS = [
+  /^127\.\d+\.\d+\.\d+$/, // 127.x.x.x (loopback)
+  /^0\.0\.0\.0$/, // All interfaces
+  /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/, // IPv4
+  /^[a-zA-Z0-9][-a-zA-Z0-9]*$/, // Simple hostnames
+  /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z0-9][-a-zA-Z0-9.]*$/, // FQDN
+];
+
+/**
+ * Validate host string format.
+ * Supports IPv4, IPv6, and hostname formats.
+ *
+ * @param host - Host string to validate
+ * @returns true if valid
+ */
+function isValidHost(host: string): boolean {
+  // Check IPv6 using Node.js built-in validation
+  if (host.includes(':')) {
+    return isIPv6(host);
+  }
+  // Check other patterns
+  return VALID_HOST_PATTERNS.some((pattern) => pattern.test(host));
+}
+
+/**
+ * Get HTTP server configuration from config.
+ * Returns configured values merged with defaults.
+ * Validates host format to prevent binding issues.
+ *
+ * @param config - Server configuration
+ * @returns Validated HTTP server configuration
+ * @throws Error if host format is invalid
+ */
+export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
+  const merged = {
+    ...DEFAULT_HTTP_SERVER_CONFIG,
+    ...(config.server ?? {}),
+  };
+
+  // Validate host format
+  if (!isValidHost(merged.host)) {
+    throw new Error(
+      `Invalid HTTP server host: "${merged.host}". ` +
+        `Expected an IP address (127.0.0.1, 0.0.0.0) or hostname.`
+    );
+  }
+
+  // Validate port range
+  if (merged.port < 1 || merged.port > 65535) {
+    throw new Error(
+      `Invalid HTTP server port: ${merged.port}. ` + `Expected a number between 1 and 65535.`
+    );
+  }
+
+  // Validate maxBodySize
+  if (
+    merged.maxBodySize !== undefined &&
+    (merged.maxBodySize < 1024 || merged.maxBodySize > 100 * 1024 * 1024)
+  ) {
+    throw new Error(
+      `Invalid HTTP server maxBodySize: ${merged.maxBodySize}. ` +
+        `Expected a number between 1KB and 100MB.`
+    );
+  }
+
+  // Validate maxSessions
+  if (merged.maxSessions !== undefined && (merged.maxSessions < 1 || merged.maxSessions > 1000)) {
+    throw new Error(
+      `Invalid HTTP server maxSessions: ${merged.maxSessions}. ` +
+        `Expected a number between 1 and 1000.`
+    );
+  }
+
+  // Validate corsOrigin (can be '*' or any valid URL pattern)
+  if (merged.corsOrigin !== undefined && merged.corsOrigin !== '*') {
+    try {
+      new URL(merged.corsOrigin);
+    } catch {
+      throw new Error(
+        `Invalid HTTP server corsOrigin: "${merged.corsOrigin}". ` + `Expected '*' or a valid URL.`
+      );
+    }
+  }
+
+  return merged;
 }

@@ -8,5 +8,6 @@
       "workload": 30
     },
     "biases": {}
-  }
+  },
+  "configVersion": 1
 }
