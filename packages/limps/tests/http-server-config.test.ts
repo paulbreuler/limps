@@ -159,4 +159,123 @@ describe('http-server-config', () => {
       ).toThrow('Invalid HTTP server host');
     });
   });
+
+  describe('maxBodySize configuration', () => {
+    it('should use default maxBodySize of 10MB', () => {
+      const result = getHttpServerConfig(baseConfig);
+      expect(result.maxBodySize).toBe(10 * 1024 * 1024);
+    });
+
+    it('should allow custom maxBodySize', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { maxBodySize: 5 * 1024 * 1024 },
+      });
+      expect(result.maxBodySize).toBe(5 * 1024 * 1024);
+    });
+
+    it('should reject maxBodySize less than 1KB', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { maxBodySize: 512 },
+        })
+      ).toThrow('Invalid HTTP server maxBodySize');
+    });
+
+    it('should reject maxBodySize greater than 100MB', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { maxBodySize: 200 * 1024 * 1024 },
+        })
+      ).toThrow('Invalid HTTP server maxBodySize');
+    });
+  });
+
+  describe('maxSessions configuration', () => {
+    it('should use default maxSessions of 100', () => {
+      const result = getHttpServerConfig(baseConfig);
+      expect(result.maxSessions).toBe(100);
+    });
+
+    it('should allow custom maxSessions', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { maxSessions: 50 },
+      });
+      expect(result.maxSessions).toBe(50);
+    });
+
+    it('should reject maxSessions less than 1', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { maxSessions: 0 },
+        })
+      ).toThrow('Invalid HTTP server maxSessions');
+    });
+
+    it('should reject maxSessions greater than 1000', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { maxSessions: 2000 },
+        })
+      ).toThrow('Invalid HTTP server maxSessions');
+    });
+  });
+
+  describe('corsOrigin configuration', () => {
+    it('should use default corsOrigin of *', () => {
+      const result = getHttpServerConfig(baseConfig);
+      expect(result.corsOrigin).toBe('*');
+    });
+
+    it('should allow custom corsOrigin', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { corsOrigin: 'http://localhost:3000' },
+      });
+      expect(result.corsOrigin).toBe('http://localhost:3000');
+    });
+
+    it('should allow localhost with scheme as corsOrigin', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { corsOrigin: 'http://localhost' },
+      });
+      expect(result.corsOrigin).toBe('http://localhost');
+    });
+
+    it('should reject invalid corsOrigin', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { corsOrigin: 'not a valid url' },
+        })
+      ).toThrow('Invalid HTTP server corsOrigin');
+    });
+  });
+
+  describe('rateLimit configuration', () => {
+    it('should use default rate limit configuration', () => {
+      const result = getHttpServerConfig(baseConfig);
+      expect(result.rateLimit).toEqual({
+        maxRequests: 100,
+        windowMs: 60000,
+      });
+    });
+
+    it('should allow custom rate limit configuration', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { rateLimit: { maxRequests: 50, windowMs: 30000 } },
+      });
+      expect(result.rateLimit).toEqual({
+        maxRequests: 50,
+        windowMs: 30000,
+      });
+    });
+  });
 });
