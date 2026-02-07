@@ -119,6 +119,16 @@ describe('backup.ts', () => {
 
       await expect(createBackup(nonExistent, testDir)).rejects.toThrow();
     });
+
+    it('skips directory backup and returns empty backupPath', async () => {
+      const dirPath = join(testDir, 'docs-dir');
+      mkdirSync(dirPath, { recursive: true });
+      writeFileSync(join(dirPath, 'note.md'), '# Note');
+
+      const result = await createBackup(dirPath, testDir);
+      expect(result.path).toBe(dirPath);
+      expect(result.backupPath).toBe('');
+    });
   });
 
   describe('listBackups', () => {

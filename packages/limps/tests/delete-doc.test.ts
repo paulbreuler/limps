@@ -125,6 +125,18 @@ describe('delete-doc.ts', () => {
         expect(response.preview.length).toBeLessThanOrEqual(503); // 500 + "..."
         expect(response.preview).toContain('...');
       });
+
+      it('shows directory preview for directory deletes', async () => {
+        const dirPath = join(testDir, 'research', 'folder-to-delete');
+        mkdirSync(dirPath, { recursive: true });
+        writeFileSync(join(dirPath, 'note.md'), '# Nested note');
+
+        const result = await handleDeleteDoc({ path: 'research/folder-to-delete' }, context);
+
+        const response = JSON.parse(result.content[0].text);
+        expect(response.pending).toBe(true);
+        expect(response.preview).toBe('Directory: research/folder-to-delete');
+      });
     });
 
     describe('soft delete', () => {
@@ -243,6 +255,23 @@ describe('delete-doc.ts', () => {
           const trashFiles = readdirSync(trashDir, { recursive: true });
           expect(trashFiles).not.toContain('temp.jsx');
         }
+      });
+
+      it('permanently deletes directory with permanent flag', async () => {
+        const dirPath = join(testDir, 'examples', 'temp-dir');
+        mkdirSync(dirPath, { recursive: true });
+        writeFileSync(join(dirPath, 'a.md'), '# Temp');
+
+        const result = await handleDeleteDoc(
+          { path: 'examples/temp-dir', confirm: true, permanent: true },
+          context
+        );
+
+        expect(result.isError).toBeFalsy();
+        const response = JSON.parse(result.content[0].text);
+        expect(response.deleted).toBe(true);
+        expect(response.backup).toBe('');
+        expect(existsSync(dirPath)).toBe(false);
       });
     });
 
