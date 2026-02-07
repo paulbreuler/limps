@@ -18,6 +18,13 @@ describe('http-server-config', () => {
       expect(result).toEqual({
         port: 4269,
         host: '127.0.0.1',
+        maxBodySize: 10 * 1024 * 1024, // 10MB
+        maxSessions: 100,
+        corsOrigin: '*',
+        rateLimit: {
+          maxRequests: 100,
+          windowMs: 60000,
+        },
       });
     });
 
@@ -118,6 +125,38 @@ describe('http-server-config', () => {
 
       const result = getHttpServerConfig(config);
       expect(result.host).toBe('limps.example.com');
+    });
+
+    it('should accept valid IPv6 addresses', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { host: '::1' },
+        })
+      ).not.toThrow();
+
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { host: '2001:db8::1' },
+        })
+      ).not.toThrow();
+    });
+
+    it('should reject invalid IPv6 addresses', () => {
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { host: '::::' },
+        })
+      ).toThrow('Invalid HTTP server host');
+
+      expect(() =>
+        getHttpServerConfig({
+          ...baseConfig,
+          server: { host: ':::1' },
+        })
+      ).toThrow('Invalid HTTP server host');
     });
   });
 });

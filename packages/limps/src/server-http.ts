@@ -17,6 +17,16 @@ import { getHttpServerConfig } from './config.js';
 import { getPidFilePath, writePidFile, removePidFile, getRunningDaemon } from './pidfile.js';
 import { shutdownExtensions, type LoadedExtension } from './extensions/loader.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { createRateLimiter, type RateLimiter } from './utils/rate-limiter.js';
+
+/**
+ * Mask a session ID for logging to avoid exposing full UUIDs.
+ * Shows only first 8 characters followed by '...'.
+ */
+function maskSessionId(sessionId: string): string {
+  if (sessionId.length <= 8) return sessionId;
+  return `${sessionId.slice(0, 8)}...`;
+}
 
 /**
  * Active session tracking.
@@ -32,6 +42,7 @@ const sessions = new Map<string, Session>();
 let resources: ServerResources | null = null;
 let httpServer: HttpServer | null = null;
 let startTime: Date | null = null;
+let rateLimiter: RateLimiter | null = null;
 
 /**
  * Start the HTTP MCP server.
@@ -59,11 +70,43 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
   startTime = new Date();
 
+  // Initialize rate limiter
+  const rateLimitConfig = httpConfig.rateLimit ?? { maxRequests: 100, windowMs: 60000 };
+  rateLimiter = createRateLimiter(rateLimitConfig.maxRequests, rateLimitConfig.windowMs);
+
   httpServer = createHttpServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
+    // Check rate limit
+    const clientIp = req.socket.remoteAddress ?? 'unknown';
+    if (!rateLimiter!.isAllowed(clientIp)) {
+      res.writeHead(429, {
+        'Content-Type': 'application/json',
+        'Retry-After': Math.ceil(rateLimitConfig.windowMs / 1000).toString()
+      });
+      res.end(JSON.stringify({
+        error: 'Too Many Requests',
+        message: 'Rate limit exceeded. Please try again later.'
+      }));
+      return;
+    }
+
+    // Check request body size before processing
+    const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+    const maxBodySize = httpConfig.maxBodySize ?? 10 * 1024 * 1024; // Default 10MB
+    if (contentLength > maxBodySize) {
+      res.writeHead(413, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'Payload Too Large',
+        maxSize: maxBodySize,
+        receivedSize: contentLength
+      }));
+      return;
+    }
+
     // CORS headers for browser-based MCP clients
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const corsOrigin = httpConfig.corsOrigin ?? '*';
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
     res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
@@ -173,7 +216,7 @@ async function handleNewSession(req: IncomingMessage, res: ServerResponse): Prom
     onsessioninitialized: (sessionId: string): void => {
       // Store the session once the MCP handshake completes
       sessions.set(sessionId, { transport, server, createdAt: new Date() });
-      console.error(`MCP session created: ${sessionId}`);
+      console.error(`MCP session created: ${maskSessionId(sessionId)}`);
     },
   });
 
@@ -182,7 +225,7 @@ async function handleNewSession(req: IncomingMessage, res: ServerResponse): Prom
     const sid = transport.sessionId;
     if (sid) {
       sessions.delete(sid);
-      console.error(`MCP session closed: ${sid}`);
+      console.error(`MCP session closed: ${maskSessionId(sid)}`);
     }
   };
 
@@ -205,7 +248,7 @@ async function cleanupSession(sessionId: string): Promise<void> {
     }
     await session.transport.close();
     sessions.delete(sessionId);
-    console.error(`MCP session cleaned up: ${sessionId}`);
+    console.error(`MCP session cleaned up: ${maskSessionId(sessionId)}`);
   }
 }
 
@@ -221,7 +264,7 @@ export async function stopHttpServer(): Promise<void> {
       }
       await session.transport.close();
     } catch (error) {
-      console.error(`Error closing session ${sessionId}:`, error);
+      console.error(`Error closing session ${maskSessionId(sessionId)}:`, error);
     }
   }
   sessions.clear();
