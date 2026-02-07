@@ -10,6 +10,7 @@ import { validatePath, isWritablePath, isProtectedPlanFile } from '../utils/path
 import { createBackup, formatTimestamp } from '../utils/backup.js';
 import { notFound, restrictedPath, DocumentError } from '../utils/errors.js';
 import { removeDocument } from '../indexer.js';
+import { getDocsRoot } from '../utils/repo-root.js';
 
 /**
  * Trash directory name (relative to repo root).
@@ -52,13 +53,6 @@ export interface DeleteDocOutput {
 }
 
 /**
- * Get repository root from config.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
-}
-
-/**
  * Get the trash path for a file.
  */
 function getTrashPath(filePath: string, repoRoot: string): string {
@@ -97,7 +91,7 @@ export async function handleDeleteDoc(
   context: ToolContext
 ): Promise<ToolResult> {
   const { path: inputPath, confirm, permanent } = input;
-  const repoRoot = getRepoRoot(context.config);
+  const repoRoot = getDocsRoot(context.config);
 
   try {
     // Validate the path

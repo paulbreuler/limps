@@ -89,6 +89,8 @@ export interface ServerConfig {
   docsPaths?: string[]; // ADDITIONAL paths to index beyond plansPath. Use with caution - indexing entire repos (e.g., ["."]) can be slow
   fileExtensions?: string[]; // File types to index (default: ['.md'])
   dataPath: string;
+  maxFileSize?: number; // Maximum file size in bytes to index/write (default: 1 MB)
+  maxDepth?: number; // Maximum directory recursion depth for indexing/watching (default: 10)
   scoring: {
     preset?: ScoringPreset;
     weights: Partial<ScoringWeights>;
@@ -138,6 +140,17 @@ const CONFIG_MIGRATIONS: ConfigMigrationStep[] = [
  * Default file extensions to index.
  */
 const DEFAULT_FILE_EXTENSIONS = ['.md'];
+
+/**
+ * Default maximum file size in bytes (1 MB).
+ * Files larger than this are skipped during indexing and rejected on write.
+ */
+export const DEFAULT_MAX_FILE_SIZE = 1_048_576;
+
+/**
+ * Default maximum directory recursion depth for indexing and watching.
+ */
+export const DEFAULT_MAX_DEPTH = 10;
 
 /**
  * Default scoring weights for task prioritization (initial config values).
@@ -477,6 +490,20 @@ export function validateConfig(config: unknown): config is ServerConfig {
     }
   }
 
+  // Check optional maxFileSize (must be positive number if present)
+  if (c.maxFileSize !== undefined) {
+    if (typeof c.maxFileSize !== 'number' || c.maxFileSize <= 0) {
+      return false;
+    }
+  }
+
+  // Check optional maxDepth (must be positive integer if present)
+  if (c.maxDepth !== undefined) {
+    if (typeof c.maxDepth !== 'number' || c.maxDepth < 1 || !Number.isInteger(c.maxDepth)) {
+      return false;
+    }
+  }
+
   if (c.tools !== undefined) {
     if (typeof c.tools !== 'object' || c.tools === null) {
       return false;
@@ -670,4 +697,20 @@ export function getAllDocsPaths(config: ServerConfig): string[] {
  */
 export function getFileExtensions(config: ServerConfig): string[] {
   return config.fileExtensions || DEFAULT_FILE_EXTENSIONS;
+}
+
+/**
+ * Get maximum file size from config.
+ * Returns configured value or default (1 MB).
+ */
+export function getMaxFileSize(config: ServerConfig): number {
+  return config.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
+}
+
+/**
+ * Get maximum directory recursion depth from config.
+ * Returns configured value or default (10).
+ */
+export function getMaxDepth(config: ServerConfig): number {
+  return config.maxDepth ?? DEFAULT_MAX_DEPTH;
 }

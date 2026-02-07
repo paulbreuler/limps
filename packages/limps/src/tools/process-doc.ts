@@ -8,7 +8,6 @@
 import { z } from 'zod';
 import { readFile, stat } from 'fs/promises';
 import { existsSync } from 'fs';
-import { dirname } from 'path';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
 import { notFound } from '../utils/errors.js';
@@ -16,6 +15,7 @@ import { createEnvironment, type DocVariable } from '../rlm/sandbox.js';
 import { validateCode } from '../rlm/security.js';
 import { processSubCalls } from '../rlm/recursion.js';
 import { decideSubQueryExecution } from '../utils/llm-policy.js';
+import { getDocsRoot } from '../utils/repo-root.js';
 import type { SamplingClient } from '../rlm/sampling.js';
 
 /**
@@ -68,16 +68,6 @@ export interface ProcessDocOutput {
 const MAX_RESULT_SIZE_BYTES = 512 * 1024;
 
 /**
- * Get repository root from config.
- */
-function getRepoRoot(config: ToolContext['config']): string {
-  if (config.docsPaths && config.docsPaths.length > 0) {
-    return config.docsPaths[0];
-  }
-  return dirname(config.plansPath);
-}
-
-/**
  * Estimate tokens saved by filtering.
  * Rough approximation: 4 characters per token.
  */
@@ -110,7 +100,7 @@ export async function handleProcessDoc(
 
   try {
     // Get repo root
-    const repoRoot = getRepoRoot(config);
+    const repoRoot = getDocsRoot(config);
 
     // Validate path BEFORE loading (per gotchas)
     const validated = validatePath(path, repoRoot);

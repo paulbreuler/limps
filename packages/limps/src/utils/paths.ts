@@ -254,6 +254,16 @@ export function validatePath(
     throw validationError('path', 'Path traversal not allowed');
   }
 
+  // Reject URL-encoded characters (prevents %2e%2e traversal bypasses and null bytes)
+  if (/%[0-9a-fA-F]{2}/.test(path)) {
+    throw validationError('path', 'URL-encoded characters not allowed');
+  }
+
+  // Reject shell/HTML-dangerous characters
+  if (/[<>|"']/.test(path)) {
+    throw validationError('path', 'Path contains disallowed characters');
+  }
+
   // Normalize the path
   const normalized = normalizePath(path);
 

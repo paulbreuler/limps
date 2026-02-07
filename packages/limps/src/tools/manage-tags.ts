@@ -5,11 +5,11 @@
 
 import { z } from 'zod';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { dirname } from 'path';
 import { validatePath } from '../utils/paths.js';
 import { notFound } from '../utils/errors.js';
 import { FrontmatterHandler } from '../utils/frontmatter.js';
 import { indexDocument } from '../indexer.js';
+import { getDocsRoot } from '../utils/repo-root.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -39,13 +39,6 @@ export interface ManageTagsOutput {
   tags: string[];
   success: boolean;
   message?: string;
-}
-
-/**
- * Get repository root from config.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
 }
 
 /**
@@ -89,7 +82,7 @@ export async function handleManageTags(
   context: ToolContext
 ): Promise<ToolResult> {
   const { path, operation, tags = [], prettyPrint } = input;
-  const repoRoot = getRepoRoot(context.config);
+  const repoRoot = getDocsRoot(context.config);
   const frontmatterHandler = new FrontmatterHandler();
 
   try {

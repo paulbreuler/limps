@@ -1,6 +1,8 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import { PathFilter } from './utils/pathfilter.js';
 import { relative, sep } from 'path';
+import { isSymlink } from './utils/fs-safety.js';
+import { DEFAULT_MAX_DEPTH } from './config.js';
 
 /**
  * Default file extensions to watch.
@@ -18,6 +20,23 @@ export interface SettledChange {
 export const DEFAULT_SETTLE_DELAY = 1500;
 
 /**
+ * Internal timer state for a watcher, stored so stopWatcher() can
+ * clear all pending timeouts and prevent post-close callbacks from
+ * firing against a closed DB or watcher.
+ */
+interface WatcherTimerState {
+  debounceMap: Map<string, NodeJS.Timeout>;
+  settledChanges: Map<string, SettledChange>;
+  settledTimer: NodeJS.Timeout | null;
+}
+
+/**
+ * Registry mapping each FSWatcher to its pending timer state.
+ * This allows stopWatcher() to clear timers it didn't create.
+ */
+const watcherTimers = new WeakMap<FSWatcher, WatcherTimerState>();
+
+/**
  * Check if a file path matches any of the given extensions.
  */
 function matchesExtension(filePath: string, extensions: string[]): boolean {
@@ -32,6 +51,9 @@ function matchesExtension(filePath: string, extensions: string[]): boolean {
  * @param fileExtensions - File extensions to watch (e.g., ['.md', '.jsx', '.tsx'])
  * @param ignorePatterns - Patterns to ignore (e.g., ['.git', 'node_modules'])
  * @param debounceDelay - Debounce delay in milliseconds (default: 200ms)
+ * @param settleDelay - Settle delay in milliseconds (default: 1500ms)
+ * @param onSettled - Callback for settled changes
+ * @param maxDepth - Maximum directory recursion depth (default: DEFAULT_MAX_DEPTH)
  * @returns Chokidar watcher instance
  */
 export function startWatcher(
@@ -41,7 +63,8 @@ export function startWatcher(
   ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian'],
   debounceDelay = 200,
   settleDelay = DEFAULT_SETTLE_DELAY,
-  onSettled?: (changes: SettledChange[]) => Promise<void>
+  onSettled?: (changes: SettledChange[]) => Promise<void>,
+  maxDepth: number = DEFAULT_MAX_DEPTH
 ): FSWatcher {
   // Create PathFilter for consistent filtering
   const pathFilter = new PathFilter({
@@ -78,6 +101,8 @@ export function startWatcher(
     ignored: allIgnored,
     persistent: true,
     ignoreInitial: false,
+    followSymlinks: false,
+    depth: maxDepth,
     usePolling: isTestEnvironment,
     awaitWriteFinish: {
       stabilityThreshold: 100,
@@ -85,10 +110,17 @@ export function startWatcher(
     },
   });
 
-  // Debounce map to track pending callbacks
-  const debounceMap = new Map<string, NodeJS.Timeout>();
-  const settledChanges = new Map<string, SettledChange>();
-  let settledTimer: NodeJS.Timeout | null = null;
+  // Debounce map to track pending callbacks.
+  // Registered in watcherTimers so stopWatcher() can clear them.
+  const timerState: WatcherTimerState = {
+    debounceMap: new Map<string, NodeJS.Timeout>(),
+    settledChanges: new Map<string, SettledChange>(),
+    settledTimer: null,
+  };
+  watcherTimers.set(watcher, timerState);
+
+  const debounceMap = timerState.debounceMap;
+  const settledChanges = timerState.settledChanges;
 
   const debouncedOnChange = (path: string, event: 'add' | 'change' | 'unlink'): void => {
     // Clear existing timeout for this path
@@ -118,14 +150,14 @@ export function startWatcher(
 
     settledChanges.set(path, { path, event });
 
-    if (settledTimer) {
-      clearTimeout(settledTimer);
+    if (timerState.settledTimer) {
+      clearTimeout(timerState.settledTimer);
     }
 
-    settledTimer = setTimeout(async () => {
+    timerState.settledTimer = setTimeout(async () => {
       const changes = Array.from(settledChanges.values());
       settledChanges.clear();
-      settledTimer = null;
+      timerState.settledTimer = null;
 
       try {
         await onSettled(changes);
@@ -153,7 +185,7 @@ export function startWatcher(
 
   // Watch for file additions (only files with matching extensions and allowed by PathFilter)
   watcher.on('add', (path) => {
-    if (matchesExtension(path, fileExtensions)) {
+    if (matchesExtension(path, fileExtensions) && !isSymlink(path)) {
       const relPath = getRelativePath(path);
       if (pathFilter.isAllowed(relPath)) {
         debouncedOnChange(path, 'add');
@@ -164,7 +196,7 @@ export function startWatcher(
 
   // Watch for file changes (only files with matching extensions and allowed by PathFilter)
   watcher.on('change', (path) => {
-    if (matchesExtension(path, fileExtensions)) {
+    if (matchesExtension(path, fileExtensions) && !isSymlink(path)) {
       const relPath = getRelativePath(path);
       if (pathFilter.isAllowed(relPath)) {
         debouncedOnChange(path, 'change');
@@ -202,10 +234,29 @@ export function startWatcher(
 }
 
 /**
- * Stop a file watcher.
+ * Stop a file watcher and clear all pending debounce/settle timers.
+ *
+ * Clearing timers is critical: without it, pending setTimeout callbacks fire
+ * after the watcher (and often the DB) are already closed, causing crashes
+ * and orphaned file descriptors.
  *
  * @param watcher - Chokidar watcher instance
  */
 export async function stopWatcher(watcher: FSWatcher): Promise<void> {
+  // Clear pending timers BEFORE closing the watcher so no callbacks fire
+  // against a closed watcher / closed DB.
+  const timers = watcherTimers.get(watcher);
+  if (timers) {
+    for (const timeout of timers.debounceMap.values()) {
+      clearTimeout(timeout);
+    }
+    timers.debounceMap.clear();
+    if (timers.settledTimer) {
+      clearTimeout(timers.settledTimer);
+      timers.settledTimer = null;
+    }
+    timers.settledChanges.clear();
+    watcherTimers.delete(watcher);
+  }
   await watcher.close();
 }

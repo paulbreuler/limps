@@ -106,7 +106,14 @@ export async function startServer(
   // Only register exit handlers if not in test environment
   const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
+  let shuttingDown = false;
+
   const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      console.error(`Received ${signal} during shutdown, ignoring.`);
+      return;
+    }
+    shuttingDown = true;
     console.error(`Received ${signal}, shutting down gracefully...`);
     try {
       // Shutdown extensions first

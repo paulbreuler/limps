@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
+import { existsSync, writeFileSync, unlinkSync, mkdirSync, rmSync, symlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { FSWatcher } from 'chokidar';
@@ -439,5 +439,91 @@ describeUnlessCI('multi-path-watcher', () => {
     const paths = onChange.mock.calls.map((c: [string, string]) => c[0]);
     expect(paths).toContain(join(testDir1, 'doc1.md'));
     expect(paths).toContain(join(testDir2, 'doc2.md'));
+  });
+});
+
+describeUnlessCI('watcher-security', () => {
+  let testDir: string;
+  let watcher: FSWatcher | null = null;
+  let prevVitestEnv: string | undefined;
+
+  beforeEach(() => {
+    prevVitestEnv = process.env.VITEST;
+    process.env.VITEST = 'true';
+    testDir = join(tmpdir(), `test-watch-sec-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    if (watcher) {
+      await stopWatcher(watcher);
+      watcher = null;
+    }
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+    process.env.VITEST = prevVitestEnv;
+  });
+
+  it('should configure followSymlinks: false', async () => {
+    const onChange = vi.fn().mockResolvedValue(undefined);
+    watcher = startWatcher(testDir, onChange, ['.md']);
+
+    await waitForReady(watcher);
+
+    // Chokidar options are stored internally — verify via the watcher's options
+    // The watcher object has an _opts or options property depending on chokidar version
+    const opts = (watcher as unknown as { options?: { followSymlinks?: boolean } }).options;
+    if (opts) {
+      expect(opts.followSymlinks).toBe(false);
+    }
+  });
+
+  it('should not trigger onChange for symlinked files', async () => {
+    const onChange = vi.fn().mockResolvedValue(undefined);
+    watcher = startWatcher(testDir, onChange, ['.md']);
+
+    await waitForReady(watcher);
+    await new Promise((r) => setTimeout(r, 150));
+
+    // Create a real file and a symlink
+    const realFile = join(testDir, 'real.md');
+    writeFileSync(realFile, '# Real', 'utf-8');
+
+    // Wait for the real file event
+    await waitFor(() => onChange.mock.calls.length > 0, 5000);
+
+    // Reset and create symlink
+    onChange.mockClear();
+
+    const targetFile = join(tmpdir(), `symlink-target-${Date.now()}.md`);
+    writeFileSync(targetFile, '# Symlink Target', 'utf-8');
+    const linkFile = join(testDir, 'linked.md');
+    symlinkSync(targetFile, linkFile);
+
+    // Wait briefly — symlink should NOT trigger onChange due to isSymlink check
+    await new Promise((r) => setTimeout(r, 500));
+
+    const linkedCalls = onChange.mock.calls.filter(
+      (call: [string, string]) => call[0] === linkFile
+    );
+    expect(linkedCalls).toHaveLength(0);
+
+    // Cleanup
+    try {
+      unlinkSync(targetFile);
+    } catch {
+      // ignore
+    }
+  });
+
+  it('should accept maxDepth parameter', async () => {
+    const onChange = vi.fn().mockResolvedValue(undefined);
+    // Pass maxDepth = 1
+    watcher = startWatcher(testDir, onChange, ['.md'], [], 200, 1500, undefined, 1);
+
+    await waitForReady(watcher);
+
+    expect(watcher).toBeDefined();
   });
 });

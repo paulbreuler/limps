@@ -7,6 +7,8 @@ import {
   loadConfig,
   getAllDocsPaths,
   getFileExtensions,
+  getMaxFileSize,
+  getMaxDepth,
   DEFAULT_DEBOUNCE_DELAY,
 } from './config.js';
 import { createServer, startServer } from './server.js';
@@ -34,6 +36,16 @@ let db: DatabaseType | null = null;
  * @param configPathArg - Optional config path from CLI argument
  */
 export async function startMcpServer(configPathArg?: string): Promise<void> {
+  // Close any previously opened resources to prevent FD leaks if called twice
+  if (watcher) {
+    await stopWatcher(watcher);
+    watcher = null;
+  }
+  if (db) {
+    db.close();
+    db = null;
+  }
+
   // Resolve config path
   const configPath = resolveConfigPath(configPathArg);
 
@@ -52,6 +64,8 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   // Get all paths and extensions to index
   const docsPaths = getAllDocsPaths(config);
   const fileExtensions = getFileExtensions(config);
+  const maxFileSize = getMaxFileSize(config);
+  const maxDepth = getMaxDepth(config);
   const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian'];
 
   // Validate paths before indexing — filter to only existing directories
@@ -72,7 +86,14 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
 
   // Initial indexing (only valid paths)
   if (validPaths.length > 0) {
-    const result = await indexAllPaths(db, validPaths, fileExtensions, ignorePatterns);
+    const result = await indexAllPaths(
+      db,
+      validPaths,
+      fileExtensions,
+      ignorePatterns,
+      maxDepth,
+      maxFileSize
+    );
     console.error(
       `Indexed ${result.indexed} documents (${result.updated} updated, ${result.skipped} skipped)`
     );
@@ -99,14 +120,16 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
         await removeDocument(dbRef, path);
         console.error(`Removed document: ${path}`);
       } else {
-        await indexDocument(dbRef, path);
+        await indexDocument(dbRef, path, maxFileSize);
         console.error(`Indexed document: ${path} (${event})`);
       }
     },
     fileExtensions,
     ignorePatterns,
     DEFAULT_DEBOUNCE_DELAY,
-    DEFAULT_SETTLE_DELAY
+    DEFAULT_SETTLE_DELAY,
+    undefined,
+    maxDepth
   );
   console.error(`File watcher started for ${validPaths.length} path(s)`);
 

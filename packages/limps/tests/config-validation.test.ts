@@ -3,7 +3,11 @@ import {
   validateConfig,
   getAllDocsPaths,
   getFileExtensions,
+  getMaxFileSize,
+  getMaxDepth,
   getRetrievalConfig,
+  DEFAULT_MAX_FILE_SIZE,
+  DEFAULT_MAX_DEPTH,
   type ServerConfig,
 } from '../src/config.js';
 
@@ -465,6 +469,98 @@ describe('getAllDocsPaths', () => {
     const paths = getAllDocsPaths(config);
     expect(paths.filter((p) => p === '/path/to/plans').length).toBe(1);
     expect(paths.length).toBe(2);
+  });
+});
+
+describe('maxFileSize-and-maxDepth-validation', () => {
+  const baseConfig = {
+    plansPath: '/path',
+    dataPath: '/path',
+    scoring: {
+      weights: { dependency: 40, priority: 30, workload: 30 },
+      biases: {},
+    },
+  };
+
+  it('should accept valid maxFileSize', () => {
+    expect(validateConfig({ ...baseConfig, maxFileSize: 1_048_576 })).toBe(true);
+    expect(validateConfig({ ...baseConfig, maxFileSize: 1 })).toBe(true);
+  });
+
+  it('should reject zero or negative maxFileSize', () => {
+    expect(validateConfig({ ...baseConfig, maxFileSize: 0 })).toBe(false);
+    expect(validateConfig({ ...baseConfig, maxFileSize: -1 })).toBe(false);
+  });
+
+  it('should reject non-numeric maxFileSize', () => {
+    expect(
+      validateConfig({ ...baseConfig, maxFileSize: '1048576' } as unknown as ServerConfig)
+    ).toBe(false);
+  });
+
+  it('should accept valid maxDepth', () => {
+    expect(validateConfig({ ...baseConfig, maxDepth: 1 })).toBe(true);
+    expect(validateConfig({ ...baseConfig, maxDepth: 10 })).toBe(true);
+    expect(validateConfig({ ...baseConfig, maxDepth: 100 })).toBe(true);
+  });
+
+  it('should reject zero or negative maxDepth', () => {
+    expect(validateConfig({ ...baseConfig, maxDepth: 0 })).toBe(false);
+    expect(validateConfig({ ...baseConfig, maxDepth: -1 })).toBe(false);
+  });
+
+  it('should reject non-integer maxDepth', () => {
+    expect(validateConfig({ ...baseConfig, maxDepth: 2.5 })).toBe(false);
+  });
+
+  it('should reject non-numeric maxDepth', () => {
+    expect(validateConfig({ ...baseConfig, maxDepth: '10' } as unknown as ServerConfig)).toBe(
+      false
+    );
+  });
+
+  it('should accept config without maxFileSize and maxDepth (both optional)', () => {
+    expect(validateConfig(baseConfig)).toBe(true);
+  });
+});
+
+describe('getMaxFileSize', () => {
+  const baseConfig: ServerConfig = {
+    plansPath: '/path',
+    dataPath: '/path',
+    scoring: {
+      weights: { dependency: 40, priority: 30, workload: 30 },
+      biases: {},
+    },
+  };
+
+  it('should return default when maxFileSize is not set', () => {
+    expect(getMaxFileSize(baseConfig)).toBe(DEFAULT_MAX_FILE_SIZE);
+    expect(getMaxFileSize(baseConfig)).toBe(1_048_576);
+  });
+
+  it('should return configured maxFileSize', () => {
+    expect(getMaxFileSize({ ...baseConfig, maxFileSize: 500_000 })).toBe(500_000);
+  });
+});
+
+describe('getMaxDepth', () => {
+  const baseConfig: ServerConfig = {
+    plansPath: '/path',
+    dataPath: '/path',
+    scoring: {
+      weights: { dependency: 40, priority: 30, workload: 30 },
+      biases: {},
+    },
+  };
+
+  it('should return default when maxDepth is not set', () => {
+    expect(getMaxDepth(baseConfig)).toBe(DEFAULT_MAX_DEPTH);
+    expect(getMaxDepth(baseConfig)).toBe(10);
+  });
+
+  it('should return configured maxDepth', () => {
+    expect(getMaxDepth({ ...baseConfig, maxDepth: 5 })).toBe(5);
   });
 });
 

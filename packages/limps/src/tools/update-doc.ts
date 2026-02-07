@@ -4,12 +4,13 @@
 
 import { z } from 'zod';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { dirname } from 'path';
 import { validatePath, isProtectedPlanFile } from '../utils/paths.js';
-import { notFound, permissionDenied, noSpaceError } from '../utils/errors.js';
+import { notFound, permissionDenied, noSpaceError, validationError } from '../utils/errors.js';
 import { createBackup } from '../utils/backup.js';
 import { FrontmatterHandler } from '../utils/frontmatter.js';
 import { indexDocument } from '../indexer.js';
+import { getMaxFileSize } from '../config.js';
+import { getDocsRoot } from '../utils/repo-root.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -78,13 +79,6 @@ export interface UpdateDocOutput {
 }
 
 /**
- * Get repository root from config.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
-}
-
-/**
  * Check if content has frontmatter (YAML or TOML).
  */
 function hasFrontmatter(content: string): boolean {
@@ -142,7 +136,7 @@ export async function handleUpdateDoc(
     force,
     prettyPrint,
   } = input;
-  const repoRoot = getRepoRoot(context.config);
+  const repoRoot = getDocsRoot(context.config);
   const frontmatterHandler = new FrontmatterHandler();
 
   try {
@@ -308,6 +302,15 @@ export async function handleUpdateDoc(
     } else {
       // This should never happen due to schema validation
       throw new Error('Either content or patch must be provided');
+    }
+
+    // Reject content exceeding maximum file size
+    const maxFileSize = getMaxFileSize(context.config);
+    if (Buffer.byteLength(newContent, 'utf-8') > maxFileSize) {
+      throw validationError(
+        'content',
+        `Content size exceeds maximum allowed file size (${maxFileSize} bytes)`
+      );
     }
 
     // Create backup if requested

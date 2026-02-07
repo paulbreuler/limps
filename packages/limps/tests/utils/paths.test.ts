@@ -85,6 +85,59 @@ describe('paths.ts', () => {
       expect(result.relative).toBe('');
       expect(result.absolute).toBe(TEST_REPO_ROOT);
     });
+
+    it('rejects URL-encoded path traversal (%2e%2e)', () => {
+      expect(() => validatePath('%2e%2e/etc/passwd', TEST_REPO_ROOT)).toThrow(
+        'URL-encoded characters not allowed'
+      );
+    });
+
+    it('rejects URL-encoded forward slash (%2f)', () => {
+      expect(() => validatePath('addendums%2ftest.md', TEST_REPO_ROOT)).toThrow(
+        'URL-encoded characters not allowed'
+      );
+    });
+
+    it('rejects null byte encoding (%00)', () => {
+      expect(() => validatePath('addendums/test%00.md', TEST_REPO_ROOT)).toThrow(
+        'URL-encoded characters not allowed'
+      );
+    });
+
+    it('rejects arbitrary percent-encoded characters', () => {
+      expect(() => validatePath('addendums/%41test.md', TEST_REPO_ROOT)).toThrow(
+        'URL-encoded characters not allowed'
+      );
+    });
+
+    it('rejects angle brackets in path', () => {
+      expect(() => validatePath('addendums/<script>.md', TEST_REPO_ROOT)).toThrow(
+        'Path contains disallowed characters'
+      );
+      expect(() => validatePath('addendums/test>.md', TEST_REPO_ROOT)).toThrow(
+        'Path contains disallowed characters'
+      );
+    });
+
+    it('rejects pipe character in path', () => {
+      expect(() => validatePath('addendums/test|cmd.md', TEST_REPO_ROOT)).toThrow(
+        'Path contains disallowed characters'
+      );
+    });
+
+    it('rejects quotes in path', () => {
+      expect(() => validatePath('addendums/"test".md', TEST_REPO_ROOT)).toThrow(
+        'Path contains disallowed characters'
+      );
+      expect(() => validatePath("addendums/'test'.md", TEST_REPO_ROOT)).toThrow(
+        'Path contains disallowed characters'
+      );
+    });
+
+    it('allows normal characters (spaces, hyphens, underscores)', () => {
+      const result = validatePath('addendums/my-test_file.md', TEST_REPO_ROOT);
+      expect(result.relative).toBe('addendums/my-test_file.md');
+    });
   });
 
   describe('isWritablePath', () => {
