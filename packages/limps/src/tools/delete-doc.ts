@@ -3,13 +3,13 @@
  */
 
 import { z } from 'zod';
-import { existsSync, readFileSync, mkdirSync, renameSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, mkdirSync, renameSync, unlinkSync, rmSync, statSync } from 'fs';
 import { join, dirname, basename, relative } from 'path';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath, isWritablePath, isProtectedPlanFile } from '../utils/paths.js';
 import { createBackup, formatTimestamp } from '../utils/backup.js';
 import { notFound, restrictedPath, DocumentError } from '../utils/errors.js';
-import { removeDocument } from '../indexer.js';
+import { removeDocument, removeDocumentsByPathPrefix } from '../indexer.js';
 import { getDocsRoot } from '../utils/repo-root.js';
 
 /**
@@ -127,8 +127,13 @@ export async function handleDeleteDoc(
 
     // If no confirmation, return pending status with preview
     if (!confirm) {
-      const content = readFileSync(absolutePath, 'utf-8');
-      const preview = content.length > 500 ? content.substring(0, 500) + '...' : content;
+      const stats = statSync(absolutePath);
+      const preview = stats.isDirectory()
+        ? `Directory: ${inputPath}`
+        : ((): string => {
+            const content = readFileSync(absolutePath, 'utf-8');
+            return content.length > 500 ? content.substring(0, 500) + '...' : content;
+          })();
 
       const output: DeleteDocOutput = {
         path: inputPath,
@@ -148,14 +153,23 @@ export async function handleDeleteDoc(
 
     // Create backup before deletion
     const backupResult = await createBackup(absolutePath, repoRoot);
+    const stats = statSync(absolutePath);
 
     // Remove from search index
-    await removeDocument(db, absolutePath);
+    if (stats.isDirectory()) {
+      await removeDocumentsByPathPrefix(db, absolutePath);
+    } else {
+      await removeDocument(db, absolutePath);
+    }
 
     // Perform deletion
     if (permanent) {
-      // Permanent delete - just unlink the file
-      unlinkSync(absolutePath);
+      // Permanent delete - remove file or directory
+      if (stats.isDirectory()) {
+        rmSync(absolutePath, { recursive: true, force: true });
+      } else {
+        unlinkSync(absolutePath);
+      }
 
       const output: DeleteDocOutput = {
         path: inputPath,
@@ -179,7 +193,7 @@ export async function handleDeleteDoc(
       // Ensure trash directory exists
       mkdirSync(trashDir, { recursive: true });
 
-      // Move file to trash
+      // Move file or directory to trash
       renameSync(absolutePath, trashPath);
 
       const output: DeleteDocOutput = {

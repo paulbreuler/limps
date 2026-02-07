@@ -125,6 +125,18 @@ describe('delete-doc.ts', () => {
         expect(response.preview.length).toBeLessThanOrEqual(503); // 500 + "..."
         expect(response.preview).toContain('...');
       });
+
+      it('shows directory preview for directory deletes', async () => {
+        const dirPath = join(testDir, 'research', 'folder-to-delete');
+        mkdirSync(dirPath, { recursive: true });
+        writeFileSync(join(dirPath, 'note.md'), '# Nested note');
+
+        const result = await handleDeleteDoc({ path: 'research/folder-to-delete' }, context);
+
+        const response = JSON.parse(result.content[0].text);
+        expect(response.pending).toBe(true);
+        expect(response.preview).toBe('Directory: research/folder-to-delete');
+      });
     });
 
     describe('soft delete', () => {
@@ -243,6 +255,23 @@ describe('delete-doc.ts', () => {
           const trashFiles = readdirSync(trashDir, { recursive: true });
           expect(trashFiles).not.toContain('temp.jsx');
         }
+      });
+
+      it('permanently deletes directory with permanent flag', async () => {
+        const dirPath = join(testDir, 'examples', 'temp-dir');
+        mkdirSync(dirPath, { recursive: true });
+        writeFileSync(join(dirPath, 'a.md'), '# Temp');
+
+        const result = await handleDeleteDoc(
+          { path: 'examples/temp-dir', confirm: true, permanent: true },
+          context
+        );
+
+        expect(result.isError).toBeFalsy();
+        const response = JSON.parse(result.content[0].text);
+        expect(response.deleted).toBe(true);
+        expect(response.backup).toBe('');
+        expect(existsSync(dirPath)).toBe(false);
       });
     });
 
@@ -375,6 +404,47 @@ describe('delete-doc.ts', () => {
           .prepare('SELECT * FROM documents_fts WHERE path = ?')
           .get(testFile);
         expect(ftsAfterDelete).toBeUndefined();
+      });
+
+      it('removes nested directory files from search index', async () => {
+        const dirPath = join(testDir, 'research', 'folder');
+        mkdirSync(dirPath, { recursive: true });
+        const nestedA = join(dirPath, 'a.md');
+        const nestedB = join(dirPath, 'nested', 'b.md');
+        mkdirSync(join(dirPath, 'nested'), { recursive: true });
+        writeFileSync(nestedA, '# A');
+        writeFileSync(nestedB, '# B');
+        const keepFile = join(testDir, 'research', 'keep.md');
+        writeFileSync(keepFile, '# Keep');
+
+        for (const file of [nestedA, nestedB, keepFile]) {
+          db.prepare(
+            `
+              INSERT INTO documents (path, title, content, modified_at, hash)
+              VALUES (?, ?, ?, ?, ?)
+            `
+          ).run(file, 'Doc', '# Doc', Date.now(), `hash-${file}`);
+          db.prepare(
+            `
+              INSERT INTO documents_fts (path, title, content)
+              VALUES (?, ?, ?)
+            `
+          ).run(file, 'Doc', '# Doc');
+        }
+
+        await handleDeleteDoc({ path: 'research/folder', confirm: true, permanent: true }, context);
+
+        const nestedDocsRemaining = db
+          .prepare('SELECT COUNT(*) as count FROM documents WHERE path LIKE ?')
+          .get(`${dirPath}/%`) as { count: number };
+        const nestedFtsRemaining = db
+          .prepare('SELECT COUNT(*) as count FROM documents_fts WHERE path LIKE ?')
+          .get(`${dirPath}/%`) as { count: number };
+        const keepDoc = db.prepare('SELECT * FROM documents WHERE path = ?').get(keepFile);
+
+        expect(nestedDocsRemaining.count).toBe(0);
+        expect(nestedFtsRemaining.count).toBe(0);
+        expect(keepDoc).toBeDefined();
       });
     });
   });

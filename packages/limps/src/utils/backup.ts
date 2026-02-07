@@ -4,7 +4,7 @@
  */
 
 import { copyFile, mkdir, readdir, unlink } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, statSync } from 'fs';
 import { join, dirname, basename, relative } from 'path';
 import { notFound } from './errors.js';
 
@@ -116,6 +116,16 @@ export async function createBackup(filePath: string, repoRoot: string): Promise<
   // Verify file exists
   if (!existsSync(filePath)) {
     throw notFound(relative(repoRoot, filePath));
+  }
+
+  // Skip backup for directories - only backup files
+  const stats = statSync(filePath);
+  if (stats.isDirectory()) {
+    return {
+      path: filePath,
+      backupPath: '',
+      timestamp: formatTimestamp(new Date()),
+    };
   }
 
   const timestamp = new Date();

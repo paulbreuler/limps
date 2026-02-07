@@ -33,17 +33,68 @@ export function graphReindex(
 
   const planDirs = findPlanDirs(config.plansPath, options?.planId);
 
+  const extractionBatch: {
+    extraction: ExtractionResult;
+    localIdToCanonical: Map<number, string>;
+  }[] = [];
   for (const planDir of planDirs) {
-    const extraction: ExtractionResult = extractor.extractPlan(planDir);
+    const extraction = extractor.extractPlan(planDir);
     result.warnings.push(...extraction.warnings);
+    const localIdToCanonical = new Map<number, string>();
+    for (const entity of extraction.entities) {
+      localIdToCanonical.set(entity.id, entity.canonicalId);
+    }
+    extractionBatch.push({ extraction, localIdToCanonical });
+    result.plansProcessed++;
+  }
 
+  for (const { extraction } of extractionBatch) {
     if (extraction.entities.length > 0) {
       result.entitiesUpserted += storage.bulkUpsertEntities(extraction.entities);
     }
-    if (extraction.relationships.length > 0) {
-      result.relationshipsUpserted += storage.bulkUpsertRelationships(extraction.relationships);
+  }
+
+  const canonicalToDbId = new Map<string, number>();
+  for (const { localIdToCanonical } of extractionBatch) {
+    for (const canonicalId of localIdToCanonical.values()) {
+      if (canonicalToDbId.has(canonicalId)) {
+        continue;
+      }
+      const dbEntity = storage.getEntity(canonicalId);
+      if (dbEntity) {
+        canonicalToDbId.set(canonicalId, dbEntity.id);
+      }
     }
-    result.plansProcessed++;
+  }
+
+  for (const { extraction, localIdToCanonical } of extractionBatch) {
+    if (extraction.relationships.length > 0) {
+      const remappedRelationships = extraction.relationships
+        .map((rel) => {
+          const sourceCanonical = localIdToCanonical.get(rel.sourceId);
+          const targetCanonical = localIdToCanonical.get(rel.targetId);
+
+          if (!sourceCanonical || !targetCanonical) {
+            return null;
+          }
+
+          const dbSourceId = canonicalToDbId.get(sourceCanonical);
+          const dbTargetId = canonicalToDbId.get(targetCanonical);
+
+          if (!dbSourceId || !dbTargetId) {
+            return null;
+          }
+
+          return {
+            ...rel,
+            sourceId: dbSourceId,
+            targetId: dbTargetId,
+          };
+        })
+        .filter((rel): rel is NonNullable<typeof rel> => rel !== null);
+
+      result.relationshipsUpserted += storage.bulkUpsertRelationships(remappedRelationships);
+    }
   }
 
   // Update last_indexed timestamp
