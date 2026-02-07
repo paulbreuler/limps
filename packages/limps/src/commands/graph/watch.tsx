@@ -37,21 +37,34 @@ export default function GraphWatchCommand({ options }: Props): React.ReactNode {
     const channels = options.channels?.split(',').map((c) => c.trim()) ?? ['log'];
 
     let watcherRef: Awaited<ReturnType<typeof startGraphWatch>> | null = null;
+    let cancelled = false;
 
-    void startGraphWatch(config, db, {
-      channels,
-      webhookUrl: options['webhook-url'],
-    })
-      .then((w) => {
-        watcherRef = w;
-      })
-      .catch((err: unknown) => {
+    const startWatcherAsync = async (): Promise<void> => {
+      try {
+        const w = await startGraphWatch(config, db, {
+          channels,
+          webhookUrl: options['webhook-url'],
+        });
+        if (cancelled) {
+          // Cleanup ran before watcher started - stop immediately
+          await w.stop();
+          db.close();
+        } else {
+          watcherRef = w;
+        }
+      } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error('Failed to start graph watcher:', err);
-        setError(message);
-      });
+        if (!cancelled) {
+          setError(message);
+        }
+      }
+    };
+
+    void startWatcherAsync();
 
     const cleanup = (): void => {
+      cancelled = true;
       if (watcherRef) {
         void watcherRef
           .stop()

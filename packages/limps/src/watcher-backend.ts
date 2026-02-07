@@ -60,13 +60,13 @@ export class ParcelWatcherBackend implements WatcherBackend {
   ): Promise<WatcherSubscription> {
     const id = String(this.nextSubId++);
 
-    const parcelIgnore = options.ignoreGlobs.map((g) => join(dir, g));
+    const parcelIgnore = options.ignoreGlobs.map((g) => join(dir, g).replace(/\\/g, '/'));
 
     const sub = await watcher.subscribe(
       dir,
       (err, events) => {
         if (err) {
-          // Surface as a synthetic error event so the caller can handle it
+          // Log errors for operational visibility
           // (e.g. EMFILE on Linux with inotify)
           const code = (err as NodeJS.ErrnoException).code;
           if (code === 'EMFILE' || code === 'ENFILE') {
@@ -117,8 +117,11 @@ export class ParcelWatcherBackend implements WatcherBackend {
         const fullPath = join(current, entry);
         const relPath = relative(dir, fullPath);
 
+        // Normalize path separators for cross-platform glob matching
+        const normalizedPath = relPath.replace(/\\/g, '/');
+
         // Check ignore globs against relative path
-        if (micromatch.isMatch(relPath, options.ignoreGlobs, { dot: true })) {
+        if (micromatch.isMatch(normalizedPath, options.ignoreGlobs, { dot: true })) {
           continue;
         }
 
@@ -127,7 +130,7 @@ export class ParcelWatcherBackend implements WatcherBackend {
           if (stat.isDirectory()) {
             // Check directory path with trailing separator to match dir globs
             // (e.g. "**/node_modules/**") before recursing into it
-            const relDir = relPath + '/';
+            const relDir = normalizedPath + '/';
             if (!micromatch.isMatch(relDir, options.ignoreGlobs, { dot: true })) {
               walk(fullPath);
             }

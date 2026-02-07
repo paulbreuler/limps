@@ -15,7 +15,8 @@
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
     "ci": "npm run validate",
     "prepare": "husky",
-    "skills:manifest": "node scripts/generate-skills-manifest.js"
+    "skills:manifest": "node scripts/generate-skills-manifest.js",
+    "assistants:sync": "node scripts/sync-assistant-parity.js"
   },
   "devDependencies": {
     "husky": "^9.1.7"
