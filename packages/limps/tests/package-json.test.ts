@@ -19,7 +19,7 @@ describe('package-json', () => {
     expect(packageJson.dependencies).toHaveProperty('@modelcontextprotocol/sdk');
     expect(packageJson.dependencies).toHaveProperty('zod');
     expect(packageJson.dependencies).toHaveProperty('better-sqlite3');
-    expect(packageJson.dependencies).toHaveProperty('chokidar');
+    expect(packageJson.dependencies).toHaveProperty('@parcel/watcher');
   });
 
   it('should have correct devDependencies', () => {

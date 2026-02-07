@@ -60,7 +60,7 @@
     "@iarna/toml": "^3.0.0",
     "@modelcontextprotocol/sdk": "^1.25.0",
     "better-sqlite3": "^12.6.2",
-    "chokidar": "^5.0.0",
+    "@parcel/watcher": "^2.5.1",
     "fast-json-patch": "^3.1.1",
     "gray-matter": "^4.0.3",
     "ink": "^6.6.0",

@@ -1,4 +1,4 @@
-import type { FSWatcher } from 'chokidar';
+import type { LimpsWatcher } from '../watcher.js';
 import { dirname, basename } from 'path';
 import { readFileSync } from 'fs';
 import { startWatcher, stopWatcher, type SettledChange } from '../watcher.js';
@@ -15,7 +15,7 @@ export interface GraphWatcherOptions {
 }
 
 export class GraphWatcher {
-  private watcher: FSWatcher | null = null;
+  private watcher: LimpsWatcher | null = null;
   private readonly extractor = new EntityExtractor();
   private readonly detector: ConflictDetector | null;
   private readonly notifier: Notifier | null;
@@ -31,16 +31,16 @@ export class GraphWatcher {
     this.notifier = options.notifierConfig ? new Notifier(options.notifierConfig) : null;
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.watcher) return;
 
-    this.watcher = startWatcher(
+    this.watcher = await startWatcher(
       this.options.plansPath,
       async (path, event) => {
         await this.handleChange(path, event);
       },
       ['.md'],
-      ['.git', 'node_modules', '.tmp', '.obsidian'],
+      ['.git', 'node_modules', '.tmp', '.obsidian', 'dist', 'build', '.cache'],
       200,
       1500,
       async (changes) => {

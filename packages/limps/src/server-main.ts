@@ -14,7 +14,7 @@ import {
 import { createServer, startServer } from './server.js';
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import type { FSWatcher } from 'chokidar';
+import type { LimpsWatcher } from './watcher.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import {
   initializeDatabase,
@@ -25,9 +25,10 @@ import {
 } from './indexer.js';
 import { startWatcher, stopWatcher, DEFAULT_SETTLE_DELAY } from './watcher.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
+import { checkFdBudget } from './utils/fd-safety.js';
 
 // Global references for graceful shutdown
-let watcher: FSWatcher | null = null;
+let watcher: LimpsWatcher | null = null;
 let db: DatabaseType | null = null;
 
 /**
@@ -66,7 +67,7 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   const fileExtensions = getFileExtensions(config);
   const maxFileSize = getMaxFileSize(config);
   const maxDepth = getMaxDepth(config);
-  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian'];
+  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian', 'dist', 'build', '.cache'];
 
   // Validate paths before indexing — filter to only existing directories
   const validPaths = docsPaths.filter((p) => existsSync(p));
@@ -109,29 +110,47 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
     console.error('No valid paths to index.');
   }
 
+  // Check FD budget before starting watcher
+  if (validPaths.length > 0) {
+    const budget = checkFdBudget(validPaths, maxDepth, ignorePatterns);
+    if (!budget.safe) {
+      console.error(
+        `[limps] Warning: estimated ${budget.estimated} watch entries ` +
+          `but FD limit is ${budget.limit}. Consider reducing watch scope or running: ulimit -n 4096`
+      );
+    }
+  }
+
   // Capture db reference for watcher callback
   const dbRef = db;
 
   // Start file watcher (only watch valid paths)
-  watcher = startWatcher(
-    validPaths,
-    async (path, event) => {
-      if (event === 'unlink') {
-        await removeDocument(dbRef, path);
-        console.error(`Removed document: ${path}`);
-      } else {
-        await indexDocument(dbRef, path, maxFileSize);
-        console.error(`Indexed document: ${path} (${event})`);
-      }
-    },
-    fileExtensions,
-    ignorePatterns,
-    DEFAULT_DEBOUNCE_DELAY,
-    DEFAULT_SETTLE_DELAY,
-    undefined,
-    maxDepth
-  );
-  console.error(`File watcher started for ${validPaths.length} path(s)`);
+  try {
+    watcher = await startWatcher(
+      validPaths,
+      async (path, event) => {
+        if (event === 'unlink') {
+          await removeDocument(dbRef, path);
+          console.error(`Removed document: ${path}`);
+        } else {
+          await indexDocument(dbRef, path, maxFileSize);
+          console.error(`Indexed document: ${path} (${event})`);
+        }
+      },
+      fileExtensions,
+      ignorePatterns,
+      DEFAULT_DEBOUNCE_DELAY,
+      DEFAULT_SETTLE_DELAY,
+      undefined,
+      maxDepth
+    );
+    console.error(`File watcher started for ${validPaths.length} path(s)`);
+  } catch (watchErr) {
+    console.error(
+      `[limps] Warning: File watcher failed to start. The server will continue without live file watching.`,
+      watchErr
+    );
+  }
 
   // Create and start server
   const server = await createServer(config, db);

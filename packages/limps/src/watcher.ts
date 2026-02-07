@@ -1,8 +1,13 @@
-import chokidar, { type FSWatcher } from 'chokidar';
 import { PathFilter } from './utils/pathfilter.js';
 import { relative, sep } from 'path';
 import { isSymlink } from './utils/fs-safety.js';
 import { DEFAULT_MAX_DEPTH } from './config.js';
+import {
+  ParcelWatcherBackend,
+  type WatcherBackend,
+  type WatcherSubscription,
+  type RawWatchEvent,
+} from './watcher-backend.js';
 
 /**
  * Default file extensions to watch.
@@ -20,27 +25,57 @@ export interface SettledChange {
 export const DEFAULT_SETTLE_DELAY = 1500;
 
 /**
- * Internal timer state for a watcher, stored so stopWatcher() can
- * clear all pending timeouts and prevent post-close callbacks from
- * firing against a closed DB or watcher.
+ * Opaque watcher handle returned by startWatcher().
+ * Consumers cannot access backend-specific methods.
  */
-interface WatcherTimerState {
-  debounceMap: Map<string, NodeJS.Timeout>;
-  settledChanges: Map<string, SettledChange>;
-  settledTimer: NodeJS.Timeout | null;
+export interface LimpsWatcher {
+  readonly __brand: 'LimpsWatcher';
 }
 
 /**
- * Registry mapping each FSWatcher to its pending timer state.
- * This allows stopWatcher() to clear timers it didn't create.
+ * Internal representation behind the opaque LimpsWatcher handle.
  */
-const watcherTimers = new WeakMap<FSWatcher, WatcherTimerState>();
+interface LimpsWatcherInternal extends LimpsWatcher {
+  subscriptions: WatcherSubscription[];
+  backend: WatcherBackend;
+  debounceMap: Map<string, NodeJS.Timeout>;
+  settledChanges: Map<string, SettledChange>;
+  settledTimer: NodeJS.Timeout | null;
+  closed: boolean;
+}
+
+/**
+ * Map an event type from the watcher backend's type names to our
+ * public type names.
+ */
+type WatcherEventType = 'add' | 'change' | 'unlink';
+
+function mapEventType(raw: RawWatchEvent['type']): WatcherEventType {
+  switch (raw) {
+    case 'create':
+      return 'add';
+    case 'update':
+      return 'change';
+    case 'delete':
+      return 'unlink';
+  }
+}
 
 /**
  * Check if a file path matches any of the given extensions.
  */
 function matchesExtension(filePath: string, extensions: string[]): boolean {
   return extensions.some((ext) => filePath.endsWith(ext));
+}
+
+/**
+ * Check if a path exceeds the maximum depth relative to a base path.
+ */
+function exceedsDepth(filePath: string, basePath: string, maxDepth: number): boolean {
+  const rel = relative(basePath, filePath);
+  // Count path segments (depth). A file directly in basePath has depth 0.
+  const segments = rel.split(sep).length - 1;
+  return segments > maxDepth;
 }
 
 /**
@@ -54,22 +89,33 @@ function matchesExtension(filePath: string, extensions: string[]): boolean {
  * @param settleDelay - Settle delay in milliseconds (default: 1500ms)
  * @param onSettled - Callback for settled changes
  * @param maxDepth - Maximum directory recursion depth (default: DEFAULT_MAX_DEPTH)
- * @returns Chokidar watcher instance
+ * @param backend - Optional WatcherBackend for dependency injection (tests)
+ * @returns Promise resolving to a LimpsWatcher handle
  */
-export function startWatcher(
+export async function startWatcher(
   watchPaths: string | string[],
   onChange: (path: string, event: 'add' | 'change' | 'unlink') => Promise<void>,
   fileExtensions: string[] = DEFAULT_FILE_EXTENSIONS,
-  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian'],
+  ignorePatterns: string[] = [
+    '.git',
+    'node_modules',
+    '.tmp',
+    '.obsidian',
+    'dist',
+    'build',
+    '.cache',
+  ],
   debounceDelay = 200,
   settleDelay = DEFAULT_SETTLE_DELAY,
   onSettled?: (changes: SettledChange[]) => Promise<void>,
-  maxDepth: number = DEFAULT_MAX_DEPTH
-): FSWatcher {
+  maxDepth: number = DEFAULT_MAX_DEPTH,
+  backend?: WatcherBackend
+): Promise<LimpsWatcher> {
+  const resolvedBackend = backend ?? new ParcelWatcherBackend();
+
   // Create PathFilter for consistent filtering
   const pathFilter = new PathFilter({
     ignoredPatterns: ignorePatterns.map((pattern) => {
-      // Convert simple patterns to glob patterns
       if (pattern.includes('*')) {
         return pattern;
       }
@@ -78,103 +124,35 @@ export function startWatcher(
     allowedExtensions: fileExtensions,
   });
 
-  // Build ignore patterns for Chokidar (for initial filtering)
-  const ignored = ignorePatterns.map((pattern) => {
-    // Convert simple patterns to glob patterns
-    if (pattern.includes('*')) {
-      return pattern;
-    }
-    // Match directories and files with this name
-    return `**/${pattern}/**`;
-  });
-
-  // Build complete ignore patterns
-  const allIgnored: (string | RegExp | ((path: string) => boolean))[] = [
-    ...ignored,
-    /(^|[/\\])\../, // Ignore dotfiles
+  // Build ignore globs for the backend
+  const ignoreGlobs = [
+    ...ignorePatterns.map((p) => (p.includes('*') ? p : `**/${p}/**`)),
+    '**/.*/**', // dotfiles/dotdirs
   ];
 
-  const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  const backendOptions = {
+    ignoreGlobs,
+  };
 
-  // Watch the directory (or file if it's a single file)
-  const watcher = chokidar.watch(watchPaths, {
-    ignored: allIgnored,
-    persistent: true,
-    ignoreInitial: false,
-    followSymlinks: false,
-    depth: maxDepth,
-    usePolling: isTestEnvironment,
-    awaitWriteFinish: {
-      stabilityThreshold: 100,
-      pollInterval: 100,
-    },
-  });
-
-  // Debounce map to track pending callbacks.
-  // Registered in watcherTimers so stopWatcher() can clear them.
-  const timerState: WatcherTimerState = {
-    debounceMap: new Map<string, NodeJS.Timeout>(),
-    settledChanges: new Map<string, SettledChange>(),
+  const internal: LimpsWatcherInternal = {
+    __brand: 'LimpsWatcher' as const,
+    subscriptions: [],
+    backend: resolvedBackend,
+    debounceMap: new Map(),
+    settledChanges: new Map(),
     settledTimer: null,
-  };
-  watcherTimers.set(watcher, timerState);
-
-  const debounceMap = timerState.debounceMap;
-  const settledChanges = timerState.settledChanges;
-
-  const debouncedOnChange = (path: string, event: 'add' | 'change' | 'unlink'): void => {
-    // Clear existing timeout for this path
-    const existing = debounceMap.get(path);
-    if (existing) {
-      clearTimeout(existing);
-    }
-
-    // Set new timeout
-    const timeout = setTimeout(async () => {
-      debounceMap.delete(path);
-      try {
-        await onChange(path, event);
-      } catch (error) {
-        // Log error but don't throw (watcher should continue)
-        console.error(`Error in onChange callback for ${path}:`, error);
-      }
-    }, debounceDelay);
-
-    debounceMap.set(path, timeout);
+    closed: false,
   };
 
-  const scheduleSettled = (path: string, event: 'add' | 'change' | 'unlink'): void => {
-    if (!onSettled) {
-      return;
-    }
-
-    settledChanges.set(path, { path, event });
-
-    if (timerState.settledTimer) {
-      clearTimeout(timerState.settledTimer);
-    }
-
-    timerState.settledTimer = setTimeout(async () => {
-      const changes = Array.from(settledChanges.values());
-      settledChanges.clear();
-      timerState.settledTimer = null;
-
-      try {
-        await onSettled(changes);
-      } catch (error) {
-        console.error('Error in onSettled callback:', error);
-      }
-    }, settleDelay);
-  };
+  const paths = Array.isArray(watchPaths) ? watchPaths : [watchPaths];
 
   // Helper to get relative path for PathFilter
   const getRelativePath = (absolutePath: string): string => {
-    const basePaths = Array.isArray(watchPaths) ? watchPaths : [watchPaths];
     const matchedBase =
-      basePaths.find((base) => {
+      paths.find((base) => {
         const prefix = base.endsWith(sep) ? base : base + sep;
         return absolutePath === base || absolutePath.startsWith(prefix);
-      }) ?? basePaths[0];
+      }) ?? paths[0];
 
     try {
       return relative(matchedBase, absolutePath);
@@ -183,54 +161,127 @@ export function startWatcher(
     }
   };
 
-  // Watch for file additions (only files with matching extensions and allowed by PathFilter)
-  watcher.on('add', (path) => {
-    if (matchesExtension(path, fileExtensions) && !isSymlink(path)) {
-      const relPath = getRelativePath(path);
-      if (pathFilter.isAllowed(relPath)) {
-        debouncedOnChange(path, 'add');
-        scheduleSettled(path, 'add');
-      }
-    }
-  });
+  const debouncedOnChange = (path: string, event: WatcherEventType): void => {
+    if (internal.closed) return;
 
-  // Watch for file changes (only files with matching extensions and allowed by PathFilter)
-  watcher.on('change', (path) => {
-    if (matchesExtension(path, fileExtensions) && !isSymlink(path)) {
-      const relPath = getRelativePath(path);
-      if (pathFilter.isAllowed(relPath)) {
-        debouncedOnChange(path, 'change');
-        scheduleSettled(path, 'change');
-      }
+    const existing = internal.debounceMap.get(path);
+    if (existing) {
+      clearTimeout(existing);
     }
-  });
 
-  // Watch for file deletions (only files with matching extensions and allowed by PathFilter)
-  watcher.on('unlink', (path) => {
-    if (matchesExtension(path, fileExtensions)) {
-      const relPath = getRelativePath(path);
-      if (pathFilter.isAllowed(relPath)) {
-        // Clear any pending debounce for this path
-        const existing = debounceMap.get(path);
+    const timeout = setTimeout(async () => {
+      internal.debounceMap.delete(path);
+      if (internal.closed) return;
+      try {
+        await onChange(path, event);
+      } catch (error) {
+        console.error(`Error in onChange callback for ${path}:`, error);
+      }
+    }, debounceDelay);
+
+    internal.debounceMap.set(path, timeout);
+  };
+
+  const scheduleSettled = (path: string, event: WatcherEventType): void => {
+    if (!onSettled || internal.closed) return;
+
+    internal.settledChanges.set(path, { path, event });
+
+    if (internal.settledTimer) {
+      clearTimeout(internal.settledTimer);
+    }
+
+    internal.settledTimer = setTimeout(async () => {
+      const changes = Array.from(internal.settledChanges.values());
+      internal.settledChanges.clear();
+      internal.settledTimer = null;
+
+      if (internal.closed) return;
+      try {
+        await onSettled(changes);
+      } catch (error) {
+        console.error('Error in onSettled callback:', error);
+      }
+    }, settleDelay);
+  };
+
+  const handleEvents = (events: RawWatchEvent[]): void => {
+    if (internal.closed) return;
+
+    for (const event of events) {
+      const mapped = mapEventType(event.type);
+      const filePath = event.path;
+
+      // Depth filtering: skip events beyond maxDepth
+      const matchedBase = paths.find((base) => {
+        const prefix = base.endsWith(sep) ? base : base + sep;
+        return filePath === base || filePath.startsWith(prefix);
+      });
+      if (matchedBase && exceedsDepth(filePath, matchedBase, maxDepth)) {
+        continue;
+      }
+
+      // Extension filter
+      if (!matchesExtension(filePath, fileExtensions)) {
+        continue;
+      }
+
+      // Symlink check (skip for delete events — file is already gone)
+      if (mapped !== 'unlink' && isSymlink(filePath)) {
+        continue;
+      }
+
+      // PathFilter check
+      const relPath = getRelativePath(filePath);
+      if (!pathFilter.isAllowed(relPath)) {
+        continue;
+      }
+
+      if (mapped === 'unlink') {
+        // Handle deletion immediately (no debounce needed)
+        const existing = internal.debounceMap.get(filePath);
         if (existing) {
           clearTimeout(existing);
-          debounceMap.delete(path);
+          internal.debounceMap.delete(filePath);
         }
-        scheduleSettled(path, 'unlink');
-        // Handle deletion immediately (no debounce needed)
-        onChange(path, 'unlink').catch((error) => {
-          console.error(`Error handling file deletion for ${path}:`, error);
+        scheduleSettled(filePath, 'unlink');
+        onChange(filePath, 'unlink').catch((error) => {
+          console.error(`Error handling file deletion for ${filePath}:`, error);
         });
+      } else {
+        debouncedOnChange(filePath, mapped);
+        scheduleSettled(filePath, mapped);
       }
     }
-  });
+  };
 
-  // Handle errors
-  watcher.on('error', (error) => {
-    console.error('Watcher error:', error);
-  });
+  // Subscribe first (so no events are missed), then do initial scan.
+  // Duplicates from the overlap are collapsed by the debounce.
+  // If a subscribe fails partway through, clean up already-subscribed dirs.
+  for (const dir of paths) {
+    let sub;
+    try {
+      sub = await resolvedBackend.subscribe(dir, handleEvents, backendOptions);
+    } catch (err) {
+      // Rollback: unsubscribe all successful subscriptions before re-throwing
+      for (const prev of internal.subscriptions) {
+        try {
+          await resolvedBackend.unsubscribe(prev);
+        } catch {
+          // best-effort cleanup
+        }
+      }
+      internal.subscriptions = [];
+      throw err;
+    }
+    internal.subscriptions.push(sub);
+  }
 
-  return watcher;
+  for (const dir of paths) {
+    await resolvedBackend.initialScan(dir, handleEvents, backendOptions);
+  }
+
+  return internal;
 }
 
 /**
@@ -240,23 +291,35 @@ export function startWatcher(
  * after the watcher (and often the DB) are already closed, causing crashes
  * and orphaned file descriptors.
  *
- * @param watcher - Chokidar watcher instance
+ * @param watcher - LimpsWatcher handle from startWatcher()
  */
-export async function stopWatcher(watcher: FSWatcher): Promise<void> {
-  // Clear pending timers BEFORE closing the watcher so no callbacks fire
-  // against a closed watcher / closed DB.
-  const timers = watcherTimers.get(watcher);
-  if (timers) {
-    for (const timeout of timers.debounceMap.values()) {
-      clearTimeout(timeout);
-    }
-    timers.debounceMap.clear();
-    if (timers.settledTimer) {
-      clearTimeout(timers.settledTimer);
-      timers.settledTimer = null;
-    }
-    timers.settledChanges.clear();
-    watcherTimers.delete(watcher);
+export async function stopWatcher(watcher: LimpsWatcher): Promise<void> {
+  const internal = watcher as LimpsWatcherInternal;
+
+  // Mark as closed so no new callbacks fire
+  internal.closed = true;
+
+  // Clear pending timers
+  for (const timeout of internal.debounceMap.values()) {
+    clearTimeout(timeout);
   }
-  await watcher.close();
+  internal.debounceMap.clear();
+
+  if (internal.settledTimer) {
+    clearTimeout(internal.settledTimer);
+    internal.settledTimer = null;
+  }
+  internal.settledChanges.clear();
+
+  // Unsubscribe from all backends — attempt all even if some fail
+  const results = await Promise.allSettled(
+    internal.subscriptions.map((sub) => internal.backend.unsubscribe(sub))
+  );
+  internal.subscriptions = [];
+
+  const failures = results.filter((r) => r.status === 'rejected');
+  if (failures.length > 0) {
+    const errors = failures.map((r) => (r as PromiseRejectedResult).reason as Error);
+    throw new AggregateError(errors, `Failed to unsubscribe ${failures.length} watcher(s)`);
+  }
 }

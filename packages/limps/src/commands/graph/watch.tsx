@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
@@ -30,21 +30,36 @@ export default function GraphWatchCommand({ options }: Props): React.ReactNode {
     ? resolveProjectConfigPath(options.project)
     : resolveConfigPath(options.config);
   const config = loadConfig(configPath);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const db = openGraphDb(config);
     const channels = options.channels?.split(',').map((c) => c.trim()) ?? ['log'];
 
-    const watcher = startGraphWatch(config, db, {
+    let watcherRef: Awaited<ReturnType<typeof startGraphWatch>> | null = null;
+
+    void startGraphWatch(config, db, {
       channels,
       webhookUrl: options['webhook-url'],
-    });
+    })
+      .then((w) => {
+        watcherRef = w;
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('Failed to start graph watcher:', err);
+        setError(message);
+      });
 
     const cleanup = (): void => {
-      void watcher
-        .stop()
-        .then(() => db.close())
-        .catch(() => db.close());
+      if (watcherRef) {
+        void watcherRef
+          .stop()
+          .then(() => db.close())
+          .catch(() => db.close());
+      } else {
+        db.close();
+      }
     };
 
     process.on('SIGINT', cleanup);
@@ -56,6 +71,14 @@ export default function GraphWatchCommand({ options }: Props): React.ReactNode {
       process.removeListener('SIGTERM', cleanup);
     };
   }, [config, options.channels, options['webhook-url']]);
+
+  if (error) {
+    return (
+      <Text>
+        <Text color="red">Error:</Text> Failed to start watcher: {error}
+      </Text>
+    );
+  }
 
   return (
     <Text>
