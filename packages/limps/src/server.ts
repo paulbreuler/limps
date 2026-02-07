@@ -19,11 +19,13 @@ import {
  *
  * @param config - Server configuration
  * @param db - Database instance for tools and resources
+ * @param preloadedExtensions - Optional pre-loaded extensions (skips dynamic loading)
  * @returns MCP server instance with loaded extensions stored on it
  */
 export async function createServer(
   config: ServerConfig,
-  db: DatabaseType
+  db: DatabaseType,
+  preloadedExtensions?: LoadedExtension[]
 ): Promise<McpServer & { loadedExtensions?: LoadedExtension[] }> {
   const coreToolNames = new Set<string>(CORE_TOOL_NAMES);
   const coreResourceUris = new Set<string>(CORE_RESOURCE_URIS);
@@ -55,8 +57,8 @@ export async function createServer(
   // Register core tools
   registerTools(server, toolContext);
 
-  // Load and register extensions
-  const loadedExtensions = await loadExtensions(config);
+  // Load and register extensions (use preloaded if provided)
+  const loadedExtensions = preloadedExtensions ?? (await loadExtensions(config));
   if (loadedExtensions.length > 0) {
     // Store extensions on server for shutdown
     (server as McpServer & { loadedExtensions: LoadedExtension[] }).loadedExtensions =

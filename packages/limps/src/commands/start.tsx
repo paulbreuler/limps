@@ -1,0 +1,114 @@
+import React, { useEffect, useState } from 'react';
+import { Text } from 'ink';
+import { z } from 'zod';
+import { spawn } from 'child_process';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { loadConfig, getHttpServerConfig } from '../config.js';
+import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
+import { startHttpServer, stopHttpServer } from '../server-http.js';
+
+export const description = 'Start the limps HTTP server';
+
+export const options = z.object({
+  config: z.string().optional().describe('Path to config file'),
+  project: z.string().optional().describe('Registered project name'),
+  foreground: z.boolean().optional().describe('Run in foreground (do not daemonize)'),
+  port: z.number().optional().describe('Override port number'),
+  host: z.string().optional().describe('Override host address'),
+});
+
+interface Props {
+  options: z.infer<typeof options>;
+}
+
+export default function StartCommand({ options: opts }: Props): React.ReactNode {
+  const [status, setStatus] = useState<string>('Starting...');
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    const run = async (): Promise<void> => {
+      try {
+        const configPath = opts.project
+          ? resolveProjectConfigPath(opts.project)
+          : resolveConfigPath(opts.config);
+        const config = loadConfig(configPath);
+        const httpConfig = getHttpServerConfig(config);
+        const port = opts.port ?? httpConfig.port;
+        const host = opts.host ?? httpConfig.host;
+
+        // Check if already running
+        const pidFilePath = getPidFilePath(config.dataPath);
+        const existing = getRunningDaemon(pidFilePath);
+        if (existing) {
+          setError(
+            `limps daemon already running (PID ${existing.pid} on ${existing.host}:${existing.port}). Run 'limps stop' first.`
+          );
+          return;
+        }
+
+        if (opts.foreground) {
+          // Run in foreground — blocks until stopped
+          setStatus(`limps HTTP server starting on http://${host}:${port}/mcp`);
+          await startHttpServer(configPath);
+          setStatus(`limps HTTP server running on http://${host}:${port}/mcp (PID ${process.pid})`);
+
+          // Keep process alive — stopHttpServer will be called by signal handlers
+          // registered in the server-http module
+          await new Promise<void>((resolve) => {
+            const shutdown = (): void => {
+              stopHttpServer()
+                .then(() => resolve())
+                .catch(() => resolve());
+            };
+            process.on('SIGINT', shutdown);
+            process.on('SIGTERM', shutdown);
+          });
+        } else {
+          // Daemon mode — spawn detached child
+          const __filename = fileURLToPath(import.meta.url);
+          const __dirname = dirname(__filename);
+          const entryPath = resolve(__dirname, '../server-http-entry.js');
+
+          const child = spawn(process.execPath, [entryPath, configPath], {
+            detached: true,
+            stdio: 'ignore',
+          });
+          child.unref();
+
+          // Wait briefly for the daemon to start and write PID file
+          await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+
+          const daemon = getRunningDaemon(pidFilePath);
+          if (daemon) {
+            setStatus(
+              `limps daemon started (PID ${daemon.pid}) on http://${daemon.host}:${daemon.port}/mcp`
+            );
+          } else {
+            setError(
+              'Daemon may have failed to start. Check logs or try: limps start --foreground'
+            );
+          }
+          setDone(true);
+        }
+      } catch (err) {
+        setError((err as Error).message);
+        setDone(true);
+      }
+    };
+
+    void run();
+  }, [opts.config, opts.project, opts.foreground, opts.port, opts.host]);
+
+  if (error) {
+    return <Text color="red">Error: {error}</Text>;
+  }
+
+  if (done || opts.foreground) {
+    return <Text color="green">{status}</Text>;
+  }
+
+  return <Text>{status}</Text>;
+}

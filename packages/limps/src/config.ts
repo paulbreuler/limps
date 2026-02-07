@@ -81,6 +81,22 @@ export interface HealthConfig {
 }
 
 /**
+ * HTTP server configuration.
+ */
+export interface HttpServerConfig {
+  port: number;
+  host: string;
+}
+
+/**
+ * Default HTTP server configuration.
+ */
+export const DEFAULT_HTTP_SERVER_CONFIG: HttpServerConfig = {
+  port: 4269,
+  host: '127.0.0.1',
+};
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -98,6 +114,7 @@ export interface ServerConfig {
   };
   tools?: ToolFilteringConfig;
   retrieval?: RetrievalConfig;
+  server?: Partial<HttpServerConfig>; // HTTP server settings (port, host)
   health?: HealthConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
@@ -713,4 +730,15 @@ export function getMaxFileSize(config: ServerConfig): number {
  */
 export function getMaxDepth(config: ServerConfig): number {
   return config.maxDepth ?? DEFAULT_MAX_DEPTH;
+}
+
+/**
+ * Get HTTP server configuration from config.
+ * Returns configured values merged with defaults.
+ */
+export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
+  return {
+    ...DEFAULT_HTTP_SERVER_CONFIG,
+    ...(config.server ?? {}),
+  };
 }
