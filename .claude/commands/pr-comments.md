@@ -6,7 +6,7 @@ Fetch, review, address, and resolve PR review comments.
 
 When this command is invoked:
 
-1. **Get current PR**: Use `gh pr view --json number,url,headRepositoryOwner,headRepositoryName` to get PR context
+1. **Get current PR**: Use `gh pr view --json number,url,headRepositoryOwner,headRepository` to get PR context
 2. **List comments**: Fetch all review comments and threads
 3. **Categorize**: Group by file path, identify deleted files, outdated comments
 4. **Address**: Reply to comments with explanations
@@ -124,7 +124,7 @@ query {
 # Get PR number and repo info
 pr_number=$(gh pr view --json number --jq '.number')
 owner=$(gh pr view --json headRepositoryOwner --jq '.headRepositoryOwner.login')
-repo=$(gh pr view --json headRepositoryName --jq '.headRepositoryName')
+repo=$(gh pr view --json headRepository --jq '.headRepository.name')
 
 # List comments by file
 gh api repos/$owner/$repo/pulls/$pr_number/comments --paginate \
@@ -146,7 +146,7 @@ For deleted files:
 
 ```bash
 owner=$(gh pr view --json headRepositoryOwner --jq '.headRepositoryOwner.login')
-repo=$(gh pr view --json headRepositoryName --jq '.headRepositoryName')
+repo=$(gh pr view --json headRepository --jq '.headRepository.name')
 gh api repos/$owner/$repo/pulls/$pr_number/comments/{id}/replies \
   -X POST \
   -f body="This file has been removed in subsequent commits."
@@ -156,7 +156,7 @@ For addressed issues:
 
 ```bash
 owner=$(gh pr view --json headRepositoryOwner --jq '.headRepositoryOwner.login')
-repo=$(gh pr view --json headRepositoryName --jq '.headRepositoryName')
+repo=$(gh pr view --json headRepository --jq '.headRepository.name')
 gh api repos/$owner/$repo/pulls/$pr_number/comments/{id}/replies \
   -X POST \
   -f body="Fixed in commit abc123." # or explanation of why it's not an issue
@@ -167,7 +167,7 @@ gh api repos/$owner/$repo/pulls/$pr_number/comments/{id}/replies \
 ```bash
 # Get PR repo info
 owner=$(gh pr view --json headRepositoryOwner --jq '.headRepositoryOwner.login')
-repo=$(gh pr view --json headRepositoryName --jq '.headRepositoryName')
+repo=$(gh pr view --json headRepository --jq '.headRepository.name')
 
 # Get all unresolved thread IDs
 thread_ids=$(gh api graphql -f query='
