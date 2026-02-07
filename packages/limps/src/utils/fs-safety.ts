@@ -101,7 +101,7 @@ export function checkSymlinkAncestors(fullPath: string, root: string): PathSafet
 
     // Walk up from fullPath to root, checking each component
     let current = fullPath;
-    while (current !== root && current.length >= root.length) {
+    while (current !== root) {
       if (isSymlink(current)) {
         return {
           safe: false,
@@ -109,8 +109,10 @@ export function checkSymlinkAncestors(fullPath: string, root: string): PathSafet
         };
       }
       const parent = dirname(current);
-      // Prevent infinite loop if dirname returns same path
-      if (parent === current) break;
+      // Prevent infinite loop at filesystem root (dirname('/') === '/')
+      if (parent === current) {
+        break;
+      }
       current = parent;
     }
 

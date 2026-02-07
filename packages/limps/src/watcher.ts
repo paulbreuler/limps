@@ -235,11 +235,18 @@ export async function startWatcher(
 
         // Check if any ancestor directory is a symlink
         // Find the base path being watched for this file
-        const matchedBase =
-          paths.find((base) => {
-            const prefix = base.endsWith(sep) ? base : base + sep;
-            return filePath === base || filePath.startsWith(prefix);
-          }) ?? paths[0];
+        const matchedBase = paths.find((base) => {
+          const prefix = base.endsWith(sep) ? base : base + sep;
+          return filePath === base || filePath.startsWith(prefix);
+        });
+
+        if (!matchedBase) {
+          // Event path doesn't match any watched directory - skip it
+          console.error(
+            `Watcher event for unexpected path (not under any watched dir): ${filePath}`
+          );
+          continue;
+        }
 
         const ancestorCheck = checkSymlinkAncestors(filePath, matchedBase);
         if (!ancestorCheck.safe) {

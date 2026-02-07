@@ -604,7 +604,7 @@ describeUnlessCI('emfile-handling', () => {
     process.env.VITEST = prevVitestEnv;
   });
 
-  it('should log actionable message on EMFILE error via backend', async () => {
+  it('should propagate EMFILE error from backend subscribe', async () => {
     // Create a backend that simulates EMFILE during subscribe
     const errorBackend: WatcherBackend = {
       async subscribe(
@@ -621,11 +621,10 @@ describeUnlessCI('emfile-handling', () => {
       async unsubscribe(): Promise<void> {},
     };
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
     const onChange = vi.fn().mockResolvedValue(undefined);
 
-    // startWatcher should catch EMFILE and log it, not throw
+    // startWatcher should propagate EMFILE errors from subscribe
+    // (logging happens in the callback for runtime errors, not startup errors)
     await expect(
       startWatcher(
         testDir,
@@ -639,11 +638,6 @@ describeUnlessCI('emfile-handling', () => {
         errorBackend
       )
     ).rejects.toThrow('Too many open files');
-
-    // Verify actionable error message was logged
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('EMFILE'), expect.anything());
-
-    errorSpy.mockRestore();
   });
 });
 
