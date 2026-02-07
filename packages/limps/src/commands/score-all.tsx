@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { getScoredTasksData } from '../cli/next-task.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../utils/cli-help.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
+import { buildHelpOutput } from '../utils/cli-help.js';
 import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
 
 export const description = 'Compare scores across all available tasks';
@@ -13,7 +13,6 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -27,18 +26,12 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
   const help = buildHelpOutput({
     usage: 'limps score-all <plan> [options]',
     arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
-    options: [
-      '--config Path to config file',
-      '--project Registered project name',
-      '--json Output as JSON',
-    ],
+    options: ['--config Path to config file', '--json Output as JSON'],
     examples: [
       'limps score-all 4',
-      'limps score-all 0004-feature-name --project runi-planning-docs',
+      'limps score-all 0004-feature-name',
       'limps score-all 4 --json',
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
   const jsonMode = isJsonMode(options);
 
@@ -54,9 +47,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
             1
           );
         }
-        const configPath = options.project
-          ? resolveProjectConfigPath(options.project)
-          : resolveConfigPath(options.config);
+        const configPath = resolveConfigPath(options.config);
         const config = loadConfig(configPath);
         const result = getScoredTasksData(config, planId, { suppressWarnings: true });
         if ('error' in result) {
@@ -73,7 +64,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [help.meta, jsonMode, options.config, options.project, planId]);
+  }, [help.meta, jsonMode, options.config, planId]);
 
   if (jsonMode) {
     return null;
@@ -84,9 +75,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
   }
 
   try {
-    const configPath = options.project
-      ? resolveProjectConfigPath(options.project)
-      : resolveConfigPath(options.config);
+    const configPath = resolveConfigPath(options.config);
     const config = loadConfig(configPath);
     const result = getScoredTasksData(config, planId);
     if ('error' in result) {

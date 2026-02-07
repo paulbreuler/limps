@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { type ServerConfig, loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
 import {
   repairPlanFrontmatter,
   inspectPlanFrontmatter,
@@ -19,7 +19,6 @@ export const args = z.tuple([z.string().describe('plan id or name').optional()])
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   check: z.boolean().optional().describe('Report issues without modifying files'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
@@ -55,9 +54,7 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
   const jsonMode = isJsonMode(options);
 
   const getConfig = (): ServerConfig => {
-    const configPath = options.project
-      ? resolveProjectConfigPath(options.project)
-      : resolveConfigPath(options.config);
+    const configPath = resolveConfigPath(options.config);
     return loadConfig(configPath);
   };
 
@@ -152,7 +149,7 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [jsonMode, options.config, options.project, planId]);
+  }, [jsonMode, options.config, planId]);
 
   if (jsonMode) {
     return null;

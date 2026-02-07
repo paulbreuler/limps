@@ -3,16 +3,14 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { getPlansData } from '../cli/list-plans.js';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
 import { PlansList } from '../components/PlansList.js';
-import { getProjectTipLine } from '../utils/cli-help.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 
 export const description = 'List all plans';
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -26,9 +24,7 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
     if (jsonMode) {
       const timer = setTimeout(() => {
         try {
-          const configPath = options.project
-            ? resolveProjectConfigPath(options.project)
-            : resolveConfigPath(options.config);
+          const configPath = resolveConfigPath(options.config);
           const config = loadConfig(configPath);
           handleJsonOutput(() => {
             const result = getPlansData(config);
@@ -49,15 +45,13 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [jsonMode, options.config, options.project]);
+  }, [jsonMode, options.config]);
 
   if (jsonMode) {
     return null;
   }
 
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
 
   // Normal Ink rendering
@@ -70,7 +64,6 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
   return (
     <Box flexDirection="column">
       <PlansList plans={result.plans} total={result.total} />
-      <Text>{getProjectTipLine()}</Text>
     </Box>
   );
 }

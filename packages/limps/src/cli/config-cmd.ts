@@ -1,31 +1,14 @@
 /**
  * Config subcommand handlers for limps CLI.
- * Provides commands to manage the project registry and view configuration.
+ * Provides commands to view and update project configuration.
  */
 
-import {
-  existsSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-  statSync,
-  mkdirSync,
-  realpathSync,
-  rmSync,
-} from 'fs';
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'fs';
 import * as jsonpatch from 'fast-json-patch';
-import { resolve, dirname, basename, join, relative, sep } from 'path';
+import { dirname, basename } from 'path';
 import * as toml from '@iarna/toml';
 import {
-  registerProject,
-  unregisterProject,
-  setCurrentProject,
-  listProjects,
-  loadRegistry,
-} from './registry.js';
-import {
   loadConfig,
-  validateConfig,
   getScoringWeights,
   getScoringBiases,
   SCORING_PRESETS,
@@ -34,129 +17,7 @@ import {
   type ScoringBiases,
   type ServerConfig,
 } from '../config.js';
-import { getOSBasePath } from '../utils/os-paths.js';
-
-/** Child dir under limps for project configs (limps/projects/<name>/config.json). */
-const PROJECTS_DIR = 'projects';
-
-/**
- * Root directory for project configs under limps (Application Support/limps/projects/).
- */
-function getProjectsRoot(): string {
-  return join(getOSBasePath('limps'), PROJECTS_DIR);
-}
-
-/**
- * Project data for JSON output.
- */
-export interface ProjectsData {
-  projects: {
-    name: string;
-    configPath: string;
-    current: boolean;
-    exists: boolean;
-  }[];
-  total: number;
-  usage: {
-    projectFlag: string;
-    configUse: string;
-  };
-}
-
-/**
- * Get projects data for JSON output.
- *
- * @returns Projects data object
- */
-export function getProjectsData(): ProjectsData {
-  const projects = listProjects();
-
-  return {
-    projects: projects.map((p) => ({
-      name: p.name,
-      configPath: p.configPath,
-      current: p.current,
-      exists: existsSync(p.configPath),
-    })),
-    total: projects.length,
-    usage: {
-      projectFlag: 'limps <command> --project <name>',
-      configUse: 'limps config use <name>',
-    },
-  };
-}
-
-/**
- * List all registered projects.
- *
- * @returns Formatted list of projects
- */
-export function configList(): string {
-  const projects = listProjects();
-
-  if (projects.length === 0) {
-    return 'No projects registered. Run `limps init <name>` to create one.';
-  }
-
-  const lines: string[] = [];
-  lines.push('CURRENT  NAME                 PATH');
-  lines.push('-------  -------------------  ----');
-
-  for (const project of projects) {
-    const current = project.current ? '*' : ' ';
-    const name = project.name.padEnd(19);
-    const exists = existsSync(project.configPath) ? '' : ' (missing)';
-    lines.push(`   ${current}     ${name}  ${project.configPath}${exists}`);
-  }
-
-  lines.push('');
-  lines.push('Use with CLI commands:');
-  lines.push('  limps <command> --project <name>');
-  lines.push('Set default project:');
-  lines.push('  limps config use <name>');
-
-  return lines.join('\n');
-}
-
-/**
- * Switch to a different project.
- * If the name is not in the registry but exists in the default discovery location
- * (Application Support/<name>/config.json), registers it and sets as current.
- *
- * @param name - Project name to switch to
- * @returns Success message
- * @throws Error if project not found
- */
-export function configUse(name: string): string {
-  if (!name || !SAFE_NAME_REGEX.test(name)) {
-    throw new Error(
-      `Invalid project name: must not be empty and must not contain path separators.\nRun \`limps config list\` to see available projects.`
-    );
-  }
-  const registry = loadRegistry();
-  if (registry.projects[name]) {
-    setCurrentProject(name);
-    return `Switched to project "${name}"`;
-  }
-  // Not registered: try default discovery location so "discover" + "use <name>" works
-  const searchDir = getProjectsRoot();
-  const configPath = join(searchDir, name, 'config.json');
-  if (existsSync(configPath)) {
-    try {
-      const raw = JSON.parse(readFileSync(configPath, 'utf-8'));
-      if (validateConfig(raw)) {
-        registerProject(name, configPath);
-        setCurrentProject(name);
-        return `Registered and switched to project "${name}"`;
-      }
-    } catch {
-      // Not valid JSON or not a limps config, fall through to throw
-    }
-  }
-  throw new Error(
-    `Project not found: ${name}\nRun \`limps config list\` to see available projects.`
-  );
-}
+import { getPidFilePath, getRunningDaemon, removePidFile } from '../pidfile.js';
 
 /**
  * Configuration data for JSON output.
@@ -208,7 +69,7 @@ export function configShow(resolveConfigPathFn: () => string): string {
   const configPath = resolveConfigPathFn();
 
   if (!existsSync(configPath)) {
-    return `Config file not found: ${configPath}\n\nRun \`limps init <name>\` to create a project.`;
+    return `Config file not found: ${configPath}\n\nRun \`limps init\` to create a project.`;
   }
 
   const config = loadConfig(configPath);
@@ -304,48 +165,9 @@ export function configShow(resolveConfigPathFn: () => string): string {
  * Upgrade config schema to the latest version.
  *
  * @param resolveConfigPathFn - Function to resolve config path
- * @param options - Upgrade options
  * @returns Formatted upgrade summary
  */
-export function configUpgrade(
-  resolveConfigPathFn: () => string,
-  options: { all?: boolean } = {}
-): string {
-  const lines: string[] = [];
-
-  if (options.all) {
-    const projects = listProjects();
-    if (projects.length === 0) {
-      return 'No projects registered. Run `limps init <name>` to create one.';
-    }
-
-    let upgraded = 0;
-    let skipped = 0;
-    lines.push('Upgrading registered project configs...');
-    lines.push('');
-
-    for (const project of projects) {
-      if (!existsSync(project.configPath)) {
-        skipped++;
-        lines.push(`  ${project.name}: missing (${project.configPath})`);
-        continue;
-      }
-
-      const config = loadConfig(project.configPath);
-      lines.push(
-        `  ${project.name}: ${project.configPath} (version ${config.configVersion ?? 'unknown'})`
-      );
-      upgraded++;
-    }
-
-    lines.push('');
-    lines.push(`Upgraded ${upgraded} project(s).`);
-    if (skipped > 0) {
-      lines.push(`Skipped ${skipped} missing config(s).`);
-    }
-    return lines.join('\n');
-  }
-
+export function configUpgrade(resolveConfigPathFn: () => string): string {
   const configPath = resolveConfigPathFn();
   const config = loadConfig(configPath);
   return `Config upgraded to version ${config.configVersion ?? 'unknown'}.\nPath: ${configPath}`;
@@ -361,7 +183,7 @@ export function configScoringShow(resolveConfigPathFn: () => string): string {
   const configPath = resolveConfigPathFn();
 
   if (!existsSync(configPath)) {
-    return `Config file not found: ${configPath}\n\nRun \`limps init <name>\` to create a project.`;
+    return `Config file not found: ${configPath}\n\nRun \`limps init\` to create a project.`;
   }
 
   const config = loadConfig(configPath);
@@ -519,688 +341,115 @@ export function configPath(resolveConfigPathFn: () => string): string {
 }
 
 /**
- * Add/register an existing config file or directory to the registry.
- * If a directory is provided, looks for config.json inside it or creates one
- * in the OS standard location (e.g., ~/Library/Application Support/limps/).
+ * Reset limps state for a single project: stop daemon, delete dataPath contents.
  *
- * @param name - Project name to use
- * @param configFileOrDirPath - Path to the config file or directory containing plans
- * @returns Success message
- * @throws Error if path doesn't exist
+ * @param configPath - Path to the project's config.json
+ * @param options - Reset options (force must be true to proceed)
+ * @returns Log of actions taken
  */
-export function configAdd(name: string, configFileOrDirPath: string): string {
-  const absolutePath = resolve(configFileOrDirPath);
+export function resetAll(configPath: string, options: { force?: boolean } = {}): string[] {
+  const log: string[] = [];
 
-  if (!existsSync(absolutePath)) {
-    throw new Error(`Path not found: ${absolutePath}`);
+  if (!existsSync(configPath)) {
+    log.push(`Config file not found: ${configPath}`);
+    return log;
   }
 
-  const stats = statSync(absolutePath);
-
-  // If it's a directory, look for config.json or create one in OS standard location
-  if (stats.isDirectory()) {
-    const configInDir = join(absolutePath, 'config.json');
-
-    if (existsSync(configInDir)) {
-      // Found existing config.json in directory
-      try {
-        loadConfig(configInDir);
-      } catch (error) {
-        throw new Error(
-          `Invalid config file: ${error instanceof Error ? error.message : 'unknown error'}`
-        );
-      }
-      registerProject(name, configInDir);
-      return `Registered project "${name}" with config: ${configInDir}`;
-    }
-
-    // No config.json found - create one under limps/projects/<name>/
-    const basePath = join(getProjectsRoot(), name);
-    const configPath = join(basePath, 'config.json');
-    const dataPath = join(basePath, 'data');
-
-    // Check if config already exists in OS location
-    if (existsSync(configPath)) {
-      throw new Error(
-        `Config already exists at: ${configPath}\nTo reconfigure, delete the existing config file first.`
-      );
-    }
-
-    // Create base and data directories
-    mkdirSync(basePath, { recursive: true });
-    mkdirSync(dirname(dataPath), { recursive: true });
-
-    // Determine plans path - use <dir>/plans if it exists, otherwise use <dir>
-    const plansSubdir = join(absolutePath, 'plans');
-    const plansPath = existsSync(plansSubdir) ? plansSubdir : absolutePath;
-
-    const config = {
-      configVersion: 1,
-      plansPath: plansPath,
-      docsPaths: [absolutePath],
-      fileExtensions: ['.md'],
-      dataPath: dataPath,
-      scoring: {
-        weights: {
-          dependency: 40,
-          priority: 30,
-          workload: 30,
-        },
-        biases: {},
-      },
-    };
-
-    writeFileSync(configPath, JSON.stringify(config, null, 2));
-    registerProject(name, configPath);
-
-    const lines: string[] = [];
-    lines.push(`Created config and registered project "${name}"`);
-    lines.push(`  Config:     ${configPath}`);
-    lines.push(`  Plans path: ${plansPath}`);
-    lines.push(`  Docs path:  ${absolutePath}`);
-    lines.push(`  Data path:  ${dataPath}`);
-    return lines.join('\n');
-  }
-
-  // It's a file - validate it's a valid config file
+  let config: ServerConfig;
   try {
-    loadConfig(absolutePath);
-  } catch (error) {
-    throw new Error(
-      `Invalid config file: ${error instanceof Error ? error.message : 'unknown error'}`
-    );
-  }
-
-  registerProject(name, absolutePath);
-  return `Registered project "${name}" with config: ${absolutePath}`;
-}
-
-/** Project names must not contain path separators or traversal (prompt injection / misuse). */
-const SAFE_NAME_REGEX = /^[^/\\]+$/;
-
-/**
- * Delete the config file and its project directory when under discovery root.
- * Only deletes when the config path is under discovery root (application config directory).
- */
-function deleteConfigAndProjectDir(
-  canonicalConfigPath: string,
-  discoveryRootCanonical: string
-): void {
-  const rel = relative(discoveryRootCanonical, canonicalConfigPath);
-  if (rel.split(sep).includes('..')) return;
-  if (!existsSync(canonicalConfigPath)) return;
-  rmSync(canonicalConfigPath, { force: true });
-  const parentDir = dirname(canonicalConfigPath);
-  const parentRel = relative(discoveryRootCanonical, parentDir);
-  // Only delete parent when it is a project dir: discoveryRoot/<name>/config.json
-  if (
-    basename(canonicalConfigPath) === 'config.json' &&
-    !parentRel.startsWith('..') &&
-    !parentRel.includes(sep) &&
-    parentRel !== '' &&
-    existsSync(parentDir)
-  ) {
-    rmSync(parentDir, { recursive: true, force: true });
-  }
-}
-
-/**
- * Remove a project from the registry and delete its config file and project directory
- * when the config lives under limps/projects (Application Support/limps/projects/).
- * Accepts either a project name (exact match, no path chars) or a path to a config file.
- * Paths are strictly validated: must be under limps/projects and end with config.json.
- *
- * @param nameOrPath - Project name or path to config.json
- * @returns Success message
- * @throws Error if project not found or path is invalid
- */
-export function configRemove(nameOrPath: string): string {
-  const registry = loadRegistry();
-  const discoveryRoot = getProjectsRoot();
-  let discoveryRootCanonical: string;
-  try {
-    discoveryRootCanonical = realpathSync(discoveryRoot);
+    config = loadConfig(configPath);
   } catch {
-    discoveryRootCanonical = discoveryRoot;
+    log.push(`Failed to load config: ${configPath}`);
+    return log;
   }
 
-  if (SAFE_NAME_REGEX.test(nameOrPath)) {
-    if (registry.projects[nameOrPath]) {
-      const configPath = registry.projects[nameOrPath].configPath;
-      let canonicalPath: string | null = null;
+  if (!options.force) {
+    // Dry-run: describe what would be deleted
+    log.push('The following will be deleted:');
+    log.push('');
+    log.push(`  Data dir: ${config.dataPath}`);
+    log.push('');
+    log.push('Run with --force to confirm.');
+    return log;
+  }
+
+  const dataPath = config.dataPath;
+
+  // Stop running daemon
+  try {
+    const pidFilePath = getPidFilePath(dataPath);
+    const daemon = getRunningDaemon(pidFilePath);
+    if (daemon) {
       try {
-        canonicalPath = realpathSync(resolve(configPath));
+        process.kill(daemon.pid, 'SIGTERM');
+        log.push(`Stopped daemon (PID ${daemon.pid})`);
       } catch {
-        // Config file missing, just unregister
+        log.push(`Daemon (PID ${daemon.pid}) already stopped`);
       }
-      const underDiscovery =
-        canonicalPath !== null &&
-        !relative(discoveryRootCanonical, canonicalPath).split(sep).includes('..');
-      if (underDiscovery && canonicalPath) {
-        deleteConfigAndProjectDir(canonicalPath, discoveryRootCanonical);
-      }
-      unregisterProject(nameOrPath);
-      return underDiscovery
-        ? `Removed project "${nameOrPath}" and deleted config and project directory.`
-        : `Removed project "${nameOrPath}" from registry.`;
+      removePidFile(pidFilePath);
     }
-    throw new Error(
-      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
-    );
-  }
-
-  const absolutePath = resolve(nameOrPath);
-
-  if (basename(absolutePath) !== 'config.json') {
-    throw new Error(
-      `Invalid path: must point to a config.json file.\nRun \`limps config list\` to see registered projects.`
-    );
-  }
-  if (!existsSync(absolutePath)) {
-    throw new Error(
-      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
-    );
-  }
-  try {
-    const stat = statSync(absolutePath);
-    if (!stat.isFile()) {
-      throw new Error(
-        `Invalid path: not a file.\nRun \`limps config list\` to see registered projects.`
-      );
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith('Invalid path:')) throw err;
-    throw new Error(
-      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
-    );
-  }
-
-  let canonicalPath: string;
-  try {
-    canonicalPath = realpathSync(absolutePath);
   } catch {
-    throw new Error(
-      `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
-    );
+    // Best effort
   }
 
-  const rel = relative(discoveryRootCanonical, canonicalPath);
-  if (rel.split(sep).includes('..')) {
-    throw new Error(
-      `Invalid path: must be under application config directory.\nRun \`limps config list\` to see registered projects.`
-    );
+  // Delete dataPath directory
+  if (existsSync(dataPath)) {
+    rmSync(dataPath, { recursive: true, force: true });
+    log.push(`Deleted data dir: ${dataPath}`);
   }
 
-  const entry = Object.entries(registry.projects).find(([, p]) => {
-    try {
-      return realpathSync(resolve(p.configPath)) === canonicalPath;
-    } catch {
-      return false;
-    }
-  });
-
-  if (entry) {
-    const [name] = entry;
-    deleteConfigAndProjectDir(canonicalPath, discoveryRootCanonical);
-    unregisterProject(name);
-    return `Removed project "${name}" and deleted config and project directory.`;
+  if (log.length === 0) {
+    log.push('Nothing to reset — no limps state found.');
   }
 
-  throw new Error(
-    `Project not found: ${nameOrPath}\nRun \`limps config list\` to see registered projects.`
-  );
-}
-
-/**
- * Set the current project from an existing config file path.
- * Auto-derives the project name from the parent directory.
- * Registers the project if not already registered.
- *
- * @param configFilePath - Path to the config file
- * @returns Success message
- * @throws Error if config file doesn't exist or is invalid
- */
-export function configSet(configFilePath: string): string {
-  const absolutePath = resolve(configFilePath);
-
-  if (!existsSync(absolutePath)) {
-    throw new Error(`Config file not found: ${absolutePath}`);
-  }
-
-  // Validate it's a valid config file
-  try {
-    loadConfig(absolutePath);
-  } catch (error) {
-    throw new Error(
-      `Invalid config file: ${error instanceof Error ? error.message : 'unknown error'}`
-    );
-  }
-
-  // Derive project name from parent directory
-  const projectName = basename(dirname(absolutePath));
-
-  // Check if already registered with this path
-  const registry = loadRegistry();
-  const existingEntry = Object.entries(registry.projects).find(
-    ([, project]) => project.configPath === absolutePath
-  );
-
-  if (existingEntry) {
-    // Already registered, just set as current
-    setCurrentProject(existingEntry[0]);
-    return `Switched to project "${existingEntry[0]}"`;
-  }
-
-  // Register and set as current
-  registerProject(projectName, absolutePath);
-  setCurrentProject(projectName);
-  return `Registered and switched to project "${projectName}"`;
+  return log;
 }
 
 import {
   getAdapter,
   LocalMcpAdapter,
-  type GlobalAdapterClientType,
   type McpClientAdapter,
   type McpClientConfig,
   type McpServerConfig,
 } from './mcp-client-adapter.js';
 
 /**
- * Discover config files under limps/projects (Application Support/limps/projects/<name>/config.json).
- * Does not auto-register; use `limps config use <name>` to register and switch.
- *
- * @returns Summary of discovered (unregistered) projects
- */
-export function configDiscover(): string {
-  // Scan under limps/projects (Application Support/limps/projects/<name>/config.json)
-  // This respects any mocking of getOSBasePath for testing
-  const searchDir = getProjectsRoot();
-
-  const registry = loadRegistry();
-  const registeredPaths = new Set(Object.values(registry.projects).map((p) => p.configPath));
-
-  const discovered: { name: string; path: string }[] = [];
-
-  if (!existsSync(searchDir)) {
-    return 'No new projects discovered.';
-  }
-
-  try {
-    const entries = readdirSync(searchDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const configPath = join(searchDir, entry.name, 'config.json');
-
-      // Skip if already registered or doesn't exist
-      if (registeredPaths.has(configPath) || !existsSync(configPath)) continue;
-
-      // Only list configs that are actually limps configs (plansPath, dataPath, scoring)
-      try {
-        const raw = JSON.parse(readFileSync(configPath, 'utf-8'));
-        if (!validateConfig(raw)) continue;
-        discovered.push({ name: entry.name, path: configPath });
-      } catch {
-        // Not valid JSON or not a limps config, skip
-      }
-    }
-  } catch {
-    // Can't read directory, skip
-  }
-
-  if (discovered.length === 0) {
-    return 'No new projects discovered.';
-  }
-
-  const lines = [`Discovered ${discovered.length} project(s):`, ''];
-  for (const { name, path } of discovered) {
-    lines.push(`  ${name}: ${path}`);
-  }
-  lines.push('');
-  lines.push('Run `limps config use <name>` to register and switch to a project.');
-
-  return lines.join('\n');
-}
-
-/**
- * Repair MCP client config references: replace old config path with new path in all
- * global MCP client configs (Claude Desktop, Cursor, Claude Code, Codex).
- */
-function repairMcpConfigReferences(oldPath: string, newPath: string): void {
-  const oldResolved = resolve(oldPath);
-  const newResolved = resolve(newPath);
-  const adapters: GlobalAdapterClientType[] = ['claude', 'cursor', 'claude-code', 'codex'];
-
-  for (const clientType of adapters) {
-    try {
-      const adapter = getAdapter(clientType);
-      const config = adapter.readConfig() as McpClientConfig;
-      const serversKey = adapter.getServersKey();
-      let servers: Record<string, McpServerConfig | unknown> | undefined;
-
-      if (adapter.useFlatKey?.()) {
-        servers = config[serversKey] as Record<string, McpServerConfig | unknown> | undefined;
-      } else {
-        const keyParts = serversKey.split('.');
-        let current: Record<string, unknown> = config as Record<string, unknown>;
-        for (let i = 0; i < keyParts.length - 1; i++) {
-          const part = keyParts[i];
-          if (!current[part] || typeof current[part] !== 'object') break;
-          current = current[part] as Record<string, unknown>;
-        }
-        servers = current[keyParts[keyParts.length - 1]] as
-          | Record<string, McpServerConfig | unknown>
-          | undefined;
-      }
-
-      if (!servers || typeof servers !== 'object') continue;
-
-      let changed = false;
-      for (const server of Object.values(servers)) {
-        if (!server || typeof server !== 'object') continue;
-        const args = (server as McpServerConfig).args;
-        if (!Array.isArray(args)) continue;
-        for (let i = 0; i < args.length; i++) {
-          const arg = args[i];
-          if (typeof arg !== 'string') continue;
-          if (arg === oldPath || resolve(arg) === oldResolved) {
-            args[i] = newResolved;
-            changed = true;
-          }
-        }
-      }
-      if (changed) adapter.writeConfig(config);
-    } catch {
-      // Skip if config missing or invalid
-    }
-  }
-}
-
-/**
- * Repair all path fields in a config JSON so paths under oldDir are rewritten under targetDir.
- * Handles plansPath, dataPath, docsPaths (array). Preserves relative structure under the project dir.
- */
-function repairConfigPaths(raw: Record<string, unknown>, oldDir: string, targetDir: string): void {
-  const oldDirResolved = resolve(oldDir);
-  const targetDirResolved = resolve(targetDir);
-
-  function rewritePath(pathStr: string): string {
-    const resolved = resolve(pathStr);
-    if (resolved === oldDirResolved || resolved.startsWith(oldDirResolved + sep)) {
-      const rel = relative(oldDirResolved, resolved);
-      return rel === '' ? targetDirResolved : join(targetDirResolved, rel);
-    }
-    return pathStr;
-  }
-
-  if (raw.plansPath && typeof raw.plansPath === 'string') {
-    raw.plansPath = rewritePath(raw.plansPath);
-  }
-  if (raw.dataPath && typeof raw.dataPath === 'string') {
-    raw.dataPath = rewritePath(raw.dataPath);
-  }
-  if (raw.docsPaths && Array.isArray(raw.docsPaths)) {
-    raw.docsPaths = raw.docsPaths.map((p) => (typeof p === 'string' ? rewritePath(p) : p));
-  }
-}
-
-/**
- * Migrate known (registered) configs and configs from old locations into limps/projects/
- * so the limps root is not polluted. Ensures limps/projects exists, then:
- * 1. For each registered project: if config is not under limps/projects/<name>/, copy it there and update registry.
- * 2. Pull from old sibling layout (Application Support/<name>/config.json): copy to limps/projects/<name>/, register.
- * 3. Pull from flat limps layout (limps/<name>/config.json): copy to limps/projects/<name>/, register if not already.
- * Repairs all paths inside each config JSON (plansPath, dataPath, docsPaths) and MCP client references.
- *
- * @returns Summary of migration (migrated count and paths)
- */
-/** One recorded move for migration reversal. */
-export interface MigrationMove {
-  name: string;
-  sourcePath: string;
-  targetPath: string;
-}
-
-/** Write migration log so the run can be reversed. */
-function writeMigrationLog(limpsRoot: string, moves: MigrationMove[]): string {
-  const timestamp = new Date().toISOString();
-  const safeTimestamp = timestamp.replace(/[:.]/g, '-');
-  const logPath = join(limpsRoot, `migration-${safeTimestamp}.json`);
-  const reverseSteps = moves.map(
-    (m) =>
-      `  ${m.name}: copy "${m.targetPath}" → "${m.sourcePath}", then \`limps config set "${m.sourcePath}"\`, then remove "${m.targetPath}" and its directory.`
-  );
-  const log = {
-    timestamp,
-    command: 'limps config migrate',
-    moves,
-    reverseInstructions: [
-      'To reverse this migration, for each move:',
-      ...reverseSteps,
-      'Then run `limps config remove <name>` for each project and re-add with the source path if desired.',
-    ].join('\n'),
-  };
-  writeFileSync(logPath, JSON.stringify(log, null, 2));
-  return logPath;
-}
-
-export function configMigrate(): string {
-  const projectsRoot = getProjectsRoot();
-  const limpsRoot = getOSBasePath('limps');
-  const parentOfLimps = dirname(limpsRoot);
-  mkdirSync(projectsRoot, { recursive: true });
-
-  const registry = loadRegistry();
-  const lines: string[] = ['Migrating configs into limps/projects/', ''];
-  const moves: MigrationMove[] = [];
-  let migrated = 0;
-
-  function copyConfigToProjectDir(name: string, sourcePath: string): boolean {
-    const targetDir = join(projectsRoot, name);
-    const targetPath = join(targetDir, 'config.json');
-    if (!existsSync(sourcePath)) return false;
-    try {
-      const raw = JSON.parse(readFileSync(sourcePath, 'utf-8')) as Record<string, unknown>;
-      if (!validateConfig(raw)) return false;
-      const oldDir = dirname(sourcePath);
-      repairConfigPaths(raw, oldDir, targetDir);
-      mkdirSync(targetDir, { recursive: true });
-      writeFileSync(targetPath, JSON.stringify(raw, null, 2));
-      registerProject(name, targetPath);
-      repairMcpConfigReferences(sourcePath, targetPath);
-      rmSync(sourcePath, { force: true });
-      if (basename(sourcePath) === 'config.json' && existsSync(oldDir)) {
-        rmSync(oldDir, { recursive: true, force: true });
-      }
-      migrated++;
-      moves.push({ name, sourcePath, targetPath });
-      lines.push(`  ${name}: ${sourcePath} → ${targetPath}`);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  // 1. Registered projects not already under limps/projects/<name>/
-  for (const [name, project] of Object.entries(registry.projects)) {
-    const currentPath = resolve(project.configPath);
-    const targetPath = join(projectsRoot, name, 'config.json');
-    let currentCanonical: string;
-    let targetCanonical: string;
-    try {
-      currentCanonical = realpathSync(currentPath);
-      targetCanonical = existsSync(targetPath) ? realpathSync(targetPath) : targetPath;
-    } catch {
-      continue;
-    }
-    if (currentCanonical === targetCanonical) continue;
-    const rel = relative(projectsRoot, currentPath);
-    if (!rel.split(sep).includes('..')) continue; // already under projects
-    copyConfigToProjectDir(name, currentPath);
-  }
-
-  // 2. Old sibling layout: Application Support/<name>/config.json
-  try {
-    if (existsSync(parentOfLimps)) {
-      const entries = readdirSync(parentOfLimps, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name === 'limps') continue;
-        const sourcePath = join(parentOfLimps, entry.name, 'config.json');
-        if (!existsSync(sourcePath)) continue;
-        if (registry.projects[entry.name]) continue; // already registered and possibly migrated
-        copyConfigToProjectDir(entry.name, sourcePath);
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  // 3. Flat limps layout: limps/<name>/config.json (excluding projects)
-  try {
-    if (existsSync(limpsRoot)) {
-      const entries = readdirSync(limpsRoot, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name === PROJECTS_DIR) continue;
-        const sourcePath = join(limpsRoot, entry.name, 'config.json');
-        if (!existsSync(sourcePath)) continue;
-        const targetPath = join(projectsRoot, entry.name, 'config.json');
-        if (existsSync(targetPath)) continue; // already in projects
-        copyConfigToProjectDir(entry.name, sourcePath);
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  // 4. Strip coordination keys from all project configs under limps/projects/
-  const deprecatedCoordinationKeys = [
-    'coordinationPath',
-    'heartbeatTimeout',
-    'debounceDelay',
-    'maxHandoffIterations',
-  ];
-  let coordinationCleaned = 0;
-  try {
-    const projectDirs = readdirSync(projectsRoot, { withFileTypes: true });
-    for (const entry of projectDirs) {
-      if (!entry.isDirectory()) continue;
-      const configPath = join(projectsRoot, entry.name, 'config.json');
-      if (!existsSync(configPath)) continue;
-      try {
-        const raw = readFileSync(configPath, 'utf-8');
-        const hadDeprecated = deprecatedCoordinationKeys.some((k) => raw.includes(`"${k}"`));
-        if (hadDeprecated) {
-          loadConfig(configPath);
-          coordinationCleaned++;
-        }
-      } catch {
-        // ignore
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  if (coordinationCleaned > 0) {
-    lines.push('');
-    lines.push(`Coordination keys removed from ${coordinationCleaned} config(s).`);
-  }
-
-  if (migrated === 0) {
-    if (coordinationCleaned === 0) {
-      return 'No configs to migrate. All known configs are already under limps/projects/.';
-    }
-    return lines.join('\n');
-  }
-
-  const logPath = writeMigrationLog(limpsRoot, moves);
-  lines.push('');
-  lines.push(`Migrated ${migrated} project(s). Run \`limps config list\` to see current projects.`);
-  lines.push(`Reversal log: ${logPath}`);
-  return lines.join('\n');
-}
-
-/**
- * Generate MCP server configuration JSON for limps projects.
- * Returns the JSON structure that should be added to the client config.
+ * Generate MCP server configuration JSON for a single limps project.
  *
  * @param adapter - MCP client adapter
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
+ * @param configPath - Path to the limps config file
  * @returns Object with servers key and the servers configuration
- * @throws Error if no valid projects found
+ * @throws Error if config not found
  */
 export function generateMcpClientConfig(
   adapter: McpClientAdapter,
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
+  configPath: string
 ): {
   serversKey: string;
   servers: Record<string, McpServerConfig>;
   fullConfig: Record<string, unknown>;
 } {
-  // Validate that at least one config exists
-  const testConfigPath = resolveConfigPathFn();
-  if (!existsSync(testConfigPath)) {
+  if (!existsSync(configPath)) {
     throw new Error(
-      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+      `Limps config not found: ${configPath}\nRun \`limps init\` to create a project first.`
     );
   }
 
-  // Get all registered projects
-  const allProjects = listProjects();
-
-  if (allProjects.length === 0) {
-    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
-  }
-
-  // Filter projects if filter is provided
-  const projectsToAdd = projectFilter
-    ? allProjects.filter((p) => projectFilter.includes(p.name))
-    : allProjects;
-
-  if (projectsToAdd.length === 0) {
-    throw new Error(
-      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
-    );
-  }
+  // Derive server name from parent directory of config
+  const serverName = `limps-planning-${basename(dirname(configPath))}`;
 
   // Build servers configuration
-  const servers: Record<string, McpServerConfig> = {};
-  const missingProjects: { name: string; path: string }[] = [];
-
-  for (const project of projectsToAdd) {
-    // Skip projects with missing config files
-    if (!existsSync(project.configPath)) {
-      missingProjects.push({ name: project.name, path: project.configPath });
-      continue;
-    }
-
-    const serverName = `limps-planning-${project.name}`;
-    servers[serverName] = adapter.createServerConfig(project.configPath);
-  }
-
-  if (Object.keys(servers).length === 0) {
-    const missingList =
-      missingProjects.length > 0
-        ? ` Missing config files: ${missingProjects.map((p) => `${p.name} (${p.path})`).join(', ')}`
-        : '';
-    throw new Error(
-      `No valid projects to add. All projects have missing config files.${missingList}`
-    );
-  }
+  const servers: Record<string, McpServerConfig> = {
+    [serverName]: adapter.createServerConfig(configPath),
+  };
 
   // Build full config structure
   const serversKey = adapter.getServersKey();
   const fullConfig: Record<string, unknown> = {};
 
   if (adapter.useFlatKey?.()) {
-    // Use the key as a flat key
     fullConfig[serversKey] = servers;
   } else {
-    // Build nested structure
     const keyParts = serversKey.split('.');
     let current: Record<string, unknown> = fullConfig;
     for (let i = 0; i < keyParts.length - 1; i++) {
@@ -1215,52 +464,15 @@ export function generateMcpClientConfig(
 
 /**
  * Add limps server configuration to an MCP client config.
- * Creates the config file if it doesn't exist, or merges with existing config.
- * Adds all registered projects as separate MCP servers.
- *
- * @param adapter - MCP client adapter
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns Success message listing all added servers
- * @throws Error if config directory doesn't exist or can't be written
  */
-function configAddMcpClient(
-  adapter: McpClientAdapter,
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
-  // Validate that at least one config exists
-  const testConfigPath = resolveConfigPathFn();
-  if (!existsSync(testConfigPath)) {
+function configAddMcpClient(adapter: McpClientAdapter, configPath: string): string {
+  if (!existsSync(configPath)) {
     throw new Error(
-      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+      `Limps config not found: ${configPath}\nRun \`limps init\` to create a project first.`
     );
   }
 
-  // Get all registered projects
-  const allProjects = listProjects();
-
-  if (allProjects.length === 0) {
-    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
-  }
-
-  // Filter projects if filter is provided
-  const projectsToAdd = projectFilter
-    ? allProjects.filter((p) => projectFilter.includes(p.name))
-    : allProjects;
-
-  if (projectsToAdd.length === 0) {
-    throw new Error(
-      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
-    );
-  }
-
-  // Generate the config
-  const { serversKey, servers } = generateMcpClientConfig(
-    adapter,
-    resolveConfigPathFn,
-    projectFilter
-  );
+  const { serversKey, servers } = generateMcpClientConfig(adapter, configPath);
 
   // Read existing config or create new one
   const clientConfig = adapter.readConfig();
@@ -1314,12 +526,10 @@ function configAddMcpClient(
 
 /**
  * Preview MCP client config changes without writing to disk.
- * Returns a formatted diff and counts of additions/updates.
  */
 export function previewMcpClientConfig(
   adapter: McpClientAdapter,
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
+  configPath: string
 ): {
   hasChanges: boolean;
   diffText: string;
@@ -1327,36 +537,13 @@ export function previewMcpClientConfig(
   updatedServers: string[];
   configPath: string;
 } {
-  // Validate that at least one config exists
-  const testConfigPath = resolveConfigPathFn();
-  if (!existsSync(testConfigPath)) {
+  if (!existsSync(configPath)) {
     throw new Error(
-      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+      `Limps config not found: ${configPath}\nRun \`limps init\` to create a project first.`
     );
   }
 
-  // Get all registered projects
-  const allProjects = listProjects();
-  if (allProjects.length === 0) {
-    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
-  }
-
-  // Filter projects if filter is provided
-  const projectsToAdd = projectFilter
-    ? allProjects.filter((p) => projectFilter.includes(p.name))
-    : allProjects;
-
-  if (projectsToAdd.length === 0) {
-    throw new Error(
-      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
-    );
-  }
-
-  const { serversKey, servers } = generateMcpClientConfig(
-    adapter,
-    resolveConfigPathFn,
-    projectFilter
-  );
+  const { serversKey, servers } = generateMcpClientConfig(adapter, configPath);
 
   const originalConfig = adapter.readConfig();
   const nextConfig = deepCloneConfig(originalConfig);
@@ -1390,11 +577,9 @@ function applyServerUpdates(
   servers: Record<string, McpServerConfig>,
   useFlatKey: boolean
 ): { addedServers: string[]; updatedServers: string[] } {
-  // Get or create the servers object
   let existingServers: Record<string, unknown>;
 
   if (useFlatKey) {
-    // Use the key as a flat key (e.g., "mcp.servers" as a literal key)
     if (clientConfig[serversKey] && typeof clientConfig[serversKey] !== 'object') {
       throw new Error(`Invalid "${serversKey}" value: expected an object.`);
     }
@@ -1403,11 +588,9 @@ function applyServerUpdates(
     }
     existingServers = clientConfig[serversKey] as Record<string, unknown>;
   } else {
-    // Handle nested keys like "mcp.servers" -> { mcp: { servers: {...} } }
     const keyParts = serversKey.split('.');
     let current: Record<string, unknown> = clientConfig as Record<string, unknown>;
 
-    // Navigate/create nested structure
     for (let i = 0; i < keyParts.length - 1; i++) {
       const part = keyParts[i];
       if (current[part] && typeof current[part] !== 'object') {
@@ -1421,7 +604,6 @@ function applyServerUpdates(
       current = current[part] as Record<string, unknown>;
     }
 
-    // Get or create the final servers object
     const finalKey = keyParts[keyParts.length - 1];
     if (current[finalKey] && typeof current[finalKey] !== 'object') {
       throw new Error(`Invalid "${serversKey}" value: expected an object.`);
@@ -1432,7 +614,6 @@ function applyServerUpdates(
     existingServers = current[finalKey] as Record<string, unknown>;
   }
 
-  // Track what was added/updated
   const addedServers: string[] = [];
   const updatedServers: string[] = [];
 
@@ -1450,23 +631,10 @@ function applyServerUpdates(
 }
 
 /**
- * Generate config JSON for printing (for unsupported clients).
- *
- * @param adapter - MCP client adapter
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns JSON string and instructions
+ * Generate config for printing (for unsupported clients).
  */
-export function generateConfigForPrint(
-  adapter: McpClientAdapter,
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
-  const { fullConfig, serversKey } = generateMcpClientConfig(
-    adapter,
-    resolveConfigPathFn,
-    projectFilter
-  );
+export function generateConfigForPrint(adapter: McpClientAdapter, configPath: string): string {
+  const { fullConfig, serversKey } = generateMcpClientConfig(adapter, configPath);
 
   const isTomlConfig = adapter.getConfigPath().endsWith('.toml');
   const formattedConfig = isTomlConfig
@@ -1483,95 +651,30 @@ export function generateConfigForPrint(
   return lines.join('\n');
 }
 
-/**
- * Add limps server configuration to Claude Desktop config.
- * Creates the config file if it doesn't exist, or merges with existing config.
- * Adds all registered projects as separate MCP servers.
- *
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns Success message listing all added servers
- * @throws Error if Claude Desktop config directory doesn't exist or can't be written
- */
-export function configAddClaude(
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
+export function configAddClaude(configPath: string): string {
   const adapter = getAdapter('claude');
-  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+  return configAddMcpClient(adapter, configPath);
 }
 
-/**
- * Add limps server configuration to Cursor config.
- * Creates the config file if it doesn't exist, or merges with existing config.
- * Adds all registered projects as separate MCP servers.
- *
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns Success message listing all added servers
- * @throws Error if Cursor config directory doesn't exist or can't be written
- */
-export function configAddCursor(
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
+export function configAddCursor(configPath: string): string {
   const adapter = getAdapter('cursor');
-  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+  return configAddMcpClient(adapter, configPath);
 }
 
-/**
- * Add limps server configuration to Claude Code config.
- * Creates the config file if it doesn't exist, or merges with existing config.
- * Adds all registered projects as separate MCP servers.
- *
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns Success message listing all added servers
- * @throws Error if Claude Code config directory doesn't exist or can't be written
- */
-export function configAddClaudeCode(
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
+export function configAddClaudeCode(configPath: string): string {
   const adapter = getAdapter('claude-code');
-  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+  return configAddMcpClient(adapter, configPath);
 }
 
-/**
- * Add limps server configuration to OpenAI Codex config.
- * Creates the config file if it doesn't exist, or merges with existing config.
- * Adds all registered projects as separate MCP servers.
- *
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns Success message listing all added servers
- * @throws Error if Codex config directory doesn't exist or can't be written
- */
-export function configAddCodex(
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
+export function configAddCodex(configPath: string): string {
   const adapter = getAdapter('codex');
-  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
+  return configAddMcpClient(adapter, configPath);
 }
 
-/**
- * Add/update limps server configuration to local workspace MCP config file.
- * Creates the config file if it doesn't exist, or merges with existing config.
- * Adds all registered projects as separate MCP servers.
- *
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @param adapterOrPath - Optional LocalMcpAdapter instance or path to the config file
- * @returns Success message listing all added servers
- * @throws Error if config directory doesn't exist or can't be written
- */
 export function configAddLocalMcp(
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[],
+  configPath: string,
   adapterOrPath?: LocalMcpAdapter | string
 ): string {
-  // Use provided adapter, or create one from path, or use default (claude-code style .mcp.json)
   let adapter: LocalMcpAdapter;
   if (adapterOrPath instanceof LocalMcpAdapter) {
     adapter = adapterOrPath;
@@ -1580,58 +683,20 @@ export function configAddLocalMcp(
   } else {
     adapter = new LocalMcpAdapter('claude-code');
   }
-  return configAddMcpClient(adapter, resolveConfigPathFn, projectFilter);
-}
-
-/**
- * Check if a local .mcp.json file exists in the current directory or specified path.
- *
- * @param mcpJsonPath - Optional path to .mcp.json (defaults to .mcp.json in current directory)
- * @returns True if the file exists, false otherwise
- */
-export function hasLocalMcpJson(mcpJsonPath?: string): boolean {
-  const path = mcpJsonPath || join(process.cwd(), '.mcp.json');
-  return existsSync(path);
+  return configAddMcpClient(adapter, configPath);
 }
 
 /**
  * Generate ChatGPT MCP connector setup instructions.
- * ChatGPT does not read local config files, so we provide manual steps instead.
- *
- * @param resolveConfigPathFn - Function to resolve limps config path (used for validation)
- * @param projectFilter - Optional array of project names to filter (if not provided, adds all)
- * @returns Instruction text for ChatGPT custom connectors
  */
-export function generateChatGptInstructions(
-  resolveConfigPathFn: () => string,
-  projectFilter?: string[]
-): string {
-  const testConfigPath = resolveConfigPathFn();
-  if (!existsSync(testConfigPath)) {
+export function generateChatGptInstructions(configPath: string): string {
+  if (!existsSync(configPath)) {
     throw new Error(
-      `Limps config not found: ${testConfigPath}\nRun \`limps init <name>\` to create a project first.`
+      `Limps config not found: ${configPath}\nRun \`limps init\` to create a project first.`
     );
   }
 
-  const allProjects = listProjects();
-  if (allProjects.length === 0) {
-    throw new Error('No projects registered. Run `limps init <name>` to create a project first.');
-  }
-
-  const projectsToAdd = projectFilter
-    ? allProjects.filter((p) => projectFilter.includes(p.name))
-    : allProjects;
-
-  if (projectsToAdd.length === 0) {
-    throw new Error(
-      `No matching projects found. Available projects: ${allProjects.map((p) => p.name).join(', ')}`
-    );
-  }
-
-  const validProjects = projectsToAdd.filter((p) => existsSync(p.configPath));
-  if (validProjects.length === 0) {
-    throw new Error('No valid projects to add. All projects have missing config files.');
-  }
+  const serverName = `limps-planning-${basename(dirname(configPath))}`;
 
   const lines: string[] = [];
   lines.push('ChatGPT Custom Connector Setup (Manual)');
@@ -1640,18 +705,13 @@ export function generateChatGptInstructions(
     'ChatGPT requires a remote MCP server reachable over HTTPS. limps runs over stdio, so deploy it behind an MCP-compatible HTTP/SSE transport or proxy.'
   );
   lines.push('');
-  lines.push('For each project, create a Custom Connector in ChatGPT with:');
+  lines.push('Create a Custom Connector in ChatGPT with:');
   lines.push('');
-
-  for (const project of validProjects) {
-    lines.push(`- Project: ${project.name}`);
-    lines.push(`  Server Name: limps-planning-${project.name}`);
-    lines.push('  Server URL: https://your-domain.example/mcp');
-    lines.push('  Authentication: (required by your deployment)');
-    lines.push(`  limps command: limps serve --config ${project.configPath}`);
-    lines.push('');
-  }
-
+  lines.push(`  Server Name: ${serverName}`);
+  lines.push('  Server URL: https://your-domain.example/mcp');
+  lines.push('  Authentication: (required by your deployment)');
+  lines.push(`  limps command: limps serve --config ${configPath}`);
+  lines.push('');
   lines.push('Tip: create one connector per project config.');
 
   return lines.join('\n');
@@ -1667,30 +727,18 @@ export interface ConfigUpdateOptions {
 
 /**
  * Update an existing project's configuration.
- * Allows updating plansPath and docsPaths without recreating the config.
  *
- * @param projectName - Name of the project to update
+ * @param configPath - Path to the config file to update
  * @param options - Fields to update
  * @returns Success message
- * @throws Error if project not found or config file doesn't exist
+ * @throws Error if config file doesn't exist
  */
-export function configUpdate(projectName: string, options: ConfigUpdateOptions): string {
-  const projects = listProjects();
-  const project = projects.find((p) => p.name === projectName);
-
-  if (!project) {
-    const available = projects.map((p) => p.name).join(', ');
-    throw new Error(
-      `Project "${projectName}" not found.${available ? ` Available projects: ${available}` : ' No projects registered.'}`
-    );
+export function configUpdate(configPath: string, options: ConfigUpdateOptions): string {
+  if (!existsSync(configPath)) {
+    throw new Error(`Config file not found: ${configPath}`);
   }
 
-  if (!existsSync(project.configPath)) {
-    throw new Error(`Config file not found: ${project.configPath}`);
-  }
-
-  // Read the raw config file (not using loadConfig which resolves paths)
-  const content = readFileSync(project.configPath, 'utf-8');
+  const content = readFileSync(configPath, 'utf-8');
   const config = JSON.parse(content) as Record<string, unknown>;
 
   const changes: string[] = [];
@@ -1711,15 +759,14 @@ export function configUpdate(projectName: string, options: ConfigUpdateOptions):
     return `No changes specified. Use --plans-path or --docs-path to update configuration.`;
   }
 
-  // Write back
-  writeFileSync(project.configPath, JSON.stringify(config, null, 2));
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
 
   const lines: string[] = [];
-  lines.push(`Updated project "${projectName}":`);
+  lines.push(`Updated configuration:`);
   lines.push('');
   lines.push(...changes);
   lines.push('');
-  lines.push(`Config file: ${project.configPath}`);
+  lines.push(`Config file: ${configPath}`);
 
   return lines.join('\n');
 }

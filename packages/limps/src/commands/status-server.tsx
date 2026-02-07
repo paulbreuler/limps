@@ -3,7 +3,7 @@ import { Box, Text } from 'ink';
 import { z } from 'zod';
 import { request as httpRequest } from 'http';
 import { loadConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 
@@ -11,7 +11,6 @@ export const description = 'Show limps HTTP server status';
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -73,9 +72,7 @@ function fetchHealth(host: string, port: number): Promise<HealthResponse | null>
  * Resolve config and gather daemon + health status.
  */
 function getServerStatus(opts: z.infer<typeof options>): Promise<StatusResult> {
-  const configPath = opts.project
-    ? resolveProjectConfigPath(opts.project)
-    : resolveConfigPath(opts.config);
+  const configPath = resolveConfigPath(opts.config);
   const config = loadConfig(configPath);
   const pidFilePath = getPidFilePath(config.dataPath);
   const daemon = getRunningDaemon(pidFilePath);
@@ -119,7 +116,7 @@ export default function StatusServerCommand({ options: opts }: Props): React.Rea
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [jsonMode, opts.config, opts.project]);
+  }, [jsonMode, opts.config]);
 
   if (jsonMode) {
     return null;
@@ -136,7 +133,7 @@ function StatusDisplay({ opts }: { opts: z.infer<typeof options> }): React.React
     getServerStatus(opts)
       .then(setResult)
       .catch((err) => setError((err as Error).message));
-  }, [opts.config, opts.project]);
+  }, [opts.config]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

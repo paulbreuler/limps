@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../../utils/cli-help.js';
+import { resolveConfigPath } from '../../utils/config-resolver.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
 import { handleJsonOutput, isJsonMode } from '../../cli/json-output.js';
 import { openGraphDb } from '../../cli/graph-db.js';
 import { graphEntity } from '../../cli/graph-entity.js';
@@ -14,7 +14,6 @@ export const args = z.tuple([z.string().describe('entity canonical ID')]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -25,28 +24,20 @@ interface Props {
 
 export default function GraphEntityCommand({ args, options }: Props): React.ReactNode {
   const [canonicalId] = args;
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
   const jsonMode = isJsonMode(options);
 
   const help = buildHelpOutput({
     usage: 'limps graph entity <canonical-id> [options]',
     arguments: ['canonical-id  Entity canonical ID (e.g. plan:0042)'],
-    options: [
-      '--config Path to config file',
-      '--project Registered project name',
-      '--json Output as JSON',
-    ],
+    options: ['--config Path to config file', '--json Output as JSON'],
     sections: [
       {
         title: 'Examples',
         lines: ['limps graph entity plan:0042', 'limps graph entity agent:0042#003 --json'],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
 
   useEffect((): (() => void) | undefined => {

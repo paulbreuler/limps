@@ -22,30 +22,8 @@ export {
   type StaleEntry,
 } from './health-staleness.js';
 
-// Registry and config management
-export {
-  getRegistryPath,
-  loadRegistry,
-  saveRegistry,
-  registerProject,
-  unregisterProject,
-  setCurrentProject,
-  getCurrentProjectPath,
-  getProjectPath,
-  listProjects,
-  type RegisteredProject,
-  type ProjectRegistry,
-} from './registry.js';
-export {
-  configList,
-  configUse,
-  configShow,
-  configPath,
-  configAdd,
-  configRemove,
-  configSet,
-  configDiscover,
-} from './config-cmd.js';
+// Config management
+export { configShow, configPath } from './config-cmd.js';
 
 // JSON output utilities
 export {

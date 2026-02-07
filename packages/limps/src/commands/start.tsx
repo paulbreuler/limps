@@ -6,7 +6,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { get } from 'http';
 import { loadConfig, getHttpServerConfig } from '../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../utils/config-resolver.js';
+import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
 import { startHttpServer, stopHttpServer } from '../server-http.js';
 
@@ -31,7 +31,6 @@ export const description = 'Start the limps HTTP server';
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   foreground: z.boolean().optional().describe('Run in foreground (do not daemonize)'),
   port: z.number().optional().describe('Override port number'),
   host: z.string().optional().describe('Override host address'),
@@ -49,9 +48,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
   useEffect(() => {
     const run = async (): Promise<void> => {
       try {
-        const configPath = opts.project
-          ? resolveProjectConfigPath(opts.project)
-          : resolveConfigPath(opts.config);
+        const configPath = resolveConfigPath(opts.config);
         const config = loadConfig(configPath);
         const httpConfig = getHttpServerConfig(config);
         const port = opts.port ?? httpConfig.port;
@@ -137,7 +134,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
     };
 
     void run();
-  }, [opts.config, opts.project, opts.foreground, opts.port, opts.host]);
+  }, [opts.config, opts.foreground, opts.port, opts.host]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

@@ -216,14 +216,6 @@ This is a test feature plan.
   });
 
   describe('config commands', () => {
-    it('should list config projects', async () => {
-      const result = await runCli(['config', 'list']);
-
-      expect(result.exitCode).toBe(0);
-      // Should show config list (may be empty)
-      expect(result.stdout.length).toBeGreaterThan(0);
-    });
-
     it('should show config help', async () => {
       const result = await runCli(['config', '--help']);
 
@@ -264,7 +256,6 @@ This is a test feature plan.
         env: {
           HOME: isolatedHome,
           MCP_PLANNING_CONFIG: undefined,
-          LIMPS_PROJECT: undefined,
         },
       });
 

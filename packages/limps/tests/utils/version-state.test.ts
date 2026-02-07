@@ -8,16 +8,17 @@ import {
   shouldShowWhatsNew,
 } from '../../src/utils/version-state.js';
 
-// Mock the os-paths module to use a temporary directory
-const testBasePath = join(tmpdir(), 'limps-test-version-state');
-const testVersionStatePath = join(testBasePath, 'version-state.json');
+// Mock homedir to use a temporary directory so getCachePath resolves inside it
+const testHome = join(tmpdir(), 'limps-test-version-state-home');
+// On macOS, getCachePath returns ~/Library/Caches/limps
+const testCachePath = join(testHome, 'Library', 'Caches', 'limps');
+const testVersionStatePath = join(testCachePath, 'version-state.json');
 
-// Mock getOSBasePath to return our test directory
-vi.mock('../../src/utils/os-paths.js', async () => {
-  const actual = await vi.importActual('../../src/utils/os-paths.js');
+vi.mock('os', async () => {
+  const actual = await vi.importActual('os');
   return {
     ...actual,
-    getOSBasePath: (): string => testBasePath,
+    homedir: (): string => testHome,
   };
 });
 
@@ -36,9 +37,9 @@ describe('version-state.ts', () => {
     if (existsSync(testVersionStatePath)) {
       unlinkSync(testVersionStatePath);
     }
-    if (existsSync(testBasePath)) {
+    if (existsSync(testCachePath)) {
       try {
-        rmdirSync(testBasePath);
+        rmdirSync(testCachePath);
       } catch {
         // Ignore errors if directory not empty
       }
@@ -50,9 +51,9 @@ describe('version-state.ts', () => {
     if (existsSync(testVersionStatePath)) {
       unlinkSync(testVersionStatePath);
     }
-    if (existsSync(testBasePath)) {
+    if (existsSync(testCachePath)) {
       try {
-        rmdirSync(testBasePath);
+        rmdirSync(testCachePath);
       } catch {
         // Ignore errors if directory not empty
       }
@@ -69,7 +70,7 @@ describe('version-state.ts', () => {
 
     it('reads existing state file', () => {
       // Create a test state file
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.1.0' }, null, 2),
@@ -82,7 +83,7 @@ describe('version-state.ts', () => {
 
     it('resets to current version if state file is invalid', () => {
       // Create an invalid state file
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(testVersionStatePath, 'invalid json', 'utf-8');
 
       const state = getVersionState();
@@ -91,7 +92,7 @@ describe('version-state.ts', () => {
 
     it('resets to current version if state structure is invalid', () => {
       // Create a state file with invalid structure
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(testVersionStatePath, JSON.stringify({}), 'utf-8');
 
       const state = getVersionState();
@@ -111,7 +112,7 @@ describe('version-state.ts', () => {
 
     it('updates existing state file', () => {
       // Create initial state
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.1.0' }, null, 2),
@@ -129,7 +130,7 @@ describe('version-state.ts', () => {
   describe('shouldShowWhatsNew', () => {
     it('returns true if current version is greater than last seen', () => {
       // Set last seen to an older version
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.1.0' }, null, 2),
@@ -141,7 +142,7 @@ describe('version-state.ts', () => {
 
     it('returns false if current version equals last seen', () => {
       // Set last seen to current version
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.2.0' }, null, 2),
@@ -153,7 +154,7 @@ describe('version-state.ts', () => {
 
     it('returns false if current version is less than last seen', () => {
       // Set last seen to a newer version
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.3.0' }, null, 2),
@@ -165,7 +166,7 @@ describe('version-state.ts', () => {
 
     it('uses package version if no version provided', () => {
       // Set last seen to an older version
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.1.0' }, null, 2),
@@ -177,7 +178,7 @@ describe('version-state.ts', () => {
     });
 
     it('handles patch version increments', () => {
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.2.0' }, null, 2),
@@ -188,7 +189,7 @@ describe('version-state.ts', () => {
     });
 
     it('handles minor version increments', () => {
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.2.0' }, null, 2),
@@ -199,7 +200,7 @@ describe('version-state.ts', () => {
     });
 
     it('handles major version increments', () => {
-      mkdirSync(testBasePath, { recursive: true });
+      mkdirSync(testCachePath, { recursive: true });
       writeFileSync(
         testVersionStatePath,
         JSON.stringify({ lastSeenVersion: '1.2.0' }, null, 2),

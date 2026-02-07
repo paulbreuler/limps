@@ -46,15 +46,15 @@ export interface McpSyncClient {
   printOnly?: boolean;
   /** Whether this client supports local workspace configs */
   supportsLocalConfig: boolean;
-  runPreview?: (projectFilter?: string[]) => PreviewResult;
-  runWrite?: (projectFilter?: string[]) => string;
-  runPrint?: (projectFilter?: string[]) => string;
+  runPreview?: (projectFilter?: undefined) => PreviewResult;
+  runWrite?: (projectFilter?: undefined) => string;
+  runPrint?: (projectFilter?: undefined) => string;
 }
 
 function createFileClient(params: {
   id: McpAdapterId;
   displayName: string;
-  writeFn: (resolveConfigPathFn: () => string, projectFilter?: string[]) => string;
+  writeFn: (configPath: string) => string;
 }): McpSyncClient {
   const { id, displayName, writeFn } = params;
 
@@ -66,15 +66,14 @@ function createFileClient(params: {
     supportsWrite: true,
     supportsPrint: true,
     supportsLocalConfig: supportsLocalConfig(id),
-    runPreview: (projectFilter?: string[]): PreviewResult => {
+    runPreview: (): PreviewResult => {
       const adapter = getAdapter(id);
-      return previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+      return previewMcpClientConfig(adapter, resolveConfigPath());
     },
-    runWrite: (projectFilter?: string[]): string =>
-      writeFn(() => resolveConfigPath(), projectFilter),
-    runPrint: (projectFilter?: string[]): string => {
+    runWrite: (): string => writeFn(resolveConfigPath()),
+    runPrint: (): string => {
       const adapter = getAdapter(id);
-      return generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+      return generateConfigForPrint(adapter, resolveConfigPath());
     },
   };
 }
@@ -113,8 +112,7 @@ export function getSyncClients(): McpSyncClient[] {
       supportsPrint: true,
       supportsLocalConfig: false,
       printOnly: true,
-      runPrint: (projectFilter?: string[]) =>
-        generateChatGptInstructions(() => resolveConfigPath(), projectFilter),
+      runPrint: (): string => generateChatGptInstructions(resolveConfigPath()),
     },
     {
       id: 'opencode',
@@ -124,9 +122,9 @@ export function getSyncClients(): McpSyncClient[] {
       supportsPrint: true,
       supportsLocalConfig: true,
       printOnly: true,
-      runPrint: (projectFilter?: string[]): string => {
+      runPrint: (): string => {
         const adapter = getLocalAdapter('opencode');
-        return generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+        return generateConfigForPrint(adapter, resolveConfigPath());
       },
     },
   ];
@@ -147,24 +145,23 @@ export function createLocalClient(
 ): {
   adapter: ReturnType<typeof getLocalAdapter>;
   displayName: string;
-  runPreview: (projectFilter?: string[]) => PreviewResult;
-  runWrite: (projectFilter?: string[]) => string;
-  runPrint: (projectFilter?: string[]) => string;
+  runPreview: (projectFilter?: undefined) => PreviewResult;
+  runWrite: (projectFilter?: undefined) => string;
+  runPrint: (projectFilter?: undefined) => string;
 } {
   const adapter = getLocalAdapter(clientType, customPath);
 
   return {
     adapter,
     displayName: adapter.getDisplayName(),
-    runPreview: (projectFilter?: string[]): PreviewResult => {
-      return previewMcpClientConfig(adapter, () => resolveConfigPath(), projectFilter);
+    runPreview: (): PreviewResult => {
+      return previewMcpClientConfig(adapter, resolveConfigPath());
     },
-    runWrite: (projectFilter?: string[]): string => {
-      // Pass the adapter directly to preserve display name and settings
-      return configAddLocalMcp(() => resolveConfigPath(), projectFilter, adapter);
+    runWrite: (): string => {
+      return configAddLocalMcp(resolveConfigPath(), adapter);
     },
-    runPrint: (projectFilter?: string[]): string => {
-      return generateConfigForPrint(adapter, () => resolveConfigPath(), projectFilter);
+    runPrint: (): string => {
+      return generateConfigForPrint(adapter, resolveConfigPath());
     },
   };
 }

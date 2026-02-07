@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../../utils/config-resolver.js';
+import { resolveConfigPath } from '../../utils/config-resolver.js';
 import { openGraphDb } from '../../cli/graph-db.js';
 import { startGraphWatch } from '../../cli/graph-watch.js';
 
@@ -12,7 +12,6 @@ export const args = z.tuple([]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   channels: z
     .string()
     .optional()
@@ -26,9 +25,7 @@ interface Props {
 }
 
 export default function GraphWatchCommand({ options }: Props): React.ReactNode {
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
   const [error, setError] = useState<string | null>(null);
 

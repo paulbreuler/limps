@@ -1,5 +1,5 @@
 import { Text } from 'ink';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../../utils/cli-help.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
 
 export const description = 'Knowledge graph commands';
 
@@ -26,8 +26,6 @@ export default function GraphCommand(): React.ReactNode {
         lines: ['Run `limps graph <command> --help` for more information.'],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
 
   return <Text>{help.text}</Text>;

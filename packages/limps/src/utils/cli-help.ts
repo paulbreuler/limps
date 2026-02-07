@@ -29,14 +29,6 @@ export interface HelpBlock {
   includeNotices?: boolean;
 }
 
-export function getProjectTipLine(): string {
-  return 'Tip: use `limps config list` to find project names for `--project`.';
-}
-
-export function getProjectLlmHints(): string[] {
-  return ['Use `limps config list` to discover project names for `--project`.'];
-}
-
 function getUpdateNoticeLines(): string[] {
   if (!shouldShowWhatsNew()) {
     return [];

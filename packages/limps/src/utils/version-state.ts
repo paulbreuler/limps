@@ -5,21 +5,38 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
-import { getOSBasePath } from './os-paths.js';
+import { homedir } from 'os';
 import { getPackageVersion } from './version.js';
 
 interface VersionState {
   lastSeenVersion: string;
 }
 
-const DEFAULT_APP_NAME = 'limps';
+/**
+ * Get the OS-specific cache directory for limps.
+ *
+ * - macOS: ~/Library/Caches/limps
+ * - Windows: %LOCALAPPDATA%/limps
+ * - Linux: $XDG_CACHE_HOME/limps or ~/.cache/limps
+ */
+function getCachePath(): string {
+  const home = homedir();
+
+  switch (process.platform) {
+    case 'darwin':
+      return join(home, 'Library', 'Caches', 'limps');
+    case 'win32':
+      return join(process.env.LOCALAPPDATA || join(home, 'AppData', 'Local'), 'limps');
+    default:
+      return join(process.env.XDG_CACHE_HOME || join(home, '.cache'), 'limps');
+  }
+}
 
 /**
  * Get the path to the version state file.
  */
 function getVersionStatePath(): string {
-  const basePath = getOSBasePath(DEFAULT_APP_NAME);
-  return join(basePath, 'version-state.json');
+  return join(getCachePath(), 'version-state.json');
 }
 
 /**

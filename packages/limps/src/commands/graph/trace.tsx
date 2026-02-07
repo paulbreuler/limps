@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
-import { resolveConfigPath, resolveProjectConfigPath } from '../../utils/config-resolver.js';
-import { buildHelpOutput, getProjectLlmHints, getProjectTipLine } from '../../utils/cli-help.js';
+import { resolveConfigPath } from '../../utils/config-resolver.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
 import { handleJsonOutput, isJsonMode } from '../../cli/json-output.js';
 import { openGraphDb } from '../../cli/graph-db.js';
 import { graphTrace } from '../../cli/graph-trace.js';
@@ -14,7 +14,6 @@ export const args = z.tuple([z.string().describe('entity canonical ID')]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  project: z.string().optional().describe('Registered project name'),
   json: z.boolean().optional().describe('Output as JSON'),
   direction: z.enum(['up', 'down', 'both']).optional().describe('Traversal direction'),
   depth: z.number().optional().describe('Max traversal depth'),
@@ -27,9 +26,7 @@ interface Props {
 
 export default function GraphTraceCommand({ args, options }: Props): React.ReactNode {
   const [entityId] = args;
-  const configPath = options.project
-    ? resolveProjectConfigPath(options.project)
-    : resolveConfigPath(options.config);
+  const configPath = resolveConfigPath(options.config);
   const config = loadConfig(configPath);
   const jsonMode = isJsonMode(options);
 
@@ -38,7 +35,6 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
     arguments: ['entity  Entity canonical ID (e.g. plan:0042, agent:0042#003)'],
     options: [
       '--config Path to config file',
-      '--project Registered project name',
       '--json Output as JSON',
       '--direction up|down|both (default: both)',
       '--depth Max traversal depth (default: 2)',
@@ -53,8 +49,6 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
         ],
       },
     ],
-    tips: [getProjectTipLine()],
-    llmHints: getProjectLlmHints(),
   });
 
   useEffect((): (() => void) | undefined => {
