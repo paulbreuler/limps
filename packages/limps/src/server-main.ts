@@ -7,12 +7,14 @@ import {
   loadConfig,
   getAllDocsPaths,
   getFileExtensions,
+  getMaxFileSize,
+  getMaxDepth,
   DEFAULT_DEBOUNCE_DELAY,
 } from './config.js';
 import { createServer, startServer } from './server.js';
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import type { FSWatcher } from 'chokidar';
+import type { LimpsWatcher } from './watcher.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import {
   initializeDatabase,
@@ -23,9 +25,10 @@ import {
 } from './indexer.js';
 import { startWatcher, stopWatcher, DEFAULT_SETTLE_DELAY } from './watcher.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
+import { checkFdBudget } from './utils/fd-safety.js';
 
 // Global references for graceful shutdown
-let watcher: FSWatcher | null = null;
+let watcher: LimpsWatcher | null = null;
 let db: DatabaseType | null = null;
 
 /**
@@ -34,6 +37,25 @@ let db: DatabaseType | null = null;
  * @param configPathArg - Optional config path from CLI argument
  */
 export async function startMcpServer(configPathArg?: string): Promise<void> {
+  // Close any previously opened resources to prevent FD leaks if called twice
+  // Best-effort cleanup: log failures but don't abort startup
+  if (watcher) {
+    try {
+      await stopWatcher(watcher);
+    } catch (error) {
+      console.error('Failed to stop previous watcher during cleanup:', error);
+    }
+    watcher = null;
+  }
+  if (db) {
+    try {
+      db.close();
+    } catch (error) {
+      console.error('Failed to close previous database during cleanup:', error);
+    }
+    db = null;
+  }
+
   // Resolve config path
   const configPath = resolveConfigPath(configPathArg);
 
@@ -52,7 +74,9 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
   // Get all paths and extensions to index
   const docsPaths = getAllDocsPaths(config);
   const fileExtensions = getFileExtensions(config);
-  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian'];
+  const maxFileSize = getMaxFileSize(config);
+  const maxDepth = getMaxDepth(config);
+  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian', 'dist', 'build', '.cache'];
 
   // Validate paths before indexing — filter to only existing directories
   const validPaths = docsPaths.filter((p) => existsSync(p));
@@ -72,7 +96,14 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
 
   // Initial indexing (only valid paths)
   if (validPaths.length > 0) {
-    const result = await indexAllPaths(db, validPaths, fileExtensions, ignorePatterns);
+    const result = await indexAllPaths(
+      db,
+      validPaths,
+      fileExtensions,
+      ignorePatterns,
+      maxDepth,
+      maxFileSize
+    );
     console.error(
       `Indexed ${result.indexed} documents (${result.updated} updated, ${result.skipped} skipped)`
     );
@@ -88,27 +119,47 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
     console.error('No valid paths to index.');
   }
 
+  // Check FD budget before starting watcher
+  if (validPaths.length > 0) {
+    const budget = checkFdBudget(validPaths, maxDepth, ignorePatterns);
+    if (!budget.safe) {
+      console.error(
+        `[limps] Warning: estimated ${budget.estimated} watch entries ` +
+          `but FD limit is ${budget.limit}. Consider reducing watch scope or running: ulimit -n 4096`
+      );
+    }
+  }
+
   // Capture db reference for watcher callback
   const dbRef = db;
 
   // Start file watcher (only watch valid paths)
-  watcher = startWatcher(
-    validPaths,
-    async (path, event) => {
-      if (event === 'unlink') {
-        await removeDocument(dbRef, path);
-        console.error(`Removed document: ${path}`);
-      } else {
-        await indexDocument(dbRef, path);
-        console.error(`Indexed document: ${path} (${event})`);
-      }
-    },
-    fileExtensions,
-    ignorePatterns,
-    DEFAULT_DEBOUNCE_DELAY,
-    DEFAULT_SETTLE_DELAY
-  );
-  console.error(`File watcher started for ${validPaths.length} path(s)`);
+  try {
+    watcher = await startWatcher(
+      validPaths,
+      async (path, event) => {
+        if (event === 'unlink') {
+          await removeDocument(dbRef, path);
+          console.error(`Removed document: ${path}`);
+        } else {
+          await indexDocument(dbRef, path, maxFileSize);
+          console.error(`Indexed document: ${path} (${event})`);
+        }
+      },
+      fileExtensions,
+      ignorePatterns,
+      DEFAULT_DEBOUNCE_DELAY,
+      DEFAULT_SETTLE_DELAY,
+      undefined,
+      maxDepth
+    );
+    console.error(`File watcher started for ${validPaths.length} path(s)`);
+  } catch (watchErr) {
+    console.error(
+      `[limps] Warning: File watcher failed to start. The server will continue without live file watching.`,
+      watchErr
+    );
+  }
 
   // Create and start server
   const server = await createServer(config, db);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { loadConfig } from '../../config.js';
@@ -30,21 +30,49 @@ export default function GraphWatchCommand({ options }: Props): React.ReactNode {
     ? resolveProjectConfigPath(options.project)
     : resolveConfigPath(options.config);
   const config = loadConfig(configPath);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const db = openGraphDb(config);
     const channels = options.channels?.split(',').map((c) => c.trim()) ?? ['log'];
 
-    const watcher = startGraphWatch(config, db, {
-      channels,
-      webhookUrl: options['webhook-url'],
-    });
+    let watcherRef: Awaited<ReturnType<typeof startGraphWatch>> | null = null;
+    let cancelled = false;
+
+    const startWatcherAsync = async (): Promise<void> => {
+      try {
+        const w = await startGraphWatch(config, db, {
+          channels,
+          webhookUrl: options['webhook-url'],
+        });
+        if (cancelled) {
+          // Cleanup ran before watcher started - stop immediately
+          await w.stop();
+          db.close();
+        } else {
+          watcherRef = w;
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('Failed to start graph watcher:', err);
+        if (!cancelled) {
+          setError(message);
+        }
+      }
+    };
+
+    void startWatcherAsync();
 
     const cleanup = (): void => {
-      void watcher
-        .stop()
-        .then(() => db.close())
-        .catch(() => db.close());
+      cancelled = true;
+      if (watcherRef) {
+        void watcherRef
+          .stop()
+          .then(() => db.close())
+          .catch(() => db.close());
+      } else {
+        db.close();
+      }
     };
 
     process.on('SIGINT', cleanup);
@@ -56,6 +84,14 @@ export default function GraphWatchCommand({ options }: Props): React.ReactNode {
       process.removeListener('SIGTERM', cleanup);
     };
   }, [config, options.channels, options['webhook-url']]);
+
+  if (error) {
+    return (
+      <Text>
+        <Text color="red">Error:</Text> Failed to start watcher: {error}
+      </Text>
+    );
+  }
 
   return (
     <Text>

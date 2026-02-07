@@ -10,11 +10,11 @@ export interface GraphWatchOptions {
   filePath?: string;
 }
 
-export function startGraphWatch(
+export async function startGraphWatch(
   config: ServerConfig,
   db: DatabaseType,
   options?: GraphWatchOptions
-): GraphWatcher {
+): Promise<GraphWatcher> {
   const storage = new GraphStorage(db);
 
   const channels = (options?.channels ?? ['log']) as NotifierConfig['channels'];
@@ -29,6 +29,6 @@ export function startGraphWatch(
   };
 
   const watcher = new GraphWatcher(storage, watcherOptions);
-  watcher.start();
+  await watcher.start();
   return watcher;
 }

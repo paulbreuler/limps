@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { readFile, stat, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname, isAbsolute } from 'path';
+import { join, isAbsolute } from 'path';
 import micromatch from 'micromatch';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
@@ -17,6 +17,9 @@ import { createEnvironment, type DocVariable } from '../rlm/sandbox.js';
 import { validateCode } from '../rlm/security.js';
 import { processSubCalls } from '../rlm/recursion.js';
 import { decideSubQueryExecution } from '../utils/llm-policy.js';
+import { getDocsRoot } from '../utils/repo-root.js';
+import { checkPathSafety, checkSymlinkAncestors } from '../utils/fs-safety.js';
+import { getMaxFileSize } from '../config.js';
 import type { SamplingClient } from '../rlm/sampling.js';
 
 /**
@@ -69,16 +72,6 @@ export interface ProcessDocsOutput {
 
 /** Maximum result size in bytes (512KB). */
 const MAX_RESULT_SIZE_BYTES = 512 * 1024;
-
-/**
- * Get repository root from config.
- */
-function getRepoRoot(config: ToolContext['config']): string {
-  if (config.docsPaths && config.docsPaths.length > 0) {
-    return config.docsPaths[0];
-  }
-  return dirname(config.plansPath);
-}
 
 /**
  * Recursively find files matching a glob pattern.
@@ -151,14 +144,39 @@ function validatePattern(pattern: string): void {
 
 /**
  * Load a document and create DocVariable.
+ *
+ * @param repoRoot - Repository root path
+ * @param relativePath - Path relative to repo root
+ * @param maxFileSize - Maximum allowed file size in bytes
+ * @returns Document variable or null
  */
-async function loadDocument(repoRoot: string, relativePath: string): Promise<DocVariable | null> {
+async function loadDocument(
+  repoRoot: string,
+  relativePath: string,
+  maxFileSize: number
+): Promise<DocVariable | null> {
   try {
     // Validate path
     const validated = validatePath(relativePath, repoRoot);
 
     // Check if file exists
     if (!existsSync(validated.absolute)) {
+      return null;
+    }
+
+    // Security: Check for symlinks and file size before reading
+    const safetyCheck = checkPathSafety(validated.absolute, { maxFileSize });
+    if (!safetyCheck.safe) {
+      console.error(`Skipping unsafe file ${relativePath}: ${safetyCheck.reason}`);
+      return null;
+    }
+
+    // Security: Check for symlinked ancestor directories
+    const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+    if (!ancestorCheck.safe) {
+      console.error(
+        `Skipping file with symlinked ancestor ${relativePath}: ${ancestorCheck.reason}`
+      );
       return null;
     }
 
@@ -228,7 +246,7 @@ export async function handleProcessDocs(
 
   try {
     // Get repo root
-    const repoRoot = getRepoRoot(config);
+    const repoRoot = getDocsRoot(config);
 
     // Resolve document paths
     let docPaths: string[] = [];
@@ -275,8 +293,9 @@ export async function handleProcessDocs(
       };
     }
 
-    // Load all documents
-    const docPromises = docPaths.map((path) => loadDocument(repoRoot, path));
+    // Load all documents with safety checks
+    const maxFileSize = getMaxFileSize(config);
+    const docPromises = docPaths.map((path) => loadDocument(repoRoot, path, maxFileSize));
     const docResults = await Promise.all(docPromises);
 
     // Filter out nulls (files that couldn't be loaded)

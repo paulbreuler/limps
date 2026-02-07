@@ -6,8 +6,17 @@ import { z } from 'zod';
 import { existsSync, writeFileSync, mkdirSync, statSync } from 'fs';
 import { dirname } from 'path';
 import { validatePath, isWritablePath, type DocType } from '../utils/paths.js';
-import { alreadyExists, restrictedPath, permissionDenied, noSpaceError } from '../utils/errors.js';
+import {
+  alreadyExists,
+  restrictedPath,
+  permissionDenied,
+  noSpaceError,
+  validationError,
+} from '../utils/errors.js';
 import { indexDocument } from '../indexer.js';
+import { getMaxFileSize } from '../config.js';
+import { getDocsRoot } from '../utils/repo-root.js';
+import { checkSymlinkAncestors, checkPathContainment } from '../utils/fs-safety.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -66,14 +75,6 @@ type: "research"
 };
 
 /**
- * Get repository root from config.
- * Assumes plansPath is ../plans relative to .mcp, so dirname gives repo root.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
-}
-
-/**
  * Apply template to content, replacing {{DATE}} with current date.
  */
 function applyTemplate(template: string, content: string): string {
@@ -95,7 +96,7 @@ export async function handleCreateDoc(
   context: ToolContext
 ): Promise<ToolResult> {
   const { path, content, template, prettyPrint = false } = input;
-  const repoRoot = getRepoRoot(context.config);
+  const repoRoot = getDocsRoot(context.config);
 
   try {
     // Validate path (must not exist, must be writable)
@@ -119,10 +120,26 @@ export async function handleCreateDoc(
       finalContent = applyTemplate(TEMPLATES[template], content);
     }
 
+    // Reject content exceeding maximum file size
+    const maxFileSize = getMaxFileSize(context.config);
+    if (Buffer.byteLength(finalContent, 'utf-8') > maxFileSize) {
+      throw validationError(
+        'content',
+        `Content size exceeds maximum allowed file size (${maxFileSize} bytes)`
+      );
+    }
+
     // Create parent directories if needed
     const parentDir = dirname(validated.absolute);
     if (!existsSync(parentDir)) {
       mkdirSync(parentDir, { recursive: true });
+    }
+
+    // Security: Check for symlink traversal before writing
+    // This prevents writes via symlinked parent directories
+    const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+    if (!ancestorCheck.safe) {
+      throw permissionDenied(validated.relative, ancestorCheck.reason, 'write');
     }
 
     // Write file with error handling
@@ -140,12 +157,18 @@ export async function handleCreateDoc(
       throw error;
     }
 
+    // After write, verify the resolved path is still within repo root
+    const containmentCheck = checkPathContainment(validated.absolute, repoRoot);
+    if (!containmentCheck.safe) {
+      throw permissionDenied(validated.relative, containmentCheck.reason, 'write');
+    }
+
     // Get file size
     const stats = statSync(validated.absolute);
     const size = stats.size;
 
-    // Index the new file
-    await indexDocument(context.db, validated.absolute);
+    // Index the new file, passing maxFileSize to ensure consistent validation
+    await indexDocument(context.db, validated.absolute, maxFileSize);
 
     const output: CreateDocOutput = {
       path: validated.relative,

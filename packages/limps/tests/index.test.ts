@@ -8,25 +8,6 @@ import { loadConfig, DEFAULT_DEBOUNCE_DELAY } from '../src/config.js';
 import { createServer, startServer } from '../src/server.js';
 import { startWatcher, stopWatcher } from '../src/watcher.js';
 
-const waitForReady = (
-  watcher: {
-    once: (event: string, cb: () => void) => void;
-    off: (event: string, cb: () => void) => void;
-  },
-  timeoutMs = 1000
-): Promise<void> =>
-  new Promise((resolve) => {
-    const onReady = (): void => {
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      watcher.off('ready', onReady);
-      resolve();
-    }, timeoutMs);
-    watcher.once('ready', onReady);
-  });
-
 /**
  * Integration test for the main entry point (index.ts).
  * Tests the full server initialization flow.
@@ -113,18 +94,13 @@ describe('index-entry-point', () => {
 
     const config = loadConfig(configPath);
 
-    let _watchCallbackCalled = false;
-    const watcher = startWatcher(
+    const watcher = await startWatcher(
       config.plansPath,
-      async () => {
-        _watchCallbackCalled = true;
-      },
+      async () => {},
       ['.md'], // fileExtensions
       ['.git', 'node_modules'], // ignorePatterns
       DEFAULT_DEBOUNCE_DELAY
     );
-
-    await waitForReady(watcher);
 
     // Create a new file to trigger watcher
     const newFile = join(plansDir, 'new-file.md');
@@ -162,7 +138,7 @@ describe('index-entry-point', () => {
 
     const config = loadConfig(configPath);
 
-    const watcher = startWatcher(
+    const watcher = await startWatcher(
       config.plansPath,
       async () => {},
       ['.md'], // fileExtensions

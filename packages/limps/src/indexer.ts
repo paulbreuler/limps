@@ -4,6 +4,8 @@ import { join, relative } from 'path';
 import { createHash } from 'crypto';
 import { FrontmatterHandler } from './utils/frontmatter.js';
 import { PathFilter } from './utils/pathfilter.js';
+import { checkPathSafety, isSymlink } from './utils/fs-safety.js';
+import { DEFAULT_MAX_DEPTH, DEFAULT_MAX_FILE_SIZE } from './config.js';
 
 /**
  * Document metadata interface.
@@ -227,9 +229,19 @@ function calculateHash(content: string): string {
  * @param filePath - Path to the markdown file
  * @returns Document metadata
  */
-export async function indexDocument(db: DatabaseType, filePath: string): Promise<DocumentMetadata> {
+export async function indexDocument(
+  db: DatabaseType,
+  filePath: string,
+  maxFileSize: number = DEFAULT_MAX_FILE_SIZE
+): Promise<DocumentMetadata> {
   if (!existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
+  }
+
+  // Safety check: reject symlinks and oversized files before reading content
+  const safety = checkPathSafety(filePath, { maxFileSize });
+  if (!safety.safe) {
+    throw new Error(`Skipping unsafe file ${filePath}: ${safety.reason}`);
   }
 
   const content = readFileSync(filePath, 'utf-8');
@@ -351,20 +363,28 @@ export async function removeDocument(db: DatabaseType, filePath: string): Promis
 
 /**
  * Recursively find all files with specified extensions in a directory.
- * Uses PathFilter for consistent filtering.
+ * Uses PathFilter for consistent filtering. Rejects symlinks and enforces depth limits.
  *
  * @param dir - Directory to search
  * @param extensions - File extensions to match (e.g., ['.md', '.jsx', '.tsx'])
  * @param ignorePatterns - Patterns to ignore (legacy support, PathFilter handles this)
  * @param baseDir - Base directory for relative path calculation (internal use)
+ * @param maxDepth - Maximum recursion depth (default: DEFAULT_MAX_DEPTH)
+ * @param currentDepth - Current recursion depth (internal use)
  * @returns Array of file paths
  */
 function findFiles(
   dir: string,
   extensions: string[] = ['.md'],
   ignorePatterns: string[] = [],
-  baseDir?: string
+  baseDir?: string,
+  maxDepth: number = DEFAULT_MAX_DEPTH,
+  currentDepth = 0
 ): string[] {
+  if (currentDepth > maxDepth) {
+    return [];
+  }
+
   const files: string[] = [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const searchBase = baseDir || dir;
@@ -383,6 +403,12 @@ function findFiles(
 
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
+
+    // Skip symlinks unconditionally — prevents data leaks from outside the plans tree
+    if (isSymlink(fullPath)) {
+      continue;
+    }
+
     // Get relative path from the search root for PathFilter
     const relativePath = relative(searchBase, fullPath).replace(/\\/g, '/');
 
@@ -392,7 +418,9 @@ function findFiles(
     }
 
     if (entry.isDirectory()) {
-      files.push(...findFiles(fullPath, extensions, ignorePatterns, searchBase));
+      files.push(
+        ...findFiles(fullPath, extensions, ignorePatterns, searchBase, maxDepth, currentDepth + 1)
+      );
     } else if (entry.isFile()) {
       // PathFilter already checked extension, but double-check for safety
       const matchesExtension = extensions.some((ext) => entry.name.endsWith(ext));
@@ -499,13 +527,17 @@ export async function indexAllDocuments(
  * @param paths - Array of paths to index
  * @param extensions - File extensions to index (e.g., ['.md', '.jsx', '.tsx'])
  * @param ignorePatterns - Patterns to ignore (e.g., ['node_modules', '.git'])
+ * @param maxDepth - Maximum directory recursion depth
+ * @param maxFileSize - Maximum file size in bytes to index
  * @returns Combined indexing result
  */
 export async function indexAllPaths(
   db: DatabaseType,
   paths: string[],
   extensions: string[] = ['.md'],
-  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian']
+  ignorePatterns: string[] = ['.git', 'node_modules', '.tmp', '.obsidian'],
+  maxDepth: number = DEFAULT_MAX_DEPTH,
+  maxFileSize: number = DEFAULT_MAX_FILE_SIZE
 ): Promise<IndexingResult> {
   const result: IndexingResult = {
     indexed: 0,
@@ -524,7 +556,7 @@ export async function indexAllPaths(
       continue;
     }
 
-    const files = findFiles(path, extensions, ignorePatterns);
+    const files = findFiles(path, extensions, ignorePatterns, undefined, maxDepth);
     for (const file of files) {
       // Deduplicate files (in case paths overlap)
       if (!seenFiles.has(file)) {
@@ -555,6 +587,13 @@ export async function indexAllPaths(
           return;
         }
 
+        // Safety check: skip symlinks and oversized files
+        const safety = checkPathSafety(filePath, { maxFileSize });
+        if (!safety.safe) {
+          result.skipped++;
+          return;
+        }
+
         const content = readFileSync(filePath, 'utf-8');
         const hash = calculateHash(content);
 
@@ -570,7 +609,7 @@ export async function indexAllPaths(
         }
 
         const wasExisting = existing !== undefined;
-        await indexDocument(db, filePath);
+        await indexDocument(db, filePath, maxFileSize);
 
         if (wasExisting) {
           result.updated++;

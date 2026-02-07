@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync } from 'fs';
+import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync, symlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
@@ -794,5 +794,134 @@ describe('index-all-paths', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe('security-hardening', () => {
+  let dbPath: string;
+  let db: Database.Database | null = null;
+  let testDir: string;
+
+  beforeEach(() => {
+    dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
+    testDir = join(tmpdir(), `test-docs-security-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    db = initializeDatabase(dbPath);
+    createSchema(db);
+  });
+
+  afterEach(() => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+    if (existsSync(dbPath)) {
+      unlinkSync(dbPath);
+    }
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should skip symlink files during indexAllPaths', async () => {
+    // Create a real file and a symlink pointing to it
+    const realFile = join(testDir, 'real.md');
+    const linkFile = join(testDir, 'link.md');
+    writeFileSync(realFile, '# Real File\n\nContent.', 'utf-8');
+    symlinkSync(realFile, linkFile);
+
+    const result = await indexAllPaths(db!, [testDir], ['.md']);
+
+    // Only the real file should be indexed (symlink skipped by findFiles)
+    expect(result.indexed).toBe(1);
+
+    // Verify only the real file is in the database
+    const rows = db!.prepare('SELECT path FROM documents').all() as { path: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].path).toBe(realFile);
+  });
+
+  it('should reject symlink in indexDocument', async () => {
+    const realFile = join(testDir, 'target.md');
+    const linkFile = join(testDir, 'symlink.md');
+    writeFileSync(realFile, '# Target', 'utf-8');
+    symlinkSync(realFile, linkFile);
+
+    await expect(indexDocument(db!, linkFile)).rejects.toThrow('Skipping unsafe file');
+  });
+
+  it('should skip files exceeding maxFileSize during indexAllPaths', async () => {
+    const smallFile = join(testDir, 'small.md');
+    const largeFile = join(testDir, 'large.md');
+    writeFileSync(smallFile, '# Small', 'utf-8');
+    writeFileSync(largeFile, 'x'.repeat(200), 'utf-8'); // 200 bytes
+
+    // Set maxFileSize to 100 bytes
+    const result = await indexAllPaths(db!, [testDir], ['.md'], undefined, undefined, 100);
+
+    // Only the small file should be indexed
+    expect(result.indexed).toBe(1);
+    expect(result.skipped).toBe(1); // large file skipped
+
+    const rows = db!.prepare('SELECT path FROM documents').all() as { path: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].path).toBe(smallFile);
+  });
+
+  it('should reject oversized file in indexDocument', async () => {
+    const filePath = join(testDir, 'oversized.md');
+    writeFileSync(filePath, 'x'.repeat(200), 'utf-8');
+
+    await expect(indexDocument(db!, filePath, 100)).rejects.toThrow('Skipping unsafe file');
+  });
+
+  it('should stop recursion at maxDepth', async () => {
+    // Create nested directories: depth 0, 1, 2
+    const depth0 = testDir;
+    const depth1 = join(depth0, 'level1');
+    const depth2 = join(depth1, 'level2');
+    const depth3 = join(depth2, 'level3');
+    mkdirSync(depth1, { recursive: true });
+    mkdirSync(depth2, { recursive: true });
+    mkdirSync(depth3, { recursive: true });
+
+    writeFileSync(join(depth0, 'root.md'), '# Root', 'utf-8');
+    writeFileSync(join(depth1, 'level1.md'), '# Level 1', 'utf-8');
+    writeFileSync(join(depth2, 'level2.md'), '# Level 2', 'utf-8');
+    writeFileSync(join(depth3, 'level3.md'), '# Level 3', 'utf-8');
+
+    // Set maxDepth to 2 (should find root, level1, level2 but NOT level3)
+    const result = await indexAllPaths(db!, [testDir], ['.md'], undefined, 2);
+
+    expect(result.indexed).toBe(3); // root + level1 + level2
+
+    const rows = db!.prepare('SELECT path FROM documents ORDER BY path').all() as {
+      path: string;
+    }[];
+    const paths = rows.map((r) => r.path);
+    expect(paths).toContain(join(depth0, 'root.md'));
+    expect(paths).toContain(join(depth1, 'level1.md'));
+    expect(paths).toContain(join(depth2, 'level2.md'));
+    expect(paths).not.toContain(join(depth3, 'level3.md'));
+  });
+
+  it('should skip symlinked directories during indexAllPaths', async () => {
+    // Create a target directory with files and symlink to it
+    const targetDir = join(tmpdir(), `test-symlink-target-${Date.now()}`);
+    mkdirSync(targetDir, { recursive: true });
+    writeFileSync(join(targetDir, 'secret.md'), '# Secret Data', 'utf-8');
+
+    const linkDir = join(testDir, 'linked');
+    symlinkSync(targetDir, linkDir);
+
+    writeFileSync(join(testDir, 'normal.md'), '# Normal', 'utf-8');
+
+    const result = await indexAllPaths(db!, [testDir], ['.md']);
+
+    // Only the normal file should be indexed
+    expect(result.indexed).toBe(1);
+
+    // Cleanup target dir
+    rmSync(targetDir, { recursive: true, force: true });
   });
 });

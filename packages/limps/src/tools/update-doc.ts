@@ -4,12 +4,14 @@
 
 import { z } from 'zod';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { dirname } from 'path';
 import { validatePath, isProtectedPlanFile } from '../utils/paths.js';
-import { notFound, permissionDenied, noSpaceError } from '../utils/errors.js';
+import { notFound, permissionDenied, noSpaceError, validationError } from '../utils/errors.js';
 import { createBackup } from '../utils/backup.js';
 import { FrontmatterHandler } from '../utils/frontmatter.js';
 import { indexDocument } from '../indexer.js';
+import { getMaxFileSize } from '../config.js';
+import { getDocsRoot } from '../utils/repo-root.js';
+import { checkSymlinkAncestors, checkPathContainment } from '../utils/fs-safety.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -78,13 +80,6 @@ export interface UpdateDocOutput {
 }
 
 /**
- * Get repository root from config.
- */
-function getRepoRoot(config: { plansPath: string }): string {
-  return dirname(config.plansPath);
-}
-
-/**
  * Check if content has frontmatter (YAML or TOML).
  */
 function hasFrontmatter(content: string): boolean {
@@ -142,7 +137,7 @@ export async function handleUpdateDoc(
     force,
     prettyPrint,
   } = input;
-  const repoRoot = getRepoRoot(context.config);
+  const repoRoot = getDocsRoot(context.config);
   const frontmatterHandler = new FrontmatterHandler();
 
   try {
@@ -177,6 +172,18 @@ export async function handleUpdateDoc(
         ],
         isError: true,
       };
+    }
+
+    // Security: Check for symlink traversal before reading
+    if (fileExists) {
+      const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+      if (!ancestorCheck.safe) {
+        throw permissionDenied(validated.relative, ancestorCheck.reason, 'read');
+      }
+      const containmentCheck = checkPathContainment(validated.absolute, repoRoot);
+      if (!containmentCheck.safe) {
+        throw permissionDenied(validated.relative, containmentCheck.reason, 'read');
+      }
     }
 
     // Read existing content if file exists
@@ -310,11 +317,26 @@ export async function handleUpdateDoc(
       throw new Error('Either content or patch must be provided');
     }
 
+    // Reject content exceeding maximum file size
+    const maxFileSize = getMaxFileSize(context.config);
+    if (Buffer.byteLength(newContent, 'utf-8') > maxFileSize) {
+      throw validationError(
+        'content',
+        `Content size exceeds maximum allowed file size (${maxFileSize} bytes)`
+      );
+    }
+
     // Create backup if requested
     let backupPath: string | undefined;
     if (shouldBackup) {
       const backupResult = await createBackup(validated.absolute, repoRoot);
       backupPath = backupResult.backupPath;
+    }
+
+    // Security: Check for symlink traversal before writing
+    const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+    if (!ancestorCheck.safe) {
+      throw permissionDenied(validated.relative, ancestorCheck.reason, 'write');
     }
 
     // Write new content with error handling
@@ -332,6 +354,12 @@ export async function handleUpdateDoc(
       throw error;
     }
 
+    // After write, verify the resolved path is still within repo root
+    const containmentCheck = checkPathContainment(validated.absolute, repoRoot);
+    if (!containmentCheck.safe) {
+      throw permissionDenied(validated.relative, containmentCheck.reason, 'write');
+    }
+
     // Get file size
     const stats = statSync(validated.absolute);
     const size = stats.size;
@@ -339,8 +367,8 @@ export async function handleUpdateDoc(
     // Calculate changes
     const changes = calculateChanges(oldContent, newContent);
 
-    // Re-index the file
-    await indexDocument(context.db, validated.absolute);
+    // Re-index the file, passing maxFileSize to ensure consistent validation
+    await indexDocument(context.db, validated.absolute, maxFileSize);
 
     const output: UpdateDocOutput = {
       path: validated.relative,
