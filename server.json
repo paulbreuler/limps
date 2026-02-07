@@ -6,12 +6,12 @@
     "url": "https://github.com/paulbreuler/limps",
     "source": "github"
   },
-  "version": "2.13.2",
+  "version": "2.13.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@sudosandwich/limps",
-      "version": "2.13.2",
+      "version": "2.13.3",
       "transport": {
         "type": "stdio"
       }
