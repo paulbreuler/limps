@@ -14,9 +14,7 @@ export function MixedWidgetFixture() {
         <Dialog.Overlay />
         <Dialog.Content>
           <Dialog.Title>Mixed Widget</Dialog.Title>
-          <Dialog.Description>
-            This component uses both Radix and Base UI.
-          </Dialog.Description>
+          <Dialog.Description>This component uses both Radix and Base UI.</Dialog.Description>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

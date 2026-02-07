@@ -51,12 +51,8 @@ export async function analyzeComponent(
 
   // Infer patterns
   const inferredStatePattern = inferStatePatternFromProps(propsInterface);
-  const inferredCompositionPattern =
-    inferCompositionPatternFromSubComponents(subComponents);
-  const inferredRenderingPattern = inferRenderingPatternFromAnalysis(
-    subComponents,
-    propsInterface
-  );
+  const inferredCompositionPattern = inferCompositionPatternFromSubComponents(subComponents);
+  const inferredRenderingPattern = inferRenderingPatternFromAnalysis(subComponents, propsInterface);
 
   // Detect features
   const usesForwardRef = detectForwardRef(sourceFile);

@@ -1,9 +1,3 @@
-# Run lint-staged in packages/limps to auto-fix formatting and linting on staged files
-cd packages/limps && npx lint-staged
-
-# Stage any auto-fixed files from lint-staged before running full checks
-git add -u
-
 # Regenerate skills manifest if skills or related files changed
 if git diff --cached --name-only | grep -Eq '(^|/)\.claude/skills/|^scripts/generate-skills-manifest\.js$|^skills(-limps)?\.yaml$'; then
   cd "$(git rev-parse --show-toplevel)"
@@ -11,6 +5,6 @@ if git diff --cached --name-only | grep -Eq '(^|/)\.claude/skills/|^scripts/gene
   git add skills.yaml skills-limps.yaml
 fi
 
-# Run validation from root (format check, lint, type-check, build across workspaces)
+# Run validation from root (format, lint, type-check, build across workspaces).
 # Tests are intentionally skipped to avoid flaky pre-commit failures.
-cd "$(git rev-parse --show-toplevel)" && npm run format:check && npm run lint && npm run type-check && npm run build
+cd "$(git rev-parse --show-toplevel)" && npm run format && git add -u && npm run lint && npm run type-check && npm run build

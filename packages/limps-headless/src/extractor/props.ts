@@ -9,9 +9,7 @@ import { extractJsDoc } from './jsdoc.js';
 /**
  * Extract props from an interface declaration.
  */
-export function extractPropsFromInterface(
-  iface: InterfaceDeclaration
-): RawProp[] {
+export function extractPropsFromInterface(iface: InterfaceDeclaration): RawProp[] {
   const props: RawProp[] = [];
 
   // Get own properties

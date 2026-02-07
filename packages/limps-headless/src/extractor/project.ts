@@ -2,7 +2,8 @@
  * ts-morph project setup for parsing type definitions.
  */
 
-import { Project, SourceFile } from 'ts-morph';
+import { Project } from 'ts-morph';
+import type { SourceFile } from 'ts-morph';
 
 /**
  * Create a ts-morph Project with in-memory file system.

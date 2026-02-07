@@ -86,7 +86,8 @@ vi.mock('../src/signatures/index.js', () => ({
       { name: 'Trigger', role: 'trigger', required: true },
     ],
     similarTo: ['AlertDialog', 'Popover'],
-    disambiguationRule: 'Dialog has modal=true by default; AlertDialog requires action confirmation',
+    disambiguationRule:
+      'Dialog has modal=true by default; AlertDialog requires action confirmation',
   }),
 }));
 
@@ -203,9 +204,9 @@ describe('tools', () => {
       };
       registerProvider(failingProvider);
 
-      await expect(
-        handleListPrimitives({ provider: 'list-primitives-failing' })
-      ).rejects.toThrow('Version resolution failed');
+      await expect(handleListPrimitives({ provider: 'list-primitives-failing' })).rejects.toThrow(
+        'Version resolution failed'
+      );
     });
 
     it('propagates error when custom provider listPrimitives throws', async () => {
@@ -263,7 +264,9 @@ describe('tools', () => {
       const result = await handleExtractPrimitive({ primitive: 'dialog' });
       const parsed = JSON.parse(result.content[0].text);
 
-      const rootProps = parsed.subComponents.find((sc: { name: string }) => sc.name === 'Root')?.props;
+      const rootProps = parsed.subComponents.find(
+        (sc: { name: string }) => sc.name === 'Root'
+      )?.props;
       expect(rootProps).toBeDefined();
 
       const openProp = rootProps.find((p: { name: string }) => p.name === 'open');

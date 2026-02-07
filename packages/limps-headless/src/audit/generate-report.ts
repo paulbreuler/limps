@@ -30,10 +30,7 @@ interface SerializedAnalysisResult {
     primitive: string | null;
     package: string | null;
     confidence: number;
-    action:
-      | 'LEGACY_RADIX_MATCH_STRONG'
-      | 'LEGACY_RADIX_MATCH_POSSIBLE'
-      | 'NO_LEGACY_RADIX_MATCH';
+    action: 'LEGACY_RADIX_MATCH_STRONG' | 'LEGACY_RADIX_MATCH_POSSIBLE' | 'NO_LEGACY_RADIX_MATCH';
     reason?: string;
   };
   matches: unknown[];
@@ -157,7 +154,8 @@ function contraventionsFromDiffAndUpdates(
       type: 'legacy-package-usage',
       severity: 'high',
       description: `Current cached version ${updates.currentVersion} is behind latest ${updates.latestVersion}. ${updates.diff.summary.breaking} breaking change(s) exist.`,
-      recommendation: 'Upgrade Radix dependencies and run headless_diff_versions to plan migration.',
+      recommendation:
+        'Upgrade Radix dependencies and run headless_diff_versions to plan migration.',
     });
     return out;
   }
@@ -384,9 +382,7 @@ function reportToMarkdown(report: AuditReport, title: string): string {
     lines.push('## Compliance', '');
     for (const c of report.compliance) {
       const primitive = c.primitive ? c.primitive : 'custom';
-      lines.push(
-        `- **${c.name}** (${c.path}) — ${c.status}, ${primitive} (${c.confidence})`
-      );
+      lines.push(`- **${c.name}** (${c.path}) — ${c.status}, ${primitive} (${c.confidence})`);
     }
     lines.push('');
   }

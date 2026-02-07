@@ -118,7 +118,13 @@ describe('generateReport', () => {
         currentVersion: '1.0.0',
         latestVersion: '2.0.0',
         hasUpdate: true,
-        diff: { fromVersion: '1.0.0', toVersion: '2.0.0', hasBreakingChanges: true, summary: { totalChanges: 1, breaking: 1, warnings: 0, info: 0 }, changes: [] },
+        diff: {
+          fromVersion: '1.0.0',
+          toVersion: '2.0.0',
+          hasBreakingChanges: true,
+          summary: { totalChanges: 1, breaking: 1, warnings: 0, info: 0 },
+          changes: [],
+        },
       }),
       'utf-8'
     );
@@ -205,10 +211,46 @@ describe('generateReport', () => {
       inventoryPath,
       JSON.stringify({
         components: [
-          { path: 'src/BaseDialog.tsx', name: 'BaseDialog', backend: 'base', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['BaseDialog'] },
-          { path: 'src/UnknownPopover.tsx', name: 'UnknownPopover', backend: 'unknown', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['UnknownPopover'] },
-          { path: 'src/RadixDialog.tsx', name: 'RadixDialog', backend: 'radix', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['RadixDialog'] },
-          { path: 'src/CustomWidget.tsx', name: 'CustomWidget', backend: 'unknown', mixedUsage: false, importSources: [], evidence: [], exportsComponent: true, exportedNames: ['CustomWidget'] },
+          {
+            path: 'src/BaseDialog.tsx',
+            name: 'BaseDialog',
+            backend: 'base',
+            mixedUsage: false,
+            importSources: [],
+            evidence: [],
+            exportsComponent: true,
+            exportedNames: ['BaseDialog'],
+          },
+          {
+            path: 'src/UnknownPopover.tsx',
+            name: 'UnknownPopover',
+            backend: 'unknown',
+            mixedUsage: false,
+            importSources: [],
+            evidence: [],
+            exportsComponent: true,
+            exportedNames: ['UnknownPopover'],
+          },
+          {
+            path: 'src/RadixDialog.tsx',
+            name: 'RadixDialog',
+            backend: 'radix',
+            mixedUsage: false,
+            importSources: [],
+            evidence: [],
+            exportsComponent: true,
+            exportedNames: ['RadixDialog'],
+          },
+          {
+            path: 'src/CustomWidget.tsx',
+            name: 'CustomWidget',
+            backend: 'unknown',
+            mixedUsage: false,
+            importSources: [],
+            evidence: [],
+            exportsComponent: true,
+            exportedNames: ['CustomWidget'],
+          },
         ],
       }),
       'utf-8'
@@ -220,9 +262,7 @@ describe('generateReport', () => {
       format: 'json',
     });
 
-    const migrationIssues = result.report.issues.filter(
-      (issue) => issue.category === 'migration'
-    );
+    const migrationIssues = result.report.issues.filter((issue) => issue.category === 'migration');
     const issueLocations = migrationIssues.map((issue) => issue.location).sort();
     expect(issueLocations).toEqual(['src/RadixDialog.tsx', 'src/UnknownPopover.tsx']);
   });
@@ -267,7 +307,11 @@ describe('runAuditInputSchema', () => {
 
   it('accepts discovery options', () => {
     const result = runAuditInputSchema.safeParse({
-      discovery: { rootDir: 'src/ui', includePatterns: ['**/*.tsx'], excludePatterns: ['**/*.test.*'] },
+      discovery: {
+        rootDir: 'src/ui',
+        includePatterns: ['**/*.tsx'],
+        excludePatterns: ['**/*.test.*'],
+      },
     });
     expect(result.success).toBe(true);
     if (result.success) {

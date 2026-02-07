@@ -33,20 +33,62 @@ export function graphReindex(
 
   const planDirs = findPlanDirs(config.plansPath, options?.planId);
 
+  const extractions: ExtractionResult[] = [];
   for (const planDir of planDirs) {
-    const extraction: ExtractionResult = extractor.extractPlan(planDir);
+    const extraction = extractor.extractPlan(planDir);
     result.warnings.push(...extraction.warnings);
-
-    if (extraction.entities.length > 0) {
-      result.entitiesUpserted += storage.bulkUpsertEntities(extraction.entities);
-    }
-    if (extraction.relationships.length > 0) {
-      result.relationshipsUpserted += storage.bulkUpsertRelationships(extraction.relationships);
-    }
+    extractions.push(extraction);
     result.plansProcessed++;
   }
 
-  // Update last_indexed timestamp
+  const localIdToCanonical = new Map<number, string>();
+  for (const extraction of extractions) {
+    if (extraction.entities.length > 0) {
+      for (const entity of extraction.entities) {
+        localIdToCanonical.set(entity.id, entity.canonicalId);
+      }
+      result.entitiesUpserted += storage.bulkUpsertEntities(extraction.entities);
+    }
+  }
+
+  const canonicalToDbId = new Map<string, number>();
+  for (const [, canonicalId] of localIdToCanonical) {
+    const dbEntity = storage.getEntity(canonicalId);
+    if (dbEntity) {
+      canonicalToDbId.set(canonicalId, dbEntity.id);
+    }
+  }
+
+  for (const extraction of extractions) {
+    if (extraction.relationships.length > 0) {
+      const remappedRelationships = extraction.relationships
+        .map((rel) => {
+          const sourceCanonical = localIdToCanonical.get(rel.sourceId);
+          const targetCanonical = localIdToCanonical.get(rel.targetId);
+
+          if (!sourceCanonical || !targetCanonical) {
+            return null;
+          }
+
+          const dbSourceId = canonicalToDbId.get(sourceCanonical);
+          const dbTargetId = canonicalToDbId.get(targetCanonical);
+
+          if (!dbSourceId || !dbTargetId) {
+            return null;
+          }
+
+          return {
+            ...rel,
+            sourceId: dbSourceId,
+            targetId: dbTargetId,
+          };
+        })
+        .filter((rel): rel is NonNullable<typeof rel> => rel !== null);
+
+      result.relationshipsUpserted += storage.bulkUpsertRelationships(remappedRelationships);
+    }
+  }
+
   db.prepare(
     "INSERT OR REPLACE INTO graph_meta (key, value, updated_at) VALUES ('last_indexed', ?, datetime('now'))"
   ).run(new Date().toISOString());

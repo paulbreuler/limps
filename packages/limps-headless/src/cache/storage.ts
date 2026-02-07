@@ -62,9 +62,7 @@ export function getCachePath(
 ): string {
   const dir = getVersionedCacheDir(version, baseDir);
   const fileName =
-    type === 'sig'
-      ? `${primitive.toLowerCase()}.sig.json`
-      : `${primitive.toLowerCase()}.json`;
+    type === 'sig' ? `${primitive.toLowerCase()}.sig.json` : `${primitive.toLowerCase()}.json`;
   return path.join(dir, fileName);
 }
 
@@ -169,10 +167,7 @@ export async function listCachedVersions(baseDir?: string): Promise<string[]> {
  * @param baseDir - Optional base directory
  * @returns Array of primitive names that have cached data
  */
-export async function listCachedPrimitives(
-  version: string,
-  baseDir?: string
-): Promise<string[]> {
+export async function listCachedPrimitives(version: string, baseDir?: string): Promise<string[]> {
   const versionDir = getVersionedCacheDir(version, baseDir);
   try {
     const entries = await fs.readdir(versionDir);

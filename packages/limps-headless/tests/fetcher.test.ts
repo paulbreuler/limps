@@ -17,9 +17,7 @@ describe('fetcher/npm-registry', () => {
   describe('primitiveToPackage', () => {
     it('converts primitive name to package name', () => {
       expect(primitiveToPackage('dialog')).toBe('@radix-ui/react-dialog');
-      expect(primitiveToPackage('alert-dialog')).toBe(
-        '@radix-ui/react-alert-dialog'
-      );
+      expect(primitiveToPackage('alert-dialog')).toBe('@radix-ui/react-alert-dialog');
       expect(primitiveToPackage('Dialog')).toBe('@radix-ui/react-dialog');
     });
   });
@@ -27,9 +25,7 @@ describe('fetcher/npm-registry', () => {
   describe('packageToPrimitive', () => {
     it('extracts primitive name from package name', () => {
       expect(packageToPrimitive('@radix-ui/react-dialog')).toBe('dialog');
-      expect(packageToPrimitive('@radix-ui/react-alert-dialog')).toBe(
-        'alert-dialog'
-      );
+      expect(packageToPrimitive('@radix-ui/react-alert-dialog')).toBe('alert-dialog');
     });
 
     it('throws for invalid package name', () => {
@@ -95,9 +91,7 @@ describe('fetcher/unpkg', () => {
   describe('buildTypesUrl', () => {
     it('builds correct unpkg URL', () => {
       const url = buildTypesUrl('@radix-ui/react-dialog', '1.0.5');
-      expect(url).toBe(
-        'https://unpkg.com/@radix-ui/react-dialog@1.0.5/dist/index.d.ts'
-      );
+      expect(url).toBe('https://unpkg.com/@radix-ui/react-dialog@1.0.5/dist/index.d.ts');
     });
   });
 
@@ -107,10 +101,7 @@ describe('fetcher/unpkg', () => {
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
-          text: () =>
-            Promise.resolve(
-              'export interface DialogProps { open?: boolean; }'
-            ),
+          text: () => Promise.resolve('export interface DialogProps { open?: boolean; }'),
         })
       );
     });
@@ -135,9 +126,7 @@ describe('fetcher/unpkg', () => {
         })
       );
 
-      await expect(fetchTypes('nonexistent', '1.0.0')).rejects.toThrow(
-        'not found'
-      );
+      await expect(fetchTypes('nonexistent', '1.0.0')).rejects.toThrow('not found');
 
       vi.unstubAllGlobals();
     });

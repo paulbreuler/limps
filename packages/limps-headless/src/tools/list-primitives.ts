@@ -11,11 +11,7 @@ import { getProvider } from '../providers/registry.js';
  * Input schema for headless_list_primitives tool.
  */
 export const listPrimitivesInputSchema = z.object({
-  version: z
-    .string()
-    .optional()
-    .default('latest')
-    .describe('Radix version (default: latest)'),
+  version: z.string().optional().default('latest').describe('Radix version (default: latest)'),
   provider: z
     .string()
     .optional()
@@ -95,8 +91,7 @@ export async function handleListPrimitives(
  */
 export const listPrimitivesTool: ExtensionTool = {
   name: 'headless_list_primitives',
-  description:
-    'List all available Radix UI primitives with their package names and descriptions',
+  description: 'List all available Radix UI primitives with their package names and descriptions',
   inputSchema: listPrimitivesInputSchema,
   handler: handleListPrimitives,
 };

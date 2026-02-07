@@ -41,10 +41,7 @@ function collectImportSpec(node: ts.ImportDeclaration): ImportSpec {
   };
 }
 
-function deriveExportName(
-  sourceFile: ts.SourceFile,
-  filePath: string
-): string {
+function deriveExportName(sourceFile: ts.SourceFile, filePath: string): string {
   for (const statement of sourceFile.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.modifiers) {
       const isExported = statement.modifiers.some(
@@ -87,14 +84,8 @@ function deriveExportName(
 }
 
 export function buildComponentIr(input: BuildIrInput): ComponentIR {
-  const sourceText =
-    input.sourceText ?? fs.readFileSync(input.filePath, 'utf-8');
-  const sourceFile = ts.createSourceFile(
-    input.filePath,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true
-  );
+  const sourceText = input.sourceText ?? fs.readFileSync(input.filePath, 'utf-8');
+  const sourceFile = ts.createSourceFile(input.filePath, sourceText, ts.ScriptTarget.Latest, true);
 
   const imports: ImportSpec[] = [];
   for (const statement of sourceFile.statements) {

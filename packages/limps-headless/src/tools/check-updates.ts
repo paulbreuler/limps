@@ -5,11 +5,7 @@
 import { z } from 'zod';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
 import { diffVersions, type UpdateCheckResult } from '../differ/index.js';
-import {
-  getLatestResolution,
-  saveLatestResolution,
-  clearCache,
-} from '../cache/index.js';
+import { getLatestResolution, saveLatestResolution, clearCache } from '../cache/index.js';
 import { resolvePackageVersion } from '../fetcher/npm-registry.js';
 import { getProvider } from '../providers/registry.js';
 
@@ -55,9 +51,7 @@ export async function handleCheckUpdates(
   const parsed = checkUpdatesInputSchema.parse(input);
   const provider = getProvider(parsed.provider);
   if (provider.name !== 'radix') {
-    throw new Error(
-      `Provider "${provider.name}" is not supported for update checks yet`
-    );
+    throw new Error(`Provider "${provider.name}" is not supported for update checks yet`);
   }
 
   // If refresh requested, clear the cache first

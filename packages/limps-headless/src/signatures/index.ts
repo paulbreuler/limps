@@ -4,11 +4,7 @@
  * Transforms ExtractedPrimitive data into BehaviorSignature contracts.
  */
 
-export {
-  inferStatePattern,
-  inferCompositionPattern,
-  inferRenderingPattern,
-} from './inference.js';
+export { inferStatePattern, inferCompositionPattern, inferRenderingPattern } from './inference.js';
 
 export {
   getDistinguishingProps,

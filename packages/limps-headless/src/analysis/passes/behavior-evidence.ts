@@ -55,8 +55,7 @@ export function extractBehaviorEvidence(
   const evidenceMap = new Map<string, Evidence>();
 
   const attributeSet = new Set(jsxEvidence.attributes);
-  const tabIndexPresent =
-    attributeSet.has('tabIndex') || attributeSet.has('tabindex');
+  const tabIndexPresent = attributeSet.has('tabIndex') || attributeSet.has('tabindex');
   const hasRovingRole = jsxEvidence.roles.some((role) => ROVING_ROLES.has(role));
   const keyHandlerNames = ['onKeyDown', 'onKeyUp', 'onKeyPress'];
   const focusHandlerNames = ['onFocus', 'onBlur'];
@@ -91,10 +90,7 @@ export function extractBehaviorEvidence(
           buildLocation(sourceFile, node)
         );
       }
-      if (
-        ts.isPropertyAccessExpression(expr) &&
-        expr.name.text === 'createPortal'
-      ) {
+      if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'createPortal') {
         behaviors.add('portal');
         addEvidence(
           evidenceMap,
@@ -113,13 +109,7 @@ export function extractBehaviorEvidence(
   visit(sourceFile);
 
   if (behaviors.has('roving-tabindex')) {
-    addEvidence(
-      evidenceMap,
-      'behavior:roving-tabindex',
-      'behavior',
-      'possible',
-      2
-    );
+    addEvidence(evidenceMap, 'behavior:roving-tabindex', 'behavior', 'possible', 2);
   }
 
   return {

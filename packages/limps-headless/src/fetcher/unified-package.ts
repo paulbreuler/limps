@@ -26,9 +26,8 @@ const SOURCE_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const unifiedTypesPathOverrides: Record<string, string> = {};
 
-let unifiedAvailabilityCache:
-  | { available: boolean; version?: string; timestamp: number }
-  | null = null;
+let unifiedAvailabilityCache: { available: boolean; version?: string; timestamp: number } | null =
+  null;
 
 function normalizePrimitive(primitive: string): string {
   return primitive.toLowerCase().replace(/\s+/g, '-');
@@ -36,10 +35,7 @@ function normalizePrimitive(primitive: string): string {
 
 function getUnifiedTypesPath(primitive: string): string {
   const normalized = normalizePrimitive(primitive);
-  return (
-    unifiedTypesPathOverrides[normalized] ??
-    `dist/${normalized}.d.ts`
-  );
+  return unifiedTypesPathOverrides[normalized] ?? `dist/${normalized}.d.ts`;
 }
 
 async function getUnifiedAvailability(): Promise<{
@@ -69,9 +65,7 @@ async function getUnifiedAvailability(): Promise<{
 /**
  * Detect if the unified package is available.
  */
-export async function detectPackageSource(
-  _primitive: string
-): Promise<PackageSource> {
+export async function detectPackageSource(_primitive: string): Promise<PackageSource> {
   const unified = await getUnifiedAvailability();
   return unified.available ? 'unified' : 'individual';
 }
@@ -87,10 +81,7 @@ export async function resolvePackage(
   const unified = await getUnifiedAvailability();
 
   if (unified.available) {
-    const unifiedVersion = await resolvePackageVersion(
-      UNIFIED_PACKAGE_NAME,
-      versionHint
-    );
+    const unifiedVersion = await resolvePackageVersion(UNIFIED_PACKAGE_NAME, versionHint);
 
     if (isVersionAtLeast(unifiedVersion, UNIFIED_MIN_VERSION)) {
       return {
@@ -104,10 +95,7 @@ export async function resolvePackage(
   }
 
   const individualPackage = primitiveToPackage(normalized);
-  const individualVersion = await resolvePackageVersion(
-    individualPackage,
-    versionHint
-  );
+  const individualVersion = await resolvePackageVersion(individualPackage, versionHint);
 
   return {
     source: 'individual',
@@ -131,11 +119,7 @@ export async function fetchTypesWithFallback(
   try {
     const content =
       resolved.source === 'unified'
-        ? await fetchFromUnifiedPackage(
-            resolved.primitive,
-            resolved.version,
-            resolved.typesPath
-          )
+        ? await fetchFromUnifiedPackage(resolved.primitive, resolved.version, resolved.typesPath)
         : await fetchTypes(resolved.primitive, resolved.version);
 
     return { resolved, content };
@@ -145,10 +129,7 @@ export async function fetchTypesWithFallback(
     }
 
     const fallbackPackage = primitiveToPackage(normalized);
-    const fallbackVersion = await resolvePackageVersion(
-      fallbackPackage,
-      versionHint
-    );
+    const fallbackVersion = await resolvePackageVersion(fallbackPackage, versionHint);
     const content = await fetchTypes(normalized, fallbackVersion);
 
     resolved = {

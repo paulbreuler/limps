@@ -17,12 +17,12 @@ import {
 } from '../src/analyzer/patterns.js';
 import { analyzeComponent } from '../src/analyzer/index.js';
 import { scoreAgainstSignatures } from '../src/analyzer/scorer.js';
-import { isAmbiguous, disambiguate, getDisambiguationReasoning } from '../src/analyzer/disambiguator.js';
-import type {
-  ComponentAnalysis,
-  BehaviorSignature,
-  PrimitiveMatch,
-} from '../src/types/index.js';
+import {
+  isAmbiguous,
+  disambiguate,
+  getDisambiguationReasoning,
+} from '../src/analyzer/disambiguator.js';
+import type { ComponentAnalysis, BehaviorSignature, PrimitiveMatch } from '../src/types/index.js';
 
 // Create a temporary directory for test files
 const TEST_DIR = path.join(os.tmpdir(), 'limps-headless-analyzer-test');
@@ -796,7 +796,7 @@ describe('analyzer/disambiguator', () => {
 
       const result = disambiguate(matches, analysis);
       const reasoning = getDisambiguationReasoning(matches, analysis, result);
-      
+
       // Reasoning is only returned when the chosen match is NOT the top match
       // In this case, Dialog is the top match and was chosen, so reasoning is undefined
       // This is expected behavior - reasoning explains why a lower-scored match was chosen
@@ -811,9 +811,9 @@ describe('tools/analyze-component', () => {
     const outsidePath = path.join(os.tmpdir(), 'outside.tsx');
     await fs.promises.writeFile(outsidePath, 'export const x = 1;', 'utf-8');
 
-    await expect(
-      handleAnalyzeComponent({ filePath: outsidePath })
-    ).rejects.toThrow('filePath must be within the project directory');
+    await expect(handleAnalyzeComponent({ filePath: outsidePath })).rejects.toThrow(
+      'filePath must be within the project directory'
+    );
 
     await fs.promises.unlink(outsidePath);
   });
@@ -826,9 +826,9 @@ describe('tools/analyze-component', () => {
     await fs.promises.writeFile(testFile, 'export const x = 1;', 'utf-8');
 
     try {
-      await expect(
-        handleAnalyzeComponent({ filePath: testFile })
-      ).rejects.toThrow('filePath must point to a .ts or .tsx file');
+      await expect(handleAnalyzeComponent({ filePath: testFile })).rejects.toThrow(
+        'filePath must point to a .ts or .tsx file'
+      );
     } finally {
       await fs.promises.unlink(testFile).catch(() => undefined);
       await fs.promises.rm(testDir, { recursive: true, force: true }).catch(() => undefined);

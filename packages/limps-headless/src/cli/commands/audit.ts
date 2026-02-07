@@ -4,11 +4,7 @@
 
 import type { Command } from 'commander';
 import { runAudit } from '../../audit/run-audit.js';
-import {
-  parseBackendMode,
-  parseMigrationThreshold,
-  DEFAULT_RUN_AUDIT_OPTIONS,
-} from '../flags.js';
+import { parseBackendMode, parseMigrationThreshold, DEFAULT_RUN_AUDIT_OPTIONS } from '../flags.js';
 
 export function registerAuditCommand(program: Command): void {
   program
@@ -16,28 +12,17 @@ export function registerAuditCommand(program: Command): void {
     .description(
       'Run full audit: optionally analyze files, diff versions, check updates; writes report to .limps-headless/reports (run from project dir)'
     )
-    .option(
-      '-f, --files <paths...>',
-      'Component file paths to analyze (relative to cwd)'
-    )
+    .option('-f, --files <paths...>', 'Component file paths to analyze (relative to cwd)')
     .option('--root-dir <dir>', 'Root directory for component discovery')
     .option('-o, --output-dir <dir>', 'Output directory', '.limps-headless/reports')
-    .option(
-      '--format <format>',
-      'Report format: json, markdown, or both',
-      'both'
-    )
+    .option('--format <format>', 'Report format: json, markdown, or both', 'both')
     .option('--json', 'Output summary as JSON only')
     .option(
       '--backend <mode>',
       'Backend policy: auto, base, or radix-legacy',
       DEFAULT_RUN_AUDIT_OPTIONS.backendMode
     )
-    .option(
-      '--ruleset <ruleset>',
-      'Ruleset selection: base-ui, radix-legacy, or both',
-      'base-ui'
-    )
+    .option('--ruleset <ruleset>', 'Ruleset selection: base-ui, radix-legacy, or both', 'base-ui')
     .option('--evidence <level>', 'Evidence verbosity: summary or verbose', 'summary')
     .option('--debug-ir', 'Write IR dump to output directory')
     .option(
@@ -55,7 +40,8 @@ export function registerAuditCommand(program: Command): void {
         scope: files.length > 0 ? { files } : undefined,
         discovery: options.rootDir ? { rootDir: options.rootDir } : undefined,
         outputDir: options.outputDir,
-        format: options.format === 'json' ? 'json' : options.format === 'markdown' ? 'markdown' : 'both',
+        format:
+          options.format === 'json' ? 'json' : options.format === 'markdown' ? 'markdown' : 'both',
         ruleset: options.ruleset,
         evidence: options.evidence,
         debugIr: Boolean(options.debugIr),

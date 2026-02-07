@@ -141,9 +141,7 @@ function findFunctionComponent(
  * Extract props from a function component with inline props.
  * Handles: function Modal({ open, onOpenChange }: { open: boolean; ... }) { ... }
  */
-function extractPropsFromFunction(
-  func: FunctionDeclaration
-): RawProp[] {
+function extractPropsFromFunction(func: FunctionDeclaration): RawProp[] {
   const params = func.getParameters();
   if (params.length === 0) return [];
 
@@ -182,8 +180,7 @@ function extractPropsFromTypeNode(typeNode: TypeNode): RawProp[] {
     // Check if optional
     const isOptional =
       propDecl.getKindName() === 'PropertySignature'
-        ? (propDecl as unknown as { hasQuestionToken(): boolean })
-            .hasQuestionToken?.() ?? false
+        ? ((propDecl as unknown as { hasQuestionToken(): boolean }).hasQuestionToken?.() ?? false)
         : typeText.includes('undefined');
 
     props.push({
@@ -254,10 +251,7 @@ function findFCComponent(
 /**
  * Extract props from a React.FC declaration.
  */
-function extractPropsFromFC(
-  decl: VariableDeclaration,
-  sourceFile: SourceFile
-): RawProp[] {
+function extractPropsFromFC(decl: VariableDeclaration, sourceFile: SourceFile): RawProp[] {
   const typeNode = decl.getTypeNode();
   if (!typeNode) return [];
 

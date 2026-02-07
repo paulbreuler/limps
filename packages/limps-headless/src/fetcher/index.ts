@@ -21,9 +21,4 @@ export {
   type ResolvedPackage,
 } from './unified-package.js';
 
-export {
-  fetchTypes,
-  fetchFromUnifiedPackage,
-  buildTypesUrl,
-  fetchPackageFile,
-} from './unpkg.js';
+export { fetchTypes, fetchFromUnifiedPackage, buildTypesUrl, fetchPackageFile } from './unpkg.js';

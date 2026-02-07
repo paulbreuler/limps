@@ -21,10 +21,7 @@ import {
  * Detect sub-components from a component file.
  * Handles patterns like: Modal.Root, Modal.Content, Modal.Trigger
  */
-export function detectSubComponents(
-  sourceFile: SourceFile,
-  componentName: string
-): string[] {
+export function detectSubComponents(sourceFile: SourceFile, componentName: string): string[] {
   const subComponents: string[] = [];
   const text = sourceFile.getFullText();
   const escapedComponentName = escapeRegExp(componentName);
@@ -32,10 +29,7 @@ export function detectSubComponents(
   // Look for property assignments: ComponentName.SubName = ...
   // Pattern: Modal.Root = function Root() { ... }
   // or: Modal.Root = () => { ... }
-  const propertyAssignmentRegex = new RegExp(
-    `${escapedComponentName}\\.(\\w+)\\s*=`,
-    'g'
-  );
+  const propertyAssignmentRegex = new RegExp(`${escapedComponentName}\\.(\\w+)\\s*=`, 'g');
   let match;
   while ((match = propertyAssignmentRegex.exec(text)) !== null) {
     const subName = match[1];
@@ -107,35 +101,23 @@ export function detectSubComponents(
  * Detect if component uses forwardRef.
  */
 export function detectForwardRef(sourceFile: SourceFile): boolean {
-  const callExpressions = sourceFile.getDescendantsOfKind(
-    SyntaxKind.CallExpression
-  );
+  const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
   for (const call of callExpressions) {
     const expression = call.getExpression();
-    if (
-      expression.getKind() === SyntaxKind.Identifier &&
-      expression.getText() === 'forwardRef'
-    ) {
+    if (expression.getKind() === SyntaxKind.Identifier && expression.getText() === 'forwardRef') {
       return true;
     }
 
     if (expression.getKind() === SyntaxKind.PropertyAccessExpression) {
-      const property = expression.asKindOrThrow(
-        SyntaxKind.PropertyAccessExpression
-      );
-      if (
-        property.getName() === 'forwardRef' &&
-        property.getExpression().getText() === 'React'
-      ) {
+      const property = expression.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+      if (property.getName() === 'forwardRef' && property.getExpression().getText() === 'React') {
         return true;
       }
     }
   }
 
-  const typeReferences = sourceFile.getDescendantsOfKind(
-    SyntaxKind.TypeReference
-  );
+  const typeReferences = sourceFile.getDescendantsOfKind(SyntaxKind.TypeReference);
   for (const typeRef of typeReferences) {
     const typeName = typeRef.getTypeName().getText();
     if (
@@ -152,17 +134,12 @@ export function detectForwardRef(sourceFile: SourceFile): boolean {
 /**
  * Detect if component has asChild prop.
  */
-export function detectAsChild(
-  sourceFile: SourceFile,
-  props: Map<string, PropDefinition>
-): boolean {
+export function detectAsChild(sourceFile: SourceFile, props: Map<string, PropDefinition>): boolean {
   if (props.has('asChild')) {
     return true;
   }
 
-  const jsxAttributes = sourceFile.getDescendantsOfKind(
-    SyntaxKind.JsxAttribute
-  );
+  const jsxAttributes = sourceFile.getDescendantsOfKind(SyntaxKind.JsxAttribute);
   for (const attr of jsxAttributes) {
     const name = attr.getNameNode().getText();
     if (name === 'asChild' || name === 'as-child') {
@@ -226,9 +203,7 @@ export function detectDataAttributes(sourceFile: SourceFile): string[] {
 /**
  * Infer state pattern from props.
  */
-export function inferStatePatternFromProps(
-  props: Map<string, PropDefinition>
-): StatePattern {
+export function inferStatePatternFromProps(props: Map<string, PropDefinition>): StatePattern {
   const propsArray = Array.from(props.values());
   return inferStatePattern(propsArray);
 }

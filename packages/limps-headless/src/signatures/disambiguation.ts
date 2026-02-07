@@ -64,8 +64,7 @@ const DISAMBIGUATION_RULES: Record<string, string> = {
 
   Checkbox:
     'Checkbox has an Indicator that shows checked state (checkmark). Unlike Switch, no sliding Thumb.',
-  Switch:
-    'Switch has a sliding Thumb component. Unlike Checkbox, no Indicator with checkmark.',
+  Switch: 'Switch has a sliding Thumb component. Unlike Checkbox, no Indicator with checkmark.',
   Toggle:
     'Toggle has a pressed state. Unlike Checkbox/Switch, it is a button that toggles appearance.',
 

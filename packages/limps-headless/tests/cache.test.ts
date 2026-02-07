@@ -437,9 +437,8 @@ describe('cache integration', () => {
       // Manually expire the entry
       const cacheDir = getCacheDir(testDir);
       const latestPath = path.join(cacheDir, 'latest-resolved.json');
-      const cache = await readFromFile<Record<string, { version: string; resolvedAt: string }>>(
-        latestPath
-      );
+      const cache =
+        await readFromFile<Record<string, { version: string; resolvedAt: string }>>(latestPath);
       if (cache) {
         cache['Dialog'].resolvedAt = new Date(
           Date.now() - TTL.LATEST_RESOLUTION - 1000
@@ -455,9 +454,14 @@ describe('cache integration', () => {
   describe('clearCache', () => {
     it('clears all cache when no args', async () => {
       await saveToCache('Dialog', '1.0.5', sampleExtracted, { baseDir: testDir });
-      await saveToCache('Tooltip', '1.0.3', { ...sampleExtracted, name: 'Tooltip' }, {
-        baseDir: testDir,
-      });
+      await saveToCache(
+        'Tooltip',
+        '1.0.3',
+        { ...sampleExtracted, name: 'Tooltip' },
+        {
+          baseDir: testDir,
+        }
+      );
 
       await clearCache(undefined, undefined, { baseDir: testDir });
 
@@ -469,9 +473,14 @@ describe('cache integration', () => {
 
     it('clears specific primitive and version', async () => {
       await saveToCache('Dialog', '1.0.5', sampleExtracted, { baseDir: testDir });
-      await saveToCache('Dialog', '1.0.6', { ...sampleExtracted, version: '1.0.6' }, {
-        baseDir: testDir,
-      });
+      await saveToCache(
+        'Dialog',
+        '1.0.6',
+        { ...sampleExtracted, version: '1.0.6' },
+        {
+          baseDir: testDir,
+        }
+      );
 
       await clearCache('Dialog', '1.0.5', { baseDir: testDir });
 
@@ -483,12 +492,22 @@ describe('cache integration', () => {
 
     it('clears all versions of specific primitive', async () => {
       await saveToCache('Dialog', '1.0.5', sampleExtracted, { baseDir: testDir });
-      await saveToCache('Dialog', '1.0.6', { ...sampleExtracted, version: '1.0.6' }, {
-        baseDir: testDir,
-      });
-      await saveToCache('Tooltip', '1.0.3', { ...sampleExtracted, name: 'Tooltip' }, {
-        baseDir: testDir,
-      });
+      await saveToCache(
+        'Dialog',
+        '1.0.6',
+        { ...sampleExtracted, version: '1.0.6' },
+        {
+          baseDir: testDir,
+        }
+      );
+      await saveToCache(
+        'Tooltip',
+        '1.0.3',
+        { ...sampleExtracted, name: 'Tooltip' },
+        {
+          baseDir: testDir,
+        }
+      );
 
       await clearCache('Dialog', undefined, { baseDir: testDir });
 
@@ -514,9 +533,14 @@ describe('cache integration', () => {
       await saveSignatureToCache('Dialog', '1.0.5', sampleSignature, {
         baseDir: testDir,
       });
-      await saveToCache('Tooltip', '1.0.5', { ...sampleExtracted, name: 'Tooltip' }, {
-        baseDir: testDir,
-      });
+      await saveToCache(
+        'Tooltip',
+        '1.0.5',
+        { ...sampleExtracted, name: 'Tooltip' },
+        {
+          baseDir: testDir,
+        }
+      );
 
       const stats = await getCacheStats({ baseDir: testDir });
       expect(stats.versions).toContain('1.0.5');

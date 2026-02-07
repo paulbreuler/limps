@@ -6,10 +6,7 @@ import type { ExtractedPrimitive } from '../types/index.js';
 import type { RadixChange, RadixDiff, DiffSummary } from './types.js';
 import { diffContracts } from './props.js';
 import { sortBySeverity } from './severity.js';
-import {
-  resolvePackage,
-  fetchTypesWithFallback,
-} from '../fetcher/index.js';
+import { resolvePackage, fetchTypesWithFallback } from '../fetcher/index.js';
 import { extractPrimitive } from '../extractor/index.js';
 import { getFromCache, saveToCache } from '../cache/index.js';
 import { listPrimitives } from '../fetcher/npm-registry.js';
@@ -136,11 +133,7 @@ export async function diffVersions(
 
   for (const primitiveSlug of primitivesToDiff) {
     try {
-      const changes = await diffPrimitive(
-        primitiveSlug,
-        resolvedFrom.version,
-        resolvedTo.version
-      );
+      const changes = await diffPrimitive(primitiveSlug, resolvedFrom.version, resolvedTo.version);
       allChanges.push(...changes);
     } catch (error) {
       // Skip primitives that fail (might not exist in one version)

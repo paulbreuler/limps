@@ -25,9 +25,7 @@ describe('fetcher/unified-package', () => {
   it('detectPackageSource returns "unified" when radix-ui >= 1.4.3', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(registryResponse('radix-ui', '1.4.3')));
 
-    const { detectPackageSource } = await import(
-      '../src/fetcher/unified-package.js'
-    );
+    const { detectPackageSource } = await import('../src/fetcher/unified-package.js');
 
     const source = await detectPackageSource('dialog');
     expect(source).toBe('unified');
@@ -43,9 +41,7 @@ describe('fetcher/unified-package', () => {
       })
     );
 
-    const { detectPackageSource } = await import(
-      '../src/fetcher/unified-package.js'
-    );
+    const { detectPackageSource } = await import('../src/fetcher/unified-package.js');
 
     const source = await detectPackageSource('dialog');
     expect(source).toBe('individual');
@@ -80,37 +76,23 @@ describe('fetcher/unified-package', () => {
           return Promise.resolve(registryResponse('radix-ui', '1.4.3'));
         }
         if (url.includes('%40radix-ui%2Freact-dialog')) {
-          return Promise.resolve(
-            registryResponse('@radix-ui/react-dialog', '1.0.5')
-          );
+          return Promise.resolve(registryResponse('@radix-ui/react-dialog', '1.0.5'));
         }
-        if (
-          url.startsWith(
-            'https://unpkg.com/radix-ui@1.4.3/dist/dialog.d.ts'
-          )
-        ) {
+        if (url.startsWith('https://unpkg.com/radix-ui@1.4.3/dist/dialog.d.ts')) {
           return Promise.resolve({
             ok: false,
             status: 404,
             statusText: 'Not Found',
           });
         }
-        if (
-          url.startsWith(
-            'https://unpkg.com/radix-ui@1.4.3/dist/dialog.d.mts'
-          )
-        ) {
+        if (url.startsWith('https://unpkg.com/radix-ui@1.4.3/dist/dialog.d.mts')) {
           return Promise.resolve({
             ok: false,
             status: 404,
             statusText: 'Not Found',
           });
         }
-        if (
-          url.startsWith(
-            'https://unpkg.com/@radix-ui/react-dialog@1.0.5/dist/index.d.ts'
-          )
-        ) {
+        if (url.startsWith('https://unpkg.com/@radix-ui/react-dialog@1.0.5/dist/index.d.ts')) {
           return Promise.resolve({
             ok: true,
             status: 200,
@@ -126,9 +108,7 @@ describe('fetcher/unified-package', () => {
       })
     );
 
-    const { fetchTypesWithFallback } = await import(
-      '../src/fetcher/unified-package.js'
-    );
+    const { fetchTypesWithFallback } = await import('../src/fetcher/unified-package.js');
 
     const result = await fetchTypesWithFallback('dialog', 'latest');
     expect(result.resolved.source).toBe('individual');

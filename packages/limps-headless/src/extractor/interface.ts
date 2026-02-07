@@ -3,11 +3,7 @@
  */
 
 import type { SourceFile, InterfaceDeclaration } from 'ts-morph';
-import type {
-  SubComponentDefinition,
-  ExtractedPrimitive,
-  PropDefinition,
-} from '../types/index.js';
+import type { SubComponentDefinition, ExtractedPrimitive, PropDefinition } from '../types/index.js';
 import { extractPropsFromInterface, isPropsInterface } from './props.js';
 import { classifyProp } from './classifier.js';
 import {
@@ -21,7 +17,8 @@ import { filterReactInternals } from './type-resolver.js';
  * Pattern for Radix sub-component naming.
  * @example "DialogRoot", "DialogContent", "DialogTrigger"
  */
-const SUB_COMPONENT_PATTERN = /^([A-Z][a-z]+)(Root|Trigger|Content|Title|Description|Close|Overlay|Portal|Arrow|Item|Indicator|Thumb|Track|Range|Viewport|Scrollbar|Corner|Action|Cancel|Group|Label|Separator|Sub|List|Value|Icon|Image|Fallback)Props$/;
+const SUB_COMPONENT_PATTERN =
+  /^([A-Z][a-z]+)(Root|Trigger|Content|Title|Description|Close|Overlay|Portal|Arrow|Item|Indicator|Thumb|Track|Range|Viewport|Scrollbar|Corner|Action|Cancel|Group|Label|Separator|Sub|List|Value|Icon|Image|Fallback)Props$/;
 
 /**
  * Required sub-components by primitive type.
@@ -48,9 +45,7 @@ export function findInterfaces(sourceFile: SourceFile): InterfaceDeclaration[] {
 /**
  * Find props interfaces (names ending with "Props").
  */
-export function findPropsInterfaces(
-  sourceFile: SourceFile
-): InterfaceDeclaration[] {
+export function findPropsInterfaces(sourceFile: SourceFile): InterfaceDeclaration[] {
   return sourceFile.getInterfaces().filter((i) => isPropsInterface(i.getName()));
 }
 
@@ -239,11 +234,7 @@ export function findExports(sourceFile: SourceFile): string[] {
  */
 export function detectContextUsage(sourceFile: SourceFile): boolean {
   const text = sourceFile.getFullText();
-  return (
-    text.includes('createContext') ||
-    text.includes('useContext') ||
-    text.includes('Provider')
-  );
+  return text.includes('createContext') || text.includes('useContext') || text.includes('Provider');
 }
 
 /**
@@ -254,9 +245,7 @@ export function extractContextShape(
   primitiveName: string
 ): PropDefinition[] | undefined {
   // Look for *ContextValue interface
-  const contextInterface = sourceFile.getInterface(
-    `${primitiveName}ContextValue`
-  );
+  const contextInterface = sourceFile.getInterface(`${primitiveName}ContextValue`);
 
   if (contextInterface) {
     const rawProps = extractPropsFromInterface(contextInterface);

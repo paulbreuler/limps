@@ -22,23 +22,16 @@ function loadTsConfig(tsconfigPath: string): {
   const configFile = ts.readConfigFile(absolute, ts.sys.readFile);
 
   if (configFile.error) {
-    const message = ts.formatDiagnosticsWithColorAndContext(
-      [configFile.error],
-      {
-        getCanonicalFileName: (name) => name,
-        getCurrentDirectory: ts.sys.getCurrentDirectory,
-        getNewLine: () => ts.sys.newLine,
-      }
-    );
+    const message = ts.formatDiagnosticsWithColorAndContext([configFile.error], {
+      getCanonicalFileName: (name) => name,
+      getCurrentDirectory: ts.sys.getCurrentDirectory,
+      getNewLine: () => ts.sys.newLine,
+    });
     throw new Error(message);
   }
 
   const basePath = path.dirname(absolute);
-  const parsed = ts.parseJsonConfigFileContent(
-    configFile.config,
-    ts.sys,
-    basePath
-  );
+  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, basePath);
 
   if (parsed.errors.length > 0) {
     const message = ts.formatDiagnosticsWithColorAndContext(parsed.errors, {
@@ -67,9 +60,7 @@ function defaultCompilerOptions(): ts.CompilerOptions {
   };
 }
 
-export function createTsCompilerContext(
-  input: TsCompilerContextInput = {}
-): TsCompilerContext {
+export function createTsCompilerContext(input: TsCompilerContextInput = {}): TsCompilerContext {
   const cwd = input.cwd ?? process.cwd();
   const tsconfigPath = input.tsconfigPath;
 

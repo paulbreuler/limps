@@ -17,10 +17,7 @@ export interface EvidenceBundle {
   behaviors: BehaviorEvidence;
 }
 
-export function collectEvidence(
-  ir: ComponentIR,
-  context: EvidenceContext
-): EvidenceBundle {
+export function collectEvidence(ir: ComponentIR, context: EvidenceContext): EvidenceBundle {
   const sourceText = context.sourceText ?? fs.readFileSync(context.filePath, 'utf-8');
   const sourceFile = ts.createSourceFile(
     context.filePath,

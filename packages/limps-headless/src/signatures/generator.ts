@@ -8,24 +8,14 @@ import type {
   BehaviorSignature,
   SubComponentDefinition,
 } from '../types/index.js';
-import {
-  inferStatePattern,
-  inferCompositionPattern,
-  inferRenderingPattern,
-} from './inference.js';
+import { inferStatePattern, inferCompositionPattern, inferRenderingPattern } from './inference.js';
 import { getDistinguishingProps, getAntiPatternProps } from './distinguishing.js';
 import { getSimilarPrimitives, getDisambiguationRule } from './disambiguation.js';
 
 /**
  * Sub-component role type mapping for common patterns.
  */
-type SubComponentRole =
-  | 'trigger'
-  | 'content'
-  | 'overlay'
-  | 'item'
-  | 'indicator'
-  | 'other';
+type SubComponentRole = 'trigger' | 'content' | 'overlay' | 'item' | 'indicator' | 'other';
 
 /**
  * Patterns for inferring sub-component roles from names.
@@ -46,13 +36,7 @@ const ROLE_PATTERNS: Record<SubComponentRole, RegExp[]> = {
  */
 function inferSubComponentRole(componentName: string): SubComponentRole {
   // Check each role's patterns in priority order
-  const roleOrder: SubComponentRole[] = [
-    'trigger',
-    'content',
-    'overlay',
-    'item',
-    'indicator',
-  ];
+  const roleOrder: SubComponentRole[] = ['trigger', 'content', 'overlay', 'item', 'indicator'];
 
   for (const role of roleOrder) {
     const patterns = ROLE_PATTERNS[role];
@@ -142,17 +126,12 @@ export function generateSignature(extracted: ExtractedPrimitive): BehaviorSignat
     : allRootProps;
 
   // Remove duplicates by prop name
-  const uniqueProps = Array.from(
-    new Map(primaryProps.map((p) => [p.name, p])).values()
-  );
+  const uniqueProps = Array.from(new Map(primaryProps.map((p) => [p.name, p])).values());
 
   // Infer patterns
   const statePattern = inferStatePattern(uniqueProps);
   const compositionPattern = inferCompositionPattern(extracted.subComponents);
-  const renderingPattern = inferRenderingPattern(
-    extracted.subComponents,
-    uniqueProps
-  );
+  const renderingPattern = inferRenderingPattern(extracted.subComponents, uniqueProps);
 
   // Get distinguishing characteristics
   const distinguishingProps = getDistinguishingProps(extracted.name);
@@ -193,8 +172,6 @@ export function generateSignature(extracted: ExtractedPrimitive): BehaviorSignat
  * @param extractedList - Array of extracted primitives
  * @returns Array of behavior signatures
  */
-export function generateSignatures(
-  extractedList: ExtractedPrimitive[]
-): BehaviorSignature[] {
+export function generateSignatures(extractedList: ExtractedPrimitive[]): BehaviorSignature[] {
   return extractedList.map(generateSignature);
 }

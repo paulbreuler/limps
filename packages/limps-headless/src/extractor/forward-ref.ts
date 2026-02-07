@@ -3,11 +3,7 @@
  * Handles patterns like: React.ForwardRefExoticComponent<Props & React.RefAttributes<Element>>
  */
 
-import type {
-  SourceFile,
-  VariableDeclaration,
-  TypeNode,
-} from 'ts-morph';
+import type { SourceFile, VariableDeclaration, TypeNode } from 'ts-morph';
 import type { RawProp } from '../types/index.js';
 import { extractPropsFromInterface } from './props.js';
 
@@ -23,9 +19,7 @@ export interface ForwardRefDeclaration {
 /**
  * Find all ForwardRefExoticComponent variable declarations in a source file.
  */
-export function findForwardRefDeclarations(
-  sourceFile: SourceFile
-): ForwardRefDeclaration[] {
+export function findForwardRefDeclarations(sourceFile: SourceFile): ForwardRefDeclaration[] {
   const results: ForwardRefDeclaration[] = [];
 
   for (const statement of sourceFile.getVariableStatements()) {
@@ -59,9 +53,7 @@ function extractPropsTypeFromForwardRef(typeNode: TypeNode): string | null {
 
   // Match pattern: ForwardRefExoticComponent<TypeName & ...>
   // or ForwardRefExoticComponent<TypeName>
-  const match = typeText.match(
-    /ForwardRefExoticComponent<\s*(\w+)(?:\s*&|>)/
-  );
+  const match = typeText.match(/ForwardRefExoticComponent<\s*(\w+)(?:\s*&|>)/);
   if (match) {
     return match[1];
   }
@@ -98,10 +90,7 @@ export function extractPropsFromForwardRef(
 /**
  * Extract props from a TypeNode (for inline type definitions).
  */
-function extractPropsFromTypeNode(
-  _sourceFile: SourceFile,
-  typeNode: TypeNode
-): RawProp[] {
+function extractPropsFromTypeNode(_sourceFile: SourceFile, typeNode: TypeNode): RawProp[] {
   const props: RawProp[] = [];
 
   // Get the type from the type checker
@@ -128,7 +117,7 @@ function extractPropsFromTypeNode(
     // Check if optional (has question token or is union with undefined)
     const isOptional =
       propDecl.getKindName() === 'PropertySignature'
-        ? (propDecl as unknown as { hasQuestionToken(): boolean }).hasQuestionToken?.() ?? false
+        ? ((propDecl as unknown as { hasQuestionToken(): boolean }).hasQuestionToken?.() ?? false)
         : typeText.includes('undefined');
 
     props.push({
@@ -168,10 +157,7 @@ function simplifyTypeText(text: string): string {
  * Get the sub-component suffix from a component name.
  * @example "DialogContent" with primitive "Dialog" -> "Content"
  */
-export function getSubComponentSuffix(
-  componentName: string,
-  primitiveName: string
-): string | null {
+export function getSubComponentSuffix(componentName: string, primitiveName: string): string | null {
   if (!componentName.startsWith(primitiveName)) return null;
 
   const suffix = componentName.slice(primitiveName.length);

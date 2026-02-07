@@ -22,17 +22,17 @@ describe('discoverComponents', () => {
 
     fs.writeFileSync(
       path.join(root, 'Button.tsx'),
-      "export function Button() { return <button />; }\n",
+      'export function Button() { return <button />; }\n',
       'utf-8'
     );
     fs.writeFileSync(
       path.join(root, 'Button.test.tsx'),
-      "export function ButtonTest() { return <button />; }\n",
+      'export function ButtonTest() { return <button />; }\n',
       'utf-8'
     );
     fs.writeFileSync(
       path.join(root, 'sub', 'Modal.tsx'),
-      "export const Modal = () => <div />;\n",
+      'export const Modal = () => <div />;\n',
       'utf-8'
     );
 
@@ -41,9 +41,7 @@ describe('discoverComponents', () => {
     try {
       const components = await discoverComponents();
       expect(components.map((c) => c.name).sort()).toEqual(['Button', 'Modal']);
-      expect(components.find((c) => c.name === 'Button')?.path).toBe(
-        'src/components/Button.tsx'
-      );
+      expect(components.find((c) => c.name === 'Button')?.path).toBe('src/components/Button.tsx');
     } finally {
       process.chdir(cwd);
     }
@@ -364,7 +362,9 @@ describe('fixture-radix', () => {
     try {
       const components = await discoverComponents();
       expect(components.length).toBeGreaterThanOrEqual(1);
-      const dialog = components.find((c) => c.name === 'DialogFixture' || c.path.includes('Dialog'));
+      const dialog = components.find(
+        (c) => c.name === 'DialogFixture' || c.path.includes('Dialog')
+      );
       expect(dialog).toBeDefined();
       expect(dialog?.backend).toBe('radix');
       expect(dialog?.mixedUsage).toBe(false);
@@ -386,7 +386,9 @@ describe('fixture-base', () => {
     try {
       const components = await discoverComponents();
       expect(components.length).toBeGreaterThanOrEqual(1);
-      const select = components.find((c) => c.name === 'SelectFixture' || c.path.includes('Select'));
+      const select = components.find(
+        (c) => c.name === 'SelectFixture' || c.path.includes('Select')
+      );
       expect(select).toBeDefined();
       expect(select?.backend).toBe('base');
       expect(select?.mixedUsage).toBe(false);

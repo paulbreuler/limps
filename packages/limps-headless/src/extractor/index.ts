@@ -61,15 +61,9 @@ export function extractPrimitive(
   packageName?: string
 ): ExtractedPrimitive {
   const sourceFile = parseTypes(typeContent);
-  const resolvedPackageName =
-    packageName ?? primitiveToPackage(primitiveName.toLowerCase());
+  const resolvedPackageName = packageName ?? primitiveToPackage(primitiveName.toLowerCase());
 
-  return extractPrimitiveFromSource(
-    sourceFile,
-    primitiveName,
-    resolvedPackageName,
-    version
-  );
+  return extractPrimitiveFromSource(sourceFile, primitiveName, resolvedPackageName, version);
 }
 
 /**
@@ -84,9 +78,7 @@ export function classifyProps(rawProps: RawProp[]): PropDefinition[] {
       raw.name === 'checked' ||
       raw.name.startsWith('default'),
     isEventHandler: /^on[A-Z]/.test(raw.name),
-    isConfiguration: ['modal', 'orientation', 'side', 'align'].includes(
-      raw.name
-    ),
+    isConfiguration: ['modal', 'orientation', 'side', 'align'].includes(raw.name),
     isComposition: raw.name === 'asChild' || raw.name === 'children',
   }));
 }

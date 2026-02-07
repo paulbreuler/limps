@@ -22,9 +22,7 @@ export function copyFixture(fixtureName: string): string {
     throw new Error(`Fixture not found: ${fixtureName} at ${fixtureDir}`);
   }
 
-  const tempDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), `limps-headless-fixture-${fixtureName}-`)
-  );
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `limps-headless-fixture-${fixtureName}-`));
 
   copyDirRecursive(fixtureDir, tempDir);
   return tempDir;

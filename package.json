@@ -15,7 +15,10 @@
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
     "ci": "npm run validate",
     "prepare": "husky",
-    "skills:manifest": "node scripts/generate-skills-manifest.js"
+    "skills:manifest": "node scripts/generate-skills-manifest.js",
+    "assistants:sync-codex-repo-prompts": "node --experimental-strip-types scripts/sync-codex-repo-prompts.ts",
+    "assistants:install-codex-prompts": "node --experimental-strip-types scripts/install-codex-prompts.ts",
+    "assistants:setup-codex": "npm run assistants:sync-codex-repo-prompts && npm run assistants:install-codex-prompts && mkdir -p .codex .agents && ln -sfn ../.claude/skills .codex/skills && ln -sfn ../.claude/skills .agents/skills"
   },
   "devDependencies": {
     "husky": "^9.1.7"

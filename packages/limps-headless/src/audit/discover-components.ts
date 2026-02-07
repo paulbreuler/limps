@@ -264,7 +264,7 @@ function extractPatternEvidence(sourceFile: ts.SourceFile): string[] {
         if (node.initializer) {
           if (
             ts.isJsxExpression(node.initializer) ||
-            (ts.isStringLiteral(node.initializer) === false)
+            ts.isStringLiteral(node.initializer) === false
           ) {
             evidence.add(attrName);
           }
@@ -375,7 +375,11 @@ function determineBackend(
   const hasBaseEvidence = evidence.some((e) => BASE_EVIDENCE_PATTERNS.includes(e));
 
   // Mixed usage: both backends detected
-  if ((hasRadixImports && hasBaseImports) || (hasRadixImports && hasBaseEvidence) || (hasBaseImports && hasRadixEvidence)) {
+  if (
+    (hasRadixImports && hasBaseImports) ||
+    (hasRadixImports && hasBaseEvidence) ||
+    (hasBaseImports && hasRadixEvidence)
+  ) {
     return {
       backend: 'mixed',
       mixedUsage: true,
@@ -425,10 +429,7 @@ async function walkFiles(rootDir: string): Promise<string[]> {
   return results;
 }
 
-function resolveLocalImport(
-  fromFilePath: string,
-  specifier: string
-): string | undefined {
+function resolveLocalImport(fromFilePath: string, specifier: string): string | undefined {
   const cwd = process.cwd();
   let basePath: string | undefined;
 

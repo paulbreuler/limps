@@ -9,14 +9,11 @@ import type { ChangeType } from './types.js';
  */
 const HINT_TEMPLATES: Record<ChangeType, string> = {
   prop_removed: 'Remove usage of the "{target}" prop. {extra}',
-  prop_required:
-    'The "{target}" prop is now required. Add an explicit value for this prop.',
-  subcomponent_removed:
-    'The "{target}" sub-component has been removed. {extra}',
+  prop_required: 'The "{target}" prop is now required. Add an explicit value for this prop.',
+  subcomponent_removed: 'The "{target}" sub-component has been removed. {extra}',
   type_narrowed:
     'The type for "{target}" has been narrowed from "{before}" to "{after}". Update values to match the new type.',
-  prop_deprecated:
-    'The "{target}" prop is deprecated. {extra}',
+  prop_deprecated: 'The "{target}" prop is deprecated. {extra}',
   type_changed:
     'The type for "{target}" has changed from "{before}" to "{after}". Review and update values accordingly.',
   default_changed:
@@ -37,17 +34,14 @@ const KNOWN_PROP_HINTS: Record<string, Record<string, string>> = {
   },
   // Popover/Tooltip positioning
   side: {
-    type_narrowed:
-      'If using a removed side value, choose from the available options.',
+    type_narrowed: 'If using a removed side value, choose from the available options.',
   },
   align: {
-    type_narrowed:
-      'If using a removed align value, choose from the available options.',
+    type_narrowed: 'If using a removed align value, choose from the available options.',
   },
   // Common deprecations
   asChild: {
-    prop_deprecated:
-      'Consider migrating to the new composition pattern if available.',
+    prop_deprecated: 'Consider migrating to the new composition pattern if available.',
   },
 };
 
@@ -55,8 +49,7 @@ const KNOWN_PROP_HINTS: Record<string, Record<string, string>> = {
  * Hints for removed sub-components.
  */
 const SUBCOMPONENT_HINTS: Record<string, string> = {
-  Portal:
-    'Portaling behavior may have changed. Check the component documentation.',
+  Portal: 'Portaling behavior may have changed. Check the component documentation.',
   Overlay: 'Consider using the Content component with overlay styling.',
   Close: 'Use the onOpenChange callback to handle closing behavior.',
 };
@@ -74,11 +67,11 @@ interface HintContext {
  */
 export function generateHint(changeType: ChangeType, context: HintContext): string {
   const template = HINT_TEMPLATES[changeType];
-  
+
   // Check for known prop-specific hints
   const propHints = KNOWN_PROP_HINTS[context.target];
   const specificHint = propHints?.[changeType];
-  
+
   // For sub-component changes, check subcomponent hints
   let extra = '';
   if (
@@ -89,7 +82,7 @@ export function generateHint(changeType: ChangeType, context: HintContext): stri
   } else if (specificHint) {
     extra = specificHint;
   }
-  
+
   // Replace template variables
   return template
     .replace('{target}', context.target)
@@ -102,16 +95,13 @@ export function generateHint(changeType: ChangeType, context: HintContext): stri
 /**
  * Generate a description for a change.
  */
-export function generateDescription(
-  changeType: ChangeType,
-  context: HintContext
-): string {
+export function generateDescription(changeType: ChangeType, context: HintContext): string {
   const location = context.subComponent
     ? `${context.primitive}.${context.subComponent}`
     : context.primitive || '';
-  
+
   const prefix = location ? `[${location}] ` : '';
-  
+
   switch (changeType) {
     case 'prop_removed':
       return `${prefix}Prop '${context.target}' was removed`;

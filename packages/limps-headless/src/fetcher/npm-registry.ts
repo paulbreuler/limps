@@ -110,9 +110,7 @@ export function packageToPrimitive(packageName: string): string {
 /**
  * Fetch package info from npm registry.
  */
-export async function fetchPackageInfo(
-  packageName: string
-): Promise<PackageInfo> {
+export async function fetchPackageInfo(packageName: string): Promise<PackageInfo> {
   const url = `${NPM_REGISTRY_URL}/${encodeURIComponent(packageName)}`;
 
   const response = await fetch(url, {
@@ -125,9 +123,7 @@ export async function fetchPackageInfo(
     if (response.status === 404) {
       throw new Error(`Package not found: ${packageName}`);
     }
-    throw new Error(
-      `Failed to fetch package info: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch package info: ${response.status} ${response.statusText}`);
   }
 
   const data = (await response.json()) as {
@@ -143,10 +139,7 @@ export async function fetchPackageInfo(
   };
 }
 
-function resolveVersionFromPackageInfo(
-  packageInfo: PackageInfo,
-  versionHint: string
-): string {
+function resolveVersionFromPackageInfo(packageInfo: PackageInfo, versionHint: string): string {
   if (versionHint === 'latest' || versionHint === '*') {
     return packageInfo.distTags.latest;
   }
@@ -195,9 +188,7 @@ export async function resolveVersion(
  * List all available Radix primitives.
  * Returns known primitives with their package names.
  */
-export async function listPrimitives(
-  _version?: string
-): Promise<PrimitiveInfo[]> {
+export async function listPrimitives(_version?: string): Promise<PrimitiveInfo[]> {
   // For now, return known primitives
   // In a full implementation, we could query the radix-ui meta package
   // or npm search API for all @radix-ui/react-* packages
@@ -222,7 +213,7 @@ export async function queryUnifiedPackage(
       available: isVersionAtLeast(version, minVersion),
       version,
     };
-  } catch (error) {
+  } catch (_error) {
     return { available: false };
   }
 }

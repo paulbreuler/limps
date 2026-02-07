@@ -4,10 +4,7 @@
 
 import { z } from 'zod';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
-import {
-  resolvePackage,
-  fetchTypesWithFallback,
-} from '../fetcher/index.js';
+import { resolvePackage, fetchTypesWithFallback } from '../fetcher/index.js';
 import { extractPrimitive, getPropCategory } from '../extractor/index.js';
 import { generateSignature } from '../signatures/index.js';
 import {
@@ -23,11 +20,7 @@ import { getProvider } from '../providers/registry.js';
  */
 export const extractPrimitiveInputSchema = z.object({
   primitive: z.string().describe('Primitive name (e.g., "dialog", "popover", "tooltip")'),
-  version: z
-    .string()
-    .optional()
-    .default('latest')
-    .describe('Radix version (default: latest)'),
+  version: z.string().optional().default('latest').describe('Radix version (default: latest)'),
   provider: z
     .string()
     .optional()
@@ -97,12 +90,7 @@ export async function handleExtractPrimitive(
     const typeContent = await provider.fetchTypes(primitiveSlug, resolvedVersion);
     const extracted = provider.extract
       ? provider.extract(typeContent)
-      : extractPrimitive(
-          typeContent,
-          primitiveName,
-          resolvedVersion,
-          provider.displayName
-        );
+      : extractPrimitive(typeContent, primitiveName, resolvedVersion, provider.displayName);
     const signature = provider.generateSignature
       ? provider.generateSignature(extracted)
       : generateSignature(extracted);
@@ -137,9 +125,7 @@ export async function handleExtractPrimitive(
 
   // Resolve package source and version (use slug for fetcher)
   const resolved = await resolvePackage(primitiveSlug, versionHint);
-  let resolvedContent: Awaited<
-    ReturnType<typeof fetchTypesWithFallback>
-  > | null = null;
+  let resolvedContent: Awaited<ReturnType<typeof fetchTypesWithFallback>> | null = null;
 
   // Try cache first (use PascalCase for cache keys)
   let extracted = await getFromCache(primitiveName, resolved.version);
@@ -147,10 +133,7 @@ export async function handleExtractPrimitive(
 
   if (!extracted) {
     // Fetch and extract (use slug for fetcher)
-    resolvedContent = await fetchTypesWithFallback(
-      primitiveSlug,
-      versionHint
-    );
+    resolvedContent = await fetchTypesWithFallback(primitiveSlug, versionHint);
     extracted = extractPrimitive(
       resolvedContent.content,
       primitiveName, // Use PascalCase for extractor
@@ -159,11 +142,7 @@ export async function handleExtractPrimitive(
     );
 
     // Save to cache (use PascalCase for cache keys)
-    await saveToCache(
-      primitiveName,
-      resolvedContent.resolved.version,
-      extracted
-    );
+    await saveToCache(primitiveName, resolvedContent.resolved.version, extracted);
   }
 
   if (!signature) {
@@ -171,8 +150,7 @@ export async function handleExtractPrimitive(
     signature = generateSignature(extracted);
 
     // Save to cache (use PascalCase for cache keys)
-    const resolvedVersion =
-      resolvedContent?.resolved.version ?? resolved.version;
+    const resolvedVersion = resolvedContent?.resolved.version ?? resolved.version;
     await saveSignatureToCache(primitiveName, resolvedVersion, signature);
   }
 

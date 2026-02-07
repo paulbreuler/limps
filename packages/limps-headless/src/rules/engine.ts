@@ -29,9 +29,7 @@ export function evaluateRuleset(ir: ComponentIR, ruleset: Ruleset): EvaluationRe
   }
 
   const confidence =
-    ruleset.thresholds.strong > 0
-      ? Math.min(1, score / ruleset.thresholds.strong)
-      : 0;
+    ruleset.thresholds.strong > 0 ? Math.min(1, score / ruleset.thresholds.strong) : 0;
 
   return {
     classification,

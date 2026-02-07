@@ -45,17 +45,9 @@ export function buildTypesUrl(packageName: string, version: string): string {
 /**
  * Fetch type definitions for a Radix primitive from unpkg.
  */
-export async function fetchTypes(
-  primitive: string,
-  version: string
-): Promise<string> {
+export async function fetchTypes(primitive: string, version: string): Promise<string> {
   const packageName = primitiveToPackage(primitive);
-  return fetchTypeDefinition(
-    packageName,
-    version,
-    'dist/index.d.ts',
-    'dist/index.d.mts'
-  );
+  return fetchTypeDefinition(packageName, version, 'dist/index.d.ts', 'dist/index.d.mts');
 }
 
 /**
@@ -72,12 +64,7 @@ export async function fetchFromUnifiedPackage(
     ? resolvedPath.replace(/\.d\.ts$/, '.d.mts')
     : undefined;
 
-  return fetchTypeDefinition(
-    'radix-ui',
-    version,
-    resolvedPath,
-    fallbackPath
-  );
+  return fetchTypeDefinition('radix-ui', version, resolvedPath, fallbackPath);
 }
 
 /**
@@ -93,9 +80,7 @@ export async function fetchPackageFile(
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch ${filePath}: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch ${filePath}: ${response.status} ${response.statusText}`);
   }
 
   return response.text();

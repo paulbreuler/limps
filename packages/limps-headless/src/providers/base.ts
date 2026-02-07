@@ -26,9 +26,7 @@ export const baseProvider: BackendProvider = {
   deprecated: false,
 
   detectImports(imports: string[]): boolean {
-    return imports.some((imp) =>
-      BASE_IMPORT_PATTERNS.some((pattern) => pattern.test(imp))
-    );
+    return imports.some((imp) => BASE_IMPORT_PATTERNS.some((pattern) => pattern.test(imp)));
   },
 
   detectPatterns(evidence: string[]): boolean {
@@ -80,9 +78,7 @@ export const baseProvider: BackendProvider = {
     }
 
     // Check for Base UI adoption progress
-    const totalHeadless = components.filter(
-      (c) => c.backend !== 'unknown'
-    ).length;
+    const totalHeadless = components.filter((c) => c.backend !== 'unknown').length;
     if (totalHeadless > 0 && baseComponents.length > 0) {
       const adoptionRate = Math.round((baseComponents.length / totalHeadless) * 100);
       if (adoptionRate < 50) {

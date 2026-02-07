@@ -37,13 +37,7 @@ const EVENT_PATTERN = /^on[A-Z]/;
 /**
  * Composition props - affect component composition
  */
-const COMPOSITION_PROPS = new Set([
-  'asChild',
-  'children',
-  'as',
-  'render',
-  'slot',
-]);
+const COMPOSITION_PROPS = new Set(['asChild', 'children', 'as', 'render', 'slot']);
 
 /**
  * Configuration props - affect behavior/appearance

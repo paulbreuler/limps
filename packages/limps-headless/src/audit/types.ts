@@ -15,7 +15,12 @@ export type HeadlessBackend = 'radix' | 'base' | 'mixed' | 'unknown';
 /**
  * Issue category for backend provider analysis (Agent 1 #2).
  */
-export type IssueCategory = 'accessibility' | 'performance' | 'dependencies' | 'storybook' | 'migration';
+export type IssueCategory =
+  | 'accessibility'
+  | 'performance'
+  | 'dependencies'
+  | 'storybook'
+  | 'migration';
 
 /**
  * Migration readiness levels based on Radix percentage in codebase.

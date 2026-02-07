@@ -108,12 +108,7 @@ export function createModuleGraph(input: ModuleGraphInput = {}): ModuleGraph {
     }
 
     const text = sourceText ?? fs.readFileSync(normalized, 'utf-8');
-    const sourceFile = ts.createSourceFile(
-      normalized,
-      text,
-      ts.ScriptTarget.Latest,
-      true
-    );
+    const sourceFile = ts.createSourceFile(normalized, text, ts.ScriptTarget.Latest, true);
     const { imports, reexports } = collectSpecifiers(sourceFile);
 
     const resolvedImports: string[] = [];

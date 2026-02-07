@@ -7,7 +7,12 @@ import { rcompare, valid as validSemver } from 'semver';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import type { ExtensionTool } from '@sudosandwich/limps/extensions';
-import { analyzeComponent, scoreAgainstSignatures, disambiguate, isAmbiguous } from '../analyzer/index.js';
+import {
+  analyzeComponent,
+  scoreAgainstSignatures,
+  disambiguate,
+  isAmbiguous,
+} from '../analyzer/index.js';
 import { getSignatureFromCache, getLatestResolution } from '../cache/index.js';
 import { listCachedPrimitives, listCachedVersions } from '../cache/storage.js';
 import type { AnalysisResult, BehaviorSignature } from '../types/index.js';
@@ -141,13 +146,12 @@ export async function handleAnalyzeComponent(
     rootDir: cwd,
   });
   const analysis = await analyzeComponent(absolute, { moduleGraph });
-  const rules =
-    analysis.ir
-      ? {
-          baseUi: evaluateRuleset(analysis.ir, baseUiRuleset),
-          radixLegacy: evaluateRuleset(analysis.ir, radixLegacyRuleset),
-        }
-      : undefined;
+  const rules = analysis.ir
+    ? {
+        baseUi: evaluateRuleset(analysis.ir, baseUiRuleset),
+        radixLegacy: evaluateRuleset(analysis.ir, radixLegacyRuleset),
+      }
+    : undefined;
   const analysisForOutput = applyEvidenceVerbosity(analysis, parsed.evidence);
   const rulesForOutput = selectRules(rules, parsed.ruleset);
 
@@ -170,7 +174,7 @@ export async function handleAnalyzeComponent(
           resolvedVersion = versions.sort().reverse()[0];
         }
       } else {
-    // No cached versions - return early
+        // No cached versions - return early
         const result: AnalysisResult = {
           component: analysis.name,
           filePath: relative,
@@ -244,9 +248,7 @@ export async function handleAnalyzeComponent(
 
   // Disambiguate if needed
   const ambiguous = isAmbiguous(filteredMatches);
-  const bestMatch = filteredMatches.length > 0 
-    ? disambiguate(filteredMatches, analysis)
-    : null;
+  const bestMatch = filteredMatches.length > 0 ? disambiguate(filteredMatches, analysis) : null;
 
   // Determine recommendation
   let recommendation: AnalysisResult['recommendation'];

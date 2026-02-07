@@ -3,11 +3,7 @@
  * Handles complex type patterns in .d.ts files.
  */
 
-import type {
-  SourceFile,
-  TypeAliasDeclaration,
-  InterfaceDeclaration,
-} from 'ts-morph';
+import type { SourceFile, TypeAliasDeclaration, InterfaceDeclaration } from 'ts-morph';
 import { SyntaxKind } from 'ts-morph';
 import type { RawProp } from '../types/index.js';
 import { extractPropsFromInterface } from './props.js';
@@ -29,10 +25,7 @@ const REACT_INTERNAL_PROPS = new Set([
  *
  * @returns Array of RawProp or null if type not found
  */
-export function resolveTypeAlias(
-  sourceFile: SourceFile,
-  aliasName: string
-): RawProp[] | null {
+export function resolveTypeAlias(sourceFile: SourceFile, aliasName: string): RawProp[] | null {
   // First try to find as a type alias
   const typeAlias = sourceFile.getTypeAlias(aliasName);
   if (typeAlias) {
@@ -80,8 +73,7 @@ export function mergeIntersectionTypes(
     let isOptional = false;
     if (propDecl.getKindName() === 'PropertySignature') {
       isOptional =
-        (propDecl as unknown as { hasQuestionToken(): boolean }).hasQuestionToken?.() ??
-        false;
+        (propDecl as unknown as { hasQuestionToken(): boolean }).hasQuestionToken?.() ?? false;
     } else {
       // Check if type includes undefined
       isOptional = typeText.includes('undefined');
@@ -142,9 +134,7 @@ function simplifyTypeText(text: string): string {
  * Extract property names from an intersection type node.
  * Useful for debugging and understanding type structure.
  */
-export function getIntersectionParts(
-  typeAlias: TypeAliasDeclaration
-): string[] {
+export function getIntersectionParts(typeAlias: TypeAliasDeclaration): string[] {
   const parts: string[] = [];
   const typeNode = typeAlias.getTypeNode();
 

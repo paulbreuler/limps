@@ -5,8 +5,18 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { rcompare, valid as validSemver } from 'semver';
-import { analyzeComponent, scoreAgainstSignatures, disambiguate, isAmbiguous } from '../analyzer/index.js';
-import { getSignatureFromCache, getLatestResolution, listCachedPrimitives, listCachedVersions } from '../cache/index.js';
+import {
+  analyzeComponent,
+  scoreAgainstSignatures,
+  disambiguate,
+  isAmbiguous,
+} from '../analyzer/index.js';
+import {
+  getSignatureFromCache,
+  getLatestResolution,
+  listCachedPrimitives,
+  listCachedVersions,
+} from '../cache/index.js';
 import { diffVersions } from '../differ/index.js';
 import { resolvePackageVersion } from '../fetcher/npm-registry.js';
 import { createModuleGraph } from '../analysis/module-graph.js';
@@ -144,13 +154,12 @@ async function analyzeFiles(
     }
     try {
       const analysis = await analyzeComponent(absolute, { moduleGraph });
-      const rules =
-        analysis.ir
-          ? {
-              baseUi: evaluateRuleset(analysis.ir, baseUiRuleset),
-              radixLegacy: evaluateRuleset(analysis.ir, radixLegacyRuleset),
-            }
-          : undefined;
+      const rules = analysis.ir
+        ? {
+            baseUi: evaluateRuleset(analysis.ir, baseUiRuleset),
+            radixLegacy: evaluateRuleset(analysis.ir, radixLegacyRuleset),
+          }
+        : undefined;
       const analysisForOutput = applyEvidenceVerbosity(analysis, options.evidence);
       const rulesForOutput = selectRules(rules, options.ruleset);
       let recommendation: AnalysisResult['recommendation'];
@@ -165,10 +174,9 @@ async function analyzeFiles(
           package: null,
           confidence: bestMatch?.confidence ?? 0,
           action: 'NO_LEGACY_RADIX_MATCH',
-          reason:
-            bestMatch?.confidence
-              ? `Low confidence (${bestMatch.confidence}) - likely custom or already Base UI`
-              : 'No legacy Radix match detected',
+          reason: bestMatch?.confidence
+            ? `Low confidence (${bestMatch.confidence}) - likely custom or already Base UI`
+            : 'No legacy Radix match detected',
         };
       } else if (bestMatch.confidence >= CONFIDENCE_ADOPT_MIN) {
         recommendation = {
@@ -208,10 +216,7 @@ async function analyzeFiles(
   return results;
 }
 
-function persistInventory(
-  outputDir: string,
-  components: ComponentMetadata[]
-): string {
+function persistInventory(outputDir: string, components: ComponentMetadata[]): string {
   const inventoryPath = path.join(outputDir, 'component-inventory.json');
   fs.writeFileSync(inventoryPath, JSON.stringify({ components }, null, 2), 'utf-8');
   return inventoryPath;

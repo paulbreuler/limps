@@ -29,10 +29,7 @@ import type {
 } from '../src/types/index.js';
 
 // Helper to create PropDefinition
-function createProp(
-  name: string,
-  overrides: Partial<PropDefinition> = {}
-): PropDefinition {
+function createProp(name: string, overrides: Partial<PropDefinition> = {}): PropDefinition {
   return {
     name,
     type: 'unknown',
@@ -46,10 +43,7 @@ function createProp(
 }
 
 // Helper to create SubComponentDefinition
-function createSubComponent(
-  name: string,
-  props: PropDefinition[] = []
-): SubComponentDefinition {
+function createSubComponent(name: string, props: PropDefinition[] = []): SubComponentDefinition {
   return {
     name,
     props,
@@ -146,19 +140,13 @@ describe('signatures/inference', () => {
     });
 
     it('Trigger + Content pattern → compound', () => {
-      const subComponents = [
-        createSubComponent('Trigger'),
-        createSubComponent('Content'),
-      ];
+      const subComponents = [createSubComponent('Trigger'), createSubComponent('Content')];
       expect(inferCompositionPattern(subComponents)).toBe('compound');
     });
 
     it('single component → monolithic', () => {
       const subComponents = [
-        createSubComponent('Root', [
-          createProp('checked'),
-          createProp('asChild'),
-        ]),
+        createSubComponent('Root', [createProp('checked'), createProp('asChild')]),
       ];
       expect(inferCompositionPattern(subComponents)).toBe('monolithic');
     });
@@ -169,9 +157,7 @@ describe('signatures/inference', () => {
     });
 
     it('provider-only pattern → provider', () => {
-      const subComponents = [
-        createSubComponent('Provider', [createProp('dir')]),
-      ];
+      const subComponents = [createSubComponent('Provider', [createProp('dir')])];
       expect(inferCompositionPattern(subComponents)).toBe('provider');
     });
   });
@@ -226,9 +212,7 @@ describe('signatures/inference', () => {
     });
 
     it('no portal/overlay/forceMount → inline', () => {
-      const subComponents = [
-        createSubComponent('Root', [createProp('checked')]),
-      ];
+      const subComponents = [createSubComponent('Root', [createProp('checked')])];
       const props: PropDefinition[] = [];
       expect(inferRenderingPattern(subComponents, props)).toBe('inline');
     });
@@ -439,10 +423,7 @@ describe('generateSignature', () => {
           isEventHandler: true,
         }),
       ],
-      subComponents: [
-        createSubComponent('Root'),
-        createSubComponent('Indicator'),
-      ],
+      subComponents: [createSubComponent('Root'), createSubComponent('Indicator')],
       exports: ['Root', 'Indicator'],
       usesContext: false,
     };

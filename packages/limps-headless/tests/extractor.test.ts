@@ -82,9 +82,7 @@ describe('extractor/interface', () => {
       const sourceFile = parseTypes(SAMPLE_DIALOG_TYPES);
       const propsInterfaces = findPropsInterfaces(sourceFile);
 
-      expect(propsInterfaces.every((i) => i.getName().endsWith('Props'))).toBe(
-        true
-      );
+      expect(propsInterfaces.every((i) => i.getName().endsWith('Props'))).toBe(true);
     });
   });
 
@@ -215,6 +213,6 @@ describe('extractPrimitive', () => {
 
     // Root props should include state props
     const hasOpenProp = primitive.rootProps.some((p) => p.name === 'open');
-    expect(hasOpenProp || primitive.subComponents.some(s => s.name === 'Root')).toBe(true);
+    expect(hasOpenProp || primitive.subComponents.some((s) => s.name === 'Root')).toBe(true);
   });
 });

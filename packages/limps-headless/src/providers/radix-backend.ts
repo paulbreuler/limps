@@ -27,9 +27,7 @@ export const radixBackendProvider: BackendProvider = {
   deprecated: true,
 
   detectImports(imports: string[]): boolean {
-    return imports.some((imp) =>
-      RADIX_IMPORT_PATTERNS.some((pattern) => pattern.test(imp))
-    );
+    return imports.some((imp) => RADIX_IMPORT_PATTERNS.some((pattern) => pattern.test(imp)));
   },
 
   detectPatterns(evidence: string[]): boolean {

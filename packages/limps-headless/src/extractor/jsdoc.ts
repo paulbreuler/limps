@@ -63,9 +63,7 @@ export function extractJsDoc(prop: PropertySignature): JsDocInfo {
  * - @default `value`
  * - @default value
  */
-export function extractDefaultFromComment(
-  jsDocs: JSDoc[]
-): string | undefined {
+export function extractDefaultFromComment(jsDocs: JSDoc[]): string | undefined {
   for (const doc of jsDocs) {
     for (const tag of doc.getTags()) {
       const tagName = tag.getTagName();

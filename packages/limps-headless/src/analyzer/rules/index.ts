@@ -10,9 +10,7 @@ import { disambiguateCheckboxSwitchToggle } from './checkbox-switch-toggle.js';
 /**
  * Disambiguation rule function type.
  */
-export type DisambiguationRule = (
-  analysis: ComponentAnalysis
-) => string | null;
+export type DisambiguationRule = (analysis: ComponentAnalysis) => string | null;
 
 /**
  * Disambiguation rules map.
@@ -43,9 +41,7 @@ export function getDisambiguationRule(
  * Get disambiguation rule for multiple primitives.
  * Also checks if the provided primitives are a subset of any registered rule.
  */
-export function getDisambiguationRuleForGroup(
-  primitives: string[]
-): DisambiguationRule | null {
+export function getDisambiguationRuleForGroup(primitives: string[]): DisambiguationRule | null {
   // Sort primitives alphabetically for consistent key lookup
   const sorted = [...primitives].sort();
   const key = sorted.join('-');

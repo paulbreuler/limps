@@ -75,9 +75,7 @@ function buildLocation(sourceFile: ts.SourceFile, node: ts.Node): EvidenceLocati
   };
 }
 
-function extractStringLiteral(
-  initializer: ts.JsxAttributeValue | undefined
-): string | null {
+function extractStringLiteral(initializer: ts.JsxAttributeValue | undefined): string | null {
   if (!initializer) return null;
   if (ts.isStringLiteral(initializer)) {
     return initializer.text;
@@ -164,14 +162,7 @@ export function extractJsxEvidence(sourceFile: ts.SourceFile): JsxEvidenceResult
       }
 
       if (name === 'render') {
-        addEvidence(
-          evidenceMap,
-          'attr:render',
-          'jsx',
-          'weak',
-          1,
-          buildLocation(sourceFile, prop)
-        );
+        addEvidence(evidenceMap, 'attr:render', 'jsx', 'weak', 1, buildLocation(sourceFile, prop));
       }
     }
   }

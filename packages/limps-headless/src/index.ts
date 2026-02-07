@@ -1,7 +1,4 @@
-import type {
-  LimpsExtension,
-  ExtensionContext,
-} from '@sudosandwich/limps/extensions';
+import type { LimpsExtension, ExtensionContext } from '@sudosandwich/limps/extensions';
 import {
   listPrimitivesTool,
   extractPrimitiveTool,
@@ -58,7 +55,12 @@ export * from './tools/index.js';
 
 // Config and policy options (Agent 0)
 export * from './config.js';
-export type { RunAuditOptions, BackendMode, MigrationThreshold, MigrationReadiness } from './audit/types.js';
+export type {
+  RunAuditOptions,
+  BackendMode,
+  MigrationThreshold,
+  MigrationReadiness,
+} from './audit/types.js';
 
 // Migration analysis (Agent 2 #3)
 export { analyzeMigration, computeMigrationSummary } from './audit/analyses/migration.js';

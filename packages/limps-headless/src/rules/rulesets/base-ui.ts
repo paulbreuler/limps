@@ -53,10 +53,7 @@ function roleRule(role: string): Rule {
   };
 }
 
-const rules: Rule[] = [
-  ...BASE_IMPORTS.map(importRule),
-  ...BASE_ROLES.map(roleRule),
-];
+const rules: Rule[] = [...BASE_IMPORTS.map(importRule), ...BASE_ROLES.map(roleRule)];
 
 export const baseUiRuleset: Ruleset = {
   id: 'base-ui',

@@ -65,16 +65,12 @@ export function getBreakingTypes(): ChangeType[] {
 /**
  * Sort changes by severity (breaking first, then warning, then info).
  */
-export function sortBySeverity<T extends { severity: ChangeSeverity }>(
-  changes: T[]
-): T[] {
+export function sortBySeverity<T extends { severity: ChangeSeverity }>(changes: T[]): T[] {
   const severityOrder: Record<ChangeSeverity, number> = {
     breaking: 0,
     warning: 1,
     info: 2,
   };
 
-  return [...changes].sort(
-    (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
-  );
+  return [...changes].sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 }

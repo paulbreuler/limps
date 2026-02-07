@@ -32,8 +32,7 @@ vi.mock('../src/differ/index.js', () => ({
 }));
 
 vi.mock('../src/cache/index.js', () => ({
-  getLatestResolution: (primitive: string) =>
-    mockGetLatestResolution(primitive),
+  getLatestResolution: (primitive: string) => mockGetLatestResolution(primitive),
   saveLatestResolution: (primitive: string, version: string) =>
     mockSaveLatestResolution(primitive, version),
   clearCache: () => mockClearCache(),
@@ -44,8 +43,7 @@ vi.mock('../src/cache/index.js', () => ({
 }));
 
 vi.mock('../src/fetcher/npm-registry.js', () => ({
-  resolvePackageVersion: (pkg: string, tag: string) =>
-    mockResolvePackageVersion(pkg, tag),
+  resolvePackageVersion: (pkg: string, tag: string) => mockResolvePackageVersion(pkg, tag),
 }));
 
 describe('diffVersionsInputSchema', () => {
@@ -137,11 +135,7 @@ describe('handleDiffVersions', () => {
       primitives: ['dialog', 'tooltip'],
     });
 
-    expect(mockDiffVersions).toHaveBeenCalledWith(
-      '1.0.0',
-      '2.0.0',
-      ['dialog', 'tooltip']
-    );
+    expect(mockDiffVersions).toHaveBeenCalledWith('1.0.0', '2.0.0', ['dialog', 'tooltip']);
   });
 
   it('filters output to breaking changes only when breakingOnly is true', async () => {
@@ -172,9 +166,9 @@ describe('handleDiffVersions', () => {
   it('throws for unsupported provider with clear message', async () => {
     mockGetProvider.mockReturnValue({ name: 'other' });
 
-    await expect(
-      handleDiffVersions({ fromVersion: '1.0.0', provider: 'other' })
-    ).rejects.toThrow(/not supported for diffing/);
+    await expect(handleDiffVersions({ fromVersion: '1.0.0', provider: 'other' })).rejects.toThrow(
+      /not supported for diffing/
+    );
   });
 
   it('rejects invalid input (missing fromVersion)', async () => {
@@ -184,9 +178,9 @@ describe('handleDiffVersions', () => {
   it('propagates error when diffVersions fails', async () => {
     mockDiffVersions.mockRejectedValue(new Error('Fetch failed'));
 
-    await expect(
-      handleDiffVersions({ fromVersion: '1.0.0', toVersion: '2.0.0' })
-    ).rejects.toThrow('Fetch failed');
+    await expect(handleDiffVersions({ fromVersion: '1.0.0', toVersion: '2.0.0' })).rejects.toThrow(
+      'Fetch failed'
+    );
   });
 });
 
@@ -258,19 +252,15 @@ describe('handleCheckUpdates', () => {
   it('passes primitives to diff when generating update diff', async () => {
     await handleCheckUpdates({ primitives: ['dialog', 'tooltip'] });
 
-    expect(mockDiffVersions).toHaveBeenCalledWith(
-      '1.0.0',
-      '2.0.0',
-      ['dialog', 'tooltip']
-    );
+    expect(mockDiffVersions).toHaveBeenCalledWith('1.0.0', '2.0.0', ['dialog', 'tooltip']);
   });
 
   it('throws for unsupported provider with clear message', async () => {
     mockGetProvider.mockReturnValue({ name: 'other' });
 
-    await expect(
-      handleCheckUpdates({ provider: 'other' })
-    ).rejects.toThrow(/not supported for update checks/);
+    await expect(handleCheckUpdates({ provider: 'other' })).rejects.toThrow(
+      /not supported for update checks/
+    );
   });
 
   it('propagates error when npm resolution fails', async () => {

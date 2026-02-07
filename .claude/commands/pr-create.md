@@ -124,7 +124,7 @@ When analyzing commits, use `/git-commit-best-practices` skill for detailed guid
 ## Usage
 
 ```
-/pr
-/pr --base main
-/pr --commits HEAD~3..HEAD
+/pr-create
+/pr-create --base main
+/pr-create --commits HEAD~3..HEAD
 ```

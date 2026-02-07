@@ -55,10 +55,7 @@ describe('rule engine', () => {
           severity: 'low',
           weight: 2,
           predicate: {
-            all: [
-              { evidenceId: 'import:base-ui:tabs' },
-              { evidenceId: 'import:base-ui:select' },
-            ],
+            all: [{ evidenceId: 'import:base-ui:tabs' }, { evidenceId: 'import:base-ui:select' }],
           },
         },
         {
@@ -75,10 +72,7 @@ describe('rule engine', () => {
       ],
     };
 
-    const ir = makeIr([
-      'import:base-ui:tabs',
-      'import:base-ui:select',
-    ]);
+    const ir = makeIr(['import:base-ui:tabs', 'import:base-ui:select']);
 
     const result = evaluateRuleset(ir, ruleset);
     const matches = result.matches.filter((m) => m.matched).map((m) => m.ruleId);
@@ -114,10 +108,7 @@ describe('rule engine', () => {
       ],
     };
 
-    const possibleResult = evaluateRuleset(
-      makeIr(['import:base-ui:tabs']),
-      ruleset
-    );
+    const possibleResult = evaluateRuleset(makeIr(['import:base-ui:tabs']), ruleset);
     expect(possibleResult.classification).toBe('possible');
 
     const strongResult = evaluateRuleset(

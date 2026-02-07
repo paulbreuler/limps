@@ -3,7 +3,8 @@
  * Parses React components to extract AST and component structure.
  */
 
-import { Project, SourceFile } from 'ts-morph';
+import { Project } from 'ts-morph';
+import type { SourceFile } from 'ts-morph';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -31,10 +32,7 @@ export function createLocalProject(): Project {
  * @param project - Optional ts-morph Project (creates new if not provided)
  * @returns SourceFile or null if file doesn't exist
  */
-export function parseComponent(
-  filePath: string,
-  project?: Project
-): SourceFile | null {
+export function parseComponent(filePath: string, project?: Project): SourceFile | null {
   // Normalize path
   const normalizedPath = path.resolve(filePath);
 
@@ -50,7 +48,7 @@ export function parseComponent(
   // ts-morph will read from disk automatically
   try {
     return proj.addSourceFileAtPath(normalizedPath);
-  } catch (error) {
+  } catch (_error) {
     // File might not be valid TypeScript/TSX
     return null;
   }

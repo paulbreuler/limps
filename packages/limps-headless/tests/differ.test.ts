@@ -84,17 +84,11 @@ describe('parseUnionMembers', () => {
   });
 
   it('handles generic types in unions', () => {
-    expect(parseUnionMembers('Array<string> | null')).toEqual([
-      'Array<string>',
-      'null',
-    ]);
+    expect(parseUnionMembers('Array<string> | null')).toEqual(['Array<string>', 'null']);
   });
 
   it('handles complex nested types', () => {
-    expect(parseUnionMembers('{ a: string } | null')).toEqual([
-      '{ a: string }',
-      'null',
-    ]);
+    expect(parseUnionMembers('{ a: string } | null')).toEqual(['{ a: string }', 'null']);
   });
 
   it('handles function types with unions in parameters', () => {
@@ -269,10 +263,7 @@ describe('sortBySeverity', () => {
 describe('diffProps', () => {
   it('detects added props', () => {
     const before: PropDefinition[] = [createProp('open', 'boolean')];
-    const after: PropDefinition[] = [
-      createProp('open', 'boolean'),
-      createProp('modal', 'boolean'),
-    ];
+    const after: PropDefinition[] = [createProp('open', 'boolean'), createProp('modal', 'boolean')];
 
     const changes = diffProps(before, after, 'Dialog');
 
@@ -442,15 +433,9 @@ describe('diffContracts', () => {
     // Should have: allowPinchZoom removed, modal added, Portal subcomponent added
     expect(changes.length).toBeGreaterThanOrEqual(3);
 
-    const removed = changes.find(
-      (c) => c.type === 'prop_removed' && c.target === 'allowPinchZoom'
-    );
-    const added = changes.find(
-      (c) => c.type === 'prop_added' && c.target === 'modal'
-    );
-    const subAdded = changes.find(
-      (c) => c.type === 'subcomponent_added' && c.target === 'Portal'
-    );
+    const removed = changes.find((c) => c.type === 'prop_removed' && c.target === 'allowPinchZoom');
+    const added = changes.find((c) => c.type === 'prop_added' && c.target === 'modal');
+    const subAdded = changes.find((c) => c.type === 'subcomponent_added' && c.target === 'Portal');
 
     expect(removed).toBeDefined();
     expect(added).toBeDefined();

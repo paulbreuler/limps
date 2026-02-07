@@ -38,8 +38,7 @@ export function inferStatePattern(props: PropDefinition[]): StatePattern {
 
   // Check for binary pattern (Dialog, Popover, Tooltip, etc.)
   const hasBinaryState =
-    (propNames.has('open') || propNames.has('defaultOpen')) &&
-    propNames.has('onOpenChange');
+    (propNames.has('open') || propNames.has('defaultOpen')) && propNames.has('onOpenChange');
   const hasCheckedState =
     (propNames.has('checked') || propNames.has('defaultChecked')) &&
     propNames.has('onCheckedChange');
@@ -52,11 +51,7 @@ export function inferStatePattern(props: PropDefinition[]): StatePattern {
   }
 
   // Check for value patterns (Select, RadioGroup, ToggleGroup)
-  if (
-    propNames.has('value') ||
-    propNames.has('defaultValue') ||
-    propNames.has('onValueChange')
-  ) {
+  if (propNames.has('value') || propNames.has('defaultValue') || propNames.has('onValueChange')) {
     const valueProp = propMap.get('value') || propMap.get('defaultValue');
     const valueType = valueProp?.type || '';
 
@@ -66,10 +61,7 @@ export function inferStatePattern(props: PropDefinition[]): StatePattern {
     }
 
     // Text: string type with typical text input patterns
-    if (
-      valueType === 'string' &&
-      (propNames.has('onChange') || propNames.has('onInput'))
-    ) {
+    if (valueType === 'string' && (propNames.has('onChange') || propNames.has('onInput'))) {
       return 'text';
     }
 
@@ -97,8 +89,7 @@ export function inferCompositionPattern(
   // Provider pattern: only has Provider or Root with no visual components
   const providerOnlyNames = ['Provider', 'Root'];
   const hasOnlyProviderComponents =
-    subComponents.length <= 1 &&
-    subComponents.every((c) => providerOnlyNames.includes(c.name));
+    subComponents.length <= 1 && subComponents.every((c) => providerOnlyNames.includes(c.name));
 
   // Check if it looks like a context provider (no UI components)
   if (hasOnlyProviderComponents && subComponents.length === 1) {
@@ -106,8 +97,7 @@ export function inferCompositionPattern(
     // If the only component has very few props and they're all context-related
     const hasMinimalProps = firstComponent.props.length <= 3;
     const hasNoVisualProps = !firstComponent.props.some(
-      (p) =>
-        p.name === 'asChild' || p.name === 'className' || p.name === 'style'
+      (p) => p.name === 'asChild' || p.name === 'className' || p.name === 'style'
     );
     if (hasMinimalProps && hasNoVisualProps) {
       return 'provider';
@@ -116,8 +106,7 @@ export function inferCompositionPattern(
 
   // Compound pattern: 3+ sub-components or has Trigger/Content pattern
   const hasCompoundPattern =
-    (componentNames.has('Trigger') || componentNames.has('Content')) &&
-    subComponents.length >= 2;
+    (componentNames.has('Trigger') || componentNames.has('Content')) && subComponents.length >= 2;
   const hasMultipleComponents = subComponents.length >= 3;
 
   if (hasCompoundPattern || hasMultipleComponents) {
@@ -148,14 +137,11 @@ export function inferRenderingPattern(
   const hasPortal = componentNames.has('Portal');
 
   // Check for overlay components (suggest portaling)
-  const hasOverlay =
-    componentNames.has('Overlay') || componentNames.has('Backdrop');
+  const hasOverlay = componentNames.has('Overlay') || componentNames.has('Backdrop');
 
   // Check for state-dependent rendering
   const hasOpenState =
-    propNames.has('open') ||
-    propNames.has('defaultOpen') ||
-    propNames.has('onOpenChange');
+    propNames.has('open') || propNames.has('defaultOpen') || propNames.has('onOpenChange');
   const hasForceMount = [...subComponents].some((c) =>
     c.props.some((p) => p.name === 'forceMount')
   );

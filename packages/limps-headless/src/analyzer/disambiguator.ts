@@ -4,10 +4,7 @@
  */
 
 import type { ComponentAnalysis, PrimitiveMatch } from '../types/index.js';
-import {
-  getDisambiguationRule,
-  getDisambiguationRuleForGroup,
-} from './rules/index.js';
+import { getDisambiguationRule, getDisambiguationRuleForGroup } from './rules/index.js';
 
 /**
  * Check if matches are ambiguous (top 2 within 10 points).
@@ -60,10 +57,7 @@ export function disambiguate(
   }
 
   // Try to find a disambiguation rule for the pair
-  const rule = getDisambiguationRule(
-    topMatch.primitive,
-    secondMatch.primitive
-  );
+  const rule = getDisambiguationRule(topMatch.primitive, secondMatch.primitive);
 
   if (rule) {
     const result = rule(analysis);
@@ -99,10 +93,7 @@ export function getDisambiguationReasoning(
 
   // If chosen match is not the top match, explain why
   if (chosenMatch.primitive !== topMatch.primitive) {
-    const rule = getDisambiguationRule(
-      topMatch.primitive,
-      secondMatch.primitive
-    );
+    const rule = getDisambiguationRule(topMatch.primitive, secondMatch.primitive);
 
     if (rule) {
       // Try to get a human-readable reason

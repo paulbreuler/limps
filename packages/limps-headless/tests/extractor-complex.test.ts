@@ -209,9 +209,7 @@ describe('type-resolver', () => {
       expect(resolved).toBeDefined();
       expect(resolved!.some((p) => p.name === 'forceMount')).toBe(true);
       expect(resolved!.some((p) => p.name === 'onEscapeKeyDown')).toBe(true);
-      expect(resolved!.some((p) => p.name === 'onPointerDownOutside')).toBe(
-        true
-      );
+      expect(resolved!.some((p) => p.name === 'onPointerDownOutside')).toBe(true);
     });
 
     it('returns null for non-existent type', () => {

@@ -15,9 +15,7 @@ import { getProvider } from '../providers/registry.js';
  * Input schema for headless_diff_versions tool.
  */
 export const diffVersionsInputSchema = z.object({
-  fromVersion: z
-    .string()
-    .describe('From Radix version (e.g. your current version)'),
+  fromVersion: z.string().describe('From Radix version (e.g. your current version)'),
   toVersion: z
     .string()
     .optional()
@@ -59,11 +57,7 @@ export async function handleDiffVersions(
   }
 
   // Perform the diff
-  const diff = await diffVersions(
-    parsed.fromVersion,
-    parsed.toVersion,
-    parsed.primitives
-  );
+  const diff = await diffVersions(parsed.fromVersion, parsed.toVersion, parsed.primitives);
 
   // Filter to breaking only if requested
   let output: RadixDiff = diff;

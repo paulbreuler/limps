@@ -23,17 +23,13 @@ export type ScoringWeights = typeof DEFAULT_WEIGHTS;
 /**
  * Get scoring weights (allows override for testing).
  */
-export function getScoringWeights(
-  customWeights?: Partial<ScoringWeights>
-): ScoringWeights {
+export function getScoringWeights(customWeights?: Partial<ScoringWeights>): ScoringWeights {
   const merged = {
     ...DEFAULT_WEIGHTS,
     ...customWeights,
   };
   if (customWeights && !validateWeights(merged)) {
-    throw new Error(
-      'Invalid scoring weights: weights must sum to 100.'
-    );
+    throw new Error('Invalid scoring weights: weights must sum to 100.');
   }
 
   return merged;

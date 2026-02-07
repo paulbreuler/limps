@@ -3,11 +3,7 @@
  */
 
 import type { ComponentLibraryProvider } from './interface.js';
-import {
-  resolvePackage,
-  fetchTypesWithFallback,
-  listPrimitives,
-} from '../fetcher/index.js';
+import { resolvePackage, fetchTypesWithFallback, listPrimitives } from '../fetcher/index.js';
 
 export const radixProvider: ComponentLibraryProvider = {
   name: 'radix',

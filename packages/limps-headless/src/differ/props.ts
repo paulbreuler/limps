@@ -2,11 +2,7 @@
  * Props diffing logic for detecting changes between contract versions.
  */
 
-import type {
-  ExtractedPrimitive,
-  PropDefinition,
-  SubComponentDefinition,
-} from '../types/index.js';
+import type { ExtractedPrimitive, PropDefinition, SubComponentDefinition } from '../types/index.js';
 import type { RadixChange, ChangeType } from './types.js';
 import { getSeverity } from './severity.js';
 import { generateHint, generateDescription } from './hints.js';
@@ -79,10 +75,7 @@ export function isNarrowing(before: string, after: string): boolean {
 
   // Narrowing: all after members exist in before, and fewer members
   const beforeSet = new Set(beforeMembers);
-  return (
-    afterMembers.every((m) => beforeSet.has(m)) &&
-    afterMembers.length < beforeMembers.length
-  );
+  return afterMembers.every((m) => beforeSet.has(m)) && afterMembers.length < beforeMembers.length;
 }
 
 /**
@@ -101,10 +94,7 @@ export function isWidening(before: string, after: string): boolean {
 
   // Widening: all before members exist in after, and more members
   const afterSet = new Set(afterMembers);
-  return (
-    beforeMembers.every((m) => afterSet.has(m)) &&
-    afterMembers.length > beforeMembers.length
-  );
+  return beforeMembers.every((m) => afterSet.has(m)) && afterMembers.length > beforeMembers.length;
 }
 
 /**
@@ -160,14 +150,7 @@ export function diffProps(
   for (const [name, beforeProp] of beforeMap) {
     if (!afterMap.has(name)) {
       changes.push(
-        createChange(
-          'prop_removed',
-          name,
-          primitive,
-          beforeProp.type,
-          null,
-          subComponent
-        )
+        createChange('prop_removed', name, primitive, beforeProp.type, null, subComponent)
       );
     }
   }
@@ -175,16 +158,7 @@ export function diffProps(
   // Check for added props
   for (const [name, afterProp] of afterMap) {
     if (!beforeMap.has(name)) {
-      changes.push(
-        createChange(
-          'prop_added',
-          name,
-          primitive,
-          null,
-          afterProp.type,
-          subComponent
-        )
-      );
+      changes.push(createChange('prop_added', name, primitive, null, afterProp.type, subComponent));
     }
   }
 
@@ -196,14 +170,7 @@ export function diffProps(
     // Check for required change (optional -> required is breaking)
     if (!beforeProp.required && afterProp.required) {
       changes.push(
-        createChange(
-          'prop_required',
-          name,
-          primitive,
-          'optional',
-          'required',
-          subComponent
-        )
+        createChange('prop_required', name, primitive, 'optional', 'required', subComponent)
       );
     }
 
@@ -214,36 +181,15 @@ export function diffProps(
     if (beforeType !== afterType) {
       if (isNarrowing(beforeType, afterType)) {
         changes.push(
-          createChange(
-            'type_narrowed',
-            name,
-            primitive,
-            beforeType,
-            afterType,
-            subComponent
-          )
+          createChange('type_narrowed', name, primitive, beforeType, afterType, subComponent)
         );
       } else if (isWidening(beforeType, afterType)) {
         changes.push(
-          createChange(
-            'type_widened',
-            name,
-            primitive,
-            beforeType,
-            afterType,
-            subComponent
-          )
+          createChange('type_widened', name, primitive, beforeType, afterType, subComponent)
         );
       } else {
         changes.push(
-          createChange(
-            'type_changed',
-            name,
-            primitive,
-            beforeType,
-            afterType,
-            subComponent
-          )
+          createChange('type_changed', name, primitive, beforeType, afterType, subComponent)
         );
       }
     }
@@ -285,18 +231,14 @@ export function diffSubComponents(
   // Check for removed sub-components
   for (const [name] of beforeMap) {
     if (!afterMap.has(name)) {
-      changes.push(
-        createChange('subcomponent_removed', name, primitive, name, null)
-      );
+      changes.push(createChange('subcomponent_removed', name, primitive, name, null));
     }
   }
 
   // Check for added sub-components
   for (const [name] of afterMap) {
     if (!beforeMap.has(name)) {
-      changes.push(
-        createChange('subcomponent_added', name, primitive, null, name)
-      );
+      changes.push(createChange('subcomponent_added', name, primitive, null, name));
     }
   }
 

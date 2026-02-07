@@ -176,10 +176,7 @@ export interface AnalysisResult {
     primitive: string | null;
     package: string | null;
     confidence: number;
-    action:
-      | 'LEGACY_RADIX_MATCH_STRONG'
-      | 'LEGACY_RADIX_MATCH_POSSIBLE'
-      | 'NO_LEGACY_RADIX_MATCH';
+    action: 'LEGACY_RADIX_MATCH_STRONG' | 'LEGACY_RADIX_MATCH_POSSIBLE' | 'NO_LEGACY_RADIX_MATCH';
     reason?: string;
   };
 
