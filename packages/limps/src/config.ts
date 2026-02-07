@@ -812,16 +812,21 @@ export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
   }
 
   // Validate maxBodySize
-  if (merged.maxBodySize !== undefined && (merged.maxBodySize < 1024 || merged.maxBodySize > 100 * 1024 * 1024)) {
+  if (
+    merged.maxBodySize !== undefined &&
+    (merged.maxBodySize < 1024 || merged.maxBodySize > 100 * 1024 * 1024)
+  ) {
     throw new Error(
-      `Invalid HTTP server maxBodySize: ${merged.maxBodySize}. ` + `Expected a number between 1KB and 100MB.`
+      `Invalid HTTP server maxBodySize: ${merged.maxBodySize}. ` +
+        `Expected a number between 1KB and 100MB.`
     );
   }
 
   // Validate maxSessions
   if (merged.maxSessions !== undefined && (merged.maxSessions < 1 || merged.maxSessions > 1000)) {
     throw new Error(
-      `Invalid HTTP server maxSessions: ${merged.maxSessions}. ` + `Expected a number between 1 and 1000.`
+      `Invalid HTTP server maxSessions: ${merged.maxSessions}. ` +
+        `Expected a number between 1 and 1000.`
     );
   }
 

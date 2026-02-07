@@ -13,7 +13,7 @@ import { startHttpServer, stopHttpServer } from '../server-http.js';
 /**
  * Check if the daemon is responding to health requests.
  */
-async function checkDaemonHealth(host: string, port: number, timeoutMs: number = 1000): Promise<boolean> {
+async function checkDaemonHealth(host: string, port: number, timeoutMs = 1000): Promise<boolean> {
   return new Promise((resolve) => {
     const req = get(`http://${host}:${port}/health`, { timeout: timeoutMs }, (res) => {
       resolve(res.statusCode === 200);

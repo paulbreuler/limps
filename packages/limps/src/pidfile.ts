@@ -3,7 +3,7 @@
  */
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 
 /**
  * Contents of a PID file.
@@ -19,10 +19,10 @@ export interface PidFileContents {
  * Get the PID file path for a given data directory.
  *
  * @param dataPath - The data directory from config
- * @returns Absolute path to the PID file
+ * @returns Path to the PID file (joins dataPath with 'limps.pid')
  */
 export function getPidFilePath(dataPath: string): string {
-  return `${dataPath}/limps.pid`;
+  return join(dataPath, 'limps.pid');
 }
 
 /**
@@ -49,7 +49,15 @@ export function readPidFile(pidFilePath: string): PidFileContents | null {
   try {
     const raw = readFileSync(pidFilePath, 'utf-8');
     const parsed = JSON.parse(raw) as PidFileContents;
-    if (typeof parsed.pid !== 'number' || typeof parsed.port !== 'number') {
+    // Validate all required fields
+    if (
+      typeof parsed.pid !== 'number' ||
+      typeof parsed.port !== 'number' ||
+      typeof parsed.host !== 'string' ||
+      parsed.host.length === 0 ||
+      typeof parsed.startedAt !== 'string' ||
+      parsed.startedAt.length === 0
+    ) {
       return null;
     }
     return parsed;

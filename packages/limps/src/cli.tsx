@@ -15,21 +15,21 @@ if (isStartForeground && !wantsHelp) {
   const configPath = configIndex !== -1 ? args[configIndex + 1] : undefined;
 
   // Run HTTP server in foreground without Ink's terminal management
-  startHttpServer(configPath)
-    .then(() => {
-      // Server is running; keep alive until signal
-      const shutdown = (): void => {
-        stopHttpServer()
-          .then(() => process.exit(0))
-          .catch(() => process.exit(1));
-      };
-      process.on('SIGINT', shutdown);
-      process.on('SIGTERM', shutdown);
-    })
-    .catch((err: Error) => {
-      console.error(`Server error: ${err.message}`);
-      process.exit(1);
-    });
+  let shuttingDown = false;
+  const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    stopHttpServer()
+      .then(() => process.exit(0))
+      .catch(() => process.exit(1));
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+
+  startHttpServer(configPath).catch((err: Error) => {
+    console.error(`Server error: ${err.message}`);
+    process.exit(1);
+  });
 } else {
   const app = new Pastel({
     importMeta: import.meta,

@@ -36,7 +36,8 @@ describe('pidfile', () => {
 
     it('should handle relative paths', () => {
       const path = getPidFilePath('./data');
-      expect(path).toBe('./data/limps.pid');
+      // join() normalizes './data' to 'data'
+      expect(path).toBe('data/limps.pid');
     });
   });
 

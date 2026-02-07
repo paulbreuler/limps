@@ -13,8 +13,9 @@ import {
   shutdownServerResources,
   type ServerResources,
 } from './server-shared.js';
-import { getHttpServerConfig } from './config.js';
+import { getHttpServerConfig, type HttpServerConfig, loadConfig } from './config.js';
 import { getPidFilePath, writePidFile, removePidFile, getRunningDaemon } from './pidfile.js';
+import { resolveConfigPath } from './utils/config-resolver.js';
 import { shutdownExtensions, type LoadedExtension } from './extensions/loader.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createRateLimiter, type RateLimiter } from './utils/rate-limiter.js';
@@ -54,12 +55,12 @@ export async function startHttpServer(configPathArg?: string): Promise<{
   port: number;
   host: string;
 }> {
-  // Initialize shared resources
-  resources = await initServerResources(configPathArg);
-  const httpConfig = getHttpServerConfig(resources.config);
+  // Load config first to check for existing daemon before initializing resources
+  const configPath = resolveConfigPath(configPathArg);
+  const preConfig = loadConfig(configPath);
 
-  // Check for existing daemon
-  const pidFilePath = getPidFilePath(resources.config.dataPath);
+  // Check for existing daemon BEFORE initializing resources to avoid leaks
+  const pidFilePath = getPidFilePath(preConfig.dataPath);
   const existing = getRunningDaemon(pidFilePath);
   if (existing) {
     throw new Error(
@@ -67,6 +68,11 @@ export async function startHttpServer(configPathArg?: string): Promise<{
         `Run 'limps stop' first.`
     );
   }
+
+  // Initialize shared resources only after confirming no daemon exists
+  resources = await initServerResources(configPath);
+  const httpConfig: HttpServerConfig = getHttpServerConfig(resources.config);
+  const maxSessions = httpConfig.maxSessions ?? 100;
 
   startTime = new Date();
 
@@ -79,15 +85,17 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
     // Check rate limit
     const clientIp = req.socket.remoteAddress ?? 'unknown';
-    if (!rateLimiter!.isAllowed(clientIp)) {
+    if (rateLimiter && !rateLimiter.isAllowed(clientIp)) {
       res.writeHead(429, {
         'Content-Type': 'application/json',
-        'Retry-After': Math.ceil(rateLimitConfig.windowMs / 1000).toString()
+        'Retry-After': Math.ceil(rateLimitConfig.windowMs / 1000).toString(),
       });
-      res.end(JSON.stringify({
-        error: 'Too Many Requests',
-        message: 'Rate limit exceeded. Please try again later.'
-      }));
+      res.end(
+        JSON.stringify({
+          error: 'Too Many Requests',
+          message: 'Rate limit exceeded. Please try again later.',
+        })
+      );
       return;
     }
 
@@ -96,11 +104,13 @@ export async function startHttpServer(configPathArg?: string): Promise<{
     const maxBodySize = httpConfig.maxBodySize ?? 10 * 1024 * 1024; // Default 10MB
     if (contentLength > maxBodySize) {
       res.writeHead(413, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'Payload Too Large',
-        maxSize: maxBodySize,
-        receivedSize: contentLength
-      }));
+      res.end(
+        JSON.stringify({
+          error: 'Payload Too Large',
+          maxSize: maxBodySize,
+          receivedSize: contentLength,
+        })
+      );
       return;
     }
 
@@ -135,8 +145,31 @@ export async function startHttpServer(configPathArg?: string): Promise<{
     if (url.pathname === '/mcp') {
       const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
+      // Handle DELETE for session cleanup (must be checked before session lookup)
+      if (req.method === 'DELETE' && sessionId) {
+        if (sessions.has(sessionId)) {
+          await cleanupSession(sessionId);
+          res.writeHead(200);
+          res.end();
+        } else {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Session not found' }));
+        }
+        return;
+      }
+
       // Handle new session (POST without session ID, or initialize request)
       if (req.method === 'POST' && !sessionId) {
+        if (sessions.size >= maxSessions) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: 'Too Many Sessions',
+              message: `Maximum concurrent sessions (${maxSessions}) reached. Try again later.`,
+            })
+          );
+          return;
+        }
         await handleNewSession(req, res);
         return;
       }
@@ -147,14 +180,6 @@ export async function startHttpServer(configPathArg?: string): Promise<{
         if (session) {
           await session.transport.handleRequest(req, res);
         }
-        return;
-      }
-
-      // Handle DELETE for session cleanup
-      if (req.method === 'DELETE' && sessionId) {
-        await cleanupSession(sessionId);
-        res.writeHead(200);
-        res.end();
         return;
       }
 

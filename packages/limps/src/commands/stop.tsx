@@ -21,6 +21,9 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let checkInterval: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
       const configPath = opts.project
         ? resolveProjectConfigPath(opts.project)
@@ -46,21 +49,22 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
       }
 
       // Wait for process to exit, then clean up
-      const checkInterval = setInterval(() => {
+      checkInterval = setInterval(() => {
         try {
           process.kill(daemon.pid, 0);
           // Still running — keep waiting
         } catch {
           // Process has exited
-          clearInterval(checkInterval);
+          if (checkInterval) clearInterval(checkInterval);
+          if (timeoutId) clearTimeout(timeoutId);
           removePidFile(pidFilePath);
           setStatus(`limps daemon stopped (PID ${daemon.pid}).`);
         }
       }, 200);
 
       // Timeout after 10 seconds
-      setTimeout(() => {
-        clearInterval(checkInterval);
+      timeoutId = setTimeout(() => {
+        if (checkInterval) clearInterval(checkInterval);
         try {
           process.kill(daemon.pid, 0);
           // Still running — force kill
@@ -76,6 +80,11 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
     } catch (err) {
       setError((err as Error).message);
     }
+
+    return (): void => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [opts.config, opts.project]);
 
   if (error) {
