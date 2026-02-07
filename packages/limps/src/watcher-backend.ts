@@ -8,7 +8,7 @@
 
 import watcher from '@parcel/watcher';
 import type { AsyncSubscription } from '@parcel/watcher';
-import { readdirSync, statSync } from 'fs';
+import { readdirSync, lstatSync } from 'fs';
 import { join, relative } from 'path';
 import micromatch from 'micromatch';
 
@@ -126,7 +126,15 @@ export class ParcelWatcherBackend implements WatcherBackend {
         }
 
         try {
-          const stat = statSync(fullPath);
+          // Use lstatSync to NOT follow symlinks, preventing traversal
+          // into symlinked directories
+          const stat = lstatSync(fullPath);
+
+          // Skip symlinks entirely
+          if (stat.isSymbolicLink()) {
+            continue;
+          }
+
           if (stat.isDirectory()) {
             // Check directory path with trailing separator to match dir globs
             // (e.g. "**/node_modules/**") before recursing into it

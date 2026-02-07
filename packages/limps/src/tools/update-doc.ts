@@ -11,6 +11,7 @@ import { FrontmatterHandler } from '../utils/frontmatter.js';
 import { indexDocument } from '../indexer.js';
 import { getMaxFileSize } from '../config.js';
 import { getDocsRoot } from '../utils/repo-root.js';
+import { checkSymlinkAncestors, checkPathContainment } from '../utils/fs-safety.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -173,6 +174,18 @@ export async function handleUpdateDoc(
       };
     }
 
+    // Security: Check for symlink traversal before reading
+    if (fileExists) {
+      const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+      if (!ancestorCheck.safe) {
+        throw permissionDenied(validated.relative, ancestorCheck.reason, 'read');
+      }
+      const containmentCheck = checkPathContainment(validated.absolute, repoRoot);
+      if (!containmentCheck.safe) {
+        throw permissionDenied(validated.relative, containmentCheck.reason, 'read');
+      }
+    }
+
     // Read existing content if file exists
     const oldContent = fileExists ? readFileSync(validated.absolute, 'utf-8') : '';
     const hadFrontmatter = hasFrontmatter(oldContent);
@@ -320,6 +333,12 @@ export async function handleUpdateDoc(
       backupPath = backupResult.backupPath;
     }
 
+    // Security: Check for symlink traversal before writing
+    const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+    if (!ancestorCheck.safe) {
+      throw permissionDenied(validated.relative, ancestorCheck.reason, 'write');
+    }
+
     // Write new content with error handling
     try {
       writeFileSync(validated.absolute, newContent, 'utf-8');
@@ -335,6 +354,12 @@ export async function handleUpdateDoc(
       throw error;
     }
 
+    // After write, verify the resolved path is still within repo root
+    const containmentCheck = checkPathContainment(validated.absolute, repoRoot);
+    if (!containmentCheck.safe) {
+      throw permissionDenied(validated.relative, containmentCheck.reason, 'write');
+    }
+
     // Get file size
     const stats = statSync(validated.absolute);
     const size = stats.size;
@@ -342,8 +367,8 @@ export async function handleUpdateDoc(
     // Calculate changes
     const changes = calculateChanges(oldContent, newContent);
 
-    // Re-index the file
-    await indexDocument(context.db, validated.absolute);
+    // Re-index the file, passing maxFileSize to ensure consistent validation
+    await indexDocument(context.db, validated.absolute, maxFileSize);
 
     const output: UpdateDocOutput = {
       path: validated.relative,

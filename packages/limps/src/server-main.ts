@@ -38,12 +38,21 @@ let db: DatabaseType | null = null;
  */
 export async function startMcpServer(configPathArg?: string): Promise<void> {
   // Close any previously opened resources to prevent FD leaks if called twice
+  // Best-effort cleanup: log failures but don't abort startup
   if (watcher) {
-    await stopWatcher(watcher);
+    try {
+      await stopWatcher(watcher);
+    } catch (error) {
+      console.error('Failed to stop previous watcher during cleanup:', error);
+    }
     watcher = null;
   }
   if (db) {
-    db.close();
+    try {
+      db.close();
+    } catch (error) {
+      console.error('Failed to close previous database during cleanup:', error);
+    }
     db = null;
   }
 

@@ -16,6 +16,7 @@ import {
 import { indexDocument } from '../indexer.js';
 import { getMaxFileSize } from '../config.js';
 import { getDocsRoot } from '../utils/repo-root.js';
+import { checkSymlinkAncestors, checkPathContainment } from '../utils/fs-safety.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
 /**
@@ -134,6 +135,13 @@ export async function handleCreateDoc(
       mkdirSync(parentDir, { recursive: true });
     }
 
+    // Security: Check for symlink traversal before writing
+    // This prevents writes via symlinked parent directories
+    const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+    if (!ancestorCheck.safe) {
+      throw permissionDenied(validated.relative, ancestorCheck.reason, 'write');
+    }
+
     // Write file with error handling
     try {
       writeFileSync(validated.absolute, finalContent, 'utf-8');
@@ -149,12 +157,18 @@ export async function handleCreateDoc(
       throw error;
     }
 
+    // After write, verify the resolved path is still within repo root
+    const containmentCheck = checkPathContainment(validated.absolute, repoRoot);
+    if (!containmentCheck.safe) {
+      throw permissionDenied(validated.relative, containmentCheck.reason, 'write');
+    }
+
     // Get file size
     const stats = statSync(validated.absolute);
     const size = stats.size;
 
-    // Index the new file
-    await indexDocument(context.db, validated.absolute);
+    // Index the new file, passing maxFileSize to ensure consistent validation
+    await indexDocument(context.db, validated.absolute, maxFileSize);
 
     const output: CreateDocOutput = {
       path: validated.relative,

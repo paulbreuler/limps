@@ -612,9 +612,10 @@ describeUnlessCI('emfile-handling', () => {
         _callback: (events: RawWatchEvent[]) => void,
         _options: WatcherBackendOptions
       ): Promise<WatcherSubscription> {
-        // The EMFILE error is handled inside ParcelWatcherBackend.subscribe
-        // For unit testing, we test that the watcher module logs EMFILE errors
-        return { id: '0' };
+        // Simulate EMFILE error during subscribe
+        const error = new Error('Too many open files') as NodeJS.ErrnoException;
+        error.code = 'EMFILE';
+        throw error;
       },
       async initialScan(): Promise<void> {},
       async unsubscribe(): Promise<void> {},
@@ -623,17 +624,24 @@ describeUnlessCI('emfile-handling', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const onChange = vi.fn().mockResolvedValue(undefined);
-    watcher = await startWatcher(
-      testDir,
-      onChange,
-      ['.md'],
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      errorBackend
-    );
+
+    // startWatcher should catch EMFILE and log it, not throw
+    await expect(
+      startWatcher(
+        testDir,
+        onChange,
+        ['.md'],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        errorBackend
+      )
+    ).rejects.toThrow('Too many open files');
+
+    // Verify actionable error message was logged
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('EMFILE'), expect.anything());
 
     errorSpy.mockRestore();
   });
