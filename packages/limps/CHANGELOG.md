@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.13.3](https://github.com/paulbreuler/limps/compare/limps-v2.13.2...limps-v2.13.3) (2026-02-07)
+
+
+### Bug Fixes
+
+* **limps:** restore graph reindex + directory delete safeguards ([#101](https://github.com/paulbreuler/limps/issues/101)) ([f9b7490](https://github.com/paulbreuler/limps/commit/f9b7490b11255ce757046c1950134da5a7c033fa))
+
 ## [2.13.2](https://github.com/paulbreuler/limps/compare/limps-v2.13.1...limps-v2.13.2) (2026-02-07)
 
 
