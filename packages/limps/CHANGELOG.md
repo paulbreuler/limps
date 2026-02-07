@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.0](https://github.com/paulbreuler/limps/compare/limps-v2.13.3...limps-v3.0.0) (2026-02-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **limps:** Default `corsOrigin` changed from `'*'` to `''`. Cross-origin requests are now blocked by default. Set `server.corsOrigin: '*'` in config to restore the previous behavior.
+* **limps:** The 'serve' command is removed. Use 'start' instead.
+
+### Features
+
+* **limps:** add persistent HTTP server with daemon mode ([#103](https://github.com/paulbreuler/limps/issues/103)) ([776e1db](https://github.com/paulbreuler/limps/commit/776e1db368d63200ee396f95b45d163d0fbb559f))
+* **limps:** HTTP server release prep with secure CORS defaults ([#105](https://github.com/paulbreuler/limps/issues/105)) ([b0cd462](https://github.com/paulbreuler/limps/commit/b0cd4626b24628588a1a11b8bd4ed445bde016c3))
+
 ## [2.13.3](https://github.com/paulbreuler/limps/compare/limps-v2.13.2...limps-v2.13.3) (2026-02-07)
 
 
