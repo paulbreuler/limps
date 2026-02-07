@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.13.2](https://github.com/paulbreuler/limps/compare/limps-v2.13.1...limps-v2.13.2) (2026-02-07)
+
+
+### Bug Fixes
+
+* harden watcher lifecycle and prevent resource leaks ([#96](https://github.com/paulbreuler/limps/issues/96)) ([09587d6](https://github.com/paulbreuler/limps/commit/09587d66fa0c60c1876032c71a99b18a6e2856b8))
+
 ## [2.13.1](https://github.com/paulbreuler/limps/compare/limps-v2.13.0...limps-v2.13.1) (2026-02-06)
 
 
