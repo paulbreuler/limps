@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync, rmdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -8,10 +8,21 @@ import {
   shouldShowWhatsNew,
 } from '../../src/utils/version-state.js';
 
-// Mock homedir to use a temporary directory so getCachePath resolves inside it
+// Mock homedir to use a temporary directory so getCachePath resolves inside it.
+// Clear XDG_CACHE_HOME/LOCALAPPDATA so getCachePath falls back to homedir-based paths.
+const savedXdg = process.env.XDG_CACHE_HOME;
+const savedLocalAppData = process.env.LOCALAPPDATA;
+delete process.env.XDG_CACHE_HOME;
+delete process.env.LOCALAPPDATA;
+
 const testHome = join(tmpdir(), 'limps-test-version-state-home');
-// On macOS, getCachePath returns ~/Library/Caches/limps
-const testCachePath = join(testHome, 'Library', 'Caches', 'limps');
+// getCachePath uses platform-specific paths; mirror the same logic here
+const testCachePath =
+  process.platform === 'darwin'
+    ? join(testHome, 'Library', 'Caches', 'limps')
+    : process.platform === 'win32'
+      ? join(testHome, 'AppData', 'Local', 'limps')
+      : join(testHome, '.cache', 'limps');
 const testVersionStatePath = join(testCachePath, 'version-state.json');
 
 vi.mock('os', async () => {
@@ -58,6 +69,12 @@ describe('version-state.ts', () => {
         // Ignore errors if directory not empty
       }
     }
+  });
+
+  afterAll(() => {
+    // Restore env vars cleared at module level
+    if (savedXdg !== undefined) process.env.XDG_CACHE_HOME = savedXdg;
+    if (savedLocalAppData !== undefined) process.env.LOCALAPPDATA = savedLocalAppData;
   });
 
   describe('getVersionState', () => {
