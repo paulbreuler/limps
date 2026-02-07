@@ -833,14 +833,24 @@ export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
   }
 
   // Validate sessionTimeoutMs (1 min to 24 hr)
-  if (
-    merged.sessionTimeoutMs !== undefined &&
-    (merged.sessionTimeoutMs < 60_000 || merged.sessionTimeoutMs > 86_400_000)
-  ) {
-    throw new Error(
-      `Invalid HTTP server sessionTimeoutMs: ${merged.sessionTimeoutMs}. ` +
-        `Expected a number between 60000 (1 min) and 86400000 (24 hr).`
-    );
+  if (merged.sessionTimeoutMs !== undefined) {
+    if (
+      typeof merged.sessionTimeoutMs !== 'number' ||
+      !Number.isFinite(merged.sessionTimeoutMs) ||
+      !Number.isInteger(merged.sessionTimeoutMs)
+    ) {
+      throw new Error(
+        `Invalid HTTP server sessionTimeoutMs: ${merged.sessionTimeoutMs}. ` +
+          `Expected a finite integer number of milliseconds.`
+      );
+    }
+
+    if (merged.sessionTimeoutMs < 60_000 || merged.sessionTimeoutMs > 86_400_000) {
+      throw new Error(
+        `Invalid HTTP server sessionTimeoutMs: ${merged.sessionTimeoutMs}. ` +
+          `Expected a number between 60000 (1 min) and 86400000 (24 hr).`
+      );
+    }
   }
 
   // Validate corsOrigin (can be '' for no CORS, '*' for all, or a valid URL)

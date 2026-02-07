@@ -150,7 +150,7 @@ export function initProject(targetPath = '.'): string {
 
   // Test command
   lines.push('To test the server (stdio):');
-  lines.push(`  ${localPlannerPath} --config "${configPath}"`);
+  lines.push(`  ${localPlannerPath} serve --config "${configPath}"`);
 
   return lines.join('\n');
 }

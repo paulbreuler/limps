@@ -84,14 +84,21 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
   // Start session idle timeout cleanup
   const sessionTimeoutMs = httpConfig.sessionTimeoutMs ?? 30 * 60 * 1000;
+  const cleaningUp = new Set<string>();
   cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const [sessionId, session] of sessions) {
+      if (cleaningUp.has(sessionId)) continue;
       if (now - session.lastActiveAt.getTime() > sessionTimeoutMs) {
         console.error(`Session ${maskSessionId(sessionId)} timed out after idle`);
-        cleanupSession(sessionId).catch((err) => {
-          console.error(`Error cleaning up timed-out session ${maskSessionId(sessionId)}:`, err);
-        });
+        cleaningUp.add(sessionId);
+        cleanupSession(sessionId)
+          .catch((err) => {
+            console.error(`Error cleaning up timed-out session ${maskSessionId(sessionId)}:`, err);
+          })
+          .finally(() => {
+            cleaningUp.delete(sessionId);
+          });
       }
     }
   }, 60_000);
