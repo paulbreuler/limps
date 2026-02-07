@@ -362,6 +362,32 @@ export async function removeDocument(db: DatabaseType, filePath: string): Promis
 }
 
 /**
+ * Remove indexed documents for a path and all nested descendants.
+ *
+ * @param db - Database instance
+ * @param pathPrefix - Absolute path to file/directory root
+ */
+export async function removeDocumentsByPathPrefix(
+  db: DatabaseType,
+  pathPrefix: string
+): Promise<void> {
+  const escapedPrefix = pathPrefix.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+  const nestedLikePattern = `${escapedPrefix}/%`;
+  const transaction = db.transaction(() => {
+    db.prepare("DELETE FROM documents WHERE path = ? OR path LIKE ? ESCAPE '\\'").run(
+      pathPrefix,
+      nestedLikePattern
+    );
+    db.prepare("DELETE FROM documents_fts WHERE path = ? OR path LIKE ? ESCAPE '\\'").run(
+      pathPrefix,
+      nestedLikePattern
+    );
+  });
+
+  transaction();
+}
+
+/**
  * Recursively find all files with specified extensions in a directory.
  * Uses PathFilter for consistent filtering. Rejects symlinks and enforces depth limits.
  *

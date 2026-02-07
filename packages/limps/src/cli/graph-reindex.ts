@@ -33,33 +33,41 @@ export function graphReindex(
 
   const planDirs = findPlanDirs(config.plansPath, options?.planId);
 
-  const extractions: ExtractionResult[] = [];
+  const extractionBatch: {
+    extraction: ExtractionResult;
+    localIdToCanonical: Map<number, string>;
+  }[] = [];
   for (const planDir of planDirs) {
     const extraction = extractor.extractPlan(planDir);
     result.warnings.push(...extraction.warnings);
-    extractions.push(extraction);
+    const localIdToCanonical = new Map<number, string>();
+    for (const entity of extraction.entities) {
+      localIdToCanonical.set(entity.id, entity.canonicalId);
+    }
+    extractionBatch.push({ extraction, localIdToCanonical });
     result.plansProcessed++;
   }
 
-  const localIdToCanonical = new Map<number, string>();
-  for (const extraction of extractions) {
+  for (const { extraction } of extractionBatch) {
     if (extraction.entities.length > 0) {
-      for (const entity of extraction.entities) {
-        localIdToCanonical.set(entity.id, entity.canonicalId);
-      }
       result.entitiesUpserted += storage.bulkUpsertEntities(extraction.entities);
     }
   }
 
   const canonicalToDbId = new Map<string, number>();
-  for (const canonicalId of localIdToCanonical.values()) {
-    const dbEntity = storage.getEntity(canonicalId);
-    if (dbEntity) {
-      canonicalToDbId.set(canonicalId, dbEntity.id);
+  for (const { localIdToCanonical } of extractionBatch) {
+    for (const canonicalId of localIdToCanonical.values()) {
+      if (canonicalToDbId.has(canonicalId)) {
+        continue;
+      }
+      const dbEntity = storage.getEntity(canonicalId);
+      if (dbEntity) {
+        canonicalToDbId.set(canonicalId, dbEntity.id);
+      }
     }
   }
 
-  for (const extraction of extractions) {
+  for (const { extraction, localIdToCanonical } of extractionBatch) {
     if (extraction.relationships.length > 0) {
       const remappedRelationships = extraction.relationships
         .map((rel) => {

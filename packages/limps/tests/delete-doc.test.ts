@@ -405,6 +405,47 @@ describe('delete-doc.ts', () => {
           .get(testFile);
         expect(ftsAfterDelete).toBeUndefined();
       });
+
+      it('removes nested directory files from search index', async () => {
+        const dirPath = join(testDir, 'research', 'folder');
+        mkdirSync(dirPath, { recursive: true });
+        const nestedA = join(dirPath, 'a.md');
+        const nestedB = join(dirPath, 'nested', 'b.md');
+        mkdirSync(join(dirPath, 'nested'), { recursive: true });
+        writeFileSync(nestedA, '# A');
+        writeFileSync(nestedB, '# B');
+        const keepFile = join(testDir, 'research', 'keep.md');
+        writeFileSync(keepFile, '# Keep');
+
+        for (const file of [nestedA, nestedB, keepFile]) {
+          db.prepare(
+            `
+              INSERT INTO documents (path, title, content, modified_at, hash)
+              VALUES (?, ?, ?, ?, ?)
+            `
+          ).run(file, 'Doc', '# Doc', Date.now(), `hash-${file}`);
+          db.prepare(
+            `
+              INSERT INTO documents_fts (path, title, content)
+              VALUES (?, ?, ?)
+            `
+          ).run(file, 'Doc', '# Doc');
+        }
+
+        await handleDeleteDoc({ path: 'research/folder', confirm: true, permanent: true }, context);
+
+        const nestedDocsRemaining = db
+          .prepare('SELECT COUNT(*) as count FROM documents WHERE path LIKE ?')
+          .get(`${dirPath}/%`) as { count: number };
+        const nestedFtsRemaining = db
+          .prepare('SELECT COUNT(*) as count FROM documents_fts WHERE path LIKE ?')
+          .get(`${dirPath}/%`) as { count: number };
+        const keepDoc = db.prepare('SELECT * FROM documents WHERE path = ?').get(keepFile);
+
+        expect(nestedDocsRemaining.count).toBe(0);
+        expect(nestedFtsRemaining.count).toBe(0);
+        expect(keepDoc).toBeDefined();
+      });
     });
   });
 

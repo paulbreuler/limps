@@ -9,7 +9,7 @@ import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath, isWritablePath, isProtectedPlanFile } from '../utils/paths.js';
 import { createBackup, formatTimestamp } from '../utils/backup.js';
 import { notFound, restrictedPath, DocumentError } from '../utils/errors.js';
-import { removeDocument } from '../indexer.js';
+import { removeDocument, removeDocumentsByPathPrefix } from '../indexer.js';
 import { getDocsRoot } from '../utils/repo-root.js';
 
 /**
@@ -153,12 +153,16 @@ export async function handleDeleteDoc(
 
     // Create backup before deletion
     const backupResult = await createBackup(absolutePath, repoRoot);
+    const stats = statSync(absolutePath);
 
     // Remove from search index
-    await removeDocument(db, absolutePath);
+    if (stats.isDirectory()) {
+      await removeDocumentsByPathPrefix(db, absolutePath);
+    } else {
+      await removeDocument(db, absolutePath);
+    }
 
     // Perform deletion
-    const stats = statSync(absolutePath);
     if (permanent) {
       // Permanent delete - remove file or directory
       if (stats.isDirectory()) {

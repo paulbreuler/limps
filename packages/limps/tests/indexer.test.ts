@@ -8,6 +8,7 @@ import {
   createSchema,
   indexDocument,
   removeDocument,
+  removeDocumentsByPathPrefix,
   indexAllDocuments,
   indexAllPaths,
 } from '../src/indexer.js';
@@ -457,6 +458,33 @@ describe('handle-missing-files', () => {
       .all();
     // Should have no matching documents
     expect(results.length).toBe(0);
+  });
+
+  it('should remove indexed descendants when deleting by path prefix', async () => {
+    const dir = join(testDir, 'folder');
+    const nestedDir = join(dir, 'nested');
+    const nestedA = join(dir, 'a.md');
+    const nestedB = join(nestedDir, 'b.md');
+    const keep = join(testDir, 'keep.md');
+
+    mkdirSync(nestedDir, { recursive: true });
+    writeFileSync(nestedA, '# A\n\nAlpha.');
+    writeFileSync(nestedB, '# B\n\nBeta.');
+    writeFileSync(keep, '# Keep\n\nGamma.');
+
+    await indexDocument(db!, nestedA);
+    await indexDocument(db!, nestedB);
+    await indexDocument(db!, keep);
+
+    await removeDocumentsByPathPrefix(db!, dir);
+
+    const removedA = db!.prepare('SELECT * FROM documents WHERE path = ?').get(nestedA);
+    const removedB = db!.prepare('SELECT * FROM documents WHERE path = ?').get(nestedB);
+    const kept = db!.prepare('SELECT * FROM documents WHERE path = ?').get(keep);
+
+    expect(removedA).toBeUndefined();
+    expect(removedB).toBeUndefined();
+    expect(kept).toBeDefined();
   });
 });
 
