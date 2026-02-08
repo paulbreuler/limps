@@ -155,7 +155,7 @@ limps list-plans --config ~/docs/project-b/.limps/config.json
 
 ## Client Setup
 
-After running `limps init`, you need to add a limps entry to your MCP client's config file. Use `print` to generate the correct snippet for your client, then paste it into the appropriate config file:
+After running `limps init`, you need to add a limps entry to your MCP client's config file. Use `limps config print` to generate the correct snippet for your client, then paste it into the appropriate config file:
 
 ```bash
 limps config print --client cursor

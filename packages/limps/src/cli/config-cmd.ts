@@ -428,8 +428,10 @@ export function generateMcpClientConfig(
     );
   }
 
-  // Derive server name from parent directory of config
-  const serverName = `limps-planning-${basename(dirname(configPath))}`;
+  // Derive server name from project directory (skip .limps if present)
+  const parentDir = basename(dirname(configPath));
+  const projectDir = parentDir === '.limps' ? basename(dirname(dirname(configPath))) : parentDir;
+  const serverName = `limps-planning-${projectDir}`;
 
   // Build servers configuration
   const servers: Record<string, McpServerConfig> = {
@@ -486,7 +488,9 @@ export function generateChatGptInstructions(configPath: string): string {
     );
   }
 
-  const serverName = `limps-planning-${basename(dirname(configPath))}`;
+  const parentDir = basename(dirname(configPath));
+  const projectDir = parentDir === '.limps' ? basename(dirname(dirname(configPath))) : parentDir;
+  const serverName = `limps-planning-${projectDir}`;
 
   const lines: string[] = [];
   lines.push('ChatGPT Custom Connector Setup (Manual)');
