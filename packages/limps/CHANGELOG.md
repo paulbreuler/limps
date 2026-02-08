@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/paulbreuler/limps/compare/limps-v3.0.0...limps-v3.1.0) (2026-02-08)
+
+
+### Features
+
+* **limps:** refactor HTTP client with typed error handling ([#108](https://github.com/paulbreuler/limps/issues/108)) ([4c48803](https://github.com/paulbreuler/limps/commit/4c4880386bcf2684e42f83fa69f366e75d928bbd))
+
 ## [3.0.0](https://github.com/paulbreuler/limps/compare/limps-v2.13.3...limps-v3.0.0) (2026-02-07)
 
 
