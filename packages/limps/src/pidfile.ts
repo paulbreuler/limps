@@ -4,6 +4,7 @@
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
+import { homedir } from 'os';
 
 /**
  * Contents of a PID file.
@@ -13,15 +14,40 @@ export interface PidFileContents {
   port: number;
   host: string;
   startedAt: string;
+  configPath?: string; // Optional: track which config this daemon is using
 }
 
 /**
- * Get the PID file path for a given data directory.
+ * Get the system-level directory for storing limps PID files.
+ * Uses ~/.limps/pids/ for persistence across sessions.
  *
- * @param dataPath - The data directory from config
- * @returns Path to the PID file (joins dataPath with 'limps.pid')
+ * @returns Path to the system-level PID directory
  */
-export function getPidFilePath(dataPath: string): string {
+export function getSystemPidDir(): string {
+  const pidDir = join(homedir(), '.limps', 'pids');
+  if (!existsSync(pidDir)) {
+    mkdirSync(pidDir, { recursive: true });
+  }
+  return pidDir;
+}
+
+/**
+ * Get the PID file path for a limps daemon.
+ * Now stores in system-level directory (~/.limps/pids/) and uses port number
+ * in filename so daemons can be tracked across all projects.
+ *
+ * @param dataPath - The data directory from config (for backward compatibility)
+ * @param port - Port number for the daemon (required for new behavior)
+ * @returns Path to the PID file
+ */
+export function getPidFilePath(dataPath: string, port?: number): string {
+  if (port !== undefined) {
+    // New behavior: system-level PID file named by port
+    const systemPidDir = getSystemPidDir();
+    return join(systemPidDir, `limps-${port}.pid`);
+  }
+
+  // Old behavior: per-project PID file (deprecated but kept for compatibility)
   return join(dataPath, 'limps.pid');
 }
 

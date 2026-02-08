@@ -41,8 +41,8 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
         const port = opts.port ?? httpConfig.port;
         const host = opts.host ?? httpConfig.host;
 
-        // Check if already running
-        const pidFilePath = getPidFilePath(config.dataPath);
+        // Check if already running (use system-level PID file based on port)
+        const pidFilePath = getPidFilePath(config.dataPath, port);
         const existing = getRunningDaemon(pidFilePath);
         if (existing) {
           setError(
