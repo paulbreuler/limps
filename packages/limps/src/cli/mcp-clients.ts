@@ -1,23 +1,5 @@
-import {
-  configAddClaude,
-  configAddClaudeCode,
-  configAddCodex,
-  configAddCursor,
-  configAddLocalMcp,
-  generateChatGptInstructions,
-  generateConfigForPrint,
-  previewMcpClientConfig,
-} from './config-cmd.js';
-import {
-  getAdapter,
-  getLocalAdapter,
-  supportsLocalConfig,
-  type LocalMcpClientType,
-} from './mcp-client-adapter.js';
-
-// Re-export LocalMcpClientType for consumers
-export type { LocalMcpClientType } from './mcp-client-adapter.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { generateChatGptInstructions, generateConfigForPrint } from './config-cmd.js';
+import { getAdapter, getLocalAdapter } from './mcp-client-adapter.js';
 
 export type McpSyncClientId =
   | 'claude'
@@ -26,158 +8,62 @@ export type McpSyncClientId =
   | 'codex'
   | 'chatgpt'
   | 'opencode';
-export type McpAdapterId = Exclude<McpSyncClientId, 'chatgpt' | 'opencode'>;
-
-export interface PreviewResult {
-  hasChanges: boolean;
-  diffText: string;
-  configPath: string;
-  addedServers: string[];
-  updatedServers: string[];
-}
 
 export interface McpSyncClient {
   id: McpSyncClientId;
   displayName: string;
-  adapterId?: McpAdapterId;
-  supportsPreview: boolean;
-  supportsWrite: boolean;
-  supportsPrint: boolean;
-  printOnly?: boolean;
-  /** Whether this client supports local workspace configs */
-  supportsLocalConfig: boolean;
-  runPreview?: (projectFilter?: undefined) => PreviewResult;
-  runWrite?: (projectFilter?: undefined) => string;
-  runPrint?: (projectFilter?: undefined) => string;
-}
-
-function createFileClient(params: {
-  id: McpAdapterId;
-  displayName: string;
-  writeFn: (configPath: string) => string;
-}): McpSyncClient {
-  const { id, displayName, writeFn } = params;
-
-  return {
-    id,
-    displayName,
-    adapterId: id,
-    supportsPreview: true,
-    supportsWrite: true,
-    supportsPrint: true,
-    supportsLocalConfig: supportsLocalConfig(id),
-    runPreview: (): PreviewResult => {
-      const adapter = getAdapter(id);
-      return previewMcpClientConfig(adapter, resolveConfigPath());
-    },
-    runWrite: (): string => writeFn(resolveConfigPath()),
-    runPrint: (): string => {
-      const adapter = getAdapter(id);
-      return generateConfigForPrint(adapter, resolveConfigPath());
-    },
-  };
+  runPrint: (configPath: string) => string;
 }
 
 /**
- * Get all available global sync clients.
- * These write to global/user-level config files.
+ * Get all available sync clients (print-only).
  */
 export function getSyncClients(): McpSyncClient[] {
-  const clients: McpSyncClient[] = [
-    createFileClient({
+  return [
+    {
       id: 'claude',
       displayName: 'Claude Desktop',
-      writeFn: configAddClaude,
-    }),
-    createFileClient({
+      runPrint: (configPath: string): string => {
+        const adapter = getAdapter('claude');
+        return generateConfigForPrint(adapter, configPath);
+      },
+    },
+    {
       id: 'cursor',
       displayName: 'Cursor',
-      writeFn: configAddCursor,
-    }),
-    createFileClient({
+      runPrint: (configPath: string): string => {
+        const adapter = getAdapter('cursor');
+        return generateConfigForPrint(adapter, configPath);
+      },
+    },
+    {
       id: 'claude-code',
       displayName: 'Claude Code',
-      writeFn: configAddClaudeCode,
-    }),
-    createFileClient({
+      runPrint: (configPath: string): string => {
+        const adapter = getAdapter('claude-code');
+        return generateConfigForPrint(adapter, configPath);
+      },
+    },
+    {
       id: 'codex',
       displayName: 'OpenAI Codex',
-      writeFn: configAddCodex,
-    }),
+      runPrint: (configPath: string): string => {
+        const adapter = getAdapter('codex');
+        return generateConfigForPrint(adapter, configPath);
+      },
+    },
     {
       id: 'chatgpt',
       displayName: 'ChatGPT',
-      supportsPreview: false,
-      supportsWrite: false,
-      supportsPrint: true,
-      supportsLocalConfig: false,
-      printOnly: true,
-      runPrint: (): string => generateChatGptInstructions(resolveConfigPath()),
+      runPrint: (configPath: string): string => generateChatGptInstructions(configPath),
     },
     {
       id: 'opencode',
       displayName: 'OpenCode',
-      supportsPreview: false,
-      supportsWrite: false,
-      supportsPrint: true,
-      supportsLocalConfig: true,
-      printOnly: true,
-      runPrint: (): string => {
+      runPrint: (configPath: string): string => {
         const adapter = getLocalAdapter('opencode');
-        return generateConfigForPrint(adapter, resolveConfigPath());
+        return generateConfigForPrint(adapter, configPath);
       },
     },
   ];
-
-  return clients;
-}
-
-/**
- * Create a local config client for a specific MCP client type.
- * This writes to workspace-level config files (e.g., .cursor/mcp.json, .mcp.json).
- *
- * @param clientType - The client type to create a local adapter for
- * @param customPath - Optional custom path for the config file
- */
-export function createLocalClient(
-  clientType: LocalMcpClientType,
-  customPath?: string
-): {
-  adapter: ReturnType<typeof getLocalAdapter>;
-  displayName: string;
-  runPreview: (projectFilter?: undefined) => PreviewResult;
-  runWrite: (projectFilter?: undefined) => string;
-  runPrint: (projectFilter?: undefined) => string;
-} {
-  const adapter = getLocalAdapter(clientType, customPath);
-
-  return {
-    adapter,
-    displayName: adapter.getDisplayName(),
-    runPreview: (): PreviewResult => {
-      return previewMcpClientConfig(adapter, resolveConfigPath());
-    },
-    runWrite: (): string => {
-      return configAddLocalMcp(resolveConfigPath(), adapter);
-    },
-    runPrint: (): string => {
-      return generateConfigForPrint(adapter, resolveConfigPath());
-    },
-  };
-}
-
-/**
- * Map sync client ID to local client type (for clients that support local configs)
- */
-export function getLocalClientType(clientId: McpSyncClientId): LocalMcpClientType | null {
-  switch (clientId) {
-    case 'cursor':
-      return 'cursor';
-    case 'claude-code':
-      return 'claude-code';
-    case 'opencode':
-      return 'opencode';
-    default:
-      return null;
-  }
 }

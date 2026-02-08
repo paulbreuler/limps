@@ -3,10 +3,8 @@
  * Provides loosely coupled adapters for different MCP clients (Claude Desktop, Cursor, etc.)
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { homedir } from 'os';
-import * as toml from '@iarna/toml';
 
 /**
  * MCP server configuration entry.
@@ -26,11 +24,6 @@ export interface McpServerConfig {
 }
 
 /**
- * MCP client config structure
- */
-export type McpClientConfig = Record<string, McpServerConfig | unknown>;
-
-/**
  * Adapter interface for MCP client configurations
  */
 export interface McpClientAdapter {
@@ -42,12 +35,6 @@ export interface McpClientAdapter {
 
   /** Whether the servers key should be treated as a flat key or nested path (default: nested) */
   useFlatKey?(): boolean;
-
-  /** Read the config file */
-  readConfig(): McpClientConfig;
-
-  /** Write the config file */
-  writeConfig(config: McpClientConfig): void;
 
   /** Create server config for a limps project */
   createServerConfig(configPath: string): McpServerConfig;
@@ -68,48 +55,6 @@ export class ClaudeDesktopAdapter implements McpClientAdapter {
 
   getServersKey(): string {
     return 'mcpServers';
-  }
-
-  readConfig(): McpClientConfig {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    // Read existing config or return empty
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8');
-        return JSON.parse(content) as McpClientConfig;
-      } catch (error) {
-        throw new Error(
-          `Failed to parse Claude Desktop config: ${error instanceof Error ? error.message : 'unknown error'}`
-        );
-      }
-    }
-
-    return {};
-  }
-
-  writeConfig(config: McpClientConfig): void {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    try {
-      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(
-        `Failed to write Claude Desktop config: ${error instanceof Error ? error.message : 'unknown error'}`
-      );
-    }
   }
 
   createServerConfig(configPath: string): McpServerConfig {
@@ -166,48 +111,6 @@ export class CursorAdapter implements McpClientAdapter {
     return true;
   }
 
-  readConfig(): McpClientConfig {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    // Read existing config or return empty
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8');
-        return JSON.parse(content) as McpClientConfig;
-      } catch (error) {
-        throw new Error(
-          `Failed to parse Cursor settings: ${error instanceof Error ? error.message : 'unknown error'}`
-        );
-      }
-    }
-
-    return {};
-  }
-
-  writeConfig(config: McpClientConfig): void {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    try {
-      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(
-        `Failed to write Cursor settings: ${error instanceof Error ? error.message : 'unknown error'}`
-      );
-    }
-  }
-
   createServerConfig(configPath: string): McpServerConfig {
     // Cursor can use the global limps command directly
     // Try to find limps in PATH, fallback to 'limps'
@@ -236,48 +139,6 @@ export class ClaudeCodeAdapter implements McpClientAdapter {
     return 'mcpServers';
   }
 
-  readConfig(): McpClientConfig {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    // Read existing config or return empty
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8');
-        return JSON.parse(content) as McpClientConfig;
-      } catch (error) {
-        throw new Error(
-          `Failed to parse Claude Code config: ${error instanceof Error ? error.message : 'unknown error'}`
-        );
-      }
-    }
-
-    return {};
-  }
-
-  writeConfig(config: McpClientConfig): void {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    try {
-      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(
-        `Failed to write Claude Code config: ${error instanceof Error ? error.message : 'unknown error'}`
-      );
-    }
-  }
-
   createServerConfig(configPath: string): McpServerConfig {
     return {
       command: 'npx',
@@ -302,46 +163,6 @@ export class CodexAdapter implements McpClientAdapter {
 
   getServersKey(): string {
     return 'mcp_servers';
-  }
-
-  readConfig(): McpClientConfig {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8');
-        return toml.parse(content) as McpClientConfig;
-      } catch (error) {
-        throw new Error(
-          `Failed to parse Codex config: ${error instanceof Error ? error.message : 'unknown error'}`
-        );
-      }
-    }
-
-    return {};
-  }
-
-  writeConfig(config: McpClientConfig): void {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    try {
-      const content = toml.stringify(config as unknown as toml.JsonMap);
-      writeFileSync(configPath, content, 'utf-8');
-    } catch (error) {
-      throw new Error(
-        `Failed to write Codex config: ${error instanceof Error ? error.message : 'unknown error'}`
-      );
-    }
   }
 
   createServerConfig(configPath: string): McpServerConfig {
@@ -428,42 +249,6 @@ export class LocalMcpAdapter implements McpClientAdapter {
     return this.clientType === 'opencode' ? 'mcp' : 'mcpServers';
   }
 
-  readConfig(): McpClientConfig {
-    const configPath = this.getConfigPath();
-
-    // Read existing config or return empty
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8');
-        return JSON.parse(content) as McpClientConfig;
-      } catch (error) {
-        throw new Error(
-          `Failed to parse ${this.getDisplayName()}: ${error instanceof Error ? error.message : 'unknown error'}`
-        );
-      }
-    }
-
-    return {};
-  }
-
-  writeConfig(config: McpClientConfig): void {
-    const configPath = this.getConfigPath();
-    const configDir = dirname(configPath);
-
-    // Ensure directory exists
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-    }
-
-    try {
-      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(
-        `Failed to write ${this.getDisplayName()}: ${error instanceof Error ? error.message : 'unknown error'}`
-      );
-    }
-  }
-
   createServerConfig(configPath: string): McpServerConfig {
     // OpenCode expects { type: "local", command: [...] } with command+args merged
     if (this.clientType === 'opencode') {
@@ -493,11 +278,6 @@ export class LocalMcpAdapter implements McpClientAdapter {
 export type GlobalAdapterClientType = 'claude' | 'cursor' | 'claude-code' | 'codex';
 
 /**
- * All adapter client types including local
- */
-export type AdapterClientType = GlobalAdapterClientType | 'local';
-
-/**
  * Get adapter for a global client type
  */
 export function getAdapter(clientType: GlobalAdapterClientType): McpClientAdapter {
@@ -523,13 +303,4 @@ export function getLocalAdapter(
   customPath?: string
 ): LocalMcpAdapter {
   return new LocalMcpAdapter(clientType, customPath);
-}
-
-/**
- * Check if a client type supports local workspace configs
- */
-export function supportsLocalConfig(
-  clientType: string
-): clientType is 'cursor' | 'claude-code' | 'opencode' {
-  return clientType === 'cursor' || clientType === 'claude-code' || clientType === 'opencode';
 }

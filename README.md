@@ -19,6 +19,7 @@
 - [How You Can Use It](#how-you-can-use-it)
 - [Why limps?](#why-limps)
 - [Installation](#installation)
+- [Upgrading from v2](#upgrading-from-v2)
 - [Project Setup](#project-setup)
 - [Client Setup](#client-setup)
 - [Transport](#transport)
@@ -33,25 +34,19 @@
 - [Used in Production](#used-in-production)
 - [Creating a feature plan](#creating-a-feature-plan)
 - [Deep Dive](#deep-dive)
-- [Instructions](#instructions)
 - [What is MCP?](#what-is-mcp)
 - [License](#license)
 
 ## Quick Start
 
 ```bash
-# Install globally
 npm install -g @sudosandwich/limps
-
-# Initialize a project
-limps init my-project --docs-path ~/Documents/my-planning-docs
-
-# Add to your AI assistant (picks up all registered projects)
-limps config sync-mcp --client cursor
-limps config sync-mcp --client claude-code
+cd ~/Documents/my-planning-docs
+limps init
+# Follow the printed instructions to configure your MCP client
 ```
 
-Run this in the folder where you want to keep the docs and that's it. Your AI assistant now has access to your documents and nothing else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
+That's it. Your AI assistant now has access to your documents and nothing else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
 
 ## Features
 
@@ -59,7 +54,7 @@ Run this in the folder where you want to keep the docs and that's it. Your AI as
 - **Plan + agent workflows** with status tracking and task scoring
 - **Next-task suggestions** with score breakdowns and bias tuning
 - **Sandboxed document processing** via `process_doc(s)` helpers
-- **Multi-client sync** for Cursor, Claude, Codex, and more
+- **Multi-client support** for Cursor, Claude, Codex, and more
 - **Extensions** for domain-specific tooling (e.g., limps-headless)
 - **Knowledge graph** — Entity extraction, hybrid retrieval, conflict detection, and graph-based suggestions
 - **Health automation** — Staleness detection, code drift checks, status inference, and auto-fix proposals
@@ -81,7 +76,7 @@ Typical flow:
 
 1. Point limps at a docs directory (any folder, local or synced).
 2. Use CLI + MCP tools to create plans/docs, read the current status, update tasks, and close work when done.
-3. Sync MCP configs so Cursor/Claude/Codex all see the same plans.
+3. Add the limps MCP entry to each client config so Cursor/Claude/Codex all see the same plans.
 
 Commands and tools I use most often:
 
@@ -100,7 +95,7 @@ Full lists are below in "CLI Commands" and "MCP Tools."
 Common setups:
 
 - **Single project**: One docs folder for a product.
-- **Multi-project**: Register multiple folders and switch with `limps config use`.
+- **Multi-project**: Each project gets its own `.limps/config.json`; pass `--config` to target a specific one.
 - **Shared team folder**: Put plans in a shared location and review changes like code.
 - **Local-first**: Keep everything on disk, no hosted service required.
 
@@ -115,75 +110,62 @@ Key ideas:
 
 **The solution:** limps provides a standardized MCP interface that any tool can access. Your docs live in one place—a folder you choose. Use git (or any sync) if you want version control; limps is not tied to a repository.
 
-### Supported Clients
-
-| Client             | Config Location            | Command                                          |
-| ------------------ | -------------------------- | ------------------------------------------------ |
-| **Cursor**         | `.cursor/mcp.json` (local) | `limps config sync-mcp --client cursor`          |
-| **Claude Code**    | `.mcp.json` (local)        | `limps config sync-mcp --client claude-code`     |
-| **Claude Desktop** | Global config              | `limps config sync-mcp --client claude --global` |
-| **OpenAI Codex**   | `~/.codex/config.toml`     | `limps config sync-mcp --client codex --global`  |
-| **ChatGPT**        | Manual setup               | `limps config sync-mcp --client chatgpt --print` |
-
-> **Note:** By default, `sync-mcp` writes to local/project configs. Use `--global` for user-level configs.
-
 ## Installation
 
 ```bash
 npm install -g @sudosandwich/limps
 ```
 
+## Upgrading from v2
+
+v3 removes the centralized project registry in favor of per-project config files. If you previously used `limps config add`, `config use`, or the `--project` flag:
+
+1. **Run `limps init`** in each project directory to create `.limps/config.json`.
+2. **Update MCP client configs** — replace any `--project <name>` args with `--config /path/to/.limps/config.json`. Use `limps config print` to generate the correct snippet.
+3. **Remove environment variable** — `LIMPS_PROJECT` no longer exists. Use `MCP_PLANNING_CONFIG` to override config path.
+
+Removed commands: `config list`, `config use`, `config add`, `config remove`, `config set`, `config discover`, `config migrate`, `config sync-mcp`. Replaced by: `limps init` + `limps config print`.
+
 ## Project Setup
 
 ### Initialize a New Project
 
 ```bash
-limps init my-project --docs-path ~/Documents/my-planning-docs
+cd ~/Documents/my-planning-docs
+limps init
 ```
 
-This creates a config file and outputs setup instructions.
+This creates `.limps/config.json` in the current directory and prints MCP client setup instructions.
 
-### Register an Existing Directory
+You can also specify a path:
 
 ```bash
-limps config add my-project ~/Documents/existing-docs
+limps init ~/Documents/my-planning-docs
 ```
 
 If the directory contains a `plans/` subdirectory, limps uses it. Otherwise, it indexes the entire directory.
 
 ### Multiple Projects
 
+Each project has its own `.limps/config.json`. Use `--config` to target a specific project:
+
 ```bash
-# Register multiple projects
-limps init project-a --docs-path ~/docs/project-a
-limps init project-b --docs-path ~/docs/project-b
-
-# Switch between them
-limps config use project-a
-
-# Or use environment variable
-LIMPS_PROJECT=project-b limps list-plans
+limps list-plans --config ~/docs/project-b/.limps/config.json
 ```
 
 ## Client Setup
 
-### Automatic (Recommended)
+After running `limps init`, you need to add a limps entry to your MCP client's config file. Use `print` to generate the correct snippet for your client, then paste it into the appropriate config file:
 
 ```bash
-# Add all projects to a client's local config
-limps config sync-mcp --client cursor
-
-# Preview changes without writing
-limps config sync-mcp --client cursor --print
-
-# Write to global config instead of local
-limps config sync-mcp --client cursor --global
-
-# Custom config path
-limps config sync-mcp --client cursor --path ./custom-mcp.json
+limps config print --client cursor
+limps config print --client claude-code
+limps config print --client claude
 ```
 
-### Manual Setup
+The output tells you exactly what JSON (or TOML) to add and where the config file lives.
+
+### Per-Client Examples
 
 <details>
 <summary><b>Cursor</b></summary>
@@ -195,7 +177,7 @@ Add to `.cursor/mcp.json` in your project:
   "mcpServers": {
     "limps": {
       "command": "limps",
-      "args": ["serve", "--config", "/path/to/config.json"]
+      "args": ["serve", "--config", "/path/to/.limps/config.json"]
     }
   }
 }
@@ -213,7 +195,7 @@ Add to `.mcp.json` in your project root:
   "mcpServers": {
     "limps": {
       "command": "limps",
-      "args": ["serve", "--config", "/path/to/config.json"]
+      "args": ["serve", "--config", "/path/to/.limps/config.json"]
     }
   }
 }
@@ -238,7 +220,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "@sudosandwich/limps",
         "serve",
         "--config",
-        "/path/to/config.json"
+        "/path/to/.limps/config.json"
       ]
     }
   }
@@ -264,7 +246,7 @@ On Windows, use `cmd /c` to run `npx`:
         "@sudosandwich/limps",
         "serve",
         "--config",
-        "C:\\path\\to\\config.json"
+        "C:\\path\\to\\.limps\\config.json"
       ]
     }
   }
@@ -281,7 +263,7 @@ Add to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.limps]
 command = "limps"
-args = ["serve", "--config", "/path/to/config.json"]
+args = ["serve", "--config", "/path/to/.limps/config.json"]
 ```
 
 </details>
@@ -299,7 +281,7 @@ In ChatGPT → Settings → Connectors → Add custom connector:
 Print setup instructions:
 
 ```bash
-limps config sync-mcp --client chatgpt --print
+limps config print --client chatgpt
 ```
 
 </details>
@@ -365,15 +347,13 @@ limps next-task <plan>        # Get highest-priority available task
 ### Project Management
 
 ```bash
-limps init <name>             # Initialize new project
+limps init [path]             # Initialize new project
 limps serve                   # Start MCP server (stdio)
 limps start                   # Start persistent HTTP daemon
 limps stop                    # Stop HTTP daemon
 limps status-server           # Show HTTP daemon status
-limps config list             # Show registered projects
-limps config use <name>       # Switch active project
 limps config show             # Display current config
-limps config sync-mcp         # Add projects to MCP clients
+limps config print     # Print MCP client config snippets
 ```
 
 ### Health & Automation
@@ -412,22 +392,16 @@ limps repair-plans [--fix]       # Check/fix agent frontmatter
 
 ## Configuration
 
-Config location varies by OS:
-
-| OS      | Path                                              |
-| ------- | ------------------------------------------------- |
-| macOS   | `~/Library/Application Support/limps/config.json` |
-| Linux   | `~/.config/limps/config.json`                     |
-| Windows | `%APPDATA%\limps\config.json`                     |
+Config lives at `.limps/config.json` in your project directory, created by `limps init`.
 
 ### Config Options
 
 ```json
 {
-  "plansPath": "~/Documents/my-plans",
-  "docsPaths": ["~/Documents/my-plans"],
+  "plansPath": "./plans",
+  "docsPaths": ["."],
   "fileExtensions": [".md"],
-  "dataPath": "~/Library/Application Support/limps/data",
+  "dataPath": ".limps/data",
   "extensions": ["@sudosandwich/limps-headless"],
   "tools": {
     "allowlist": ["list_docs", "search_docs"]
@@ -456,7 +430,7 @@ Config location varies by OS:
 
 | Variable               | Description                                                | Example                                           |
 | ---------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
-| `LIMPS_PROJECT`        | Select active project for CLI commands                     | `LIMPS_PROJECT=project-b limps list-plans`        |
+| `MCP_PLANNING_CONFIG`  | Path to config file (overrides default discovery)          | `MCP_PLANNING_CONFIG=./my-config.json limps serve`|
 | `LIMPS_ALLOWED_TOOLS`  | Comma-separated allowlist; only these tools are registered | `LIMPS_ALLOWED_TOOLS="list_docs,search_docs"`     |
 | `LIMPS_DISABLED_TOOLS` | Comma-separated denylist; tools to hide                    | `LIMPS_DISABLED_TOOLS="process_doc,process_docs"` |
 

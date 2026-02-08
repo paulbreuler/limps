@@ -4,7 +4,6 @@
  */
 
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'fs';
-import * as jsonpatch from 'fast-json-patch';
 import { dirname, basename } from 'path';
 import * as toml from '@iarna/toml';
 import {
@@ -405,13 +404,7 @@ export function resetAll(configPath: string, options: { force?: boolean } = {}):
   return log;
 }
 
-import {
-  getAdapter,
-  LocalMcpAdapter,
-  type McpClientAdapter,
-  type McpClientConfig,
-  type McpServerConfig,
-} from './mcp-client-adapter.js';
+import { type McpClientAdapter, type McpServerConfig } from './mcp-client-adapter.js';
 
 /**
  * Generate MCP server configuration JSON for a single limps project.
@@ -463,174 +456,6 @@ export function generateMcpClientConfig(
 }
 
 /**
- * Add limps server configuration to an MCP client config.
- */
-function configAddMcpClient(adapter: McpClientAdapter, configPath: string): string {
-  if (!existsSync(configPath)) {
-    throw new Error(
-      `Limps config not found: ${configPath}\nRun \`limps init\` to create a project first.`
-    );
-  }
-
-  const { serversKey, servers } = generateMcpClientConfig(adapter, configPath);
-
-  // Read existing config or create new one
-  const clientConfig = adapter.readConfig();
-
-  const { addedServers, updatedServers } = applyServerUpdates(
-    clientConfig,
-    serversKey,
-    servers,
-    adapter.useFlatKey?.() ?? false
-  );
-
-  // Write back to file
-  adapter.writeConfig(clientConfig);
-
-  // Build success message
-  const lines: string[] = [];
-  const totalChanges = addedServers.length + updatedServers.length;
-
-  if (totalChanges === 0) {
-    lines.push(`No changes needed for ${adapter.getDisplayName()} config.`);
-  } else {
-    if (addedServers.length > 0) {
-      lines.push(
-        `Added ${addedServers.length} limps project(s) to ${adapter.getDisplayName()} config:`
-      );
-      for (const server of addedServers) {
-        lines.push(`  + ${server}`);
-      }
-    }
-    if (updatedServers.length > 0) {
-      if (addedServers.length > 0) {
-        lines.push('');
-      }
-      lines.push(
-        `Updated ${updatedServers.length} limps project(s) in ${adapter.getDisplayName()} config:`
-      );
-      for (const server of updatedServers) {
-        lines.push(`  ~ ${server}`);
-      }
-    }
-  }
-
-  lines.push('');
-  lines.push(`Config location: ${adapter.getConfigPath()}`);
-  if (totalChanges > 0) {
-    lines.push(`Restart ${adapter.getDisplayName()} to use the updated MCP servers.`);
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Preview MCP client config changes without writing to disk.
- */
-export function previewMcpClientConfig(
-  adapter: McpClientAdapter,
-  configPath: string
-): {
-  hasChanges: boolean;
-  diffText: string;
-  addedServers: string[];
-  updatedServers: string[];
-  configPath: string;
-} {
-  if (!existsSync(configPath)) {
-    throw new Error(
-      `Limps config not found: ${configPath}\nRun \`limps init\` to create a project first.`
-    );
-  }
-
-  const { serversKey, servers } = generateMcpClientConfig(adapter, configPath);
-
-  const originalConfig = adapter.readConfig();
-  const nextConfig = deepCloneConfig(originalConfig);
-
-  const { addedServers, updatedServers } = applyServerUpdates(
-    nextConfig,
-    serversKey,
-    servers,
-    adapter.useFlatKey?.() ?? false
-  );
-
-  const patch = jsonpatch.compare(originalConfig, nextConfig);
-  const diffText = patch.length > 0 ? JSON.stringify(patch, null, 2) : '';
-
-  return {
-    hasChanges: patch.length > 0,
-    diffText,
-    addedServers,
-    updatedServers,
-    configPath: adapter.getConfigPath(),
-  };
-}
-
-function deepCloneConfig(config: McpClientConfig): McpClientConfig {
-  return JSON.parse(JSON.stringify(config)) as McpClientConfig;
-}
-
-function applyServerUpdates(
-  clientConfig: McpClientConfig,
-  serversKey: string,
-  servers: Record<string, McpServerConfig>,
-  useFlatKey: boolean
-): { addedServers: string[]; updatedServers: string[] } {
-  let existingServers: Record<string, unknown>;
-
-  if (useFlatKey) {
-    if (clientConfig[serversKey] && typeof clientConfig[serversKey] !== 'object') {
-      throw new Error(`Invalid "${serversKey}" value: expected an object.`);
-    }
-    if (!clientConfig[serversKey] || typeof clientConfig[serversKey] !== 'object') {
-      clientConfig[serversKey] = {};
-    }
-    existingServers = clientConfig[serversKey] as Record<string, unknown>;
-  } else {
-    const keyParts = serversKey.split('.');
-    let current: Record<string, unknown> = clientConfig as Record<string, unknown>;
-
-    for (let i = 0; i < keyParts.length - 1; i++) {
-      const part = keyParts[i];
-      if (current[part] && typeof current[part] !== 'object') {
-        throw new Error(
-          `Invalid "${keyParts.slice(0, i + 1).join('.')}" value: expected an object.`
-        );
-      }
-      if (!current[part] || typeof current[part] !== 'object') {
-        current[part] = {};
-      }
-      current = current[part] as Record<string, unknown>;
-    }
-
-    const finalKey = keyParts[keyParts.length - 1];
-    if (current[finalKey] && typeof current[finalKey] !== 'object') {
-      throw new Error(`Invalid "${serversKey}" value: expected an object.`);
-    }
-    if (!current[finalKey] || typeof current[finalKey] !== 'object') {
-      current[finalKey] = {};
-    }
-    existingServers = current[finalKey] as Record<string, unknown>;
-  }
-
-  const addedServers: string[] = [];
-  const updatedServers: string[] = [];
-
-  for (const [serverName, serverConfig] of Object.entries(servers)) {
-    const wasExisting = serverName in existingServers;
-    existingServers[serverName] = serverConfig;
-    if (wasExisting) {
-      updatedServers.push(serverName);
-    } else {
-      addedServers.push(serverName);
-    }
-  }
-
-  return { addedServers, updatedServers };
-}
-
-/**
  * Generate config for printing (for unsupported clients).
  */
 export function generateConfigForPrint(adapter: McpClientAdapter, configPath: string): string {
@@ -649,41 +474,6 @@ export function generateConfigForPrint(adapter: McpClientAdapter, configPath: st
   lines.push(`\nNote: Merge the "${serversKey}" section into your existing config file.`);
 
   return lines.join('\n');
-}
-
-export function configAddClaude(configPath: string): string {
-  const adapter = getAdapter('claude');
-  return configAddMcpClient(adapter, configPath);
-}
-
-export function configAddCursor(configPath: string): string {
-  const adapter = getAdapter('cursor');
-  return configAddMcpClient(adapter, configPath);
-}
-
-export function configAddClaudeCode(configPath: string): string {
-  const adapter = getAdapter('claude-code');
-  return configAddMcpClient(adapter, configPath);
-}
-
-export function configAddCodex(configPath: string): string {
-  const adapter = getAdapter('codex');
-  return configAddMcpClient(adapter, configPath);
-}
-
-export function configAddLocalMcp(
-  configPath: string,
-  adapterOrPath?: LocalMcpAdapter | string
-): string {
-  let adapter: LocalMcpAdapter;
-  if (adapterOrPath instanceof LocalMcpAdapter) {
-    adapter = adapterOrPath;
-  } else if (typeof adapterOrPath === 'string') {
-    adapter = new LocalMcpAdapter('custom', adapterOrPath);
-  } else {
-    adapter = new LocalMcpAdapter('claude-code');
-  }
-  return configAddMcpClient(adapter, configPath);
 }
 
 /**
