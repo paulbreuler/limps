@@ -19,6 +19,7 @@ import { resolveConfigPath } from './utils/config-resolver.js';
 import { shutdownExtensions, type LoadedExtension } from './extensions/loader.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createRateLimiter, type RateLimiter } from './utils/rate-limiter.js';
+import { findProcessUsingPort } from './utils/port-checker.js';
 
 /**
  * Mask a session ID for logging to avoid exposing full UUIDs.
@@ -60,9 +61,11 @@ export async function startHttpServer(configPathArg?: string): Promise<{
   // Load config first to check for existing daemon before initializing resources
   const configPath = resolveConfigPath(configPathArg);
   const preConfig = loadConfig(configPath);
+  const preHttpConfig = getHttpServerConfig(preConfig);
 
   // Check for existing daemon BEFORE initializing resources to avoid leaks
-  const pidFilePath = getPidFilePath(preConfig.dataPath);
+  // Use system-level PID file based on port number
+  const pidFilePath = getPidFilePath(preConfig.dataPath, preHttpConfig.port);
   const existing = getRunningDaemon(pidFilePath);
   if (existing) {
     throw new Error(
@@ -230,7 +233,32 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
   const server = httpServer;
   return new Promise<{ port: number; host: string }>((resolve, reject) => {
-    server.on('error', reject);
+    server.on('error', (err: NodeJS.ErrnoException) => {
+      // Enhanced error handling for port conflicts
+      if (err.code === 'EADDRINUSE') {
+        const processInfo = findProcessUsingPort(httpConfig.port);
+        if (processInfo) {
+          const errorMsg = [
+            `Port ${httpConfig.port} is already in use.`,
+            `Process using port: ${processInfo.name} (PID ${processInfo.pid})`,
+            `Command: ${processInfo.command}`,
+            ``,
+            `To stop the process: kill ${processInfo.pid}`,
+            `Or use a different port: limps start --port <port>`,
+          ].join('\n');
+          reject(new Error(errorMsg));
+        } else {
+          reject(
+            new Error(
+              `Port ${httpConfig.port} is already in use. Use a different port: limps start --port <port>`
+            )
+          );
+        }
+      } else {
+        reject(err);
+      }
+    });
+
     server.listen(httpConfig.port, httpConfig.host, () => {
       console.error(
         `limps HTTP server listening on http://${httpConfig.host}:${httpConfig.port}/mcp`
@@ -243,6 +271,7 @@ export async function startHttpServer(configPathArg?: string): Promise<{
         port: httpConfig.port,
         host: httpConfig.host,
         startedAt: started.toISOString(),
+        configPath,
       });
 
       resolve({ port: httpConfig.port, host: httpConfig.host });
@@ -343,7 +372,8 @@ export async function stopHttpServer(): Promise<void> {
 
   // Clean up PID file
   if (resources) {
-    const pidFilePath = getPidFilePath(resources.config.dataPath);
+    const httpConfig = getHttpServerConfig(resources.config);
+    const pidFilePath = getPidFilePath(resources.config.dataPath, httpConfig.port);
     removePidFile(pidFilePath);
 
     // Shut down shared resources

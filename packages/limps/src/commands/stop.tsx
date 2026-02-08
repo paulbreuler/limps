@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
-import { loadConfig } from '../config.js';
+import { loadConfig, getHttpServerConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon, removePidFile } from '../pidfile.js';
 
@@ -26,7 +26,8 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
     try {
       const configPath = resolveConfigPath(opts.config);
       const config = loadConfig(configPath);
-      const pidFilePath = getPidFilePath(config.dataPath);
+      const httpConfig = getHttpServerConfig(config);
+      const pidFilePath = getPidFilePath(config.dataPath, httpConfig.port);
       const daemon = getRunningDaemon(pidFilePath);
 
       if (!daemon) {

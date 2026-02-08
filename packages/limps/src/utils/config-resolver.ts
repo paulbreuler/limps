@@ -7,9 +7,37 @@ import { resolve, dirname } from 'path';
 import { existsSync } from 'fs';
 
 /**
+ * Find .limps/config.json by walking up the directory tree from startDir.
+ *
+ * @param startDir - Directory to start searching from (defaults to cwd)
+ * @returns Absolute path to config file, or null if not found
+ */
+function findLocalConfig(startDir: string = process.cwd()): string | null {
+  let currentDir = resolve(startDir);
+  const root = resolve('/');
+
+  while (currentDir !== root) {
+    const configPath = resolve(currentDir, '.limps', 'config.json');
+    if (existsSync(configPath)) {
+      return configPath;
+    }
+    currentDir = dirname(currentDir);
+  }
+
+  // Check root directory as well
+  const rootConfigPath = resolve(root, '.limps', 'config.json');
+  if (existsSync(rootConfigPath)) {
+    return rootConfigPath;
+  }
+
+  return null;
+}
+
+/**
  * Resolve configuration file path with priority:
  * 1. CLI argument --config
  * 2. Environment variable MCP_PLANNING_CONFIG
+ * 3. Local .limps/config.json (searches up directory tree)
  *
  * Throws if no config source is found.
  *
@@ -34,6 +62,12 @@ export function resolveConfigPath(cliConfigPath?: string): string {
   const envConfigPath = process.env.MCP_PLANNING_CONFIG;
   if (envConfigPath) {
     return resolve(envConfigPath);
+  }
+
+  // Priority 3: Local .limps/config.json (walk up directory tree)
+  const localConfig = findLocalConfig();
+  if (localConfig) {
+    return localConfig;
   }
 
   // No config found — require explicit configuration
