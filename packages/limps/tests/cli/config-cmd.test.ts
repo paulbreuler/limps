@@ -440,7 +440,7 @@ describe('config-cmd', () => {
         writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
         const adapter = getAdapter('claude-code');
-        const { servers } = generateMcpClientConfig(adapter, cfgPath, 'http');
+        const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
         expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:8080/mcp');
@@ -466,7 +466,7 @@ describe('config-cmd', () => {
         writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
         const adapter = getAdapter('claude-code');
-        const { servers } = generateMcpClientConfig(adapter, cfgPath, 'http');
+        const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
         expect(serverConfig).toHaveProperty('transport.url', 'http://0.0.0.0:4269/mcp');

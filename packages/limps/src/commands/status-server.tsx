@@ -48,7 +48,9 @@ function getServerStatus(opts: z.infer<typeof options>): Promise<StatusResult> {
     timeout: 3000,
     retries: 1,
     retryDelay: 500,
-    logger: process.env.DEBUG ? (msg): void => console.error(`[limps:http] ${msg}`) : undefined,
+    logger: process.env.DEBUG
+      ? (msg: string): void => console.error(`[limps:http] ${msg}`)
+      : undefined,
   };
 
   return checkDaemonHealth(daemon.host, daemon.port, httpOptions).then((result) => {

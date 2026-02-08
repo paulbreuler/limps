@@ -85,7 +85,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
             timeout: 500,
             retries: 0,
             logger: process.env.DEBUG
-              ? (msg): void => console.error(`[limps:http] ${msg}`)
+              ? (msg: string): void => console.error(`[limps:http] ${msg}`)
               : undefined,
           };
 
