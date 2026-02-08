@@ -158,7 +158,8 @@ This is a test feature plan.
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('limps');
-      expect(result.stdout).toContain('Commands:');
+      expect(result.stdout).toContain('HTTP Server:');
+      expect(result.stdout).toContain('Plan Management:');
     });
   });
 

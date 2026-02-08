@@ -79,56 +79,19 @@ export function initProject(targetPath = '.'): string {
   lines.push(`Plans:  ${plansPath}`);
   lines.push('');
 
-  // Usage hint
-  lines.push('Use --config to pass the config path to limps commands:\n');
-  lines.push(`  ${localPlannerPath} list-plans --config "${configPath}"`);
+  // Start the HTTP daemon
+  lines.push('Next steps:\n');
+  lines.push('1. Start the HTTP daemon:');
+  lines.push(`   ${localPlannerPath} start --config "${configPath}"`);
+  lines.push('');
+  lines.push('2. Generate MCP client config:');
+  lines.push(`   ${localPlannerPath} config print --client claude-code --config "${configPath}"`);
+  lines.push('');
+  lines.push('3. Add the generated config to your MCP client');
   lines.push('');
 
-  // Cursor settings snippet
-  lines.push(
-    'Add this to your Cursor settings (Cmd+Shift+P → "Preferences: Open User Settings (JSON)"):\n'
-  );
-  lines.push(
-    JSON.stringify(
-      {
-        'mcp.servers': {
-          [projectName]: {
-            command: localPlannerPath,
-            args: ['--config', configPath],
-          },
-        },
-      },
-      null,
-      2
-    )
-  );
-  lines.push('');
-
-  // Claude Desktop config snippet
-  lines.push(
-    'For Claude Desktop, add this to ~/Library/Application Support/Claude/claude_desktop_config.json:\n'
-  );
-  lines.push(
-    JSON.stringify(
-      {
-        mcpServers: {
-          [projectName]: {
-            command: 'npx',
-            args: ['-y', '@sudosandwich/limps', '--config', configPath],
-          },
-        },
-      },
-      null,
-      2
-    )
-  );
-  lines.push('');
-
-  // HTTP transport alternative
-  lines.push('--- HTTP Transport (alternative) ---\n');
-  lines.push('Start the persistent HTTP server:');
-  lines.push(`  ${localPlannerPath} start --config "${configPath}"\n`);
-  lines.push('Then configure your MCP client to use HTTP transport:\n');
+  // HTTP transport config example
+  lines.push('Example MCP client configuration:\n');
   lines.push(
     JSON.stringify(
       {
@@ -143,14 +106,16 @@ export function initProject(targetPath = '.'): string {
     )
   );
   lines.push('');
+
+  // Daemon management
   lines.push('Manage the daemon:');
-  lines.push(`  ${localPlannerPath} status-server --config "${configPath}"  # Check if running`);
-  lines.push(`  ${localPlannerPath} stop --config "${configPath}"            # Stop the daemon`);
+  lines.push(`  ${localPlannerPath} status-server --config "${configPath}"  # Check status`);
+  lines.push(`  ${localPlannerPath} stop --config "${configPath}"           # Stop daemon`);
   lines.push('');
 
-  // Test command
-  lines.push('To test the server (stdio):');
-  lines.push(`  ${localPlannerPath} serve --config "${configPath}"`);
+  // CLI usage
+  lines.push('Use --config for CLI commands:');
+  lines.push(`  ${localPlannerPath} list-plans --config "${configPath}"`);
 
   return lines.join('\n');
 }

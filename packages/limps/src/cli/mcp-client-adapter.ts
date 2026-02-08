@@ -8,23 +8,18 @@ import { homedir } from 'os';
 
 /**
  * MCP server configuration entry.
- *
- * Standard clients (Claude Desktop, Cursor, Claude Code, Codex) use
- *   { command: string, args: string[] }
- * OpenCode uses a different shape:
- *   { type: "local", command: string[] }
- *
- * The index signature keeps the type open for client-specific fields
- * without requiring every adapter to cast.
+ * limps v3 uses HTTP transport exclusively (persistent daemon mode).
  */
 export interface McpServerConfig {
-  command: string | string[];
-  args?: string[];
-  [key: string]: unknown;
+  transport: {
+    type: 'http';
+    url: string;
+  };
 }
 
 /**
- * Adapter interface for MCP client configurations
+ * Adapter interface for MCP client configurations.
+ * All adapters generate HTTP transport configs (limps v3 daemon mode).
  */
 export interface McpClientAdapter {
   /** Get the config file path for this client */
@@ -36,8 +31,8 @@ export interface McpClientAdapter {
   /** Whether the servers key should be treated as a flat key or nested path (default: nested) */
   useFlatKey?(): boolean;
 
-  /** Create server config for a limps project */
-  createServerConfig(configPath: string): McpServerConfig;
+  /** Create HTTP transport server config for a limps project */
+  createHttpServerConfig(host: string, port: number): McpServerConfig;
 
   /** Get display name for this client */
   getDisplayName(): string;
@@ -45,7 +40,7 @@ export interface McpClientAdapter {
 
 /**
  * Claude Desktop adapter
- * Uses: mcpServers key, npx command, ~/Library/Application Support/Claude/claude_desktop_config.json
+ * Uses: mcpServers key, HTTP transport, ~/Library/Application Support/Claude/claude_desktop_config.json
  */
 export class ClaudeDesktopAdapter implements McpClientAdapter {
   getConfigPath(): string {
@@ -57,10 +52,12 @@ export class ClaudeDesktopAdapter implements McpClientAdapter {
     return 'mcpServers';
   }
 
-  createServerConfig(configPath: string): McpServerConfig {
+  createHttpServerConfig(host: string, port: number): McpServerConfig {
     return {
-      command: 'npx',
-      args: ['-y', '@sudosandwich/limps', 'serve', '--config', configPath],
+      transport: {
+        type: 'http',
+        url: `http://${host}:${port}/mcp`,
+      },
     };
   }
 
@@ -71,7 +68,7 @@ export class ClaudeDesktopAdapter implements McpClientAdapter {
 
 /**
  * Cursor adapter
- * Uses: mcp.servers key, limps command, VS Code settings.json location
+ * Uses: mcp.servers key, HTTP transport, VS Code settings.json location
  */
 export class CursorAdapter implements McpClientAdapter {
   private getSettingsPath(): string {
@@ -111,12 +108,12 @@ export class CursorAdapter implements McpClientAdapter {
     return true;
   }
 
-  createServerConfig(configPath: string): McpServerConfig {
-    // Cursor can use the global limps command directly
-    // Try to find limps in PATH, fallback to 'limps'
+  createHttpServerConfig(host: string, port: number): McpServerConfig {
     return {
-      command: 'limps',
-      args: ['serve', '--config', configPath],
+      transport: {
+        type: 'http',
+        url: `http://${host}:${port}/mcp`,
+      },
     };
   }
 
@@ -127,7 +124,7 @@ export class CursorAdapter implements McpClientAdapter {
 
 /**
  * Claude Code adapter
- * Uses: mcpServers key, npx command, ~/.claude.json (user scope)
+ * Uses: mcpServers key, HTTP transport, ~/.claude.json (user scope)
  */
 export class ClaudeCodeAdapter implements McpClientAdapter {
   getConfigPath(): string {
@@ -139,10 +136,12 @@ export class ClaudeCodeAdapter implements McpClientAdapter {
     return 'mcpServers';
   }
 
-  createServerConfig(configPath: string): McpServerConfig {
+  createHttpServerConfig(host: string, port: number): McpServerConfig {
     return {
-      command: 'npx',
-      args: ['-y', '@sudosandwich/limps', 'serve', '--config', configPath],
+      transport: {
+        type: 'http',
+        url: `http://${host}:${port}/mcp`,
+      },
     };
   }
 
@@ -165,10 +164,12 @@ export class CodexAdapter implements McpClientAdapter {
     return 'mcp_servers';
   }
 
-  createServerConfig(configPath: string): McpServerConfig {
+  createHttpServerConfig(host: string, port: number): McpServerConfig {
     return {
-      command: 'limps',
-      args: ['serve', '--config', configPath],
+      transport: {
+        type: 'http',
+        url: `http://${host}:${port}/mcp`,
+      },
     };
   }
 
@@ -249,17 +250,12 @@ export class LocalMcpAdapter implements McpClientAdapter {
     return this.clientType === 'opencode' ? 'mcp' : 'mcpServers';
   }
 
-  createServerConfig(configPath: string): McpServerConfig {
-    // OpenCode expects { type: "local", command: [...] } with command+args merged
-    if (this.clientType === 'opencode') {
-      return {
-        type: 'local',
-        command: ['limps', 'serve', '--config', configPath],
-      };
-    }
+  createHttpServerConfig(host: string, port: number): McpServerConfig {
     return {
-      command: 'limps',
-      args: ['serve', '--config', configPath],
+      transport: {
+        type: 'http',
+        url: `http://${host}:${port}/mcp`,
+      },
     };
   }
 

@@ -55,4 +55,6 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 opencode.json
-**/.limps/config.json
+
+# Local limps configuration (repo-specific)
+.limps/

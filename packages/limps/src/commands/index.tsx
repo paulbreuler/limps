@@ -26,23 +26,31 @@ export default function DefaultCommand(): React.ReactNode {
       {'\n'}
       <Text color="yellow">Usage:</Text> limps {'<command>'} [options]{'\n'}
       {'\n'}
-      <Text color="cyan">Commands:</Text>
+      <Text color="cyan">HTTP Server:</Text>
       {'\n'}
-      {'  '}serve{'         '}Start the MCP server{'\n'}
+      {'  '}start{'          '}Start the HTTP MCP server{'\n'}
+      {'  '}stop{'           '}Stop the HTTP server{'\n'}
+      {'  '}status-server{'  '}Show server status{'\n'}
+      {'\n'}
+      <Text color="cyan">Plan Management:</Text>
+      {'\n'}
       {'  '}init {'<name>   '}Initialize a new project{'\n'}
       {'  '}list-plans{'    '}List all plans with status{'\n'}
       {'  '}list-agents{'   '}List agents in a plan{'\n'}
       {'  '}next-task{'     '}Get the next best task{'\n'}
       {'  '}score-task{'    '}Show scoring for a task{'\n'}
       {'  '}score-all{'     '}Compare scores across tasks{'\n'}
-      {'  '}reindex{'       '}Rebuild the document index{'\n'}
+      {'  '}status{'        '}Show plan progress{'\n'}
       {'  '}repair-plans{'  '}Repair plan frontmatter{'\n'}
       {'  '}health{'        '}Run plan health checks{'\n'}
       {'  '}proposals{'     '}List and apply update proposals{'\n'}
-      {'  '}status{'        '}Show plan progress{'\n'}
-      {'  '}version{'        '}Show version information{'\n'}
+      {'\n'}
+      <Text color="cyan">System:</Text>
+      {'\n'}
+      {'  '}reindex{'       '}Rebuild the document index{'\n'}
       {'  '}config{'        '}Manage project configuration{'\n'}
       {'  '}graph{'         '}Knowledge graph commands{'\n'}
+      {'  '}version{'       '}Show version information{'\n'}
       {'\n'}
       Run <Text color="green">limps {'<command>'}</Text> without args for usage help.{'\n'}
       Run <Text color="green">limps {'<command>'} --help</Text> for full documentation.

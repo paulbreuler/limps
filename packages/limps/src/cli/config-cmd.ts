@@ -11,6 +11,7 @@ import {
   getScoringWeights,
   getScoringBiases,
   SCORING_PRESETS,
+  getHttpServerConfig,
   type ScoringPreset,
   type ScoringWeights,
   type ScoringBiases,
@@ -408,6 +409,7 @@ import { type McpClientAdapter, type McpServerConfig } from './mcp-client-adapte
 
 /**
  * Generate MCP server configuration JSON for a single limps project.
+ * Always generates HTTP transport configuration (limps v3 daemon mode).
  *
  * @param adapter - MCP client adapter
  * @param configPath - Path to the limps config file
@@ -433,9 +435,13 @@ export function generateMcpClientConfig(
   const projectDir = parentDir === '.limps' ? basename(dirname(dirname(configPath))) : parentDir;
   const serverName = `limps-planning-${projectDir}`;
 
-  // Build servers configuration
+  // Load HTTP server config
+  const config = loadConfig(configPath);
+  const httpConfig = getHttpServerConfig(config);
+
+  // Build servers configuration (HTTP transport only)
   const servers: Record<string, McpServerConfig> = {
-    [serverName]: adapter.createServerConfig(configPath),
+    [serverName]: adapter.createHttpServerConfig(httpConfig.host, httpConfig.port),
   };
 
   // Build full config structure
@@ -458,7 +464,8 @@ export function generateMcpClientConfig(
 }
 
 /**
- * Generate config for printing (for unsupported clients).
+ * Generate config for printing.
+ * Always generates HTTP transport configuration (limps v3 daemon mode).
  */
 export function generateConfigForPrint(adapter: McpClientAdapter, configPath: string): string {
   const { fullConfig, serversKey } = generateMcpClientConfig(adapter, configPath);
@@ -496,15 +503,15 @@ export function generateChatGptInstructions(configPath: string): string {
   lines.push('ChatGPT Custom Connector Setup (Manual)');
   lines.push('');
   lines.push(
-    'ChatGPT requires a remote MCP server reachable over HTTPS. limps runs over stdio, so deploy it behind an MCP-compatible HTTP/SSE transport or proxy.'
+    'ChatGPT requires a remote MCP server reachable over HTTPS. limps v3+ uses HTTP transport locally, so deploy it behind a secure proxy (e.g., ngrok, Cloudflare Tunnel) to expose the local server to ChatGPT.'
   );
   lines.push('');
   lines.push('Create a Custom Connector in ChatGPT with:');
   lines.push('');
   lines.push(`  Server Name: ${serverName}`);
-  lines.push('  Server URL: https://your-domain.example/mcp');
-  lines.push('  Authentication: (required by your deployment)');
-  lines.push(`  limps command: limps serve --config ${configPath}`);
+  lines.push('  Server URL: https://your-tunnel-domain.example/mcp');
+  lines.push('  Authentication: (required by your proxy/deployment)');
+  lines.push(`  Local command: limps start --config ${configPath}`);
   lines.push('');
   lines.push('Tip: create one connector per project config.');
 
