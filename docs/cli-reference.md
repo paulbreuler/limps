@@ -11,7 +11,7 @@ limps graph reindex [options]
   --plan <id>        Filter to specific plan ID
   --incremental      Skip unchanged files
   --json             Output as JSON
-  --project <name>   Registered project name
+
 ```
 
 **Examples:**
@@ -28,7 +28,7 @@ Show graph statistics and conflict summary.
 ```bash
 limps graph health [options]
   --json             Output as JSON
-  --project <name>   Registered project name
+
 ```
 
 ## `limps graph search`

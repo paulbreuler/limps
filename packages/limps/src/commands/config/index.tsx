@@ -13,7 +13,7 @@ export default function ConfigCommand(): React.ReactNode {
           'show Display resolved configuration values',
           'scoring Show or update scoring configuration',
           'path Print the resolved config file path',
-          'sync-mcp [--client <claude|cursor|claude-code|codex|chatgpt|opencode|all>] [--global] [--path <path>] [--print] [-f] Add/update limps in MCP configs',
+          'print [--client <claude|cursor|claude-code|codex|chatgpt|opencode|all>] Print MCP client config snippets',
           'update [--plans-path <path>] [--docs-path <path>] Update project paths',
           'upgrade Upgrade config schema to latest version',
         ],
