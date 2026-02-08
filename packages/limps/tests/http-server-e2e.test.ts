@@ -547,18 +547,17 @@ describe('HTTP Server duplicate daemon prevention', () => {
     }
   });
 
-  it('should prevent a second daemon from starting on the same data path', async () => {
+  it('should prevent a second daemon from starting on the same port', async () => {
     const configPath = createTestConfig(testDir, {
       server: { port, host },
     });
 
     child1 = await spawnDaemon(configPath, host, port);
 
-    // Attempt to start second daemon — should fail because PID file exists
-    const secondPort = port + 1;
+    // Attempt to start second daemon on SAME port — should fail because port is in use
     const configPath2 = createTestConfig(join(testDir, 'second'), {
-      dataPath: join(testDir, 'data'),
-      server: { port: secondPort, host },
+      dataPath: join(testDir, 'data2'),
+      server: { port, host }, // Same port as first daemon
     });
 
     let stderr2 = '';

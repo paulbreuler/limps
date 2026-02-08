@@ -249,13 +249,14 @@ This is a test feature plan.
     });
 
     it('should show clear error when no config is found', async () => {
-      // Use isolated HOME to avoid picking up real registry
-      const isolatedHome = join(testDir, 'isolated-home');
-      mkdirSync(isolatedHome, { recursive: true });
+      // Use isolated directory that has no .limps/config.json in tree
+      const isolatedDir = join(tmpdir(), `limps-no-config-${Date.now()}`);
+      mkdirSync(isolatedDir, { recursive: true });
 
       const result = await runCli(['list-plans'], {
+        cwd: isolatedDir,
         env: {
-          HOME: isolatedHome,
+          HOME: isolatedDir,
           MCP_PLANNING_CONFIG: undefined,
         },
       });
@@ -263,6 +264,9 @@ This is a test feature plan.
       const output = result.stdout + result.stderr;
       expect(output).toContain('No config found');
       expect(output).toContain('limps init');
+
+      // Clean up
+      rmSync(isolatedDir, { recursive: true, force: true });
     });
   });
 
