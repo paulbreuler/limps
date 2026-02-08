@@ -33,7 +33,7 @@ npx tsx scripts/helpers/pr-comments.ts list
 npx tsx scripts/helpers/pr-comments.ts analyze
 
 # Reply to a specific comment
-npx tsx scripts/helpers/pr-comments.ts reply <comment_id> "Your reply message here"
+npx tsx scripts/helpers/pr-comments.ts reply [pr_number] <comment_id> "Your reply message here"
 
 # Resolve a thread after addressing
 npx tsx scripts/helpers/pr-comments.ts resolve <thread_id>
