@@ -11,6 +11,7 @@ import {
   getScoringWeights,
   getScoringBiases,
   SCORING_PRESETS,
+  getHttpServerConfig,
   type ScoringPreset,
   type ScoringWeights,
   type ScoringBiases,
@@ -408,6 +409,7 @@ import { type McpClientAdapter, type McpServerConfig } from './mcp-client-adapte
 
 /**
  * Generate MCP server configuration JSON for a single limps project.
+ * Always generates HTTP transport configuration (limps v3 daemon mode).
  *
  * @param adapter - MCP client adapter
  * @param configPath - Path to the limps config file
@@ -433,9 +435,13 @@ export function generateMcpClientConfig(
   const projectDir = parentDir === '.limps' ? basename(dirname(dirname(configPath))) : parentDir;
   const serverName = `limps-planning-${projectDir}`;
 
-  // Build servers configuration
+  // Load HTTP server config
+  const config = loadConfig(configPath);
+  const httpConfig = getHttpServerConfig(config);
+
+  // Build servers configuration (HTTP transport only)
   const servers: Record<string, McpServerConfig> = {
-    [serverName]: adapter.createServerConfig(configPath),
+    [serverName]: adapter.createHttpServerConfig(httpConfig.host, httpConfig.port),
   };
 
   // Build full config structure
@@ -458,7 +464,8 @@ export function generateMcpClientConfig(
 }
 
 /**
- * Generate config for printing (for unsupported clients).
+ * Generate config for printing.
+ * Always generates HTTP transport configuration (limps v3 daemon mode).
  */
 export function generateConfigForPrint(adapter: McpClientAdapter, configPath: string): string {
   const { fullConfig, serversKey } = generateMcpClientConfig(adapter, configPath);

@@ -40,13 +40,22 @@
 ## Quick Start
 
 ```bash
+# Install globally
 npm install -g @sudosandwich/limps
+
+# Initialize in your project
 cd ~/Documents/my-planning-docs
 limps init
-# Follow the printed instructions to configure your MCP client
+
+# Start the HTTP daemon
+limps start
+
+# Generate MCP client config
+limps config print --client claude-code
+# Copy the output to your MCP client config file
 ```
 
-That's it. Your AI assistant now has access to your documents and nothing else. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
+That's it. Your AI assistant now has access to your documents via HTTP transport. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
 
 ## Features
 
@@ -118,13 +127,45 @@ npm install -g @sudosandwich/limps
 
 ## Upgrading from v2
 
-v3 removes the centralized project registry in favor of per-project config files. If you previously used `limps config add`, `config use`, or the `--project` flag:
+v3 introduces major changes:
+
+### HTTP Transport (Breaking Change)
+
+v3 uses **HTTP transport exclusively**. stdio transport has been removed.
+
+**Migration steps:**
+
+1. **Start the HTTP daemon** for each project:
+   ```bash
+   limps start --config /path/to/.limps/config.json
+   ```
+
+2. **Update MCP client configs** — Replace stdio configs with HTTP transport:
+   ```json
+   {
+     "mcpServers": {
+       "limps-planning-myproject": {
+         "transport": {
+           "type": "http",
+           "url": "http://127.0.0.1:4269/mcp"
+         }
+       }
+     }
+   }
+   ```
+   Use `limps config print` to generate the correct snippet.
+
+### Per-Project Configs (Breaking Change)
+
+v3 removes the centralized project registry. If you previously used `limps config add`, `config use`, or the `--project` flag:
 
 1. **Run `limps init`** in each project directory to create `.limps/config.json`.
-2. **Update MCP client configs** — replace any `--project <name>` args with `--config /path/to/.limps/config.json`. Use `limps config print` to generate the correct snippet.
+2. **Update MCP client configs** — Replace `--project <name>` with HTTP transport config (see above).
 3. **Remove environment variable** — `LIMPS_PROJECT` no longer exists. Use `MCP_PLANNING_CONFIG` to override config path.
 
-Removed commands: `config list`, `config use`, `config add`, `config remove`, `config set`, `config discover`, `config migrate`, `config sync-mcp`. Replaced by: `limps init` + `limps config print`.
+**Removed commands:** `config list`, `config use`, `config add`, `config remove`, `config set`, `config discover`, `config migrate`, `config sync-mcp`, `serve`.
+
+**Replaced by:** `limps init` + `limps start` + `limps config print`.
 
 ## Project Setup
 
@@ -167,6 +208,8 @@ The output tells you exactly what JSON (or TOML) to add and where the config fil
 
 ### Per-Client Examples
 
+All clients connect to the HTTP daemon. Start the daemon first with `limps start`, then configure your client.
+
 <details>
 <summary><b>Cursor</b></summary>
 
@@ -175,9 +218,11 @@ Add to `.cursor/mcp.json` in your project:
 ```json
 {
   "mcpServers": {
-    "limps": {
-      "command": "limps",
-      "args": ["serve", "--config", "/path/to/.limps/config.json"]
+    "limps-planning-myproject": {
+      "transport": {
+        "type": "http",
+        "url": "http://127.0.0.1:4269/mcp"
+      }
     }
   }
 }
@@ -193,9 +238,11 @@ Add to `.mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
-    "limps": {
-      "command": "limps",
-      "args": ["serve", "--config", "/path/to/.limps/config.json"]
+    "limps-planning-myproject": {
+      "transport": {
+        "type": "http",
+        "url": "http://127.0.0.1:4269/mcp"
+      }
     }
   }
 }
@@ -206,48 +253,16 @@ Add to `.mcp.json` in your project root:
 <details>
 <summary><b>Claude Desktop</b></summary>
 
-Claude Desktop runs in a sandbox—use `npx` instead of global binaries.
-
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "limps": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@sudosandwich/limps",
-        "serve",
-        "--config",
-        "/path/to/.limps/config.json"
-      ]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>Windows (npx)</b></summary>
-
-On Windows, use `cmd /c` to run `npx`:
-
-```json
-{
-  "mcpServers": {
-    "limps": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@sudosandwich/limps",
-        "serve",
-        "--config",
-        "C:\\path\\to\\.limps\\config.json"
-      ]
+    "limps-planning-myproject": {
+      "transport": {
+        "type": "http",
+        "url": "http://127.0.0.1:4269/mcp"
+      }
     }
   }
 }
@@ -261,9 +276,9 @@ On Windows, use `cmd /c` to run `npx`:
 Add to `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.limps]
-command = "limps"
-args = ["serve", "--config", "/path/to/.limps/config.json"]
+[mcp_servers.limps-planning-myproject.transport]
+type = "http"
+url = "http://127.0.0.1:4269/mcp"
 ```
 
 </details>
@@ -271,12 +286,12 @@ args = ["serve", "--config", "/path/to/.limps/config.json"]
 <details>
 <summary><b>ChatGPT</b></summary>
 
-ChatGPT requires a remote MCP server over HTTPS. Deploy limps behind an MCP-compatible HTTP/SSE proxy.
+ChatGPT requires a remote MCP server over HTTPS. Deploy limps behind an MCP-compatible HTTPS reverse proxy (nginx, Caddy, etc.) with authentication.
 
 In ChatGPT → Settings → Connectors → Add custom connector:
 
 - **Server URL**: `https://your-domain.example/mcp`
-- **Authentication**: Configure as needed
+- **Authentication**: Configure as needed for your proxy
 
 Print setup instructions:
 
@@ -288,38 +303,47 @@ limps config print --client chatgpt
 
 ## Transport
 
-### stdio (default)
+limps v3 uses **HTTP transport exclusively** via a persistent daemon. This allows multiple MCP clients to share a single server instance, avoiding file descriptor bloat from multiple stdio processes.
 
-Your MCP client spawns `limps serve` as a child process. No daemon required.
-
-### HTTP (persistent daemon)
-
-Run limps as a long-lived HTTP server that multiple clients can connect to:
+### Start the HTTP daemon
 
 ```bash
 # Start the daemon
 limps start --config /path/to/config.json
 
-# Check status
-limps status-server
+# Check status (shows uptime, sessions, PID)
+limps status-server --config /path/to/config.json
 
 # Stop the daemon
-limps stop
+limps stop --config /path/to/config.json
 ```
 
-Configure your MCP client to use HTTP transport:
+The daemon runs at `http://127.0.0.1:4269/mcp` by default. Use `limps config print` to generate the correct MCP client configuration:
+
+```bash
+limps config print --client claude-code --config /path/to/config.json
+```
+
+### MCP Client Configuration
+
+All clients use HTTP transport. Example config:
 
 ```json
 {
   "mcpServers": {
-    "limps": {
-      "transport": { "type": "http", "url": "http://127.0.0.1:4269/mcp" }
+    "limps-planning-myproject": {
+      "transport": {
+        "type": "http",
+        "url": "http://127.0.0.1:4269/mcp"
+      }
     }
   }
 }
 ```
 
-Server config options (set in `config.json` under `"server"`):
+### Server Config Options
+
+Customize the HTTP server by adding a `"server"` section to your `config.json`:
 
 | Option             | Default        | Description                              |
 | ------------------ | -------------- | ---------------------------------------- |
@@ -331,7 +355,18 @@ Server config options (set in `config.json` under `"server"`):
 | `maxBodySize`      | `10485760`     | Max request body in bytes (10 MB)        |
 | `rateLimit`        | `100 req/min`  | Rate limit per client IP                 |
 
-- **Remote clients**: Use an MCP-compatible proxy for HTTPS clients (e.g., ChatGPT).
+Example custom server config:
+
+```json
+{
+  "server": {
+    "port": 8080,
+    "host": "0.0.0.0"
+  }
+}
+```
+
+- **Remote clients**: Use an MCP-compatible HTTPS proxy for remote clients (e.g., ChatGPT).
 
 ## CLI Commands
 
@@ -348,12 +383,11 @@ limps next-task <plan>        # Get highest-priority available task
 
 ```bash
 limps init [path]             # Initialize new project
-limps serve                   # Start MCP server (stdio)
-limps start                   # Start persistent HTTP daemon
+limps start                   # Start HTTP daemon (required for MCP clients)
 limps stop                    # Stop HTTP daemon
 limps status-server           # Show HTTP daemon status
 limps config show             # Display current config
-limps config print     # Print MCP client config snippets
+limps config print            # Print MCP client config snippets
 ```
 
 ### Health & Automation

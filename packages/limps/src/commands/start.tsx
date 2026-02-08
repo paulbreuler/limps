@@ -4,28 +4,15 @@ import { z } from 'zod';
 import { spawn } from 'child_process';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { get } from 'http';
 import { loadConfig, getHttpServerConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
 import { startHttpServer, stopHttpServer } from '../server-http.js';
-
-/**
- * Check if the daemon is responding to health requests.
- */
-async function checkDaemonHealth(host: string, port: number, timeoutMs = 1000): Promise<boolean> {
-  return new Promise((resolve) => {
-    const req = get(`http://${host}:${port}/health`, { timeout: timeoutMs }, (res) => {
-      resolve(res.statusCode === 200);
-    });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.setTimeout(timeoutMs);
-  });
-}
+import {
+  checkDaemonHealth,
+  isDaemonHealthy,
+  type HttpClientOptions,
+} from '../utils/http-client.js';
 
 export const description = 'Start the limps HTTP server';
 
@@ -93,6 +80,15 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
           });
           child.unref();
 
+          // HTTP options for health checks
+          const httpOptions: HttpClientOptions = {
+            timeout: 500,
+            retries: 0,
+            logger: process.env.DEBUG
+              ? (msg): void => console.error(`[limps:http] ${msg}`)
+              : undefined,
+          };
+
           // Poll for daemon startup with timeout (max 5s)
           const startTime = Date.now();
           const timeout = 5000;
@@ -103,22 +99,36 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
             daemon = getRunningDaemon(pidFilePath);
             if (daemon) {
               // Verify the daemon is actually responding to requests
-              const isHealthy = await checkDaemonHealth(daemon.host, daemon.port, 500);
+              const isHealthy = await isDaemonHealthy(daemon.host, daemon.port, httpOptions);
               if (isHealthy) break;
             }
             await new Promise<void>((resolve) => setTimeout(resolve, pollInterval));
           }
+
           if (daemon) {
-            // Final verification that the daemon is healthy
-            const isHealthy = await checkDaemonHealth(daemon.host, daemon.port, 1000);
-            if (isHealthy) {
+            // Final verification with detailed error handling
+            const healthResult = await checkDaemonHealth(daemon.host, daemon.port, {
+              ...httpOptions,
+              timeout: 1000,
+            });
+
+            if (healthResult.ok && healthResult.data.status === 'ok') {
               setStatus(
                 `limps daemon started (PID ${daemon.pid}) on http://${daemon.host}:${daemon.port}/mcp`
               );
             } else {
-              setError(
-                'Daemon started but is not responding to health checks. Check logs or try: limps start --foreground'
-              );
+              const errorMsg = healthResult.ok
+                ? `Health check returned status: ${healthResult.data.status}`
+                : `${healthResult.error.message} (${healthResult.error.code})`;
+
+              const suggestion =
+                !healthResult.ok && healthResult.error.code === 'TIMEOUT'
+                  ? 'Daemon may be slow to start. Try increasing timeout or check system resources.'
+                  : !healthResult.ok && healthResult.error.code === 'NETWORK_ERROR'
+                    ? 'Cannot connect to daemon. Check if port is blocked or already in use.'
+                    : 'Try running: limps start --foreground';
+
+              setError(`${errorMsg}\n${suggestion}\n\nRun with DEBUG=1 for more details.`);
             }
           } else {
             setError(

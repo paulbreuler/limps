@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { z } from 'zod';
-import { request as httpRequest } from 'http';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { checkDaemonHealth, type HttpClientOptions } from '../utils/http-client.js';
 
 export const description = 'Show limps HTTP server status';
 
@@ -18,14 +18,6 @@ interface Props {
   options: z.infer<typeof options>;
 }
 
-interface HealthResponse {
-  status: string;
-  sessions: number;
-  uptime: number;
-  pid: number;
-  sessionTimeoutMs?: number;
-}
-
 interface StatusResult {
   running: boolean;
   pid?: number;
@@ -36,36 +28,7 @@ interface StatusResult {
   sessions?: number;
   sessionTimeoutMs?: number;
   healthy?: boolean;
-}
-
-/**
- * Fetch health info from the daemon's /health endpoint.
- */
-function fetchHealth(host: string, port: number): Promise<HealthResponse | null> {
-  return new Promise((resolve) => {
-    const req = httpRequest(
-      { hostname: host, port, method: 'GET', path: '/health', timeout: 3000 },
-      (res) => {
-        let body = '';
-        res.on('data', (chunk: Buffer) => {
-          body += chunk.toString();
-        });
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(body) as HealthResponse);
-          } catch {
-            resolve(null);
-          }
-        });
-      }
-    );
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve(null);
-    });
-    req.end();
-  });
+  healthError?: string;
 }
 
 /**
@@ -81,17 +44,38 @@ function getServerStatus(opts: z.infer<typeof options>): Promise<StatusResult> {
     return Promise.resolve({ running: false });
   }
 
-  return fetchHealth(daemon.host, daemon.port).then((health) => ({
-    running: true,
-    pid: daemon.pid,
-    host: daemon.host,
-    port: daemon.port,
-    startedAt: daemon.startedAt,
-    uptime: health?.uptime,
-    sessions: health?.sessions,
-    sessionTimeoutMs: health?.sessionTimeoutMs,
-    healthy: health?.status === 'ok',
-  }));
+  const httpOptions: HttpClientOptions = {
+    timeout: 3000,
+    retries: 1,
+    retryDelay: 500,
+    logger: process.env.DEBUG ? (msg): void => console.error(`[limps:http] ${msg}`) : undefined,
+  };
+
+  return checkDaemonHealth(daemon.host, daemon.port, httpOptions).then((result) => {
+    if (result.ok) {
+      return {
+        running: true,
+        pid: daemon.pid,
+        host: daemon.host,
+        port: daemon.port,
+        startedAt: daemon.startedAt,
+        uptime: result.data.uptime,
+        sessions: result.data.sessions,
+        sessionTimeoutMs: result.data.sessionTimeoutMs,
+        healthy: result.data.status === 'ok',
+      };
+    } else {
+      return {
+        running: true,
+        pid: daemon.pid,
+        host: daemon.host,
+        port: daemon.port,
+        startedAt: daemon.startedAt,
+        healthy: false,
+        healthError: `${result.error.message} (${result.error.code})`,
+      };
+    }
+  });
 }
 
 export default function StatusServerCommand({ options: opts }: Props): React.ReactNode {
@@ -157,7 +141,11 @@ function StatusDisplay({ opts }: { opts: z.infer<typeof options> }): React.React
       </Text>
       <Text>Uptime: {uptimeStr}</Text>
       <Text>Sessions: {result.sessions ?? 'unknown'}</Text>
-      {result.healthy === false && <Text color="red">Health check failed</Text>}
+      {result.healthy === false && (
+        <Text color="red">
+          Health check failed{result.healthError ? `: ${result.healthError}` : ''}
+        </Text>
+      )}
     </Box>
   );
 }
