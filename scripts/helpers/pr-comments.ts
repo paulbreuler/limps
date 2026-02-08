@@ -160,8 +160,8 @@ const replyCommand = (
 };
 
 const resolveCommand = (threadId: string): void => {
-  const query = `mutation { resolveReviewThread(input: {threadId: "${threadId}"}) { thread { isResolved } } }`;
-  runGh(['api', 'graphql', '-f', `query=${query}`, '--silent']);
+  const query = `mutation($threadId: ID!) { resolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } } }`;
+  runGh(['api', 'graphql', '-f', `query=${query}`, '-F', `threadId=${threadId}`, '--silent']);
   console.log(`✅ Resolved thread ${threadId}`);
 };
 
