@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.5...limps-headless-v0.1.6) (2026-02-09)
+
+
+### Bug Fixes
+
+* **limps:** use OS-standard directories for PID files with system-wide daemon discovery ([#111](https://github.com/paulbreuler/limps/issues/111)) ([42fc4d2](https://github.com/paulbreuler/limps/commit/42fc4d2878a437902f441bc33cc92397f84cb609))
+
 ## [0.1.5](https://github.com/paulbreuler/limps/compare/limps-headless-v0.1.4...limps-headless-v0.1.5) (2026-02-01)
 
 

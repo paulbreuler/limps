@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/paulbreuler/limps/compare/limps-v3.1.0...limps-v3.1.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* **limps:** use OS-standard directories for PID files with system-wide daemon discovery ([#111](https://github.com/paulbreuler/limps/issues/111)) ([42fc4d2](https://github.com/paulbreuler/limps/commit/42fc4d2878a437902f441bc33cc92397f84cb609))
+
 ## [3.1.0](https://github.com/paulbreuler/limps/compare/limps-v3.0.0...limps-v3.1.0) (2026-02-08)
 
 
