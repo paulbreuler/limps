@@ -218,7 +218,7 @@ describe('config-cmd', () => {
   });
 
   describe('generateConfigForPrint', () => {
-    it('generates HTTP transport config for Claude Desktop', () => {
+    it('generates stdio transport config for Claude Desktop', () => {
       const cfgPath = createConfig('project-a');
 
       const adapter = getAdapter('claude');
@@ -227,18 +227,20 @@ describe('config-cmd', () => {
       expect(output).toContain('Claude Desktop Configuration');
       expect(output).toContain('mcpServers');
       expect(output).toContain('limps-planning-project-a');
-      expect(output).toContain('transport');
-      expect(output).toContain('http://127.0.0.1:4269/mcp');
+      expect(output).toContain('command');
+      expect(output).toContain('limps');
+      expect(output).toContain('serve');
       // Should contain valid JSON
       const jsonMatch = output.match(/\{[\s\S]*\}/);
       expect(jsonMatch).toBeTruthy();
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         expect(parsed.mcpServers).toBeDefined();
+        expect(parsed.mcpServers['limps-planning-project-a'].command).toBe('limps');
       }
     });
 
-    it('generates HTTP transport config for Cursor', () => {
+    it('generates stdio transport config for Cursor', () => {
       const cfgPath = createConfig('project-a');
 
       const adapter = getAdapter('cursor');
@@ -247,7 +249,8 @@ describe('config-cmd', () => {
       expect(output).toContain('Cursor Configuration');
       expect(output).toContain('mcp.servers');
       expect(output).toContain('limps-planning-project-a');
-      expect(output).toContain('transport');
+      expect(output).toContain('command');
+      expect(output).toContain('limps');
       // Should contain valid JSON
       const jsonMatch = output.match(/\{[\s\S]*\}/);
       expect(jsonMatch).toBeTruthy();
@@ -356,30 +359,31 @@ describe('config-cmd', () => {
     });
   });
 
-  describe('HTTP Transport Configuration', () => {
+  describe('Transport Configuration', () => {
     describe('generateMcpClientConfig', () => {
-      it('generates HTTP transport config for Claude Desktop', () => {
+      it('generates stdio transport config for Claude Desktop', () => {
         const cfgPath = createConfig('http-claude');
         const adapter = getAdapter('claude');
 
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport');
-        expect(serverConfig).toHaveProperty('transport.type', 'http');
-        expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:4269/mcp');
+        expect(serverConfig).toHaveProperty('command', 'limps');
+        expect(serverConfig).toHaveProperty('args');
+        expect((serverConfig as any).args).toContain('serve');
+        expect((serverConfig as any).args).toContain('--config');
       });
 
-      it('generates HTTP transport config for Cursor', () => {
+      it('generates stdio transport config for Cursor', () => {
         const cfgPath = createConfig('http-cursor');
         const adapter = getAdapter('cursor');
 
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport');
-        expect(serverConfig).toHaveProperty('transport.type', 'http');
-        expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:4269/mcp');
+        expect(serverConfig).toHaveProperty('command', 'limps');
+        expect(serverConfig).toHaveProperty('args');
+        expect((serverConfig as any).args).toContain('serve');
       });
 
       it('generates HTTP transport config for Claude Code', () => {
@@ -389,9 +393,8 @@ describe('config-cmd', () => {
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport');
-        expect(serverConfig).toHaveProperty('transport.type', 'http');
-        expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:4269/mcp');
+        expect(serverConfig).toHaveProperty('type', 'http');
+        expect(serverConfig).toHaveProperty('url', 'http://127.0.0.1:4269/mcp');
       });
 
       it('generates HTTP transport config for Codex', () => {
@@ -401,9 +404,8 @@ describe('config-cmd', () => {
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport');
-        expect(serverConfig).toHaveProperty('transport.type', 'http');
-        expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:4269/mcp');
+        expect(serverConfig).toHaveProperty('type', 'http');
+        expect(serverConfig).toHaveProperty('url', 'http://127.0.0.1:4269/mcp');
       });
 
       it('generates HTTP transport config for OpenCode', () => {
@@ -413,9 +415,8 @@ describe('config-cmd', () => {
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport');
-        expect(serverConfig).toHaveProperty('transport.type', 'http');
-        expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:4269/mcp');
+        expect(serverConfig).toHaveProperty('type', 'http');
+        expect(serverConfig).toHaveProperty('url', 'http://127.0.0.1:4269/mcp');
       });
     });
 
@@ -443,7 +444,7 @@ describe('config-cmd', () => {
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport.url', 'http://127.0.0.1:8080/mcp');
+        expect(serverConfig).toHaveProperty('url', 'http://127.0.0.1:8080/mcp');
       });
 
       it('respects custom host from config.json', () => {
@@ -469,7 +470,7 @@ describe('config-cmd', () => {
         const { servers } = generateMcpClientConfig(adapter, cfgPath);
         const serverConfig = Object.values(servers)[0];
 
-        expect(serverConfig).toHaveProperty('transport.url', 'http://0.0.0.0:4269/mcp');
+        expect(serverConfig).toHaveProperty('url', 'http://0.0.0.0:4269/mcp');
       });
     });
 
@@ -480,7 +481,6 @@ describe('config-cmd', () => {
 
         const output = generateConfigForPrint(adapter, cfgPath);
 
-        expect(output).toContain('"transport"');
         expect(output).toContain('"type": "http"');
         expect(output).toContain('http://127.0.0.1:4269/mcp');
       });
@@ -494,7 +494,6 @@ describe('config-cmd', () => {
         const output = generateConfigForPrint(adapter, cfgPath);
 
         expect(output).toContain('[mcp_servers.');
-        expect(output).toContain('.transport]');
         expect(output).toContain('type = "http"');
         expect(output).toContain('url = "http://127.0.0.1:4269/mcp"');
       });

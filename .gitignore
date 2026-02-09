@@ -58,3 +58,6 @@ opencode.json
 
 # Local limps configuration (repo-specific)
 .limps/
+
+# MCP client configuration (local development)
+.mcp.json

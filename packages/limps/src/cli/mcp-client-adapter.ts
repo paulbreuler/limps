@@ -8,18 +8,24 @@ import { homedir } from 'os';
 
 /**
  * MCP server configuration entry.
- * limps v3 uses HTTP transport exclusively (persistent daemon mode).
+ * Supports both stdio and HTTP transports depending on client capabilities.
  */
-export interface McpServerConfig {
-  transport: {
-    type: 'http';
-    url: string;
-  };
+export type McpServerConfig = StdioServerConfig | HttpServerConfig;
+
+export interface StdioServerConfig {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
+export interface HttpServerConfig {
+  type: 'http';
+  url: string;
 }
 
 /**
  * Adapter interface for MCP client configurations.
- * All adapters generate HTTP transport configs (limps v3 daemon mode).
+ * Adapters can generate either stdio or HTTP transport configs depending on client support.
  */
 export interface McpClientAdapter {
   /** Get the config file path for this client */
@@ -31,8 +37,8 @@ export interface McpClientAdapter {
   /** Whether the servers key should be treated as a flat key or nested path (default: nested) */
   useFlatKey?(): boolean;
 
-  /** Create HTTP transport server config for a limps project */
-  createHttpServerConfig(host: string, port: number): McpServerConfig;
+  /** Create server config for a limps project (stdio or HTTP depending on client) */
+  createServerConfig(configPath: string, host?: string, port?: number): McpServerConfig;
 
   /** Get display name for this client */
   getDisplayName(): string;
@@ -40,7 +46,8 @@ export interface McpClientAdapter {
 
 /**
  * Claude Desktop adapter
- * Uses: mcpServers key, HTTP transport, ~/Library/Application Support/Claude/claude_desktop_config.json
+ * Uses: mcpServers key, stdio transport, ~/Library/Application Support/Claude/claude_desktop_config.json
+ * Note: Claude Desktop does not support HTTP transport yet, uses stdio with command/args
  */
 export class ClaudeDesktopAdapter implements McpClientAdapter {
   getConfigPath(): string {
@@ -52,12 +59,10 @@ export class ClaudeDesktopAdapter implements McpClientAdapter {
     return 'mcpServers';
   }
 
-  createHttpServerConfig(host: string, port: number): McpServerConfig {
+  createServerConfig(configPath: string): McpServerConfig {
     return {
-      transport: {
-        type: 'http',
-        url: `http://${host}:${port}/mcp`,
-      },
+      command: 'limps',
+      args: ['serve', '--config', configPath],
     };
   }
 
@@ -68,7 +73,8 @@ export class ClaudeDesktopAdapter implements McpClientAdapter {
 
 /**
  * Cursor adapter
- * Uses: mcp.servers key, HTTP transport, VS Code settings.json location
+ * Uses: mcp.servers key, stdio transport, VS Code settings.json location
+ * Note: Cursor uses stdio transport with command/args
  */
 export class CursorAdapter implements McpClientAdapter {
   private getSettingsPath(): string {
@@ -108,12 +114,10 @@ export class CursorAdapter implements McpClientAdapter {
     return true;
   }
 
-  createHttpServerConfig(host: string, port: number): McpServerConfig {
+  createServerConfig(configPath: string): McpServerConfig {
     return {
-      transport: {
-        type: 'http',
-        url: `http://${host}:${port}/mcp`,
-      },
+      command: 'limps',
+      args: ['serve', '--config', configPath],
     };
   }
 
@@ -125,6 +129,7 @@ export class CursorAdapter implements McpClientAdapter {
 /**
  * Claude Code adapter
  * Uses: mcpServers key, HTTP transport, ~/.claude.json (user scope)
+ * Note: Claude Code supports HTTP transport to daemons
  */
 export class ClaudeCodeAdapter implements McpClientAdapter {
   getConfigPath(): string {
@@ -136,12 +141,10 @@ export class ClaudeCodeAdapter implements McpClientAdapter {
     return 'mcpServers';
   }
 
-  createHttpServerConfig(host: string, port: number): McpServerConfig {
+  createServerConfig(_configPath: string, host = '127.0.0.1', port = 4269): McpServerConfig {
     return {
-      transport: {
-        type: 'http',
-        url: `http://${host}:${port}/mcp`,
-      },
+      type: 'http',
+      url: `http://${host}:${port}/mcp`,
     };
   }
 
@@ -153,6 +156,7 @@ export class ClaudeCodeAdapter implements McpClientAdapter {
 /**
  * OpenAI Codex adapter
  * Uses: mcp_servers key, TOML config at ~/.codex/config.toml
+ * Note: Codex supports HTTP transport to daemons
  */
 export class CodexAdapter implements McpClientAdapter {
   getConfigPath(): string {
@@ -164,12 +168,10 @@ export class CodexAdapter implements McpClientAdapter {
     return 'mcp_servers';
   }
 
-  createHttpServerConfig(host: string, port: number): McpServerConfig {
+  createServerConfig(_configPath: string, host = '127.0.0.1', port = 4269): McpServerConfig {
     return {
-      transport: {
-        type: 'http',
-        url: `http://${host}:${port}/mcp`,
-      },
+      type: 'http',
+      url: `http://${host}:${port}/mcp`,
     };
   }
 
@@ -225,12 +227,13 @@ export function getLocalConfigDisplayName(clientType: LocalMcpClientType): strin
 
 /**
  * Local workspace MCP config adapter
- * Uses: mcpServers key, limps command, client-specific local config paths
+ * Uses: mcpServers key, HTTP transport, client-specific local config paths
  *
  * Default paths by client:
  * - Cursor: .cursor/mcp.json
  * - Claude Code: .mcp.json
  * - Custom: user-specified path
+ * Note: Local workspace configs support HTTP transport to daemons
  */
 export class LocalMcpAdapter implements McpClientAdapter {
   private configPath: string;
@@ -250,12 +253,10 @@ export class LocalMcpAdapter implements McpClientAdapter {
     return this.clientType === 'opencode' ? 'mcp' : 'mcpServers';
   }
 
-  createHttpServerConfig(host: string, port: number): McpServerConfig {
+  createServerConfig(_configPath: string, host = '127.0.0.1', port = 4269): McpServerConfig {
     return {
-      transport: {
-        type: 'http',
-        url: `http://${host}:${port}/mcp`,
-      },
+      type: 'http',
+      url: `http://${host}:${port}/mcp`,
     };
   }
 

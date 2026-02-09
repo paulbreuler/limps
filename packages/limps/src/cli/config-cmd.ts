@@ -410,7 +410,7 @@ import { type McpClientAdapter, type McpServerConfig } from './mcp-client-adapte
 
 /**
  * Generate MCP server configuration JSON for a single limps project.
- * Always generates HTTP transport configuration (limps v3 daemon mode).
+ * Generates stdio or HTTP transport configuration depending on client support.
  *
  * @param adapter - MCP client adapter
  * @param configPath - Path to the limps config file
@@ -436,13 +436,13 @@ export function generateMcpClientConfig(
   const projectDir = parentDir === '.limps' ? basename(dirname(dirname(configPath))) : parentDir;
   const serverName = `limps-planning-${projectDir}`;
 
-  // Load HTTP server config
+  // Load server config for HTTP clients
   const config = loadConfig(configPath);
   const httpConfig = getHttpServerConfig(config);
 
-  // Build servers configuration (HTTP transport only)
+  // Build servers configuration (adapter determines stdio vs HTTP)
   const servers: Record<string, McpServerConfig> = {
-    [serverName]: adapter.createHttpServerConfig(httpConfig.host, httpConfig.port),
+    [serverName]: adapter.createServerConfig(configPath, httpConfig.host, httpConfig.port),
   };
 
   // Build full config structure
@@ -466,7 +466,7 @@ export function generateMcpClientConfig(
 
 /**
  * Generate config for printing.
- * Always generates HTTP transport configuration (limps v3 daemon mode).
+ * Generates stdio or HTTP transport configuration depending on client support.
  */
 export function generateConfigForPrint(adapter: McpClientAdapter, configPath: string): string {
   const { fullConfig, serversKey } = generateMcpClientConfig(adapter, configPath);

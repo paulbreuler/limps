@@ -44,8 +44,10 @@ limps is an MCP (Model Context Protocol) server for AI agent plan management. It
 **Entry Points:**
 
 - `src/cli.tsx` - Pastel-based CLI entry point (main user interface)
-- `src/index.ts` - Direct server invocation for backwards compatibility
+- `src/index.ts` - Direct server invocation for backwards compatibility (stdio transport)
 - `src/server-main.ts` - Server initialization with config loading, database setup, and file watcher
+- `src/server-http.ts` - HTTP daemon server using `StreamableHTTPServerTransport`
+- `src/commands/serve.tsx` - stdio-to-HTTP bridge for Claude Desktop/Cursor (uses `StreamableHTTPClientTransport`)
 
 **MCP Layer:**
 
@@ -74,7 +76,28 @@ limps is an MCP (Model Context Protocol) server for AI agent plan management. It
 **CLI Commands:**
 
 - `src/commands/` - Pastel/Ink React components for CLI subcommands
+  - `serve.tsx` - stdio-to-HTTP bridge (ensures daemon running, connects via HTTP client transport)
+  - `start.tsx` - HTTP daemon management (spawns/manages daemon process)
+  - `stop.tsx` - Stop HTTP daemon
+  - `status-server.tsx` - Show daemon status and sessions
 - `src/components/` - Shared React components for CLI output formatting
+
+**HTTP Daemon Architecture:**
+
+limps supports both stdio and HTTP transports:
+
+1. **stdio mode** (`limps` or `limps server`) - Direct stdio transport, used by MCP clients that spawn servers
+2. **HTTP daemon mode** (`limps start`) - Persistent HTTP server, shared across multiple clients
+3. **Bridge mode** (`limps serve`) - stdio-to-HTTP proxy for Claude Desktop/Cursor
+
+Bridge architecture (recommended for Claude Desktop/Cursor):
+```
+Claude Desktop → stdio → limps serve (bridge) → HTTP → shared daemon
+Cursor → stdio → limps serve (bridge) → HTTP → same daemon
+Claude Code → HTTP directly → same daemon
+```
+
+Benefits: One daemon process shared by all clients, resource-efficient, consistent behavior.
 
 ### Key Patterns
 

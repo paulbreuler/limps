@@ -40,6 +40,8 @@ export interface HealthCheckResponse {
   uptime: number;
   pid: number;
   sessionTimeoutMs?: number;
+  version?: string;
+  name?: string;
 }
 
 /**
