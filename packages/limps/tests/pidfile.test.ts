@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getPidFilePath,
   getSystemPidDir,
@@ -10,21 +10,37 @@ import {
   discoverRunningDaemons,
   type PidFileContents,
 } from '../src/pidfile.js';
-import { existsSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, rmSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
+import * as appPaths from '../src/utils/app-paths.js';
 
 describe('pidfile', () => {
   const testPort = 19999;
   let pidFilePath: string;
+  let testPidDir: string;
 
   beforeEach(() => {
+    // Create isolated temp directory for this test run
+    testPidDir = join(
+      tmpdir(),
+      `test-pidfile-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      'pids'
+    );
+    mkdirSync(testPidDir, { recursive: true });
+
+    // Mock getAppDataPath to return our temp directory
+    vi.spyOn(appPaths, 'getAppDataPath').mockReturnValue(testPidDir.replace(/\/pids$/, ''));
+
     pidFilePath = getPidFilePath(testPort);
   });
 
   afterEach(() => {
-    // Clean up PID file if it exists
-    if (existsSync(pidFilePath)) {
-      rmSync(pidFilePath, { force: true });
+    vi.restoreAllMocks();
+    // Clean up temp directory
+    const testRoot = testPidDir.replace(/\/pids$/, '');
+    if (existsSync(testRoot)) {
+      rmSync(testRoot, { recursive: true, force: true });
     }
   });
 

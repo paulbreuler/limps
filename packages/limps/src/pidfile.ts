@@ -29,11 +29,17 @@ export interface PidFileContents {
  * Creates the directory if it doesn't exist.
  *
  * @returns Path to the system PID directory
+ * @throws Error if directory cannot be created (e.g., permission denied, read-only filesystem)
  */
 export function getSystemPidDir(): string {
   const pidDir = join(getAppDataPath(), 'pids');
   if (!existsSync(pidDir)) {
-    mkdirSync(pidDir, { recursive: true });
+    try {
+      mkdirSync(pidDir, { recursive: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create PID directory at ${pidDir}: ${message}`);
+    }
   }
   return pidDir;
 }
