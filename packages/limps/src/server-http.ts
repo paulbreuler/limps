@@ -20,6 +20,7 @@ import { shutdownExtensions, type LoadedExtension } from './extensions/loader.js
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createRateLimiter, type RateLimiter } from './utils/rate-limiter.js';
 import { findProcessUsingPort } from './utils/port-checker.js';
+import { getPackageVersion, getPackageName } from './utils/version.js';
 
 /**
  * Mask a session ID for logging to avoid exposing full UUIDs.
@@ -165,6 +166,21 @@ export async function startHttpServer(configPathArg?: string): Promise<{
           uptime: startTime ? Math.floor((Date.now() - startTime.getTime()) / 1000) : 0,
           pid: process.pid,
           sessionTimeoutMs,
+          version: getPackageVersion(),
+          name: getPackageName(),
+        })
+      );
+      return;
+    }
+
+    // Version endpoint
+    if (url.pathname === '/version') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          name: getPackageName(),
+          version: getPackageVersion(),
+          nodeVersion: process.version,
         })
       );
       return;

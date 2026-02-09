@@ -215,6 +215,8 @@ describe('HTTP Server E2E', () => {
         sessions: number;
         uptime: number;
         pid: number;
+        version?: string;
+        name?: string;
       };
       expect(body.status).toBe('ok');
       expect(body.sessions).toBeTypeOf('number');
@@ -222,8 +224,43 @@ describe('HTTP Server E2E', () => {
       expect(body.pid).toBeTypeOf('number');
     });
 
+    it('should include version and name fields', async () => {
+      const res = await makeRequest({ host, port, method: 'GET', path: '/health' });
+      expect(res.status).toBe(200);
+
+      const body = JSON.parse(res.body) as {
+        version?: string;
+        name?: string;
+      };
+      expect(body.version).toBeTypeOf('string');
+      expect(body.version).toMatch(/^\d+\.\d+\.\d+/); // Semantic version format
+      expect(body.name).toBeTypeOf('string');
+      expect(body.name).toBe('@sudosandwich/limps');
+    });
+
     it('should include CORS headers', async () => {
       const res = await makeRequest({ host, port, method: 'GET', path: '/health' });
+      expect(res.headers['access-control-allow-origin']).toBe('*');
+    });
+  });
+
+  describe('/version endpoint', () => {
+    it('should return 200 with version info', async () => {
+      const res = await makeRequest({ host, port, method: 'GET', path: '/version' });
+      expect(res.status).toBe(200);
+
+      const body = JSON.parse(res.body) as {
+        name: string;
+        version: string;
+        nodeVersion: string;
+      };
+      expect(body.name).toBe('@sudosandwich/limps');
+      expect(body.version).toMatch(/^\d+\.\d+\.\d+/); // Semantic version format
+      expect(body.nodeVersion).toMatch(/^v\d+\.\d+\.\d+/); // Node version format
+    });
+
+    it('should include CORS headers', async () => {
+      const res = await makeRequest({ host, port, method: 'GET', path: '/version' });
       expect(res.headers['access-control-allow-origin']).toBe('*');
     });
   });

@@ -12,6 +12,7 @@ import {
   shutdownExtensions,
   type LoadedExtension,
 } from './extensions/loader.js';
+import { getPackageVersion } from './utils/version.js';
 
 /**
  * Create an MCP server instance with the given configuration.
@@ -33,7 +34,7 @@ export async function createServer(
 
   const server = new McpServer({
     name: 'limps',
-    version: '0.2.0',
+    version: getPackageVersion(),
   });
 
   // Tool context for handlers

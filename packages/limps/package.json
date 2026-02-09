@@ -26,6 +26,7 @@
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run build && npm test",
     "migrate:plan-feature-format": "npx tsx scripts/migrate-plan-feature-format.ts",
     "ci": "npm run validate",
+    "postinstall": "node postinstall/postinstall.cjs",
     "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
     "postpublish": "node scripts/cleanup-publish.cjs"
   },
@@ -53,6 +54,7 @@
   },
   "files": [
     "dist",
+    "postinstall",
     "README.md",
     "LICENSE"
   ],
