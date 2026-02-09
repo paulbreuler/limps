@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/paulbreuler/limps/compare/limps-v3.1.1...limps-v3.2.0) (2026-02-09)
+
+
+### Features
+
+* support both stdio and HTTP transports for MCP clients ([#114](https://github.com/paulbreuler/limps/issues/114)) ([660ad59](https://github.com/paulbreuler/limps/commit/660ad59861a1e1fe2d1da7af92ffa01bd005bfff))
+
 ## [3.1.1](https://github.com/paulbreuler/limps/compare/limps-v3.1.0...limps-v3.1.1) (2026-02-09)
 
 
