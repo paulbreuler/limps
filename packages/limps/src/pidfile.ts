@@ -1,10 +1,17 @@
 /**
  * PID file management for the limps HTTP daemon.
+ *
+ * PID files are stored in OS-standard application directories:
+ * - macOS: ~/Library/Application Support/limps/pids/
+ * - Windows: %APPDATA%/limps/pids/
+ * - Linux: $XDG_DATA_HOME/limps/pids/ or ~/.local/share/limps/pids/
+ *
+ * This allows system-wide awareness of which ports are in use.
  */
 
-import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
-import { homedir } from 'os';
+import { getAppDataPath } from './utils/app-paths.js';
 
 /**
  * Contents of a PID file.
@@ -14,17 +21,17 @@ export interface PidFileContents {
   port: number;
   host: string;
   startedAt: string;
-  configPath?: string; // Optional: track which config this daemon is using
+  configPath?: string;
 }
 
 /**
- * Get the system-level directory for storing limps PID files.
- * Uses ~/.limps/pids/ for persistence across sessions.
+ * Get the system-wide PID directory.
+ * Creates the directory if it doesn't exist.
  *
- * @returns Path to the system-level PID directory
+ * @returns Path to the system PID directory
  */
 export function getSystemPidDir(): string {
-  const pidDir = join(homedir(), '.limps', 'pids');
+  const pidDir = join(getAppDataPath(), 'pids');
   if (!existsSync(pidDir)) {
     mkdirSync(pidDir, { recursive: true });
   }
@@ -32,23 +39,17 @@ export function getSystemPidDir(): string {
 }
 
 /**
- * Get the PID file path for a limps daemon.
- * Now stores in system-level directory (~/.limps/pids/) and uses port number
- * in filename so daemons can be tracked across all projects.
+ * Get the PID file path for a given port.
  *
- * @param dataPath - The data directory from config (for backward compatibility)
- * @param port - Port number for the daemon (required for new behavior)
- * @returns Path to the PID file
+ * PID files are stored system-wide by port number to prevent
+ * duplicate daemons on the same port across different projects.
+ *
+ * @param port - The HTTP server port
+ * @returns Path to the PID file (e.g., ~/Library/Application Support/limps/pids/limps-4269.pid)
  */
-export function getPidFilePath(dataPath: string, port?: number): string {
-  if (port !== undefined) {
-    // New behavior: system-level PID file named by port
-    const systemPidDir = getSystemPidDir();
-    return join(systemPidDir, `limps-${port}.pid`);
-  }
-
-  // Old behavior: per-project PID file (deprecated but kept for compatibility)
-  return join(dataPath, 'limps.pid');
+export function getPidFilePath(port: number): string {
+  const systemPidDir = getSystemPidDir();
+  return join(systemPidDir, `limps-${port}.pid`);
 }
 
 /**
@@ -141,4 +142,35 @@ export function getRunningDaemon(pidFilePath: string): PidFileContents | null {
     return null;
   }
   return contents;
+}
+
+/**
+ * Scan the system PID directory and return all running daemons.
+ * Cleans up stale PID files automatically.
+ *
+ * @returns Array of PID file contents for all running daemons
+ */
+export function discoverRunningDaemons(): PidFileContents[] {
+  const pidDir = getSystemPidDir();
+  const results: PidFileContents[] = [];
+
+  let entries: string[];
+  try {
+    entries = readdirSync(pidDir);
+  } catch {
+    return results;
+  }
+
+  for (const entry of entries) {
+    if (!entry.startsWith('limps-') || !entry.endsWith('.pid')) {
+      continue;
+    }
+    const filePath = join(pidDir, entry);
+    const daemon = getRunningDaemon(filePath);
+    if (daemon) {
+      results.push(daemon);
+    }
+  }
+
+  return results;
 }

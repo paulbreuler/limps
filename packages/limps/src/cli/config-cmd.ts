@@ -373,11 +373,12 @@ export function resetAll(configPath: string, options: { force?: boolean } = {}):
     return log;
   }
 
+  const httpConfig = getHttpServerConfig(config);
   const dataPath = config.dataPath;
 
   // Stop running daemon
   try {
-    const pidFilePath = getPidFilePath(dataPath);
+    const pidFilePath = getPidFilePath(httpConfig.port);
     const daemon = getRunningDaemon(pidFilePath);
     if (daemon) {
       try {
