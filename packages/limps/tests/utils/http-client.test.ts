@@ -15,6 +15,24 @@ import {
   type HealthCheckResponse,
 } from '../../src/utils/http-client.js';
 
+/**
+ * Helper to get a currently unused port by briefly listening on an ephemeral port.
+ * @returns Promise resolving to an available port number
+ */
+async function getUnusedPort(): Promise<number> {
+  return new Promise<number>((resolve) => {
+    const tempServer = createServer();
+    tempServer.listen(0, '127.0.0.1', () => {
+      const addr = tempServer.address();
+      let portToUse = 0;
+      if (addr && typeof addr === 'object') {
+        portToUse = addr.port;
+      }
+      tempServer.close(() => resolve(portToUse));
+    });
+  });
+}
+
 describe('http-client', () => {
   let server: HttpServer | null = null;
   let port = 0;
@@ -104,7 +122,7 @@ describe('http-client', () => {
     });
 
     it('should return NETWORK_ERROR for connection refused', async () => {
-      const unusedPort = 59999; // Port where nothing is listening
+      const unusedPort = await getUnusedPort(); // Get an ephemeral port where nothing is listening
 
       const result = await checkDaemonHealth('127.0.0.1', unusedPort, { timeout: 500 });
 
@@ -166,7 +184,7 @@ describe('http-client', () => {
     });
 
     it('should retry on NETWORK_ERROR when configured', async () => {
-      const unusedPort = 59998;
+      const unusedPort = await getUnusedPort();
       const logs: string[] = [];
 
       const startTime = Date.now();
@@ -345,7 +363,7 @@ describe('http-client', () => {
     });
 
     it('should return false for NETWORK_ERROR', async () => {
-      const unusedPort = 59997;
+      const unusedPort = await getUnusedPort();
 
       const result = await isDaemonHealthy('127.0.0.1', unusedPort, { timeout: 200 });
 

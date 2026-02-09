@@ -65,7 +65,7 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
   // Check for existing daemon BEFORE initializing resources to avoid leaks
   // Use system-level PID file based on port number
-  const pidFilePath = getPidFilePath(preConfig.dataPath, preHttpConfig.port);
+  const pidFilePath = getPidFilePath(preHttpConfig.port);
   const existing = getRunningDaemon(pidFilePath);
   if (existing) {
     throw new Error(
@@ -373,7 +373,7 @@ export async function stopHttpServer(): Promise<void> {
   // Clean up PID file
   if (resources) {
     const httpConfig = getHttpServerConfig(resources.config);
-    const pidFilePath = getPidFilePath(resources.config.dataPath, httpConfig.port);
+    const pidFilePath = getPidFilePath(httpConfig.port);
     removePidFile(pidFilePath);
 
     // Shut down shared resources

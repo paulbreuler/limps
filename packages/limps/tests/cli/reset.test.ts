@@ -86,7 +86,7 @@ describe('resetAll', () => {
   });
 
   it('stops running daemon', () => {
-    const { configPath, dataPath } = setupProject();
+    const { configPath } = setupProject();
 
     // Mock getRunningDaemon to return a fake daemon
     const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
@@ -104,7 +104,8 @@ describe('resetAll', () => {
     expect(logText).toContain('Stopped daemon');
     expect(logText).toContain('PID 99999');
     expect(killSpy).toHaveBeenCalledWith(99999, 'SIGTERM');
-    expect(removePidSpy).toHaveBeenCalledWith(pidfile.getPidFilePath(dataPath));
+    // PID file should be called with default port 4269
+    expect(removePidSpy).toHaveBeenCalledWith(pidfile.getPidFilePath(4269));
   });
 
   it('handles corrupt config gracefully', () => {

@@ -27,7 +27,7 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
       const configPath = resolveConfigPath(opts.config);
       const config = loadConfig(configPath);
       const httpConfig = getHttpServerConfig(config);
-      const pidFilePath = getPidFilePath(config.dataPath, httpConfig.port);
+      const pidFilePath = getPidFilePath(httpConfig.port);
       const daemon = getRunningDaemon(pidFilePath);
 
       if (!daemon) {

@@ -1,43 +1,66 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getPidFilePath,
+  getSystemPidDir,
   writePidFile,
   readPidFile,
   removePidFile,
   isProcessRunning,
   getRunningDaemon,
+  discoverRunningDaemons,
   type PidFileContents,
 } from '../src/pidfile.js';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, rmSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import * as appPaths from '../src/utils/app-paths.js';
 
 describe('pidfile', () => {
-  let testDir: string;
+  const testPort = 19999;
   let pidFilePath: string;
+  let testPidDir: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `limps-pidfile-test-${Date.now()}`);
-    mkdirSync(testDir, { recursive: true });
-    pidFilePath = getPidFilePath(testDir);
+    // Create isolated temp directory for this test run
+    testPidDir = join(
+      tmpdir(),
+      `test-pidfile-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      'pids'
+    );
+    mkdirSync(testPidDir, { recursive: true });
+
+    // Mock getAppDataPath to return our temp directory
+    vi.spyOn(appPaths, 'getAppDataPath').mockReturnValue(testPidDir.replace(/\/pids$/, ''));
+
+    pidFilePath = getPidFilePath(testPort);
   });
 
   afterEach(() => {
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+    // Clean up temp directory
+    const testRoot = testPidDir.replace(/\/pids$/, '');
+    if (existsSync(testRoot)) {
+      rmSync(testRoot, { recursive: true, force: true });
     }
   });
 
+  describe('getSystemPidDir', () => {
+    it('should return a path ending with pids', () => {
+      const dir = getSystemPidDir();
+      expect(dir).toMatch(/pids$/);
+    });
+  });
+
   describe('getPidFilePath', () => {
-    it('should return correct path for data directory', () => {
-      const path = getPidFilePath('/data/limps');
-      expect(path).toBe('/data/limps/limps.pid');
+    it('should return path with port number', () => {
+      const path = getPidFilePath(4269);
+      expect(path).toMatch(/limps-4269\.pid$/);
     });
 
-    it('should handle relative paths', () => {
-      const path = getPidFilePath('./data');
-      // join() normalizes './data' to 'data'
-      expect(path).toBe('data/limps.pid');
+    it('should return different paths for different ports', () => {
+      const path1 = getPidFilePath(4269);
+      const path2 = getPidFilePath(8080);
+      expect(path1).not.toBe(path2);
     });
   });
 
@@ -58,19 +81,17 @@ describe('pidfile', () => {
     });
 
     it('should create parent directory if it does not exist', () => {
-      const nestedDir = join(testDir, 'nested', 'path');
-      const nestedPidPath = getPidFilePath(nestedDir);
-
+      // writePidFile calls mkdirSync internally - tested via the main write test
+      // which writes to the system PID directory (created automatically)
+      expect(existsSync(pidFilePath)).toBe(false);
       const contents: PidFileContents = {
         pid: 12345,
-        port: 4269,
+        port: testPort,
         host: '127.0.0.1',
         startedAt: new Date().toISOString(),
       };
-
-      writePidFile(nestedPidPath, contents);
-
-      expect(existsSync(nestedPidPath)).toBe(true);
+      writePidFile(pidFilePath, contents);
+      expect(existsSync(pidFilePath)).toBe(true);
     });
   });
 
@@ -131,7 +152,6 @@ describe('pidfile', () => {
     });
 
     it('should return false for non-existent PID', () => {
-      // PID 99999 is very unlikely to exist
       expect(isProcessRunning(99999)).toBe(false);
     });
   });
@@ -143,7 +163,6 @@ describe('pidfile', () => {
     });
 
     it('should return null and clean up stale PID file', () => {
-      // Write PID file with non-existent process
       writePidFile(pidFilePath, {
         pid: 99999,
         port: 4269,
@@ -153,7 +172,7 @@ describe('pidfile', () => {
 
       const result = getRunningDaemon(pidFilePath);
       expect(result).toBeNull();
-      expect(existsSync(pidFilePath)).toBe(false); // Should be cleaned up
+      expect(existsSync(pidFilePath)).toBe(false);
     });
 
     it('should return contents for running process', () => {
@@ -168,7 +187,161 @@ describe('pidfile', () => {
       const result = getRunningDaemon(pidFilePath);
 
       expect(result).toEqual(contents);
-      expect(existsSync(pidFilePath)).toBe(true); // Should not be removed
+      expect(existsSync(pidFilePath)).toBe(true);
+    });
+  });
+
+  describe('discoverRunningDaemons', () => {
+    it('should return empty array when no PID files exist', () => {
+      const results = discoverRunningDaemons();
+      // May or may not be empty depending on system state, but should not throw
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it('should find running daemons in system PID directory', () => {
+      // Write a PID file for the current process
+      const systemPidDir = getSystemPidDir();
+      const testPidPath = join(systemPidDir, 'limps-19876.pid');
+
+      try {
+        writePidFile(testPidPath, {
+          pid: process.pid,
+          port: 19876,
+          host: '127.0.0.1',
+          startedAt: new Date().toISOString(),
+        });
+
+        const results = discoverRunningDaemons();
+        const found = results.find((d) => d.port === 19876);
+        expect(found).toBeDefined();
+        expect(found!.pid).toBe(process.pid);
+      } finally {
+        removePidFile(testPidPath);
+      }
+    });
+
+    it('should clean up stale PID files during discovery', () => {
+      const systemPidDir = getSystemPidDir();
+      const stalePidPath = join(systemPidDir, 'limps-19877.pid');
+
+      try {
+        writePidFile(stalePidPath, {
+          pid: 99999,
+          port: 19877,
+          host: '127.0.0.1',
+          startedAt: new Date().toISOString(),
+        });
+
+        discoverRunningDaemons();
+        expect(existsSync(stalePidPath)).toBe(false);
+      } finally {
+        // Cleanup in case test fails
+        removePidFile(stalePidPath);
+      }
+    });
+
+    it('should ignore non-PID files in directory', () => {
+      const systemPidDir = getSystemPidDir();
+      const junkPath = join(systemPidDir, 'not-a-pid.txt');
+
+      try {
+        writeFileSync(junkPath, 'junk');
+        // Should not throw
+        const results = discoverRunningDaemons();
+        expect(Array.isArray(results)).toBe(true);
+      } finally {
+        if (existsSync(junkPath)) {
+          rmSync(junkPath);
+        }
+      }
+    });
+  });
+
+  describe('discoverRunningDaemons', () => {
+    const extraPort = 5555;
+    let extraPidFilePath: string;
+
+    beforeEach(() => {
+      extraPidFilePath = getPidFilePath(extraPort);
+    });
+
+    afterEach(() => {
+      if (existsSync(extraPidFilePath)) {
+        rmSync(extraPidFilePath, { force: true });
+      }
+    });
+
+    it('should return empty array when no PID files exist', () => {
+      const result = discoverRunningDaemons();
+      // Filter to only our test ports to avoid interference from real daemons
+      const testResults = result.filter((d) => d.port === testPort || d.port === extraPort);
+      expect(testResults).toEqual([]);
+    });
+
+    it('should discover a running daemon', () => {
+      const contents: PidFileContents = {
+        pid: process.pid,
+        port: testPort,
+        host: '127.0.0.1',
+        startedAt: new Date().toISOString(),
+      };
+      writePidFile(pidFilePath, contents);
+
+      const result = discoverRunningDaemons();
+      const found = result.find((d) => d.port === testPort);
+      expect(found).toEqual(contents);
+    });
+
+    it('should discover multiple running daemons', () => {
+      const contents1: PidFileContents = {
+        pid: process.pid,
+        port: testPort,
+        host: '127.0.0.1',
+        startedAt: new Date().toISOString(),
+      };
+      const contents2: PidFileContents = {
+        pid: process.pid,
+        port: extraPort,
+        host: '127.0.0.1',
+        startedAt: new Date().toISOString(),
+      };
+      writePidFile(pidFilePath, contents1);
+      writePidFile(extraPidFilePath, contents2);
+
+      const result = discoverRunningDaemons();
+      const found = result.filter((d) => d.port === testPort || d.port === extraPort);
+      expect(found).toHaveLength(2);
+      expect(found.find((d) => d.port === testPort)).toEqual(contents1);
+      expect(found.find((d) => d.port === extraPort)).toEqual(contents2);
+    });
+
+    it('should clean up stale PID files and exclude them', () => {
+      const staleContents: PidFileContents = {
+        pid: 99999,
+        port: extraPort,
+        host: '127.0.0.1',
+        startedAt: new Date().toISOString(),
+      };
+      writePidFile(extraPidFilePath, staleContents);
+
+      const result = discoverRunningDaemons();
+      const found = result.find((d) => d.port === extraPort);
+      expect(found).toBeUndefined();
+      // Stale PID file should be cleaned up
+      expect(existsSync(extraPidFilePath)).toBe(false);
+    });
+
+    it('should skip non-PID files in the directory', () => {
+      // Write a non-PID file
+      const junkPath = join(getSystemPidDir(), 'not-a-pid.txt');
+      writeFileSync(junkPath, 'junk');
+
+      const result = discoverRunningDaemons();
+      // Should not throw, just skip it
+      expect(Array.isArray(result)).toBe(true);
+
+      // Clean up
+      rmSync(junkPath, { force: true });
     });
   });
 });

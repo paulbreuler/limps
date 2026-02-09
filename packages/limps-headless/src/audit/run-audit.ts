@@ -242,6 +242,7 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     ).length;
   }
 
+  let results: Awaited<ReturnType<typeof analyzeFiles>> = [];
   if (files.length > 0) {
     let resolvedVersion = input.radixVersion ?? 'latest';
     if (resolvedVersion === 'latest') {
@@ -261,7 +262,7 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     }
 
     const signatures = await loadSignatures(resolvedVersion);
-    const results = await analyzeFiles(files, signatures, {
+    results = await analyzeFiles(files, signatures, {
       ruleset: input.ruleset ?? 'base-ui',
       evidence: input.evidence ?? 'summary',
     });
@@ -286,7 +287,10 @@ export async function runAudit(input: RunAuditInput): Promise<RunAuditResult> {
     fs.writeFileSync(analysisPath, JSON.stringify({ results: [] }, null, 2), 'utf-8');
   }
 
-  const shouldSkipRadixDiff = didDiscover && (discovered.length === 0 || legacyRadixCount === 0);
+  const hasRadixSignals = didDiscover
+    ? legacyRadixCount > 0
+    : results.some((r) => r.recommendation.action !== 'NO_LEGACY_RADIX_MATCH');
+  const shouldSkipRadixDiff = !hasRadixSignals;
   let diffPath: string | undefined;
   let updatesPath: string | undefined;
   if (shouldSkipRadixDiff) {

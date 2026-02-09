@@ -5,31 +5,11 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
-import { homedir } from 'os';
 import { getPackageVersion } from './version.js';
+import { getCachePath } from './app-paths.js';
 
 interface VersionState {
   lastSeenVersion: string;
-}
-
-/**
- * Get the OS-specific cache directory for limps.
- *
- * - macOS: ~/Library/Caches/limps
- * - Windows: %LOCALAPPDATA%/limps
- * - Linux: $XDG_CACHE_HOME/limps or ~/.cache/limps
- */
-function getCachePath(): string {
-  const home = homedir();
-
-  switch (process.platform) {
-    case 'darwin':
-      return join(home, 'Library', 'Caches', 'limps');
-    case 'win32':
-      return join(process.env.LOCALAPPDATA || join(home, 'AppData', 'Local'), 'limps');
-    default:
-      return join(process.env.XDG_CACHE_HOME || join(home, '.cache'), 'limps');
-  }
 }
 
 /**
