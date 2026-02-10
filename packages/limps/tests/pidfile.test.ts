@@ -117,6 +117,22 @@ describe('pidfile', () => {
       expect(result).toBeNull();
     });
 
+    it('should return null for empty optional logPath', () => {
+      writeFileSync(
+        pidFilePath,
+        JSON.stringify({
+          pid: 12345,
+          port: 4269,
+          host: '127.0.0.1',
+          startedAt: '2024-01-01T00:00:00.000Z',
+          logPath: '',
+        })
+      );
+
+      const result = readPidFile(pidFilePath);
+      expect(result).toBeNull();
+    });
+
     it('should successfully read valid PID file', () => {
       const contents: PidFileContents = {
         pid: 12345,

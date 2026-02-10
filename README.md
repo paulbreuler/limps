@@ -445,6 +445,7 @@ $XDG_DATA_HOME/limps/logs/
 ```
 
 Daemon logs are intentionally operational-only: limps redacts uncaught exception/rejection payloads and does not persist raw AI prompt/response content.
+Daemon log files are append-only and are not auto-rotated; if you run long-lived daemons, rotate or truncate these files with your system tooling.
 
 ### Starting the Daemon
 

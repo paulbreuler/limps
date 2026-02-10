@@ -66,7 +66,7 @@ async function getDaemonStatus(daemon: PidFileContents): Promise<StatusResult> {
       uptime: result.data.uptime,
       sessions: result.data.sessions,
       sessionTimeoutMs: result.data.sessionTimeoutMs,
-      logPath: getDaemonLogPath(daemon.port),
+      logPath: daemon.logPath,
       healthy: result.data.status === 'ok',
     };
   }
@@ -76,7 +76,7 @@ async function getDaemonStatus(daemon: PidFileContents): Promise<StatusResult> {
     host: daemon.host,
     port: daemon.port,
     startedAt: daemon.startedAt,
-    logPath: getDaemonLogPath(daemon.port),
+    logPath: daemon.logPath,
     healthy: false,
     healthError: `${result.error.message} (${result.error.code})`,
   };

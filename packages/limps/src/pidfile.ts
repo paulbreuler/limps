@@ -92,7 +92,8 @@ export function readPidFile(pidFilePath: string): PidFileContents | null {
       typeof parsed.startedAt !== 'string' ||
       parsed.startedAt.length === 0 ||
       (parsed.configPath !== undefined && typeof parsed.configPath !== 'string') ||
-      (parsed.logPath !== undefined && typeof parsed.logPath !== 'string')
+      (parsed.logPath !== undefined &&
+        (typeof parsed.logPath !== 'string' || parsed.logPath.length === 0))
     ) {
       return null;
     }

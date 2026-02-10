@@ -56,7 +56,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
         if (opts.foreground) {
           // Run in foreground — blocks until stopped
           setStatus(`limps HTTP server starting on http://${host}:${port}/mcp`);
-          await startHttpServer(configPath);
+          await startHttpServer(configPath, { port, host });
           setStatus(`limps HTTP server running on http://${host}:${port}/mcp (PID ${process.pid})`);
 
           // Keep process alive — stopHttpServer will be called by signal handlers
@@ -83,6 +83,12 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
             child = spawn(process.execPath, [entryPath, configPath], {
               detached: true,
               stdio: ['ignore', logFd, logFd],
+              env: {
+                ...process.env,
+                LIMPS_HTTP_PORT: String(port),
+                LIMPS_HTTP_HOST: host,
+                LIMPS_DAEMON_LOG_PATH: logPath,
+              },
             });
           } finally {
             closeSync(logFd);

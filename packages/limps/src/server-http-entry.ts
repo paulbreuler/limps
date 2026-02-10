@@ -9,6 +9,16 @@ import { startHttpServer, stopHttpServer } from './server-http.js';
 import { logRedactedError } from './utils/safe-logging.js';
 
 const configPath = process.argv[2];
+const portFromEnv = process.env.LIMPS_HTTP_PORT;
+const hostFromEnv = process.env.LIMPS_HTTP_HOST;
+const daemonLogPathFromEnv = process.env.LIMPS_DAEMON_LOG_PATH;
+
+function parsePort(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 65535) return undefined;
+  return parsed;
+}
 
 let shuttingDown = false;
 
@@ -43,7 +53,11 @@ process.on('unhandledRejection', (reason) => {
   shutdown('unhandledRejection').catch(() => process.exit(1));
 });
 
-startHttpServer(configPath).catch((err: Error) => {
+startHttpServer(configPath, {
+  port: parsePort(portFromEnv),
+  host: hostFromEnv || undefined,
+  daemonLogPath: daemonLogPathFromEnv || undefined,
+}).catch((err: Error) => {
   // Startup errors happen before request handling; message is operational and needed for diagnostics.
   console.error(`Failed to start HTTP server: ${err.message}`);
   process.exit(1);
