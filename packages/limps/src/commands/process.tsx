@@ -48,7 +48,7 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
   const [error, setError] = useState<string | null>(null);
 
   const help = buildHelpOutput({
-    usage: 'limps process <path|--pattern> --code <code> [options]',
+    usage: 'limps process <path> | limps process --pattern <glob> --code <code> [options]',
     arguments: ['path Optional document path (mutually exclusive with --pattern)'],
     options: [
       '--config Path to config file',
