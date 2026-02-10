@@ -946,6 +946,64 @@ Ensure the URL in your client config matches the daemon:
 }
 ```
 
+### Config Resolution Issues
+
+**Problem: limps is using the wrong config file**
+
+If `limps config path` shows a different config than expected, use the diagnostic command to understand why:
+
+```bash
+limps config show-resolution
+```
+
+This shows all three priority levels for config resolution:
+
+1. **CLI `--config` argument** (highest priority)
+2. **`MCP_PLANNING_CONFIG` environment variable** (second priority)
+3. **Local `.limps/config.json`** (searches up from cwd)
+
+**Common causes:**
+
+- **Environment variable set**: Check if `MCP_PLANNING_CONFIG` is set in your shell or IDE. This takes priority over local config files.
+  ```bash
+  # Check if set
+  echo $MCP_PLANNING_CONFIG
+  
+  # Unset if needed
+  unset MCP_PLANNING_CONFIG
+  ```
+
+- **Wrong working directory**: Config search starts from your current working directory. Make sure you're in the right directory when running limps commands.
+  ```bash
+  # Check current directory
+  pwd
+  
+  # Navigate to your project
+  cd /path/to/your/project
+  ```
+
+- **Missing `.limps/config.json`**: The config file must be in a `.limps` subdirectory, not at the project root.
+  ```bash
+  # Correct location
+  /path/to/project/.limps/config.json
+  
+  # Wrong - won't be found
+  /path/to/project/config.json
+  ```
+
+**Quick fixes:**
+
+```bash
+# Override with explicit path
+limps list-plans --config /path/to/project/.limps/config.json
+
+# Or set environment variable
+export MCP_PLANNING_CONFIG=/path/to/project/.limps/config.json
+
+# Or initialize a new config in current directory
+limps init
+```
+
 ## MCP Tools
 
 limps exposes MCP tools for AI assistants:
