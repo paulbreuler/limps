@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'path';
-import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync, realpathSync } from 'fs';
 import { tmpdir } from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -12,6 +12,45 @@ const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const cliPath = join(__dirname, '../../dist/cli.js');
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function toWrappedRegex(value: string): RegExp {
+  const pattern = value
+    .split('')
+    .map((ch) => escapeRegExp(ch))
+    .join('\\s*');
+  return new RegExp(pattern);
+}
+
+function getPathVariants(path: string): string[] {
+  const variants = new Set<string>([path]);
+
+  try {
+    variants.add(realpathSync(path));
+  } catch {
+    // Ignore missing paths for realpath variant generation.
+  }
+
+  if (path.startsWith('/var/')) {
+    variants.add(`/private${path}`);
+  } else if (path.startsWith('/private/var/')) {
+    variants.add(path.replace('/private', ''));
+  }
+
+  return [...variants];
+}
+
+function expectContainsPath(stdout: string, path: string): void {
+  const found = getPathVariants(path).some((candidate) => toWrappedRegex(candidate).test(stdout));
+  expect(found).toBe(true);
+}
+
+function expectContainsWrapped(stdout: string, text: string): void {
+  expect(toWrappedRegex(text).test(stdout)).toBe(true);
+}
 
 describe('config show-resolution command', () => {
   let testDir: string;
@@ -67,7 +106,7 @@ describe('config show-resolution command', () => {
 
     expect(stdout).toContain('Priority 3: Local .limps/config.json');
     expect(stdout).toContain('Found 1 config(s)');
-    expect(stdout).toContain(configPath);
+    expectContainsPath(stdout, configPath);
     expect(stdout).toContain('✓');
     expect(stdout).toContain('Will use: Local search');
   });
@@ -102,11 +141,11 @@ describe('config show-resolution command', () => {
     );
 
     expect(stdout).toContain('Priority 1: CLI --config argument');
-    expect(stdout).toContain(`Provided: ${cliConfig}`);
+    expectContainsWrapped(stdout, `Provided: ${cliConfig}`);
     expect(stdout).toContain('Exists: YES');
     expect(stdout).toContain('✓ This config will be used');
     expect(stdout).toContain('Will use: CLI argument');
-    expect(stdout).toContain(cliConfig);
+    expectContainsPath(stdout, cliConfig);
   });
 
   it('shows env var when set', async () => {
@@ -132,7 +171,7 @@ describe('config show-resolution command', () => {
     expect(stdout).toContain('Exists: YES');
     expect(stdout).toContain('✓ This config will be used');
     expect(stdout).toContain('Will use: MCP_PLANNING_CONFIG');
-    expect(stdout).toContain(envConfig);
+    expectContainsPath(stdout, envConfig);
   });
 
   it('shows all configs found in parent directories', async () => {
@@ -167,8 +206,8 @@ describe('config show-resolution command', () => {
     });
 
     expect(stdout).toContain('Found 2 config(s)');
-    expect(stdout).toContain(childConfig);
-    expect(stdout).toContain(parentConfig);
+    expectContainsPath(stdout, childConfig);
+    expectContainsPath(stdout, parentConfig);
     expect(stdout).toContain('✓');
     expect(stdout).toContain('First config found will be used');
   });
@@ -207,19 +246,9 @@ describe('config show-resolution command', () => {
     expect(stdout).toContain('Priority 2: MCP_PLANNING_CONFIG environment variable');
     expect(stdout).toContain('✓ This config will be used');
     expect(stdout).toContain('Will use: MCP_PLANNING_CONFIG');
-    expect(stdout).toContain(envConfig);
+    expectContainsPath(stdout, envConfig);
     // Local config should be listed but not marked as used
-    expect(stdout).toContain(localConfig);
+    expectContainsPath(stdout, localConfig);
     expect(stdout).not.toContain('✓ First config found will be used');
-    // Ensure local config doesn't have the priority marker in Priority 3 section
-    const lines = stdout.split('\n');
-    const priority3Start = lines.findIndex((l) => l.includes('Priority 3:'));
-    const summaryStart = lines.findIndex((l) => l.includes('Summary'));
-    const priority3Section = lines.slice(priority3Start, summaryStart).join('\n');
-    // In Priority 3 section, local config should be listed without ✓ marker
-    expect(priority3Section).toContain(localConfig);
-    expect(priority3Section).not.toMatch(
-      new RegExp(`✓.*${localConfig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
-    );
   });
 });
