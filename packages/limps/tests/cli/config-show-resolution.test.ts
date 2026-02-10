@@ -211,5 +211,15 @@ describe('config show-resolution command', () => {
     // Local config should be listed but not marked as used
     expect(stdout).toContain(localConfig);
     expect(stdout).not.toContain('✓ First config found will be used');
+    // Ensure local config doesn't have the priority marker in Priority 3 section
+    const lines = stdout.split('\n');
+    const priority3Start = lines.findIndex((l) => l.includes('Priority 3:'));
+    const summaryStart = lines.findIndex((l) => l.includes('Summary'));
+    const priority3Section = lines.slice(priority3Start, summaryStart).join('\n');
+    // In Priority 3 section, local config should be listed without ✓ marker
+    expect(priority3Section).toContain(localConfig);
+    expect(priority3Section).not.toMatch(
+      new RegExp(`✓.*${localConfig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    );
   });
 });

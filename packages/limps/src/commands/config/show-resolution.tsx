@@ -18,6 +18,11 @@ interface Props {
 
 /**
  * Walk up directory tree to find .limps/config.json
+ *
+ * Returns all configs found (not just the first) to show users
+ * the complete picture of available configs. This differs from
+ * findLocalConfig in config-resolver.ts which returns only the
+ * first match since that's what will actually be used.
  */
 function findLocalConfigs(startDir: string): string[] {
   const found: string[] = [];
