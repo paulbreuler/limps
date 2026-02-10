@@ -210,7 +210,7 @@ export function registerTools(server: McpServer, context: ToolContext): void {
 
   registerTool(
     'update_task_status',
-    'Update task status (GAP → WIP → PASS/BLOCKED)',
+    'Update agent task status in frontmatter (GAP, WIP, PASS, or BLOCKED). Task ID format: planFolder#agentNumber (e.g., "0001-feature-name#005")',
     UpdateTaskStatusInputSchema.shape,
     async (input) => {
       const parsed = UpdateTaskStatusInputSchema.parse(input);

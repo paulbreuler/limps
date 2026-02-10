@@ -3,7 +3,7 @@ import { existsSync, unlinkSync, writeFileSync, mkdirSync, rmSync, readFileSync 
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type Database from 'better-sqlite3';
-import { initializeDatabase, createSchema, indexDocument } from '../src/indexer.js';
+import { initializeDatabase, createSchema } from '../src/indexer.js';
 import { createTestConfig } from './test-config-helper.js';
 import { handleUpdateTaskStatus } from '../src/tools/update-task-status.js';
 import type { ToolContext } from '../src/types.js';
@@ -14,7 +14,8 @@ describe('update-status-gap-to-wip', () => {
   let testDir: string;
   let plansDir: string;
   let planDir: string;
-  let planFile: string;
+  let agentsDir: string;
+  let agentFile: string;
   let context: ToolContext;
 
   beforeEach(async () => {
@@ -22,22 +23,27 @@ describe('update-status-gap-to-wip', () => {
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
     planDir = join(plansDir, '0001-test-plan');
-    planFile = join(planDir, 'plan.md');
+    agentsDir = join(planDir, 'agents');
+    agentFile = join(agentsDir, '001_test-agent.agent.md');
 
-    mkdirSync(planDir, { recursive: true });
+    mkdirSync(agentsDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    // Create plan document with GAP status
-    const planContent = `# Test Plan
+    // Create agent file with GAP status
+    const agentContent = `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
 
-### #1: Test Feature
+# Agent 1: Test Feature
 
-Status: \`GAP\`
-Dependencies: None
+This is a test agent.
 `;
-    writeFileSync(planFile, planContent, 'utf-8');
-    await indexDocument(db, planFile);
+    writeFileSync(agentFile, agentContent, 'utf-8');
 
     const config = createTestConfig(testDir);
     config.plansPath = plansDir;
@@ -63,26 +69,27 @@ Dependencies: None
 
   it('should update status from GAP to WIP', async () => {
     const result = await handleUpdateTaskStatus(
-      { taskId: '0001-test-plan#1', status: 'WIP' },
+      { taskId: '0001-test-plan#001', status: 'WIP' },
       context
     );
 
     expect(result.isError).toBeFalsy();
 
-    // Verify document was updated
-    const updatedContent = readFileSync(planFile, 'utf-8');
-    expect(updatedContent).toContain('Status: `WIP`');
-    expect(updatedContent).not.toContain('Status: `GAP`');
+    // Verify agent frontmatter was updated
+    const updatedContent = readFileSync(agentFile, 'utf-8');
+    expect(updatedContent).toContain('status: WIP');
+    expect(updatedContent).not.toContain('status: GAP');
   });
 });
 
-describe('validate-transitions', () => {
+describe('status-updates', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
   let planDir: string;
-  let planFile: string;
+  let agentsDir: string;
+  let agentFile: string;
   let context: ToolContext;
 
   beforeEach(async () => {
@@ -90,22 +97,27 @@ describe('validate-transitions', () => {
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
     planDir = join(plansDir, '0001-test-plan');
-    planFile = join(planDir, 'plan.md');
+    agentsDir = join(planDir, 'agents');
+    agentFile = join(agentsDir, '001_test-agent.agent.md');
 
-    mkdirSync(planDir, { recursive: true });
+    mkdirSync(agentsDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    // Create plan document with WIP status
-    const planContent = `# Test Plan
+    // Create agent file with WIP status
+    const agentContent = `---
+status: WIP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
 
-### #1: Test Feature
+# Agent 1: Test Feature
 
-Status: \`WIP\`
-Dependencies: None
+This is a test agent.
 `;
-    writeFileSync(planFile, planContent, 'utf-8');
-    await indexDocument(db, planFile);
+    writeFileSync(agentFile, agentContent, 'utf-8');
 
     const config = createTestConfig(testDir);
     config.plansPath = plansDir;
@@ -129,28 +141,43 @@ Dependencies: None
     }
   });
 
-  it('should reject invalid transition', async () => {
-    // Try to go from WIP to GAP (invalid)
+  it('should allow WIP to GAP transition (status updates are not validated)', async () => {
     const result = await handleUpdateTaskStatus(
-      { taskId: '0001-test-plan#1', status: 'GAP' },
-      context
-    );
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Invalid status transition');
-  });
-
-  it('should allow valid WIP to PASS transition', async () => {
-    const result = await handleUpdateTaskStatus(
-      { taskId: '0001-test-plan#1', status: 'PASS' },
+      { taskId: '0001-test-plan#001', status: 'GAP' },
       context
     );
 
     expect(result.isError).toBeFalsy();
 
-    // Verify document was updated
-    const updatedContent = readFileSync(planFile, 'utf-8');
-    expect(updatedContent).toContain('Status: `PASS`');
+    // Verify agent frontmatter was updated
+    const updatedContent = readFileSync(agentFile, 'utf-8');
+    expect(updatedContent).toContain('status: GAP');
+  });
+
+  it('should allow WIP to PASS transition', async () => {
+    const result = await handleUpdateTaskStatus(
+      { taskId: '0001-test-plan#001', status: 'PASS' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+
+    // Verify agent frontmatter was updated
+    const updatedContent = readFileSync(agentFile, 'utf-8');
+    expect(updatedContent).toContain('status: PASS');
+  });
+
+  it('should allow WIP to BLOCKED transition', async () => {
+    const result = await handleUpdateTaskStatus(
+      { taskId: '0001-test-plan#001', status: 'BLOCKED' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+
+    // Verify agent frontmatter was updated
+    const updatedContent = readFileSync(agentFile, 'utf-8');
+    expect(updatedContent).toContain('status: BLOCKED');
   });
 });
 
@@ -192,58 +219,53 @@ describe('handle-invalid-task', () => {
     }
   });
 
-  it('should handle invalid task ID', async () => {
+  it('should handle nonexistent agent file', async () => {
     const result = await handleUpdateTaskStatus(
       { taskId: 'nonexistent-plan#999', status: 'WIP' },
       context
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('not found');
+    expect(result.content[0].text).toContain('Agent file not found');
   });
 });
 
-describe('legacy-format-support', () => {
+describe('agent-with-notes-and-agentid', () => {
   let dbPath: string;
   let db: Database.Database | null = null;
   let testDir: string;
   let plansDir: string;
   let planDir: string;
-  let planFile: string;
+  let agentsDir: string;
+  let agentFile: string;
   let context: ToolContext;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    planDir = join(plansDir, '0042-legacy-plan');
-    planFile = join(planDir, '0042-legacy-plan-plan.md');
+    planDir = join(plansDir, '0042-test-plan');
+    agentsDir = join(planDir, 'agents');
+    agentFile = join(agentsDir, '000_foundation.agent.md');
 
-    mkdirSync(planDir, { recursive: true });
+    mkdirSync(agentsDir, { recursive: true });
     db = initializeDatabase(dbPath);
     createSchema(db);
 
-    // Create plan document with legacy format
-    const planContent = `# Legacy Plan
+    // Create agent file with GAP status
+    const agentContent = `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
 
-## Feature 0: Component IR + Module Graph Foundation
-
-**Status:** GAP
-
-### Description
+# Agent 0: Component IR + Module Graph Foundation
 
 Build Component IR + module graph with alias and re-export resolution.
-
-## Feature 1: Evidence Extraction Passes
-
-**Status:** WIP
-
-### Description
-
-Extract import/JSX/behavior evidence with locations.
 `;
-    writeFileSync(planFile, planContent, 'utf-8');
-    await indexDocument(db, planFile);
+    writeFileSync(agentFile, agentContent, 'utf-8');
 
     const config = createTestConfig(testDir);
     config.plansPath = plansDir;
@@ -267,41 +289,48 @@ Extract import/JSX/behavior evidence with locations.
     }
   });
 
-  it('should update legacy format status from GAP to WIP', async () => {
+  it('should update status from GAP to WIP with agentId', async () => {
     const result = await handleUpdateTaskStatus(
-      { taskId: '0042-legacy-plan#0', status: 'WIP' },
+      { taskId: '0042-test-plan#000', status: 'WIP', agentId: 'agent-123' },
       context
     );
 
     expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('by agent agent-123');
 
-    // Verify document was updated and legacy format preserved
-    const updatedContent = readFileSync(planFile, 'utf-8');
-    expect(updatedContent).toContain('**Status:** WIP');
-    expect(updatedContent).not.toContain('**Status:** GAP');
+    // Verify agent frontmatter was updated
+    const updatedContent = readFileSync(agentFile, 'utf-8');
+    expect(updatedContent).toContain('status: WIP');
+    expect(updatedContent).not.toContain('status: GAP');
   });
 
-  it('should update legacy format status from WIP to PASS', async () => {
+  it('should update status with notes', async () => {
     const result = await handleUpdateTaskStatus(
-      { taskId: '0042-legacy-plan#1', status: 'PASS' },
+      { taskId: '0042-test-plan#000', status: 'WIP', notes: 'Starting work on this task' },
       context
     );
 
     expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('Notes: Starting work on this task');
 
-    // Verify document was updated
-    const updatedContent = readFileSync(planFile, 'utf-8');
-    expect(updatedContent).toContain('**Status:** PASS');
-    expect(updatedContent).not.toContain('**Status:** WIP');
+    // Verify agent frontmatter was updated
+    const updatedContent = readFileSync(agentFile, 'utf-8');
+    expect(updatedContent).toContain('status: WIP');
   });
 
-  it('should find feature in legacy format', async () => {
-    // Just verify we can find the feature (no error)
+  it('should update status with both agentId and notes', async () => {
     const result = await handleUpdateTaskStatus(
-      { taskId: '0042-legacy-plan#0', status: 'WIP' },
+      {
+        taskId: '0042-test-plan#000',
+        status: 'WIP',
+        agentId: 'agent-456',
+        notes: 'Ready to begin',
+      },
       context
     );
 
     expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('by agent agent-456');
+    expect(result.content[0].text).toContain('Notes: Ready to begin');
   });
 });
