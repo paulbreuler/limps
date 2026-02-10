@@ -5,7 +5,7 @@
 
 import type { ServerConfig } from '../config.js';
 import { findPlanDirectory, getAgentFiles } from './list-agents.js';
-import { readAgentFile, type AgentFrontmatter } from '../agent-parser.js';
+import { readAgentFile, updateAgentFrontmatter, type AgentFrontmatter } from '../agent-parser.js';
 import type { ResolvedTaskId } from './task-resolver.js';
 
 /**
@@ -260,4 +260,80 @@ export function status(config: ServerConfig, planId: string): string {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Valid status transitions.
+ */
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  GAP: ['WIP'],
+  WIP: ['PASS', 'BLOCKED'],
+  PASS: [], // Terminal state
+  BLOCKED: ['GAP', 'WIP'], // Can be unblocked
+};
+
+/**
+ * Check if a status transition is valid.
+ *
+ * @param from - Current status
+ * @param to - New status
+ * @returns True if transition is valid
+ */
+function isValidTransition(from: string, to: string): boolean {
+  const allowed = VALID_TRANSITIONS[from] || [];
+  return allowed.includes(to);
+}
+
+/**
+ * Update agent status.
+ *
+ * @param config - Server configuration
+ * @param resolvedId - Resolved task ID
+ * @param newStatus - New status
+ * @param notes - Optional notes for the update
+ * @returns Success message or error
+ */
+export function updateAgentStatus(
+  _config: ServerConfig,
+  resolvedId: ResolvedTaskId,
+  newStatus: AgentFrontmatter['status'],
+  notes?: string
+): { success: boolean; message: string } {
+  // Read current agent file
+  const agentFile = readAgentFile(resolvedId.path);
+  if (!agentFile) {
+    return {
+      success: false,
+      message: `Failed to read agent file: ${resolvedId.path}`,
+    };
+  }
+
+  const currentStatus = agentFile.frontmatter.status;
+
+  // Validate status transition
+  if (!isValidTransition(currentStatus, newStatus)) {
+    return {
+      success: false,
+      message: `Invalid status transition from ${currentStatus} to ${newStatus}. Valid transitions: ${VALID_TRANSITIONS[currentStatus]?.join(', ') || 'none'}`,
+    };
+  }
+
+  // Update agent frontmatter
+  const updated = updateAgentFrontmatter(resolvedId.path, {
+    status: newStatus,
+    updated: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+  });
+
+  if (!updated) {
+    return {
+      success: false,
+      message: `Failed to update agent file: ${resolvedId.path}`,
+    };
+  }
+
+  const notesSuffix = notes ? `. Notes: ${notes}` : '';
+  return {
+    success: true,
+    message: `Task ${resolvedId.taskId} status updated from ${currentStatus} to ${newStatus}${notesSuffix}`,
+  };
 }

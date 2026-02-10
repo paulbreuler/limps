@@ -1,13 +1,19 @@
 import React from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
-import { getPlanStatusSummary, getAgentStatusSummary } from '../cli/status.js';
+import { getPlanStatusSummary, getAgentStatusSummary, updateAgentStatus } from '../cli/status.js';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { buildHelpOutput } from '../utils/cli-help.js';
 import { PlanStatus } from '../components/PlanStatus.js';
 import { AgentStatus } from '../components/AgentStatus.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import {
+  handleJsonOutput,
+  isJsonMode,
+  outputJson,
+  wrapError,
+  wrapSuccess,
+} from '../cli/json-output.js';
 import { useEffect } from 'react';
 import { resolveTaskId } from '../cli/task-resolver.js';
 
@@ -22,6 +28,11 @@ export const options = z.object({
     .string()
     .optional()
     .describe('Show detailed status for specific agent (e.g., "0001#002" or "002")'),
+  set: z
+    .enum(['GAP', 'WIP', 'PASS', 'BLOCKED'])
+    .optional()
+    .describe('Update agent status (requires agent to be specified)'),
+  notes: z.string().optional().describe('Notes for status update (used with --set)'),
 });
 
 interface Props {
@@ -83,6 +94,8 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
       '--config Path to config file',
       '--json Output as JSON',
       '--agent Show detailed status for specific agent',
+      '--set Update agent status (GAP|WIP|PASS|BLOCKED, requires --agent)',
+      '--notes Notes for status update (used with --set)',
     ],
     sections: [
       {
@@ -94,12 +107,93 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
         ],
       },
       {
+        title: 'Update Agent Status Examples',
+        lines: [
+          'limps status 0001 --agent 002 --set PASS',
+          'limps status --agent 0001#002 --set WIP',
+          'limps status 0001 --agent 002 --set PASS --notes "Completed in PR #116"',
+        ],
+      },
+      {
         title: 'Plan Status Examples',
         lines: ['limps status 4', 'limps status 0004-my-feature', 'limps status 4 --json'],
       },
     ],
   });
   const jsonMode = isJsonMode(options);
+
+  // Handle status update
+  if (options.set) {
+    if (!options.agent) {
+      if (jsonMode) {
+        useEffect(() => {
+          outputJson(
+            wrapError('--agent is required when using --set', {
+              code: 'MISSING_AGENT',
+              help: help.meta,
+            }),
+            1
+          );
+        }, []);
+        return null;
+      }
+      return (
+        <Text color="red">
+          Error: --agent is required when using --set
+          {'\n\n'}
+          {help.text}
+        </Text>
+      );
+    }
+
+    const agentId = options.agent;
+    const newStatus = options.set;
+
+    useEffect(() => {
+      try {
+        const resolvedId = resolveTaskId(agentId, {
+          plansPath: config.plansPath,
+          planContext: planId,
+        });
+
+        const result = updateAgentStatus(config, resolvedId, newStatus, options.notes);
+
+        if (jsonMode) {
+          if (result.success) {
+            outputJson(wrapSuccess({ message: result.message }), 0);
+          } else {
+            outputJson(wrapError(result.message, { code: 'UPDATE_ERROR' }), 1);
+          }
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (jsonMode) {
+          outputJson(wrapError(errorMessage, { code: 'UPDATE_ERROR' }), 1);
+        }
+      }
+    }, [agentId, config, jsonMode, options.notes, newStatus, planId]);
+
+    if (jsonMode) {
+      return null;
+    }
+
+    try {
+      const resolvedId = resolveTaskId(agentId, {
+        plansPath: config.plansPath,
+        planContext: planId,
+      });
+
+      const result = updateAgentStatus(config, resolvedId, newStatus, options.notes);
+
+      if (!result.success) {
+        return <Text color="red">Error: {result.message}</Text>;
+      }
+
+      return <Text color="green">✓ {result.message}</Text>;
+    } catch (error) {
+      return <Text color="red">Error: {(error as Error).message}</Text>;
+    }
+  }
 
   useEffect((): (() => void) | undefined => {
     if (!jsonMode) {
