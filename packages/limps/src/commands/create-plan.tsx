@@ -6,12 +6,18 @@ import { mkdirSync } from 'fs';
 import { loadConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { initializeDatabase, createSchema } from '../indexer.js';
-import { handleCreatePlan } from '../tools/create-plan.js';
+import { handleCreatePlan, CreatePlanInputSchema } from '../tools/create-plan.js';
 import type { ToolContext } from '../types.js';
 
 export const description = 'Create a new plan with directory structure';
 
-export const args = z.tuple([z.string().min(1).max(100).describe('Plan name')]);
+export const args = z.tuple([
+  z
+    .string()
+    .min(CreatePlanInputSchema.shape.name.minLength ?? 1)
+    .max(CreatePlanInputSchema.shape.name.maxLength ?? 100)
+    .describe('Plan name'),
+]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
