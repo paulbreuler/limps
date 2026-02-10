@@ -44,6 +44,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 startHttpServer(configPath).catch((err: Error) => {
-  logRedactedError('Failed to start HTTP server', err);
+  // Startup errors happen before request handling; message is operational and needed for diagnostics.
+  console.error(`Failed to start HTTP server: ${err.message}`);
   process.exit(1);
 });
