@@ -6,12 +6,30 @@
  */
 
 import { startHttpServer, stopHttpServer } from './server-http.js';
-import { logRedactedError } from './utils/safe-logging.js';
+import { logRedactedError, sanitizeConsoleArguments } from './utils/safe-logging.js';
 
 const configPath = process.argv[2];
 const portFromEnv = process.env.LIMPS_HTTP_PORT;
 const hostFromEnv = process.env.LIMPS_HTTP_HOST;
 const daemonLogPathFromEnv = process.env.LIMPS_DAEMON_LOG_PATH;
+
+function installDaemonLogRedaction(): void {
+  const methods: ('error' | 'warn' | 'log' | 'info' | 'debug')[] = [
+    'error',
+    'warn',
+    'log',
+    'info',
+    'debug',
+  ];
+  for (const method of methods) {
+    const original = console[method].bind(console);
+    console[method] = (...args: unknown[]): void => {
+      original(...sanitizeConsoleArguments(args));
+    };
+  }
+}
+
+installDaemonLogRedaction();
 
 function parsePort(value: string | undefined): number | undefined {
   if (!value) return undefined;
@@ -58,7 +76,6 @@ startHttpServer(configPath, {
   host: hostFromEnv || undefined,
   daemonLogPath: daemonLogPathFromEnv || undefined,
 }).catch((err: Error) => {
-  // Startup errors happen before request handling; message is operational and needed for diagnostics.
-  console.error(`Failed to start HTTP server: ${err.message}`);
+  logRedactedError('Failed to start HTTP server', err);
   process.exit(1);
 });

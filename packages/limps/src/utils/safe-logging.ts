@@ -67,6 +67,23 @@ export function sanitizeOperationalMessage(message: string): string {
 }
 
 /**
+ * Sanitize console arguments before writing to persistent logs.
+ * Strings are filtered for payload-like content; non-strings are summarized.
+ */
+export function sanitizeConsoleArguments(args: unknown[]): string[] {
+  if (args.length === 0) {
+    return ['[redacted-empty-message]'];
+  }
+
+  return args.map((arg) => {
+    if (typeof arg === 'string') {
+      return sanitizeOperationalMessage(arg);
+    }
+    return summarizeForLog(arg);
+  });
+}
+
+/**
  * Log an event with non-sensitive error details.
  */
 export function logRedactedError(prefix: string, value: unknown): void {

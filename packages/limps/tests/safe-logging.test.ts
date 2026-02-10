@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeOperationalMessage, summarizeForLog } from '../src/utils/safe-logging.js';
+import {
+  sanitizeConsoleArguments,
+  sanitizeOperationalMessage,
+  summarizeForLog,
+} from '../src/utils/safe-logging.js';
 
 describe('safe-logging', () => {
   describe('summarizeForLog', () => {
@@ -36,6 +40,25 @@ describe('safe-logging', () => {
       expect(sanitizeOperationalMessage('{"content":"model output"}')).toBe(
         '[redacted-sensitive-message]'
       );
+    });
+  });
+
+  describe('sanitizeConsoleArguments', () => {
+    it('sanitizes string and non-string arguments', () => {
+      const args = sanitizeConsoleArguments([
+        'Failed to process prompt: tell me a secret',
+        new Error('response payload here'),
+        { content: 'raw model text' },
+      ]);
+
+      expect(args[0]).toBe('[redacted-sensitive-message]');
+      expect(args[1]).toContain('type=Error');
+      expect(args[1]).not.toContain('response payload here');
+      expect(args[2]).toContain('type=object');
+    });
+
+    it('returns explicit marker for empty arg lists', () => {
+      expect(sanitizeConsoleArguments([])).toEqual(['[redacted-empty-message]']);
     });
   });
 });

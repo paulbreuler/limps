@@ -2,6 +2,7 @@
 import Pastel from 'pastel';
 import { getPackageVersion } from './utils/version.js';
 import { startHttpServer, stopHttpServer } from './server-http.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 // Check if running start command with --foreground flag — bypass Ink for clean stdio
 const args = process.argv.slice(2);
@@ -33,7 +34,7 @@ if (isStartForeground && !wantsHelp) {
   process.on('SIGTERM', shutdown);
 
   startHttpServer(configPath, { port, host }).catch((err: Error) => {
-    console.error(`Server error: ${err.message}`);
+    logRedactedError('Server error', err);
     process.exit(1);
   });
 } else {
