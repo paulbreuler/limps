@@ -6,7 +6,11 @@
  */
 
 import { startHttpServer, stopHttpServer } from './server-http.js';
-import { logRedactedError, sanitizeConsoleArguments } from './utils/safe-logging.js';
+import {
+  logRedactedError,
+  sanitizeConsoleArguments,
+  sanitizeOperationalMessage,
+} from './utils/safe-logging.js';
 
 const configPath = process.argv[2];
 const portFromEnv = process.env.LIMPS_HTTP_PORT;
@@ -76,6 +80,7 @@ startHttpServer(configPath, {
   host: hostFromEnv || undefined,
   daemonLogPath: daemonLogPathFromEnv || undefined,
 }).catch((err: Error) => {
-  logRedactedError('Failed to start HTTP server', err);
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Failed to start HTTP server: ${sanitizeOperationalMessage(message)}`);
   process.exit(1);
 });
