@@ -6,8 +6,41 @@
  */
 
 import { startHttpServer, stopHttpServer } from './server-http.js';
+import {
+  logRedactedError,
+  sanitizeConsoleArguments,
+  sanitizeOperationalMessage,
+} from './utils/safe-logging.js';
 
 const configPath = process.argv[2];
+const portFromEnv = process.env.LIMPS_HTTP_PORT;
+const hostFromEnv = process.env.LIMPS_HTTP_HOST;
+const daemonLogPathFromEnv = process.env.LIMPS_DAEMON_LOG_PATH;
+
+function installDaemonLogRedaction(): void {
+  const methods: ('error' | 'warn' | 'log' | 'info' | 'debug')[] = [
+    'error',
+    'warn',
+    'log',
+    'info',
+    'debug',
+  ];
+  for (const method of methods) {
+    const original = console[method].bind(console);
+    console[method] = (...args: unknown[]): void => {
+      original(...sanitizeConsoleArguments(args));
+    };
+  }
+}
+
+installDaemonLogRedaction();
+
+function parsePort(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 65535) return undefined;
+  return parsed;
+}
 
 let shuttingDown = false;
 
@@ -19,7 +52,7 @@ async function shutdown(signal: string): Promise<void> {
     await stopHttpServer();
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    logRedactedError('Error during shutdown', error);
     process.exit(1);
   }
 }
@@ -33,16 +66,21 @@ process.on('SIGTERM', () => {
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
+  logRedactedError('Uncaught exception', error);
   shutdown('uncaughtException').catch(() => process.exit(1));
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  logRedactedError('Unhandled rejection', reason);
   shutdown('unhandledRejection').catch(() => process.exit(1));
 });
 
-startHttpServer(configPath).catch((err: Error) => {
-  console.error(`Failed to start HTTP server: ${err.message}`);
+startHttpServer(configPath, {
+  port: parsePort(portFromEnv),
+  host: hostFromEnv || undefined,
+  daemonLogPath: daemonLogPathFromEnv || undefined,
+}).catch((err: Error) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Failed to start HTTP server: ${sanitizeOperationalMessage(message)}`);
   process.exit(1);
 });

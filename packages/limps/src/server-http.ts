@@ -21,6 +21,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createRateLimiter, type RateLimiter } from './utils/rate-limiter.js';
 import { findProcessUsingPort } from './utils/port-checker.js';
 import { getPackageVersion, getPackageName } from './utils/version.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 /**
  * Mask a session ID for logging to avoid exposing full UUIDs.
@@ -48,21 +49,43 @@ let httpServer: HttpServer | null = null;
 let startTime: Date | null = null;
 let rateLimiter: RateLimiter | null = null;
 let cleanupInterval: NodeJS.Timeout | null = null;
+let activePidFilePath: string | null = null;
+
+export interface StartHttpServerOptions {
+  port?: number;
+  host?: string;
+  /**
+   * Optional path where daemon stdout/stderr is persisted.
+   * Only set in detached daemon mode.
+   */
+  daemonLogPath?: string;
+}
 
 /**
  * Start the HTTP MCP server.
  *
  * @param configPathArg - Optional config path
+ * @param options - Optional runtime host/port/log-path overrides
  * @returns Promise that resolves when the server is listening
  */
-export async function startHttpServer(configPathArg?: string): Promise<{
+export async function startHttpServer(
+  configPathArg?: string,
+  options?: StartHttpServerOptions
+): Promise<{
   port: number;
   host: string;
 }> {
   // Load config first to check for existing daemon before initializing resources
   const configPath = resolveConfigPath(configPathArg);
   const preConfig = loadConfig(configPath);
-  const preHttpConfig = getHttpServerConfig(preConfig);
+  const preResolvedHttpConfig = getHttpServerConfig(preConfig);
+  const effectiveHost = options?.host ?? preResolvedHttpConfig.host;
+  const effectivePort = options?.port ?? preResolvedHttpConfig.port;
+  const preHttpConfig: HttpServerConfig = {
+    ...preResolvedHttpConfig,
+    host: effectiveHost,
+    port: effectivePort,
+  };
 
   // Check for existing daemon BEFORE initializing resources to avoid leaks
   // Use system-level PID file based on port number
@@ -77,7 +100,12 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
   // Initialize shared resources only after confirming no daemon exists
   resources = await initServerResources(configPath);
-  const httpConfig: HttpServerConfig = getHttpServerConfig(resources.config);
+  const resolvedHttpConfig: HttpServerConfig = getHttpServerConfig(resources.config);
+  const httpConfig: HttpServerConfig = {
+    ...resolvedHttpConfig,
+    host: options?.host ?? resolvedHttpConfig.host,
+    port: options?.port ?? resolvedHttpConfig.port,
+  };
   const maxSessions = httpConfig.maxSessions ?? 100;
 
   startTime = new Date();
@@ -98,7 +126,10 @@ export async function startHttpServer(configPathArg?: string): Promise<{
         cleaningUp.add(sessionId);
         cleanupSession(sessionId)
           .catch((err) => {
-            console.error(`Error cleaning up timed-out session ${maskSessionId(sessionId)}:`, err);
+            logRedactedError(
+              `Error cleaning up timed-out session ${maskSessionId(sessionId)}`,
+              err
+            );
           })
           .finally(() => {
             cleaningUp.delete(sessionId);
@@ -282,13 +313,19 @@ export async function startHttpServer(configPathArg?: string): Promise<{
 
       // Write PID file
       const started = startTime ?? new Date();
-      writePidFile(pidFilePath, {
+      const pidContents = {
         pid: process.pid,
         port: httpConfig.port,
         host: httpConfig.host,
         startedAt: started.toISOString(),
         configPath,
-      });
+      };
+      if (options?.daemonLogPath) {
+        writePidFile(pidFilePath, { ...pidContents, logPath: options.daemonLogPath });
+      } else {
+        writePidFile(pidFilePath, pidContents);
+      }
+      activePidFilePath = pidFilePath;
 
       resolve({ port: httpConfig.port, host: httpConfig.host });
     });
@@ -368,7 +405,7 @@ export async function stopHttpServer(): Promise<void> {
       }
       await session.transport.close();
     } catch (error) {
-      console.error(`Error closing session ${maskSessionId(sessionId)}:`, error);
+      logRedactedError(`Error closing session ${maskSessionId(sessionId)}`, error);
     }
   }
   sessions.clear();
@@ -388,8 +425,8 @@ export async function stopHttpServer(): Promise<void> {
 
   // Clean up PID file
   if (resources) {
-    const httpConfig = getHttpServerConfig(resources.config);
-    const pidFilePath = getPidFilePath(httpConfig.port);
+    const pidFilePath =
+      activePidFilePath ?? getPidFilePath(getHttpServerConfig(resources.config).port);
     removePidFile(pidFilePath);
 
     // Shut down shared resources
@@ -398,4 +435,5 @@ export async function stopHttpServer(): Promise<void> {
   }
 
   startTime = null;
+  activePidFilePath = null;
 }

@@ -62,7 +62,7 @@ limps config print --client claude-code
 
 That's it. Your AI assistant now has access to your documents via HTTP transport. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
 
-**Tip:** `limps status-server` shows the status of the current project if a config is found in the working directory (or passed via `--config`). Run it from a directory where no limps config can be resolved to list all running limps daemons on your system.
+**Tip:** `limps server-status` always includes system-wide daemon discovery. If a project config is found (or passed via `--config`), it also reconciles the configured project target against that global list.
 
 ## Features
 
@@ -81,7 +81,7 @@ That's it. Your AI assistant now has access to your documents via HTTP transport
 
 - **Local only** — Your data stays on disk (SQLite index + your files). No cloud, no subscription.
 - **Restart after changes** — If you change the indexed folder or config, restart the MCP server (or rely on the file watcher) so the index and tools reflect the current state.
-- **Daemon management** — The HTTP server runs as a background process. Use `limps start`, `limps stop`, and `limps status-server` to manage the daemon lifecycle. PID files are stored in OS-standard directories for system-wide awareness.
+- **Daemon management** — The HTTP server runs as a background process. Use `limps start`, `limps stop`, and `limps server-status` to manage the daemon lifecycle. PID files are stored in OS-standard directories for system-wide awareness.
 - **Sandboxed user code** — `process_doc` and `process_docs` run your JavaScript in a QuickJS sandbox with time and memory limits; no network or Node APIs.
 - **One optional network call** — `limps version --check` fetches from the npm registry to compare versions. All other commands (serve, init, list, search, create/update/delete docs, process_doc, etc.) do **not** contact the internet. Omit `version --check` if you want zero external calls.
 
@@ -320,7 +320,7 @@ limps v3 uses **HTTP transport exclusively** via a persistent daemon. This allow
 limps start
 
 # Check status (shows uptime, sessions, PID)
-limps status-server
+limps server-status
 
 # Stop the daemon
 limps stop
@@ -381,7 +381,7 @@ Example custom server config:
 - **Linux**: `$XDG_DATA_HOME/limps/pids/` or `~/.local/share/limps/pids/`
 - **Windows**: `%APPDATA%/limps/pids/`
 
-This enables `limps status-server` to perform system-wide daemon discovery when no project configuration can be resolved; when a limps config is found for the current directory, the CLI runs in project mode and reports status for that project instead.
+This enables `limps server-status` to perform system-wide daemon discovery from any directory. When a limps config is found for the current directory (or passed via `--config`), the CLI also reports and reconciles that project's configured target.
 
 - **Remote clients**: Use an MCP-compatible HTTPS proxy for remote clients (e.g., ChatGPT).
 
@@ -418,11 +418,34 @@ Each PID file is named by port number (`limps-{port}.pid`) to enable system-wide
   "port": 4269,
   "host": "127.0.0.1",
   "startedAt": "2026-02-08T12:00:00.000Z",
-  "configPath": "/path/to/project/.limps/config.json"
+  "configPath": "/path/to/project/.limps/config.json",
+  "logPath": "/Users/you/Library/Application Support/limps/logs/limps-4269.log"
 }
 ```
 
-This port-based naming allows `limps status-server` to find all running daemons across different projects without needing a config file.
+This port-based naming allows `limps server-status` to find all running daemons across different projects without needing a config file.
+
+Daemon logs are written to OS-standard application log directories:
+
+**macOS:**
+```
+~/Library/Application Support/limps/logs/
+```
+
+**Linux:**
+```
+$XDG_DATA_HOME/limps/logs/
+# or if XDG_DATA_HOME is not set:
+~/.local/share/limps/logs/
+```
+
+**Windows:**
+```
+%APPDATA%/limps/logs/
+```
+
+Daemon logs are intentionally operational-only: limps redacts uncaught exception/rejection payloads and does not persist raw AI prompt/response content.
+Daemon log files are append-only and are not auto-rotated; if you run long-lived daemons, rotate or truncate these files with your system tooling.
 
 ### Starting the Daemon
 
@@ -432,6 +455,7 @@ This port-based naming allows `limps status-server` to find all running daemons 
 limps start
 # → Daemon starts on http://127.0.0.1:4269/mcp
 # → PID file written to OS-standard location
+# → Logs written to OS-standard log file (append mode)
 # → Process detaches and runs in background
 ```
 
@@ -475,34 +499,43 @@ The `start` command performs health verification by polling the `/health` endpoi
 
 ### Checking Daemon Status
 
-**Project mode (when config is found):**
+**With project config (reconciled with global discovery):**
 
 ```bash
 # From within a project directory with .limps/config.json
-limps status-server
+limps server-status
+# Project target:
 # limps server is running
 # PID: 12345 | 127.0.0.1:4269
 # Uptime: 2h 15m
 # Sessions: 3
+# Log: /Users/you/Library/Application Support/limps/logs/limps-4269.log
+# Project target is present in system-wide daemon discovery.
+# System-wide daemons:
+# 127.0.0.1:4269 (PID 12345) [project target]
+#   Uptime: 2h 15m | Sessions: 3
+#   Log: /Users/you/Library/Application Support/limps/logs/limps-4269.log
 
 # Or specify config explicitly
-limps status-server --config /path/to/.limps/config.json
+limps server-status --config /path/to/.limps/config.json
 ```
 
-**System-wide discovery (when no config is found):**
+**Without project config (global discovery only):**
 
 ```bash
 # From a directory without a limps config
 cd /tmp
-limps status-server
+limps server-status
 # Found 2 running daemons:
 # 127.0.0.1:4269 (PID 12345)
 #   Uptime: 2h 15m | Sessions: 3
+#   Log: /Users/you/Library/Application Support/limps/logs/limps-4269.log
 # 127.0.0.1:8080 (PID 67890)
 #   Uptime: 45m 30s | Sessions: 1
+#   Log: /Users/you/Library/Application Support/limps/logs/limps-8080.log
 ```
 
-When `limps status-server` cannot resolve a config file in the current directory (and no `--config` is provided), it scans the system PID directory and reports all running limps daemons. When a config is found, it shows only that project's daemon status.
+When `limps server-status` cannot resolve a config file in the current directory (and no `--config` is provided), it reports global daemon discovery only. When a config is found, it reports both the configured project target and the global daemon list.
 
 ### Stopping the Daemon
 
@@ -615,7 +648,7 @@ Discover all running daemons (run from a directory without a limps config):
 
 ```bash
 cd /tmp
-limps status-server
+limps server-status
 # Found 2 running daemons:
 # 127.0.0.1:4269 (PID 12345)
 #   Uptime: 2h 15m | Sessions: 3
@@ -643,7 +676,7 @@ limps init [path]             # Initialize new project
 limps start                   # Start HTTP daemon (background by default)
 limps start --foreground      # Start in foreground (debugging mode)
 limps stop                    # Stop HTTP daemon
-limps status-server           # Show daemon status (current project or all daemons)
+limps server-status           # Show daemon status (current project or all daemons)
 limps config show             # Display current config
 limps config print            # Print MCP client config snippets
 ```
@@ -745,7 +778,7 @@ limps start
 **Resolution:**
 1. **Kill the existing process**: `kill 12345`
 2. **Or use a different port**: `limps start --port 8080`
-3. **Check if it's another limps daemon**: `limps status-server` (if so, use `limps stop` first)
+3. **Check if it's another limps daemon**: `limps server-status` (if so, use `limps stop` first)
 
 **"Daemon may have failed to start" error:**
 
@@ -757,7 +790,7 @@ limps start
 ```
 
 **Resolution:**
-1. **Run in foreground to see logs**: `limps start --foreground`
+1. **Check daemon log path**: `limps server-status` (or run foreground mode: `limps start --foreground`)
 2. **Check for permission issues**: Ensure you have write access to the PID directory
 3. **Verify port is accessible**: Try `curl http://127.0.0.1:4269/health`
 4. **Enable debug logging**: `DEBUG=1 limps start --foreground`
@@ -794,7 +827,7 @@ mkdir %APPDATA%\limps\pids
 
 **TIMEOUT error:**
 
-The daemon did not respond within the configured timeout. Each health-check request has its own timeout (for example, 1000ms during the final `limps start` check and 3000ms for `status-server`), and during startup limps will poll for up to about 5 seconds before reporting "Daemon may have failed to start".
+The daemon did not respond within the configured timeout. Each health-check request has its own timeout (for example, 1000ms during the final `limps start` check and 3000ms for `server-status`), and during startup limps will poll for up to about 5 seconds before reporting "Daemon may have failed to start".
 
 **Common causes:**
 - System resource constraints (high CPU/memory usage)
@@ -803,7 +836,7 @@ The daemon did not respond within the configured timeout. Each health-check requ
 
 **Resolution:**
 1. Check system resources: `top` or Activity Monitor
-2. Wait a bit longer and retry: `limps status-server`
+2. Wait a bit longer and retry: `limps server-status`
 3. Run in foreground to see progress: `limps start --foreground`
 
 **NETWORK_ERROR:**
@@ -816,15 +849,15 @@ Cannot establish connection to the daemon.
 - Incorrect host/port configuration
 
 **Resolution:**
-1. Verify daemon is running: `limps status-server`
+1. Verify daemon is running: `limps server-status`
 2. Check firewall settings for port 4269
 3. Try `curl http://127.0.0.1:4269/health` manually
-4. Check daemon logs: `limps start --foreground`
+4. Check daemon logs: see `Log:` path in `limps server-status` output
 
 ### Stale PID Files
 
 limps automatically cleans up stale PID files when:
-- Running `limps status-server` (discovers and removes stale files)
+- Running `limps server-status` (discovers and removes stale files)
 - Running `limps start` (removes stale file for the target port)
 - The daemon shuts down gracefully with `limps stop`
 
@@ -858,7 +891,7 @@ limps start
 This is expected behavior — limps prevents multiple daemons on the same port using PID-based locking.
 
 **Resolution:**
-1. **Check all running daemons**: `limps status-server`
+1. **Check all running daemons**: `limps server-status`
 2. **Stop the existing daemon**: `limps stop`
 3. **Or start on a different port**: `limps start --port 8080`
 
@@ -869,7 +902,7 @@ If MCP clients can't connect to the daemon, verify connectivity step by step:
 **1. Check daemon status:**
 
 ```bash
-limps status-server
+limps server-status
 # Should show daemon running with healthy status
 ```
 

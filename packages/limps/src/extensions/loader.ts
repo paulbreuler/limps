@@ -1,6 +1,7 @@
 import type { LimpsExtension, ExtensionTool, ExtensionResource } from './types.js';
 import type { ServerConfig } from '../config.js';
 import { createExtensionContext } from './context.js';
+import { logRedactedError } from '../utils/safe-logging.js';
 
 /**
  * Loaded extension with its context.
@@ -60,7 +61,7 @@ export async function loadExtensions(config: ServerConfig): Promise<LoadedExtens
           continue;
         }
       }
-      console.error(`Failed to load extension ${extensionName}:`, error);
+      logRedactedError(`Failed to load extension ${extensionName}`, error);
     }
   }
 
@@ -134,7 +135,7 @@ export async function shutdownExtensions(extensions: LoadedExtension[]): Promise
       try {
         await extension.onShutdown();
       } catch (error) {
-        console.error(`Error shutting down extension ${extension.name}:`, error);
+        logRedactedError(`Error shutting down extension ${extension.name}`, error);
       }
     }
   }

@@ -2,6 +2,7 @@
 import Pastel from 'pastel';
 import { getPackageVersion } from './utils/version.js';
 import { startHttpServer, stopHttpServer } from './server-http.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 // Check if running start command with --foreground flag — bypass Ink for clean stdio
 const args = process.argv.slice(2);
@@ -13,6 +14,12 @@ if (isStartForeground && !wantsHelp) {
   // Parse --config option
   const configIndex = args.indexOf('--config');
   const configPath = configIndex !== -1 ? args[configIndex + 1] : undefined;
+  const portIndex = args.indexOf('--port');
+  const hostIndex = args.indexOf('--host');
+  const portArg = portIndex !== -1 ? args[portIndex + 1] : undefined;
+  const hostArg = hostIndex !== -1 ? args[hostIndex + 1] : undefined;
+  const port = portArg ? Number.parseInt(portArg, 10) : undefined;
+  const host = hostArg || undefined;
 
   // Run HTTP server in foreground without Ink's terminal management
   let shuttingDown = false;
@@ -26,8 +33,8 @@ if (isStartForeground && !wantsHelp) {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  startHttpServer(configPath).catch((err: Error) => {
-    console.error(`Server error: ${err.message}`);
+  startHttpServer(configPath, { port, host }).catch((err: Error) => {
+    logRedactedError('Server error', err);
     process.exit(1);
   });
 } else {
