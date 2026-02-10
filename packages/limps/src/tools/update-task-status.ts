@@ -34,7 +34,7 @@ export async function handleUpdateTaskStatus(
       content: [
         {
           type: 'text',
-          text: `Agent file not found for task ${taskId}. Expected format: <planFolder>#<agentNumber> (e.g., "0001-feature-name#005")`,
+          text: `Agent file not found for task ${taskId}. Expected format: planFolder#agentNumber (e.g., "0001-feature-name#005")`,
         },
       ],
       isError: true,
