@@ -37,6 +37,43 @@ describe('updateAgentStatus', () => {
   });
 
   describe('status transitions', () => {
+    it('should update status when agent file path does not include /plans/ segment', () => {
+      const planDir = join(testDir, '0001-test-plan');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      const agentPath = join(agentsDir, '000_agent.agent.md');
+      writeFileSync(
+        agentPath,
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Test Agent
+`,
+        'utf-8'
+      );
+
+      const resolvedId: ResolvedTaskId = {
+        taskId: '0001-test-plan#000',
+        planFolder: '0001-test-plan',
+        agentNumber: '000',
+        path: agentPath,
+      };
+
+      const result = updateAgentStatus(config, resolvedId, 'WIP');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('GAP to WIP');
+
+      const updatedContent = readFileSync(agentPath, 'utf-8');
+      expect(updatedContent).toContain('status: WIP');
+    });
+
     it('should update status from GAP to WIP', () => {
       const planDir = join(plansDir, '0001-test-plan');
       const agentsDir = join(planDir, 'agents');

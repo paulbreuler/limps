@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAgentFile } from '../src/agent-parser.js';
+import { parseAgentFile, extractPlanFolder } from '../src/agent-parser.js';
 
 describe('agent-parser', () => {
   it('normalizes depends_on values into dependencies', () => {
@@ -40,5 +40,35 @@ files: []
       return;
     }
     expect(parsed.frontmatter.dependencies).toEqual([]);
+  });
+
+  it('extracts plan folder without requiring a /plans/ path segment', () => {
+    const planFolder = extractPlanFolder(
+      '/workspace/my-project/0007-feature/agents/002_test.agent.md'
+    );
+    expect(planFolder).toBe('0007-feature');
+  });
+
+  it('parses agent files in non-canonical plansPath layouts', () => {
+    const content = `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 2
+`;
+    const parsed = parseAgentFile(
+      '/workspace/repo-root/0007-feature/agents/002_test.agent.md',
+      content
+    );
+    expect(parsed).not.toBeNull();
+    if (!parsed) {
+      return;
+    }
+    expect(parsed.planFolder).toBe('0007-feature');
+    expect(parsed.taskId).toBe('0007-feature#002');
   });
 });

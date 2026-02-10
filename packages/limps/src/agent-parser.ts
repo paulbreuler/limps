@@ -117,16 +117,20 @@ export function extractAgentNumber(filename: string): string | null {
  * Extract plan folder from agent file path.
  *
  * @example
- * extractPlanFolder("/path/to/plans/0022-datagrid-stories/agents/000_agent.agent.md")
+ * extractPlanFolder("/path/to/0022-datagrid-stories/agents/000_agent.agent.md")
  * // "0022-datagrid-stories"
  *
  * @param path - Full path to agent file
  * @returns Plan folder name or null if not found
  */
 export function extractPlanFolder(path: string): string | null {
-  // Match plans/<folder>/agents/
-  const match = path.match(/plans[/\\]([^/\\]+)[/\\]agents[/\\]/);
-  return match ? match[1] : null;
+  // Plan folder is the path segment directly before "agents"
+  const segments = path.split(/[/\\]+/).filter(Boolean);
+  const agentsIndex = segments.lastIndexOf('agents');
+  if (agentsIndex <= 0) {
+    return null;
+  }
+  return segments[agentsIndex - 1] || null;
 }
 
 /**
