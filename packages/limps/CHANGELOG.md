@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/paulbreuler/limps/compare/limps-v3.2.0...limps-v3.2.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* **limps:** clarify daemon wording in default command help ([#126](https://github.com/paulbreuler/limps/issues/126)) ([227aa7c](https://github.com/paulbreuler/limps/commit/227aa7cd93d8ee5b4e18bd2c5764b5327fb5cf52))
+
 ## [3.2.0](https://github.com/paulbreuler/limps/compare/limps-v3.1.1...limps-v3.2.0) (2026-02-09)
 
 
