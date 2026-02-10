@@ -28,9 +28,9 @@ export default function DefaultCommand(): React.ReactNode {
       {'\n'}
       <Text color="cyan">HTTP Server:</Text>
       {'\n'}
-      {'  '}start{'          '}Start the HTTP MCP server{'\n'}
-      {'  '}stop{'           '}Stop the HTTP server{'\n'}
-      {'  '}server-status{'  '}Show server status{'\n'}
+      {'  '}start{'          '}Start the HTTP daemon{'\n'}
+      {'  '}stop{'           '}Stop the HTTP daemon{'\n'}
+      {'  '}server-status{'  '}Show daemon status{'\n'}
       {'\n'}
       <Text color="cyan">Plan Management:</Text>
       {'\n'}
