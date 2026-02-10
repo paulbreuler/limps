@@ -55,6 +55,9 @@ export async function handleUpdateTaskStatus(
     };
   }
 
+  // Capture old status before updating
+  const oldStatus = agent.frontmatter.status;
+
   // Update status in frontmatter
   const updated = updateAgentFrontmatter(agentFilePath, { status });
   if (!updated) {
@@ -73,7 +76,7 @@ export async function handleUpdateTaskStatus(
     content: [
       {
         type: 'text',
-        text: `Task ${taskId} status updated from ${agent.frontmatter.status} to ${status}${agentId ? ` by agent ${agentId}` : ''}${notes ? `. Notes: ${notes}` : ''}`,
+        text: `Task ${taskId} status updated from ${oldStatus} to ${status}${agentId ? ` by agent ${agentId}` : ''}${notes ? `. Notes: ${notes}` : ''}`,
       },
     ],
   };
