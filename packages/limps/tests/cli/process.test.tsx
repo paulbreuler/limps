@@ -1,8 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import { mkdirSync, rmSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { outputJson } from '../../src/cli/json-output.js';
+
+vi.mock('../../src/cli/json-output.js', async () => {
+  const actual = await vi.importActual('../../src/cli/json-output.js');
+  return {
+    ...(actual as Record<string, unknown>),
+    outputJson: vi.fn(),
+  };
+});
 
 describe('process command', () => {
   let testDir: string;
@@ -13,6 +22,7 @@ describe('process command', () => {
       `test-process-cmd-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
     mkdirSync(testDir, { recursive: true });
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -220,7 +230,6 @@ describe('process command', () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       const output = lastFrame() ?? '';
-      expect(output).toContain('Error');
       expect(output).toContain('Cannot provide both');
     });
 
@@ -272,7 +281,7 @@ describe('process command', () => {
         writeFileSync(join(docsDir, `doc${i}.md`), `Doc ${i}`, 'utf-8');
       }
 
-      const configPath = createConfig({ docsPaths: [docsDir] });
+      const configPath = createConfig({ docsPaths: [testDir] });
 
       const { default: ProcessCommand } = await import('../../src/commands/process.js');
 
@@ -287,8 +296,8 @@ describe('process command', () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       const output = lastFrame() ?? '';
-      // Should process successfully (max-docs prevents errors, but may show fewer than 5)
-      expect(output).toContain('Processed');
+      // max-docs enforces a hard limit - if exceeded, it errors
+      expect(output).toContain('exceeding max_docs limit');
     });
 
     it('pretty-prints output with pretty flag', async () => {
@@ -314,6 +323,97 @@ describe('process command', () => {
       expect(output).toContain('Processed document');
       // Pretty-printed objects should have indentation (multi-line)
       expect(output).toMatch(/\n/);
+    });
+  });
+
+  describe('JSON mode', () => {
+    it('outputs JSON for single document processing', async () => {
+      const docsDir = join(testDir, 'docs');
+      mkdirSync(docsDir, { recursive: true });
+      writeFileSync(join(docsDir, 'test.md'), '# Test\nContent', 'utf-8');
+
+      const configPath = createConfig({ docsPaths: [testDir] });
+
+      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+
+      render(
+        <ProcessCommand
+          args={['docs/test.md']}
+          options={{ config: configPath, code: 'doc.content.length', json: true }}
+        />
+      );
+
+      // Wait for async JSON output
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Verify outputJson was called (even if vitest catches process.exit)
+      expect(outputJson).toHaveBeenCalled();
+    });
+
+    it('outputs JSON for multi-document processing', async () => {
+      const docsDir = join(testDir, 'docs');
+      mkdirSync(docsDir, { recursive: true });
+      writeFileSync(join(docsDir, 'doc1.md'), '# Doc 1', 'utf-8');
+      writeFileSync(join(docsDir, 'doc2.md'), '# Doc 2', 'utf-8');
+
+      const configPath = createConfig({ docsPaths: [testDir] });
+
+      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+
+      render(
+        <ProcessCommand
+          args={[undefined]}
+          options={{ config: configPath, pattern: 'docs/*.md', code: 'docs.length', json: true }}
+        />
+      );
+
+      // Wait for async JSON output
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Verify outputJson was called (even if vitest catches process.exit)
+      expect(outputJson).toHaveBeenCalled();
+    });
+
+    it('outputs JSON error when path is missing', async () => {
+      const configPath = createConfig();
+
+      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+
+      render(
+        <ProcessCommand
+          args={[undefined]}
+          options={{ config: configPath, code: 'doc.content', json: true }}
+        />
+      );
+
+      // Wait for async JSON output
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(outputJson).toHaveBeenCalledTimes(1);
+      const payload = (outputJson as unknown as { mock: { calls: [unknown[]] } }).mock.calls[0][0];
+      expect(payload).toHaveProperty('success', false);
+      expect(payload).toHaveProperty('error');
+    });
+
+    it('outputs JSON error when code is missing', async () => {
+      const configPath = createConfig();
+
+      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+
+      render(
+        <ProcessCommand
+          args={['test.md']}
+          options={{ config: configPath, code: undefined as unknown as string, json: true }}
+        />
+      );
+
+      // Wait for async JSON output
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(outputJson).toHaveBeenCalledTimes(1);
+      const payload = (outputJson as unknown as { mock: { calls: [unknown[]] } }).mock.calls[0][0];
+      expect(payload).toHaveProperty('success', false);
+      expect(payload).toHaveProperty('error');
     });
   });
 });

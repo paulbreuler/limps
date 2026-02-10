@@ -84,7 +84,7 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
       return undefined;
     }
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       try {
         // Validation: must provide either path or pattern
         if (!path && !options.pattern) {
@@ -135,7 +135,7 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
 
         if (path) {
           // Single document processing
-          handleJsonOutput(async () => {
+          try {
             const input = ProcessDocInputSchema.parse({
               path,
               code: options.code,
@@ -146,16 +146,21 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
             const toolResult = await handleProcessDoc(input, context);
 
             if (toolResult.isError) {
-              throw new Error(toolResult.content[0].text);
+              db.close();
+              outputJson(wrapError(toolResult.content[0].text, { code: 'PROCESS_DOC_ERROR' }), 1);
+              return;
             }
 
             const output = JSON.parse(toolResult.content[0].text);
             db.close();
-            return output;
-          }, 'PROCESS_DOC_ERROR');
+            handleJsonOutput(() => output, 'PROCESS_DOC_ERROR');
+          } catch (error) {
+            db.close();
+            throw error;
+          }
         } else if (options.pattern) {
           // Multiple documents processing
-          handleJsonOutput(async () => {
+          try {
             const input = ProcessDocsInputSchema.parse({
               pattern: options.pattern,
               code: options.code,
@@ -166,13 +171,18 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
             const toolResult = await handleProcessDocs(input, context);
 
             if (toolResult.isError) {
-              throw new Error(toolResult.content[0].text);
+              db.close();
+              outputJson(wrapError(toolResult.content[0].text, { code: 'PROCESS_DOCS_ERROR' }), 1);
+              return;
             }
 
             const output = JSON.parse(toolResult.content[0].text);
             db.close();
-            return output;
-          }, 'PROCESS_DOCS_ERROR');
+            handleJsonOutput(() => output, 'PROCESS_DOCS_ERROR');
+          } catch (error) {
+            db.close();
+            throw error;
+          }
         }
       } catch (err) {
         outputJson(
@@ -287,7 +297,7 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
   }
 
   if (error) {
-    return <Text color="red">Error: {error}</Text>;
+    return <Text color="red">{error}</Text>;
   }
 
   if (!result) {
