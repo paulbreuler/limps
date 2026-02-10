@@ -22,6 +22,7 @@ export interface PidFileContents {
   host: string;
   startedAt: string;
   configPath?: string;
+  logPath?: string;
 }
 
 /**
@@ -89,7 +90,9 @@ export function readPidFile(pidFilePath: string): PidFileContents | null {
       typeof parsed.host !== 'string' ||
       parsed.host.length === 0 ||
       typeof parsed.startedAt !== 'string' ||
-      parsed.startedAt.length === 0
+      parsed.startedAt.length === 0 ||
+      (parsed.configPath !== undefined && typeof parsed.configPath !== 'string') ||
+      (parsed.logPath !== undefined && typeof parsed.logPath !== 'string')
     ) {
       return null;
     }

@@ -30,7 +30,7 @@ export default function DefaultCommand(): React.ReactNode {
       {'\n'}
       {'  '}start{'          '}Start the HTTP MCP server{'\n'}
       {'  '}stop{'           '}Stop the HTTP server{'\n'}
-      {'  '}status-server{'  '}Show server status{'\n'}
+      {'  '}server-status{'  '}Show server status{'\n'}
       {'\n'}
       <Text color="cyan">Plan Management:</Text>
       {'\n'}

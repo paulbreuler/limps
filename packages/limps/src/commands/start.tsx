@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { spawn } from 'child_process';
+import { closeSync, openSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { loadConfig, getHttpServerConfig } from '../config.js';
 import { resolveConfigPath } from '../utils/config-resolver.js';
 import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
+import { getDaemonLogPath, ensureSystemLogDir } from '../utils/daemon-log.js';
 import { startHttpServer, stopHttpServer } from '../server-http.js';
 import {
   checkDaemonHealth,
@@ -73,11 +75,18 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = dirname(__filename);
           const entryPath = resolve(__dirname, '../server-http-entry.js');
-
-          const child = spawn(process.execPath, [entryPath, configPath], {
-            detached: true,
-            stdio: 'ignore',
-          });
+          ensureSystemLogDir();
+          const logPath = getDaemonLogPath(port);
+          const logFd = openSync(logPath, 'a');
+          let child: ReturnType<typeof spawn>;
+          try {
+            child = spawn(process.execPath, [entryPath, configPath], {
+              detached: true,
+              stdio: ['ignore', logFd, logFd],
+            });
+          } finally {
+            closeSync(logFd);
+          }
           child.unref();
 
           // HTTP options for health checks
@@ -114,7 +123,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
 
             if (healthResult.ok && healthResult.data.status === 'ok') {
               setStatus(
-                `limps daemon started (PID ${daemon.pid}) on http://${daemon.host}:${daemon.port}/mcp`
+                `limps daemon started (PID ${daemon.pid}) on http://${daemon.host}:${daemon.port}/mcp\nLog: ${logPath}`
               );
             } else {
               const errorMsg = healthResult.ok
@@ -123,16 +132,18 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
 
               const suggestion =
                 !healthResult.ok && healthResult.error.code === 'TIMEOUT'
-                  ? 'Daemon may be slow to start. Try increasing timeout or check system resources.'
+                  ? 'Daemon may be slow to start. Check system resources and daemon logs.'
                   : !healthResult.ok && healthResult.error.code === 'NETWORK_ERROR'
                     ? 'Cannot connect to daemon. Check if port is blocked or already in use.'
                     : 'Try running: limps start --foreground';
 
-              setError(`${errorMsg}\n${suggestion}\n\nRun with DEBUG=1 for more details.`);
+              setError(
+                `${errorMsg}\n${suggestion}\nLog: ${logPath}\n\nRun with DEBUG=1 for more details.`
+              );
             }
           } else {
             setError(
-              'Daemon may have failed to start. Check logs or try: limps start --foreground'
+              `Daemon may have failed to start. Check log: ${logPath}\nOr try: limps start --foreground`
             );
           }
           setDone(true);

@@ -79,7 +79,7 @@ limps is an MCP (Model Context Protocol) server for AI agent plan management. It
   - `serve.tsx` - stdio-to-HTTP bridge (ensures daemon running, connects via HTTP client transport)
   - `start.tsx` - HTTP daemon management (spawns/manages daemon process)
   - `stop.tsx` - Stop HTTP daemon
-  - `status-server.tsx` - Show daemon status and sessions
+  - `server-status.tsx` - Show daemon status and sessions
 - `src/components/` - Shared React components for CLI output formatting
 
 **HTTP Daemon Architecture:**

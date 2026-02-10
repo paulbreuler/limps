@@ -9,6 +9,7 @@ import {
   discoverRunningDaemons,
   type PidFileContents,
 } from '../pidfile.js';
+import { getDaemonLogPath } from '../utils/daemon-log.js';
 import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
 import { checkDaemonHealth, type HttpClientOptions } from '../utils/http-client.js';
 
@@ -32,8 +33,15 @@ interface StatusResult {
   uptime?: number;
   sessions?: number;
   sessionTimeoutMs?: number;
+  logPath?: string;
   healthy?: boolean;
   healthError?: string;
+}
+
+interface ReconciledStatusResult {
+  project: StatusResult;
+  daemons: StatusResult[];
+  projectDaemonPresent: boolean;
 }
 
 const HTTP_OPTIONS: HttpClientOptions = {
@@ -58,6 +66,7 @@ async function getDaemonStatus(daemon: PidFileContents): Promise<StatusResult> {
       uptime: result.data.uptime,
       sessions: result.data.sessions,
       sessionTimeoutMs: result.data.sessionTimeoutMs,
+      logPath: getDaemonLogPath(daemon.port),
       healthy: result.data.status === 'ok',
     };
   }
@@ -67,6 +76,7 @@ async function getDaemonStatus(daemon: PidFileContents): Promise<StatusResult> {
     host: daemon.host,
     port: daemon.port,
     startedAt: daemon.startedAt,
+    logPath: getDaemonLogPath(daemon.port),
     healthy: false,
     healthError: `${result.error.message} (${result.error.code})`,
   };
@@ -83,7 +93,12 @@ function getServerStatus(opts: z.infer<typeof options>): Promise<StatusResult> {
   const daemon = getRunningDaemon(pidFilePath);
 
   if (!daemon) {
-    return Promise.resolve({ running: false });
+    return Promise.resolve({
+      running: false,
+      host: httpConfig.host,
+      port: httpConfig.port,
+      logPath: getDaemonLogPath(httpConfig.port),
+    });
   }
 
   return getDaemonStatus(daemon);
@@ -98,6 +113,18 @@ async function getAllServerStatuses(): Promise<StatusResult[]> {
     return [];
   }
   return Promise.all(daemons.map(getDaemonStatus));
+}
+
+/**
+ * Gather both project-targeted and system-wide daemon status.
+ */
+async function getProjectAndGlobalStatus(
+  opts: z.infer<typeof options>
+): Promise<ReconciledStatusResult> {
+  const [project, daemons] = await Promise.all([getServerStatus(opts), getAllServerStatuses()]);
+  const projectDaemonPresent =
+    project.port !== undefined && daemons.some((daemon) => daemon.port === project.port);
+  return { project, daemons, projectDaemonPresent };
 }
 
 /**
@@ -120,9 +147,16 @@ export default function StatusServerCommand({ options: opts }: Props): React.Rea
     if (jsonMode) {
       const timer = setTimeout(() => {
         if (configAvailable) {
-          getServerStatus(opts)
+          getProjectAndGlobalStatus(opts)
             .then((result) => {
-              handleJsonOutput(() => result, 'STATUS_SERVER_ERROR');
+              handleJsonOutput(
+                () => ({
+                  ...result.project,
+                  daemons: result.daemons,
+                  projectDaemonPresent: result.projectDaemonPresent,
+                }),
+                'STATUS_SERVER_ERROR'
+              );
             })
             .catch((err) => {
               outputJson(
@@ -157,7 +191,7 @@ export default function StatusServerCommand({ options: opts }: Props): React.Rea
   }
 
   if (configAvailable) {
-    return <StatusDisplay opts={opts} />;
+    return <ProjectAndGlobalDisplay opts={opts} />;
   }
 
   return <AllDaemonsDisplay />;
@@ -197,17 +231,27 @@ function AllDaemonsDisplay(): React.ReactNode {
   );
 }
 
-function DaemonRow({ result }: { result: StatusResult }): React.ReactNode {
+function DaemonRow({
+  result,
+  projectPort,
+}: {
+  result: StatusResult;
+  projectPort?: number;
+}): React.ReactNode {
   const uptimeStr = result.uptime !== undefined ? formatUptime(result.uptime) : 'unknown';
   const healthColor = result.healthy === false ? 'red' : 'green';
+  const isProjectTarget = projectPort !== undefined && result.port === projectPort;
 
   return (
     <Box flexDirection="column">
       <Text color={healthColor}>
-        {result.host}:{result.port} (PID {result.pid})
+        {result.host}:{result.port} (PID {result.pid}){isProjectTarget ? ' [project target]' : ''}
       </Text>
       <Text>
         {'  '}Uptime: {uptimeStr} | Sessions: {result.sessions ?? 'unknown'}
+      </Text>
+      <Text>
+        {'  '}Log: {result.logPath ?? 'unknown'}
       </Text>
       {result.healthy === false && (
         <Text color="red">
@@ -218,12 +262,12 @@ function DaemonRow({ result }: { result: StatusResult }): React.ReactNode {
   );
 }
 
-function StatusDisplay({ opts }: { opts: z.infer<typeof options> }): React.ReactNode {
-  const [result, setResult] = useState<StatusResult | null>(null);
+function ProjectAndGlobalDisplay({ opts }: { opts: z.infer<typeof options> }): React.ReactNode {
+  const [result, setResult] = useState<ReconciledStatusResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getServerStatus(opts)
+    getProjectAndGlobalStatus(opts)
       .then(setResult)
       .catch((err) => setError((err as Error).message));
   }, [opts.config]);
@@ -236,24 +280,50 @@ function StatusDisplay({ opts }: { opts: z.infer<typeof options> }): React.React
     return <Text>Checking server status...</Text>;
   }
 
-  if (!result.running) {
-    return <Text color="yellow">limps server is not running.</Text>;
-  }
-
-  const uptimeStr = result.uptime !== undefined ? formatUptime(result.uptime) : 'unknown';
+  const project = result.project;
+  const uptimeStr = project.uptime !== undefined ? formatUptime(project.uptime) : 'unknown';
 
   return (
-    <Box flexDirection="column">
-      <Text color="green">limps server is running</Text>
-      <Text>
-        PID: {result.pid} | {result.host}:{result.port}
-      </Text>
-      <Text>Uptime: {uptimeStr}</Text>
-      <Text>Sessions: {result.sessions ?? 'unknown'}</Text>
-      {result.healthy === false && (
-        <Text color="red">
-          Health check failed{result.healthError ? `: ${result.healthError}` : ''}
-        </Text>
+    <Box flexDirection="column" gap={1}>
+      <Text color="cyan">Project target:</Text>
+      {project.running ? (
+        <Box flexDirection="column">
+          <Text color="green">limps server is running</Text>
+          <Text>
+            PID: {project.pid} | {project.host}:{project.port}
+          </Text>
+          <Text>Uptime: {uptimeStr}</Text>
+          <Text>Sessions: {project.sessions ?? 'unknown'}</Text>
+          <Text>Log: {project.logPath ?? 'unknown'}</Text>
+          {project.healthy === false && (
+            <Text color="red">
+              Health check failed{project.healthError ? `: ${project.healthError}` : ''}
+            </Text>
+          )}
+        </Box>
+      ) : (
+        <Box flexDirection="column">
+          <Text color="yellow">limps server is not running for this project config.</Text>
+          <Text>
+            Configured target: {project.host ?? 'unknown'}:{project.port ?? 'unknown'}
+          </Text>
+          <Text>Expected log path: {project.logPath ?? 'unknown'}</Text>
+        </Box>
+      )}
+
+      {result.projectDaemonPresent ? (
+        <Text color="green">Project target is present in system-wide daemon discovery.</Text>
+      ) : (
+        <Text color="yellow">Project target was not found in system-wide daemon discovery.</Text>
+      )}
+
+      <Text color="cyan">System-wide daemons:</Text>
+      {result.daemons.length === 0 ? (
+        <Text color="yellow">No limps daemons running.</Text>
+      ) : (
+        result.daemons.map((daemon) => (
+          <DaemonRow key={daemon.port} result={daemon} projectPort={project.port} />
+        ))
       )}
     </Box>
   );

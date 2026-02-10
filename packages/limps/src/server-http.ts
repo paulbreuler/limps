@@ -15,6 +15,7 @@ import {
 } from './server-shared.js';
 import { getHttpServerConfig, type HttpServerConfig, loadConfig } from './config.js';
 import { getPidFilePath, writePidFile, removePidFile, getRunningDaemon } from './pidfile.js';
+import { getDaemonLogPath } from './utils/daemon-log.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
 import { shutdownExtensions, type LoadedExtension } from './extensions/loader.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -288,6 +289,7 @@ export async function startHttpServer(configPathArg?: string): Promise<{
         host: httpConfig.host,
         startedAt: started.toISOString(),
         configPath,
+        logPath: getDaemonLogPath(httpConfig.port),
       });
 
       resolve({ port: httpConfig.port, host: httpConfig.host });

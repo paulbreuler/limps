@@ -109,7 +109,7 @@ export function initProject(targetPath = '.'): string {
 
   // Daemon management
   lines.push('Manage the daemon:');
-  lines.push(`  ${localPlannerPath} status-server --config "${configPath}"  # Check status`);
+  lines.push(`  ${localPlannerPath} server-status --config "${configPath}"  # Check status`);
   lines.push(`  ${localPlannerPath} stop --config "${configPath}"           # Stop daemon`);
   lines.push('');
 
