@@ -9,6 +9,7 @@ import {
   shutdownServerResources,
   type ServerResources,
 } from './server-shared.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 // Global reference for graceful shutdown
 let resources: ServerResources | null = null;
@@ -24,7 +25,7 @@ export async function startMcpServer(configPathArg?: string): Promise<void> {
     try {
       await shutdownServerResources(resources);
     } catch (error) {
-      console.error('Failed to shut down previous resources during cleanup:', error);
+      logRedactedError('Failed to shut down previous resources during cleanup', error);
     }
     resources = null;
   }

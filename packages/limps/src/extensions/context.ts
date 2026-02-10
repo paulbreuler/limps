@@ -3,27 +3,29 @@ import { join } from 'path';
 import { homedir } from 'os';
 import type { ExtensionContext, Logger } from './types.js';
 import type { ServerConfig } from '../config.js';
+import { sanitizeOperationalMessage } from '../utils/safe-logging.js';
 
 /**
  * Simple console-based logger implementation.
  */
 class ConsoleLogger implements Logger {
-  error(message: string, ...args: unknown[]): void {
-    console.error(`[extension] ${message}`, ...args);
+  error(message: string, ..._args: unknown[]): void {
+    // Never persist extension-provided args because they may include prompt/response payloads.
+    console.error(`[extension] ${sanitizeOperationalMessage(message)}`);
   }
 
-  warn(message: string, ...args: unknown[]): void {
-    console.error(`[extension] WARN: ${message}`, ...args);
+  warn(message: string, ..._args: unknown[]): void {
+    console.error(`[extension] WARN: ${sanitizeOperationalMessage(message)}`);
   }
 
-  info(message: string, ...args: unknown[]): void {
-    console.error(`[extension] ${message}`, ...args);
+  info(message: string, ..._args: unknown[]): void {
+    console.error(`[extension] ${sanitizeOperationalMessage(message)}`);
   }
 
-  debug(message: string, ...args: unknown[]): void {
+  debug(message: string, ..._args: unknown[]): void {
     // Only log debug in development
     if (process.env.NODE_ENV !== 'production') {
-      console.error(`[extension] DEBUG: ${message}`, ...args);
+      console.error(`[extension] DEBUG: ${sanitizeOperationalMessage(message)}`);
     }
   }
 }

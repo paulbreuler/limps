@@ -7,6 +7,7 @@
  */
 
 import { startMcpServer } from './server-main.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 // Parse --config argument for backwards compatibility
 function getConfigArg(): string | undefined {
@@ -16,6 +17,6 @@ function getConfigArg(): string | undefined {
 }
 
 startMcpServer(getConfigArg()).catch((error) => {
-  console.error('Fatal error:', error);
+  logRedactedError('Fatal error', error);
   process.exit(1);
 });

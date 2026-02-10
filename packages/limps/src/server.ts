@@ -13,6 +13,7 @@ import {
   type LoadedExtension,
 } from './extensions/loader.js';
 import { getPackageVersion } from './utils/version.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 /**
  * Create an MCP server instance with the given configuration.
@@ -136,7 +137,7 @@ export async function startServer(
         process.exit(0);
       }
     } catch (error) {
-      console.error(`Error during shutdown:`, error);
+      logRedactedError('Error during shutdown', error);
       if (!isTestEnvironment) {
         process.exit(1);
       } else {
@@ -148,28 +149,28 @@ export async function startServer(
   if (!isTestEnvironment) {
     process.on('SIGINT', () => {
       shutdown('SIGINT').catch((error) => {
-        console.error('Error in SIGINT handler:', error);
+        logRedactedError('Error in SIGINT handler', error);
         process.exit(1);
       });
     });
 
     process.on('SIGTERM', () => {
       shutdown('SIGTERM').catch((error) => {
-        console.error('Error in SIGTERM handler:', error);
+        logRedactedError('Error in SIGTERM handler', error);
         process.exit(1);
       });
     });
 
     // Handle uncaught errors
     process.on('uncaughtException', (error) => {
-      console.error('Uncaught exception:', error);
+      logRedactedError('Uncaught exception', error);
       shutdown('uncaughtException').catch(() => {
         process.exit(1);
       });
     });
 
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled rejection at:', promise, 'reason:', reason);
+    process.on('unhandledRejection', (reason) => {
+      logRedactedError('Unhandled rejection', reason);
       shutdown('unhandledRejection').catch(() => {
         process.exit(1);
       });
@@ -180,7 +181,7 @@ export async function startServer(
     await server.connect(transport);
     console.error('MCP Planning Server running on stdio');
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logRedactedError('Failed to start server', error);
     throw error;
   }
 }

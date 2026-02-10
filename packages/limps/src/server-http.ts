@@ -22,6 +22,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createRateLimiter, type RateLimiter } from './utils/rate-limiter.js';
 import { findProcessUsingPort } from './utils/port-checker.js';
 import { getPackageVersion, getPackageName } from './utils/version.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 /**
  * Mask a session ID for logging to avoid exposing full UUIDs.
@@ -99,7 +100,10 @@ export async function startHttpServer(configPathArg?: string): Promise<{
         cleaningUp.add(sessionId);
         cleanupSession(sessionId)
           .catch((err) => {
-            console.error(`Error cleaning up timed-out session ${maskSessionId(sessionId)}:`, err);
+            logRedactedError(
+              `Error cleaning up timed-out session ${maskSessionId(sessionId)}`,
+              err
+            );
           })
           .finally(() => {
             cleaningUp.delete(sessionId);
@@ -370,7 +374,7 @@ export async function stopHttpServer(): Promise<void> {
       }
       await session.transport.close();
     } catch (error) {
-      console.error(`Error closing session ${maskSessionId(sessionId)}:`, error);
+      logRedactedError(`Error closing session ${maskSessionId(sessionId)}`, error);
     }
   }
   sessions.clear();

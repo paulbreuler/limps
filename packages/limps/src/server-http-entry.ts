@@ -6,6 +6,7 @@
  */
 
 import { startHttpServer, stopHttpServer } from './server-http.js';
+import { logRedactedError } from './utils/safe-logging.js';
 
 const configPath = process.argv[2];
 
@@ -19,7 +20,7 @@ async function shutdown(signal: string): Promise<void> {
     await stopHttpServer();
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    logRedactedError('Error during shutdown', error);
     process.exit(1);
   }
 }
@@ -33,16 +34,16 @@ process.on('SIGTERM', () => {
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
+  logRedactedError('Uncaught exception', error);
   shutdown('uncaughtException').catch(() => process.exit(1));
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  logRedactedError('Unhandled rejection', reason);
   shutdown('unhandledRejection').catch(() => process.exit(1));
 });
 
 startHttpServer(configPath).catch((err: Error) => {
-  console.error(`Failed to start HTTP server: ${err.message}`);
+  logRedactedError('Failed to start HTTP server', err);
   process.exit(1);
 });

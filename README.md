@@ -444,6 +444,8 @@ $XDG_DATA_HOME/limps/logs/
 %APPDATA%/limps/logs/
 ```
 
+Daemon logs are intentionally operational-only: limps redacts uncaught exception/rejection payloads and does not persist raw AI prompt/response content.
+
 ### Starting the Daemon
 
 **Background mode (default):**
