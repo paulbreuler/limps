@@ -31,11 +31,12 @@ export async function getDeleteDocData(
   config: ServerConfig,
   options: DeleteDocOptions
 ): Promise<DeleteDocOutput | { error: string }> {
+  // Ensure data directory exists
+  mkdirSync(config.dataPath, { recursive: true });
+  const dbPath = resolve(config.dataPath, 'documents.sqlite');
+  const db = initializeDatabase(dbPath);
+
   try {
-    // Ensure data directory exists
-    mkdirSync(config.dataPath, { recursive: true });
-    const dbPath = resolve(config.dataPath, 'documents.sqlite');
-    const db = initializeDatabase(dbPath);
     createSchema(db);
     const input: DeleteDocInput = {
       path: options.path,
@@ -56,6 +57,8 @@ export async function getDeleteDocData(
     return {
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    db.close();
   }
 }
 

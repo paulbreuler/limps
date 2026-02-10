@@ -37,11 +37,12 @@ export async function getUpdateDocData(
   config: ServerConfig,
   options: UpdateDocOptions
 ): Promise<UpdateDocOutput | { error: string }> {
+  // Ensure data directory exists
+  mkdirSync(config.dataPath, { recursive: true });
+  const dbPath = resolve(config.dataPath, 'documents.sqlite');
+  const db = initializeDatabase(dbPath);
+
   try {
-    // Ensure data directory exists
-    mkdirSync(config.dataPath, { recursive: true });
-    const dbPath = resolve(config.dataPath, 'documents.sqlite');
-    const db = initializeDatabase(dbPath);
     createSchema(db);
     const input: UpdateDocInput = {
       path: options.path,
@@ -66,6 +67,8 @@ export async function getUpdateDocData(
     return {
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    db.close();
   }
 }
 

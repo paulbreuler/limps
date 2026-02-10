@@ -92,8 +92,8 @@ describe('docs-delete', () => {
 
     expect(result.trash).toBeDefined();
     if (result.trash) {
-      const trashPath = join(docsDir, result.trash);
-      expect(existsSync(trashPath)).toBe(true);
+      // trash path is absolute, not relative
+      expect(existsSync(result.trash)).toBe(true);
     }
   });
 

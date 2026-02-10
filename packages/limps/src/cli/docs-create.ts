@@ -31,11 +31,12 @@ export async function getCreateDocData(
   config: ServerConfig,
   options: CreateDocOptions
 ): Promise<CreateDocOutput | { error: string }> {
+  // Ensure data directory exists
+  mkdirSync(config.dataPath, { recursive: true });
+  const dbPath = resolve(config.dataPath, 'documents.sqlite');
+  const db = initializeDatabase(dbPath);
+
   try {
-    // Ensure data directory exists
-    mkdirSync(config.dataPath, { recursive: true });
-    const dbPath = resolve(config.dataPath, 'documents.sqlite');
-    const db = initializeDatabase(dbPath);
     createSchema(db);
     const input: CreateDocInput = {
       path: options.path,
@@ -57,6 +58,8 @@ export async function getCreateDocData(
     return {
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    db.close();
   }
 }
 

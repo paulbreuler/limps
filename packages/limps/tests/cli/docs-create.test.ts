@@ -82,14 +82,14 @@ describe('docs-create', () => {
 
   it('creates parent directories', async () => {
     const result = await getCreateDocData(config, {
-      path: 'subdir/nested/file.md',
+      path: 'plans/subdir/nested/file.md',
       content: '# Nested File',
     });
 
     expect('error' in result).toBe(false);
     if ('error' in result) return;
 
-    const filePath = join(docsDir, 'subdir', 'nested', 'file.md');
+    const filePath = join(docsDir, 'plans', 'subdir', 'nested', 'file.md');
     expect(existsSync(filePath)).toBe(true);
   });
 

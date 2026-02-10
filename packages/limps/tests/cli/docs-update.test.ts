@@ -133,8 +133,8 @@ describe('docs-update', () => {
 
     expect(result.backup).toBeDefined();
     if (result.backup) {
-      const backupPath = join(docsDir, result.backup);
-      expect(existsSync(backupPath)).toBe(true);
+      // backup path is absolute, not relative
+      expect(existsSync(result.backup)).toBe(true);
     }
   });
 

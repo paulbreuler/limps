@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { searchDocs, getSearchDocsData } from '../../src/cli/docs-search.js';
 import type { ServerConfig } from '../../src/config.js';
-import { initializeDatabase, createSchema } from '../../src/indexer.js';
+import { initializeDatabase, createSchema, indexDocument } from '../../src/indexer.js';
 
 describe('docs-search', () => {
   let testDir: string;
@@ -45,13 +45,17 @@ describe('docs-search', () => {
   });
 
   it('searches for text in documents', async () => {
-    writeFileSync(join(docsDir, 'doc1.md'), '# Document 1\n\nThis is about authentication.');
-    writeFileSync(join(docsDir, 'doc2.md'), '# Document 2\n\nThis is about authorization.');
+    const doc1Path = join(docsDir, 'doc1.md');
+    const doc2Path = join(docsDir, 'doc2.md');
+    writeFileSync(doc1Path, '# Document 1\n\nThis is about authentication.');
+    writeFileSync(doc2Path, '# Document 2\n\nThis is about authorization.');
 
     // Re-index after creating files
     const dbPath = join(config.dataPath, 'documents.sqlite');
     const db = initializeDatabase(dbPath);
     createSchema(db);
+    await indexDocument(db, doc1Path);
+    await indexDocument(db, doc2Path);
     db.close();
 
     const result = await getSearchDocsData(config, { query: 'authentication' });
@@ -82,14 +86,16 @@ describe('docs-search', () => {
   });
 
   it('respects limit parameter', async () => {
-    for (let i = 0; i < 25; i++) {
-      writeFileSync(join(docsDir, `doc${i}.md`), `# Document ${i}\n\nSearch term here.`);
-    }
-
-    // Re-index
     const dbPath = join(config.dataPath, 'documents.sqlite');
     const db = initializeDatabase(dbPath);
     createSchema(db);
+
+    for (let i = 0; i < 25; i++) {
+      const filePath = join(docsDir, `doc${i}.md`);
+      writeFileSync(filePath, `# Document ${i}\n\nSearch term here.`);
+      await indexDocument(db, filePath);
+    }
+
     db.close();
 
     const result = await getSearchDocsData(config, { query: 'Search', limit: 10 });
@@ -101,12 +107,14 @@ describe('docs-search', () => {
   });
 
   it('formats output correctly', async () => {
-    writeFileSync(join(docsDir, 'test.md'), '# Test\n\nHello world');
+    const testPath = join(docsDir, 'test.md');
+    writeFileSync(testPath, '# Test\n\nHello world');
 
     // Re-index
     const dbPath = join(config.dataPath, 'documents.sqlite');
     const db = initializeDatabase(dbPath);
     createSchema(db);
+    await indexDocument(db, testPath);
     db.close();
 
     const output = await searchDocs(config, { query: 'Hello' });
@@ -123,15 +131,14 @@ describe('docs-search', () => {
   });
 
   it('searches in frontmatter when enabled', async () => {
-    writeFileSync(
-      join(docsDir, 'doc.md'),
-      '---\nstatus: WIP\nauthor: test\n---\n\n# Document\n\nContent.'
-    );
+    const docPath = join(docsDir, 'doc.md');
+    writeFileSync(docPath, '---\nstatus: WIP\nauthor: test\n---\n\n# Document\n\nContent.');
 
     // Re-index
     const dbPath = join(config.dataPath, 'documents.sqlite');
     const db = initializeDatabase(dbPath);
     createSchema(db);
+    await indexDocument(db, docPath);
     db.close();
 
     const result = await getSearchDocsData(config, {
