@@ -82,7 +82,7 @@ export function initProject(targetPath = '.'): string {
   // Start the HTTP daemon
   lines.push('Next steps:\n');
   lines.push('1. Start the HTTP daemon:');
-  lines.push(`   ${localPlannerPath} start --config "${configPath}"`);
+  lines.push(`   ${localPlannerPath} server start --config "${configPath}"`);
   lines.push('');
   lines.push('2. Generate MCP client config:');
   lines.push(`   ${localPlannerPath} config print --client claude-code --config "${configPath}"`);

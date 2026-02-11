@@ -3,12 +3,24 @@ import Pastel from 'pastel';
 import { getPackageVersion } from './utils/version.js';
 import { startHttpServer, stopHttpServer } from './server-http.js';
 import { logRedactedError } from './utils/safe-logging.js';
+import { getCompletionSuggestions } from './core/completion.js';
 
-// Check if running start command with --foreground flag — bypass Ink for clean stdio
 const args = process.argv.slice(2);
+const isCompletionRequest = process.env.LIMPS_COMPLETE === '1';
+
+if (isCompletionRequest) {
+  const separatorIndex = args.indexOf('--');
+  const tokens = separatorIndex === -1 ? args : args.slice(separatorIndex + 1);
+  const suggestions = getCompletionSuggestions(tokens, {
+    configPath: process.env.MCP_PLANNING_CONFIG,
+  });
+  process.stdout.write(suggestions.join('\n'));
+  process.exit(0);
+}
+
+// Check if running server start command with --foreground flag — bypass Ink for clean stdio
 const isStartForeground =
-  args.includes('--foreground') &&
-  ((args[0] === 'server' && args[1] === 'start') || args[0] === 'start');
+  args.includes('--foreground') && args[0] === 'server' && args[1] === 'start';
 const wantsHelp =
   args.includes('--help') || args.includes('-h') || (isStartForeground && args.includes('help'));
 

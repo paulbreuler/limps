@@ -91,11 +91,32 @@ files: []
     expect(agentSuggestions).toContain('000');
   });
 
+  it('uses --config from typed tokens for plan suggestions', () => {
+    const plansDir = join(testDir, 'plans');
+    mkdirSync(join(plansDir, '0001-token-config', 'agents'), { recursive: true });
+    const configPath = createConfig({ plansPath: plansDir });
+
+    const suggestions = getCompletionSuggestions(['plan', 'next', '--config', configPath, ''], {});
+
+    expect(suggestions).toContain('0001-token-config');
+  });
+
+  it('does not suggest non-existent subgroup commands', () => {
+    const healthSuggestions = getCompletionSuggestions(['health', '']);
+    const proposalSuggestions = getCompletionSuggestions(['proposals', '']);
+
+    expect(healthSuggestions).not.toContain('drift');
+    expect(proposalSuggestions).not.toContain('list');
+  });
+
   it('returns shell scripts for completion setup', () => {
     const zsh = getCompletionScript('zsh');
     const bash = getCompletionScript('bash');
     const fish = getCompletionScript('fish');
 
+    expect(zsh).toContain('LIMPS_COMPLETE=1 limps --');
+    expect(bash).toContain('LIMPS_COMPLETE=1 limps --');
+    expect(fish).toContain('env LIMPS_COMPLETE=1 limps --');
     expect(zsh).toContain('compdef _limps limps');
     expect(bash).toContain('complete -F _limps_completion limps');
     expect(fish).toContain("complete -c limps -f -a '(__limps_complete)'");

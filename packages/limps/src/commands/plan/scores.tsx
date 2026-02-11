@@ -76,6 +76,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
   }
 
   if (!planId) {
+    process.exitCode = 1;
     return (
       <Text>
         <Text color="red">Error: --plan is required</Text>
@@ -89,6 +90,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
     const { config } = loadCommandContext(options.config);
     const result = getScoredTasksData(config, planId);
     if ('error' in result) {
+      process.exitCode = 1;
       return <Text color="red">{result.error}</Text>;
     }
 
@@ -113,6 +115,7 @@ export default function ScoreAllCommand({ args, options }: Props): React.ReactNo
 
     return <Text>{lines.join('\n')}</Text>;
   } catch (error) {
+    process.exitCode = 1;
     return <Text color="red">Error: {(error as Error).message}</Text>;
   }
 }

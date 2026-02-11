@@ -691,9 +691,8 @@ limps completion zsh          # Generate Zsh tab-completion script
 ```bash
 limps health check              # Aggregate all health signals
 limps health staleness [plan]   # Find stale plans/agents
-limps health drift [plan]       # Detect file reference drift
 limps health inference [plan]   # Suggest status updates
-limps proposals list             # List auto-fix proposals
+limps proposals [plan]           # List auto-fix proposals
 limps proposals apply <id>       # Apply a proposal
 limps proposals apply-safe       # Apply all safe proposals
 ```

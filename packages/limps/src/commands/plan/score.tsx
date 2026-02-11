@@ -86,6 +86,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
   }
 
   if (!planId || !agentId) {
+    process.exitCode = 1;
     return (
       <Text>
         <Text color="red">Error: --plan and --agent are required</Text>
@@ -100,6 +101,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
     const taskId = resolveTaskIdFromPlanAndAgent(config, planId, agentId);
     const result = getScoredTaskById(config, taskId);
     if ('error' in result) {
+      process.exitCode = 1;
       return <Text color="red">{result.error}</Text>;
     }
 
@@ -126,6 +128,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
 
     return <Text>{lines.join('\n')}</Text>;
   } catch (error) {
+    process.exitCode = 1;
     return <Text color="red">Error: {(error as Error).message}</Text>;
   }
 }

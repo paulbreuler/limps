@@ -142,6 +142,7 @@ This is a test feature plan.
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('limps');
       expect(result.stdout).toContain('Commands:');
+      expect(result.stdout).not.toContain('__complete');
       expect(result.stdout).toContain('version');
     });
 
@@ -246,6 +247,20 @@ This is a test feature plan.
 
       // Should show usage/help, not crash
       expect(result.stdout.length + result.stderr.length).toBeGreaterThan(0);
+    });
+
+    it('should return non-zero when plan score is missing required flags', async () => {
+      const result = await runCli(['plan', 'score']);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('--plan and --agent are required');
+    });
+
+    it('should return non-zero when plan scores is missing required flags', async () => {
+      const result = await runCli(['plan', 'scores']);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('--plan is required');
     });
 
     it('should show clear error when no config is found', async () => {

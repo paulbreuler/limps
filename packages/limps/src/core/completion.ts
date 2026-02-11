@@ -24,9 +24,9 @@ const GROUP_COMMANDS: Record<string, string[]> = {
   docs: ['list', 'search', 'create', 'update', 'delete', 'process', 'reindex', 'tags'],
   'docs tags': ['list', 'add', 'remove'],
   config: ['show', 'scoring', 'path', 'show-resolution', 'print', 'update', 'upgrade'],
-  health: ['check', 'staleness', 'inference', 'drift'],
+  health: ['check', 'staleness', 'inference'],
   graph: ['reindex', 'health', 'search', 'trace', 'entity', 'overlap', 'check', 'suggest', 'watch'],
-  proposals: ['list', 'apply', 'apply-safe'],
+  proposals: ['apply', 'apply-safe'],
 };
 
 const COMMAND_OPTIONS: Record<string, string[]> = {
@@ -36,6 +36,7 @@ const COMMAND_OPTIONS: Record<string, string[]> = {
   'plan agents': ['--config', '--json', '--help'],
   'plan next': ['--config', '--json', '--help'],
   'docs process': [
+    '--config',
     '--pattern',
     '--code',
     '--json',
@@ -242,6 +243,9 @@ export function getCompletionSuggestions(tokens: string[], ctx: CompletionContex
   const prior = raw.length > 0 ? raw.slice(0, -1) : [];
   const priorPositionals = positionalTokens(prior);
   const path = commandPath(priorPositionals);
+  const effectiveCtx: CompletionContext = {
+    configPath: parseOptionValue(raw, '--config') ?? ctx.configPath,
+  };
 
   const prevToken = prior.length > 0 ? prior[prior.length - 1] : '';
   if (prevToken === '--set') {
@@ -249,12 +253,12 @@ export function getCompletionSuggestions(tokens: string[], ctx: CompletionContex
   }
 
   if (prevToken === '--plan') {
-    return getPlanSuggestions(current, ctx);
+    return getPlanSuggestions(current, effectiveCtx);
   }
 
   if (prevToken === '--agent') {
     const planFromOption = parseOptionValue(prior, '--plan');
-    return getAgentSuggestions(planFromOption, current, ctx);
+    return getAgentSuggestions(planFromOption, current, effectiveCtx);
   }
 
   if (current.startsWith('-')) {
@@ -263,7 +267,7 @@ export function getCompletionSuggestions(tokens: string[], ctx: CompletionContex
     return byPrefix([...specific, ...generic], current);
   }
 
-  const byPosition = suggestByPosition(priorPositionals, current, ctx);
+  const byPosition = suggestByPosition(priorPositionals, current, effectiveCtx);
   if (byPosition.length > 0) {
     return byPosition;
   }
@@ -278,7 +282,7 @@ function zshCompletionScript(): string {
     '',
     '_limps() {',
     '  local -a results',
-    '  results=("${(@f)$(limps __complete -- ${words[@]:2})}")',
+    '  results=("${(@f)$(LIMPS_COMPLETE=1 limps -- ${words[@]:2})}")',
     "  _describe 'limps' results",
     '}',
     '',
@@ -291,7 +295,7 @@ function bashCompletionScript(): string {
   return [
     '_limps_completion() {',
     "  local IFS=$'\\\\n'",
-    '  COMPREPLY=( $( limps __complete -- "${COMP_WORDS[@]:1}" ) )',
+    '  COMPREPLY=( $( LIMPS_COMPLETE=1 limps -- "${COMP_WORDS[@]:1}" ) )',
     '}',
     '',
     'complete -F _limps_completion limps',
@@ -303,7 +307,7 @@ function fishCompletionScript(): string {
   return [
     'function __limps_complete',
     '  set -l args (commandline -opc)',
-    '  limps __complete -- $args[2..-1]',
+    '  env LIMPS_COMPLETE=1 limps -- $args[2..-1]',
     'end',
     '',
     "complete -c limps -f -a '(__limps_complete)'",
