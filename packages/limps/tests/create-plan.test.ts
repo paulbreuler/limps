@@ -207,15 +207,18 @@ describe('template-replacement', () => {
   let plansDir: string;
   let context: ToolContext;
   let templateDir: string;
+  let previousCwd: string;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
     testDir = join(tmpdir(), `test-docs-${Date.now()}`);
     plansDir = join(testDir, 'plans');
-    templateDir = join(testDir, '.mcp', 'server', 'templates');
+    templateDir = join(testDir, 'templates');
 
     mkdirSync(plansDir, { recursive: true });
     mkdirSync(templateDir, { recursive: true });
+    previousCwd = process.cwd();
+    process.chdir(testDir);
     db = initializeDatabase(dbPath);
     createSchema(db);
 
@@ -237,6 +240,7 @@ Description: {{DESCRIPTION}}
   });
 
   afterEach(() => {
+    process.chdir(previousCwd);
     if (db) {
       db.close();
       db = null;
@@ -269,5 +273,124 @@ Description: {{DESCRIPTION}}
     expect(planContent).toContain('Test description');
     expect(planContent).not.toContain('{{PLAN_NAME}}');
     expect(planContent).not.toContain('{{DESCRIPTION}}');
+  });
+
+  it('should replace body placeholder in custom template', async () => {
+    const templateContent = `# {{PLAN_NAME}}
+
+## Overview
+{{DESCRIPTION}}
+
+## Body
+{{BODY}}
+`;
+    writeFileSync(join(templateDir, 'plan.md'), templateContent, 'utf-8');
+
+    const result = await handleCreatePlan(
+      {
+        name: 'body-placeholder-test',
+        description: 'Body test description',
+        body: '## Feature A\\n\\n- Validate command behavior',
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+
+    const planDirs = readdirSync(plansDir);
+    const planDir = planDirs.find((d) => d.includes('body-placeholder-test'));
+    expect(planDir).toBeDefined();
+
+    const planPath = join(plansDir, planDir!);
+    const planContent = readFileSync(join(planPath, `${planDir}-plan.md`), 'utf-8');
+    expect(planContent).toContain('## Feature A');
+    expect(planContent).toContain('- Validate command behavior');
+    expect(planContent).not.toContain('{{BODY}}');
+  });
+
+  it('should fail when body is provided but template has no BODY placeholder', async () => {
+    const templateContent = `# {{PLAN_NAME}}
+
+## Overview
+{{DESCRIPTION}}
+
+## Features
+<!-- Features intentionally static -->
+`;
+    writeFileSync(join(templateDir, 'plan.md'), templateContent, 'utf-8');
+
+    const result = await handleCreatePlan(
+      {
+        name: 'missing-body-placeholder',
+        description: 'missing placeholder test',
+        body: '## Injected Body\\n\\n- should require BODY placeholder',
+      },
+      context
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Template must include {{BODY}}');
+  });
+});
+
+describe('body-content', () => {
+  let dbPath: string;
+  let db: Database.Database | null = null;
+  let testDir: string;
+  let plansDir: string;
+  let context: ToolContext;
+
+  beforeEach(async () => {
+    dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
+    testDir = join(tmpdir(), `test-docs-${Date.now()}`);
+    plansDir = join(testDir, 'plans');
+
+    mkdirSync(plansDir, { recursive: true });
+    db = initializeDatabase(dbPath);
+    createSchema(db);
+
+    const config = createTestConfig(testDir);
+    config.plansPath = plansDir;
+
+    context = {
+      db,
+      config,
+    };
+  });
+
+  afterEach(() => {
+    if (db) {
+      db.close();
+      db = null;
+    }
+    if (existsSync(dbPath)) {
+      unlinkSync(dbPath);
+    }
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should inject body content into the default template', async () => {
+    const result = await handleCreatePlan(
+      {
+        name: 'body-default-template-test',
+        body: '## Features\\n\\n- First command flow\\n- Second command flow',
+      },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+
+    const planDirs = readdirSync(plansDir);
+    const planDir = planDirs.find((d) => d.includes('body-default-template-test'));
+    expect(planDir).toBeDefined();
+
+    const planPath = join(plansDir, planDir!);
+    const planContent = readFileSync(join(planPath, `${planDir}-plan.md`), 'utf-8');
+    expect(planContent).toContain('## Features');
+    expect(planContent).toContain('- First command flow');
+    expect(planContent).toContain('- Second command flow');
+    expect(planContent).not.toContain('<!-- Features will be added here -->');
   });
 });
