@@ -127,7 +127,7 @@ export async function startHttpServer(
   const rateLimitConfig = httpConfig.rateLimit ?? { maxRequests: 100, windowMs: 60000 };
   rateLimiter = createRateLimiter(rateLimitConfig.maxRequests, rateLimitConfig.windowMs);
 
-  // Start session idle timeout cleanup
+  // Start session idle timeout cleanup (disabled if sessionTimeoutMs is 0)
   const sessionTimeoutMs = httpConfig.sessionTimeoutMs ?? 30 * 60 * 1000;
   const cleaningUp = new Set<string>();
   cleanupInterval = setInterval(() => {
@@ -140,22 +140,24 @@ export async function startHttpServer(
       }
     }
 
-    // Check for idle sessions to timeout
-    for (const [sessionId, session] of sessions) {
-      if (cleaningUp.has(sessionId)) continue;
-      if (now - session.lastActiveAt.getTime() > sessionTimeoutMs) {
-        console.error(`Session ${maskSessionId(sessionId)} timed out after idle`);
-        cleaningUp.add(sessionId);
-        cleanupSession(sessionId, 'timeout')
-          .catch((err) => {
-            logRedactedError(
-              `Error cleaning up timed-out session ${maskSessionId(sessionId)}`,
-              err
-            );
-          })
-          .finally(() => {
-            cleaningUp.delete(sessionId);
-          });
+    // Check for idle sessions to timeout (skip if timeout is disabled)
+    if (sessionTimeoutMs > 0) {
+      for (const [sessionId, session] of sessions) {
+        if (cleaningUp.has(sessionId)) continue;
+        if (now - session.lastActiveAt.getTime() > sessionTimeoutMs) {
+          console.error(`Session ${maskSessionId(sessionId)} timed out after idle`);
+          cleaningUp.add(sessionId);
+          cleanupSession(sessionId, 'timeout')
+            .catch((err) => {
+              logRedactedError(
+                `Error cleaning up timed-out session ${maskSessionId(sessionId)}`,
+                err
+              );
+            })
+            .finally(() => {
+              cleaningUp.delete(sessionId);
+            });
+        }
       }
     }
   }, 60_000);
@@ -431,18 +433,23 @@ async function cleanupSession(
 ): Promise<void> {
   const session = sessions.get(sessionId);
   if (session) {
+    // Prevent double cleanup (e.g., if transport.onclose fires during manual cleanup)
+    // by removing from sessions map first, then checking if already tracked
+    sessions.delete(sessionId);
+
+    // Only track if not already in expiredSessions (preserve original reason like 'deleted')
+    if (!expiredSessions.has(sessionId)) {
+      expiredSessions.set(sessionId, {
+        expiredAt: new Date(),
+        reason,
+      });
+    }
+
     // Shutdown extensions for this session's server
     if (session.server.loadedExtensions) {
       await shutdownExtensions(session.server.loadedExtensions);
     }
     await session.transport.close();
-    sessions.delete(sessionId);
-
-    // Track expired session for reconnection support
-    expiredSessions.set(sessionId, {
-      expiredAt: new Date(),
-      reason,
-    });
 
     console.error(`MCP session cleaned up: ${maskSessionId(sessionId)} (reason: ${reason})`);
   }

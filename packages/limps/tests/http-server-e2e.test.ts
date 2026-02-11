@@ -618,3 +618,96 @@ describe('HTTP Server duplicate daemon prevention', () => {
     expect(stderr2).toContain('already running');
   }, 20_000);
 });
+
+// =============================================================================
+// Session expiration and reconnection
+// =============================================================================
+
+describe('Session expiration tracking and reconnection', () => {
+  let testDir: string;
+  let child: ChildProcess | null = null;
+  const port = randomPort();
+  const host = '127.0.0.1';
+
+  beforeAll(() => {
+    testDir = join(tmpdir(), `limps-session-expiry-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await killDaemon(child);
+    if (testDir && existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should return SESSION_EXPIRED with headers for deleted sessions', async () => {
+    const configPath = createTestConfig(testDir, { server: { port, host } });
+    child = await spawnDaemon(configPath, host, port);
+
+    // Create a new session
+    const initRes = await makeRequest({
+      host,
+      port,
+      method: 'POST',
+      path: '/mcp',
+      headers: { Accept: MCP_ACCEPT },
+      body: MCP_INIT_MESSAGE,
+    });
+
+    expect(initRes.status).toBe(200);
+    const sessionId = initRes.headers['mcp-session-id'] as string;
+    expect(sessionId).toBeTruthy();
+
+    // Delete the session
+    const deleteRes = await makeRequest({
+      host,
+      port,
+      method: 'DELETE',
+      path: '/mcp',
+      headers: { 'mcp-session-id': sessionId },
+    });
+    expect(deleteRes.status).toBe(200);
+
+    // Try to use the deleted session - should get SESSION_EXPIRED
+    const res = await makeRequest({
+      host,
+      port,
+      method: 'GET',
+      path: '/mcp',
+      headers: { 'mcp-session-id': sessionId },
+    });
+
+    expect(res.status).toBe(404);
+    expect(res.headers['x-session-expired']).toBe('true');
+    // Reason can be 'deleted' or 'closed' depending on timing - both indicate intentional cleanup
+    const reason = res.headers['x-session-expired-reason'] as string;
+    expect(['deleted', 'closed']).toContain(reason);
+    const body = JSON.parse(res.body) as { error: string; code: string; expiredAt: string };
+    expect(body.error).toBe('Session expired');
+    expect(body.code).toBe('SESSION_EXPIRED');
+    expect(body.expiredAt).toBeTruthy();
+  });
+
+  it('should return SESSION_NOT_FOUND for never-existent sessions', async () => {
+    const configPath = createTestConfig(testDir, { server: { port, host } });
+    if (!child) {
+      child = await spawnDaemon(configPath, host, port);
+    }
+
+    // Try to use a session that never existed
+    const res = await makeRequest({
+      host,
+      port,
+      method: 'GET',
+      path: '/mcp',
+      headers: { 'mcp-session-id': 'nonexistent-session-id-12345' },
+    });
+
+    expect(res.status).toBe(404);
+    expect(res.headers['x-session-expired']).toBeFalsy();
+    const body = JSON.parse(res.body) as { error: string; code: string };
+    expect(body.error).toBe('Session not found');
+    expect(body.code).toBe('SESSION_NOT_FOUND');
+  });
+});
