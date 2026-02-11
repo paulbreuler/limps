@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.0](https://github.com/paulbreuler/limps/compare/limps-v3.3.1...limps-v3.4.0) (2026-02-11)
+
+
+### Features
+
+* add session expiration tracking and reconnection support ([#140](https://github.com/paulbreuler/limps/issues/140)) ([86de71c](https://github.com/paulbreuler/limps/commit/86de71cb4d1013463671bc564cd5f64c13917c38))
+
 ## [3.3.1](https://github.com/paulbreuler/limps/compare/limps-v3.3.0...limps-v3.3.1) (2026-02-11)
 
 
