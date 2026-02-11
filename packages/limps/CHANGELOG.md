@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.3.0](https://github.com/paulbreuler/limps/compare/limps-v3.2.0...limps-v3.3.0) (2026-02-11)
+
+
+### Features
+
+* **cli:** add --set flag to update agent status ([#127](https://github.com/paulbreuler/limps/issues/127)) ([27ccd0f](https://github.com/paulbreuler/limps/commit/27ccd0f08442e360e3e0d3c7e24ec96e885d98c3))
+* **cli:** add create-plan command ([#129](https://github.com/paulbreuler/limps/issues/129)) ([2acf106](https://github.com/paulbreuler/limps/commit/2acf1067efc9d95d445b20701dfc68f2ff845a5d))
+* **cli:** add document management commands ([#131](https://github.com/paulbreuler/limps/issues/131)) ([13058fe](https://github.com/paulbreuler/limps/commit/13058fe42c0c8dc99827d2ff304a1c1051f32e68))
+* **cli:** add process command for document querying ([#132](https://github.com/paulbreuler/limps/issues/132)) ([1e1fe99](https://github.com/paulbreuler/limps/commit/1e1fe994874bd4e80eb2ffbc987a247ee16dfc22))
+* **config:** add config resolution diagnostics for MCP_PLANNING_CONFIG priority issues ([#119](https://github.com/paulbreuler/limps/issues/119)) ([a2f0700](https://github.com/paulbreuler/limps/commit/a2f07004de598a68eb45558e007f99ed03c7e87d))
+* **create-plan:** support strict body placeholders ([#137](https://github.com/paulbreuler/limps/issues/137)) ([588a31b](https://github.com/paulbreuler/limps/commit/588a31bfc4b93dfa2e7810e6a46f934ce17213ef))
+
+
+### Bug Fixes
+
+* **cli:** support status --set for non-canonical plansPath ([#136](https://github.com/paulbreuler/limps/issues/136)) ([ec4e53f](https://github.com/paulbreuler/limps/commit/ec4e53ff3142bd66c1fb3ad10a6fa6507198c88f))
+* **limps:** clarify daemon wording in default command help ([#126](https://github.com/paulbreuler/limps/issues/126)) ([227aa7c](https://github.com/paulbreuler/limps/commit/227aa7cd93d8ee5b4e18bd2c5764b5327fb5cf52))
+* **tools:** update_task_status writes agent frontmatter ([#128](https://github.com/paulbreuler/limps/issues/128)) ([2d44aac](https://github.com/paulbreuler/limps/commit/2d44aac39edaa251df4d52651c74bdb7760d4354))
+
 ## [3.2.0](https://github.com/paulbreuler/limps/compare/limps-v3.1.1...limps-v3.2.0) (2026-02-09)
 
 
