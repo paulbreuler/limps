@@ -109,7 +109,8 @@ function loadTemplate(
   planNumber: number,
   name: string,
   description?: string,
-  body?: string
+  body?: string,
+  bodyProvided = false
 ): string {
   // Try to find template in templates/plan.md
   // Resolve relative to repository root
@@ -149,7 +150,7 @@ Status: Planning
   const trimmedBody = body?.trim();
   const hasBodyPlaceholder = templateContent.includes('{{BODY}}');
 
-  if (trimmedBody && !hasBodyPlaceholder) {
+  if (bodyProvided && !hasBodyPlaceholder) {
     throw new Error(
       `Template must include {{BODY}} placeholder when body is provided${selectedTemplatePath ? ` (${selectedTemplatePath})` : ''}`
     );
@@ -180,6 +181,7 @@ export async function handleCreatePlan(
   context: ToolContext
 ): Promise<ToolResult> {
   const { name, description, body } = input;
+  const bodyProvided = Object.prototype.hasOwnProperty.call(input, 'body');
   const { plansPath } = context.config;
 
   // Check if plan already exists
@@ -201,15 +203,15 @@ export async function handleCreatePlan(
     : `${findNextPlanNumber(plansPath).toString().padStart(4, '0')}-${name}`;
   const planNumber = extractPlanNumber(planDirName) ?? findNextPlanNumber(plansPath);
   const planDir = join(plansPath, planDirName);
+  const tempDir = `${planDir}.tmp`;
 
   try {
     // Create plan directory atomically (create temp, then rename)
-    const tempDir = `${planDir}.tmp`;
     mkdirSync(tempDir, { recursive: true });
 
     // Create plan file with descriptive name (e.g., 0004-integration-tests-plan.md)
     const planFileName = `${planDirName}-plan.md`;
-    const planContent = loadTemplate(planNumber, planDirName, description, body);
+    const planContent = loadTemplate(planNumber, planDirName, description, body, bodyProvided);
     const tempPlanFilePath = join(tempDir, planFileName);
     writeFileSync(tempPlanFilePath, planContent, 'utf-8');
 
@@ -230,6 +232,9 @@ export async function handleCreatePlan(
     };
   } catch (error) {
     // Clean up on error
+    if (existsSync(tempDir)) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
     if (existsSync(planDir)) {
       rmSync(planDir, { recursive: true, force: true });
     }

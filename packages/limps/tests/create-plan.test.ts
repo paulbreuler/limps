@@ -208,6 +208,7 @@ describe('template-replacement', () => {
   let context: ToolContext;
   let templateDir: string;
   let previousCwd: string;
+  let cwdChanged = false;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `test-db-${Date.now()}.sqlite`);
@@ -219,6 +220,7 @@ describe('template-replacement', () => {
     mkdirSync(templateDir, { recursive: true });
     previousCwd = process.cwd();
     process.chdir(testDir);
+    cwdChanged = true;
     db = initializeDatabase(dbPath);
     createSchema(db);
 
@@ -240,7 +242,10 @@ Description: {{DESCRIPTION}}
   });
 
   afterEach(() => {
-    process.chdir(previousCwd);
+    if (cwdChanged) {
+      process.chdir(previousCwd);
+      cwdChanged = false;
+    }
     if (db) {
       db.close();
       db = null;
@@ -324,6 +329,26 @@ Description: {{DESCRIPTION}}
         name: 'missing-body-placeholder',
         description: 'missing placeholder test',
         body: '## Injected Body\\n\\n- should require BODY placeholder',
+      },
+      context
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Template must include {{BODY}}');
+  });
+
+  it('should fail when empty body is explicitly provided and template has no BODY placeholder', async () => {
+    const templateContent = `# {{PLAN_NAME}}
+
+## Overview
+{{DESCRIPTION}}
+`;
+    writeFileSync(join(templateDir, 'plan.md'), templateContent, 'utf-8');
+
+    const result = await handleCreatePlan(
+      {
+        name: 'empty-body-missing-placeholder',
+        body: '',
       },
       context
     );
