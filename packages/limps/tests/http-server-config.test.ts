@@ -274,6 +274,14 @@ describe('http-server-config', () => {
       });
       expect(result.sessionTimeoutMs).toBe(86_400_000);
     });
+
+    it('should accept 0 to disable session timeout', () => {
+      const result = getHttpServerConfig({
+        ...baseConfig,
+        server: { sessionTimeoutMs: 0 },
+      });
+      expect(result.sessionTimeoutMs).toBe(0);
+    });
   });
 
   describe('corsOrigin configuration', () => {

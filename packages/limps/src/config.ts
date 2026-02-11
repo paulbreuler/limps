@@ -832,7 +832,7 @@ export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
     );
   }
 
-  // Validate sessionTimeoutMs (1 min to 24 hr)
+  // Validate sessionTimeoutMs (0 or 1 min to 24 hr; 0 disables timeout)
   if (merged.sessionTimeoutMs !== undefined) {
     if (
       typeof merged.sessionTimeoutMs !== 'number' ||
@@ -845,10 +845,14 @@ export function getHttpServerConfig(config: ServerConfig): HttpServerConfig {
       );
     }
 
-    if (merged.sessionTimeoutMs < 60_000 || merged.sessionTimeoutMs > 86_400_000) {
+    // 0 disables session timeout; otherwise must be between 1 min and 24 hr
+    if (
+      merged.sessionTimeoutMs !== 0 &&
+      (merged.sessionTimeoutMs < 60_000 || merged.sessionTimeoutMs > 86_400_000)
+    ) {
       throw new Error(
         `Invalid HTTP server sessionTimeoutMs: ${merged.sessionTimeoutMs}. ` +
-          `Expected a number between 60000 (1 min) and 86400000 (24 hr).`
+          `Expected 0 (disable timeout) or a number between 60000 (1 min) and 86400000 (24 hr).`
       );
     }
   }
