@@ -22,6 +22,7 @@ export const args = z.tuple([
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
   description: z.string().optional().describe('Plan description'),
+  body: z.string().optional().describe('Plan body content (markdown)'),
 });
 
 interface Props {
@@ -54,6 +55,7 @@ export default function CreatePlanCommand({ args, options }: Props): React.React
           {
             name,
             description: options.description,
+            body: options.body,
           },
           context
         );
@@ -73,7 +75,7 @@ export default function CreatePlanCommand({ args, options }: Props): React.React
     };
 
     void run();
-  }, [args, options.config, options.description]);
+  }, [args, options.body, options.config, options.description]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;

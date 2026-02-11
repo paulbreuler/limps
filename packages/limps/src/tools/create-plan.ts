@@ -23,6 +23,7 @@ const __dirname = dirname(__filename);
 export const CreatePlanInputSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
+  body: z.string().optional(),
 });
 
 /**
@@ -104,7 +105,13 @@ function planExists(plansPath: string, name: string): boolean {
 /**
  * Load template file and replace placeholders.
  */
-function loadTemplate(planNumber: number, name: string, description?: string): string {
+function loadTemplate(
+  planNumber: number,
+  name: string,
+  description?: string,
+  body?: string,
+  bodyProvided = false
+): string {
   // Try to find template in templates/plan.md
   // Resolve relative to repository root
   const possibleTemplatePaths = [
@@ -113,9 +120,11 @@ function loadTemplate(planNumber: number, name: string, description?: string): s
   ];
 
   let templateContent = '';
+  let selectedTemplatePath: string | null = null;
   for (const templatePath of possibleTemplatePaths) {
     if (existsSync(templatePath)) {
       templateContent = readFileSync(templatePath, 'utf-8');
+      selectedTemplatePath = templatePath;
       break;
     }
   }
@@ -130,7 +139,7 @@ ${description || 'Plan description goes here'}
 
 ## Features
 
-<!-- Features will be added here -->
+{{BODY}}
 
 ## Status
 
@@ -138,11 +147,23 @@ Status: Planning
 `;
   }
 
+  const trimmedBody = body?.trim();
+  const hasBodyPlaceholder = templateContent.includes('{{BODY}}');
+
+  if (bodyProvided && !hasBodyPlaceholder) {
+    throw new Error(
+      `Template must include {{BODY}} placeholder when body is provided${selectedTemplatePath ? ` (${selectedTemplatePath})` : ''}`
+    );
+  }
+
+  const bodyContent = trimmedBody || '<!-- Features will be added here -->';
+
   // Replace placeholders
   templateContent = templateContent
     .replace(/\{\{PLAN_NAME\}\}/g, name)
     .replace(/\{\{PLAN_NUMBER\}\}/g, planNumber.toString().padStart(4, '0'))
-    .replace(/\{\{DESCRIPTION\}\}/g, description || '');
+    .replace(/\{\{DESCRIPTION\}\}/g, description || '')
+    .replace(/\{\{BODY\}\}/g, bodyContent);
 
   return templateContent;
 }
@@ -159,7 +180,8 @@ export async function handleCreatePlan(
   input: z.infer<typeof CreatePlanInputSchema>,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { name, description } = input;
+  const { name, description, body } = input;
+  const bodyProvided = Object.prototype.hasOwnProperty.call(input, 'body');
   const { plansPath } = context.config;
 
   // Check if plan already exists
@@ -181,15 +203,15 @@ export async function handleCreatePlan(
     : `${findNextPlanNumber(plansPath).toString().padStart(4, '0')}-${name}`;
   const planNumber = extractPlanNumber(planDirName) ?? findNextPlanNumber(plansPath);
   const planDir = join(plansPath, planDirName);
+  const tempDir = `${planDir}.tmp`;
 
   try {
     // Create plan directory atomically (create temp, then rename)
-    const tempDir = `${planDir}.tmp`;
     mkdirSync(tempDir, { recursive: true });
 
     // Create plan file with descriptive name (e.g., 0004-integration-tests-plan.md)
     const planFileName = `${planDirName}-plan.md`;
-    const planContent = loadTemplate(planNumber, planDirName, description);
+    const planContent = loadTemplate(planNumber, planDirName, description, body, bodyProvided);
     const tempPlanFilePath = join(tempDir, planFileName);
     writeFileSync(tempPlanFilePath, planContent, 'utf-8');
 
@@ -210,6 +232,9 @@ export async function handleCreatePlan(
     };
   } catch (error) {
     // Clean up on error
+    if (existsSync(tempDir)) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
     if (existsSync(planDir)) {
       rmSync(planDir, { recursive: true, force: true });
     }
