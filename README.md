@@ -617,6 +617,56 @@ curl http://127.0.0.1:4269/health
 - **200** — Daemon is healthy and accepting connections
 - **429** — Rate limit exceeded (rate limiter may return this before the request reaches `/health`)
 
+### Session Management & Reconnection
+
+Sessions automatically expire after 30 minutes of inactivity (configurable via `sessionTimeoutMs`). When a session expires, MCP clients receive a specific error response indicating they should reconnect.
+
+**Session Expiration Response:**
+
+When a session expires or is closed, subsequent requests with that session ID return:
+
+```json
+{
+  "error": "Session expired",
+  "code": "SESSION_EXPIRED",
+  "message": "Session expired due to timeout. Please reconnect without session ID.",
+  "expiredAt": "2026-02-11T10:30:00.000Z"
+}
+```
+
+**Headers:**
+- `X-Session-Expired: true`
+- `X-Session-Expired-Reason: timeout` (or `closed`, `deleted`)
+
+**MCP Client Reconnection Flow:**
+
+When receiving `SESSION_EXPIRED`, clients should:
+
+1. **Clear the stored session ID** — Remove the cached `mcp-session-id`
+2. **Create a new session** — Send POST to `/mcp` **without** the session ID header
+3. **Store the new session ID** — Save the new `mcp-session-id` from response headers
+4. **Retry the original request** — Resubmit with the new session ID
+
+**Configuration:**
+
+Adjust session timeout in `.limps/config.json`:
+
+```json
+{
+  "server": {
+    "sessionTimeoutMs": 3600000  // 1 hour (default: 1800000 = 30 min)
+  }
+}
+```
+
+Set to `0` to disable timeout (sessions persist until server restart).
+
+**Expired Session Tracking:**
+
+The server tracks expired sessions for 24 hours to help clients distinguish between "session expired" vs "session never existed":
+- `SESSION_EXPIRED` — Session previously existed but timed out (client should reconnect)
+- `SESSION_NOT_FOUND` — Session ID was never valid (possible server restart or invalid ID)
+
 Use this endpoint for:
 - Monitoring daemon health in scripts or dashboards
 - Verifying daemon is running before connecting MCP clients

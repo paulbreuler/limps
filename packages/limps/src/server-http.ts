@@ -44,6 +44,19 @@ interface Session {
 
 const sessions = new Map<string, Session>();
 
+/**
+ * Expired session tracking with reason for reconnection support.
+ * Sessions are tracked for 24 hours after expiration to help clients
+ * distinguish between "expired" vs "never existed" sessions.
+ */
+interface ExpiredSessionInfo {
+  expiredAt: Date;
+  reason: 'timeout' | 'closed' | 'deleted';
+}
+
+const expiredSessions = new Map<string, ExpiredSessionInfo>();
+const EXPIRED_SESSION_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 let resources: ServerResources | null = null;
 let httpServer: HttpServer | null = null;
 let startTime: Date | null = null;
@@ -119,12 +132,21 @@ export async function startHttpServer(
   const cleaningUp = new Set<string>();
   cleanupInterval = setInterval(() => {
     const now = Date.now();
+
+    // Clean up old expired session records
+    for (const [sessionId, info] of expiredSessions) {
+      if (now - info.expiredAt.getTime() > EXPIRED_SESSION_RETENTION_MS) {
+        expiredSessions.delete(sessionId);
+      }
+    }
+
+    // Check for idle sessions to timeout
     for (const [sessionId, session] of sessions) {
       if (cleaningUp.has(sessionId)) continue;
       if (now - session.lastActiveAt.getTime() > sessionTimeoutMs) {
         console.error(`Session ${maskSessionId(sessionId)} timed out after idle`);
         cleaningUp.add(sessionId);
-        cleanupSession(sessionId)
+        cleanupSession(sessionId, 'timeout')
           .catch((err) => {
             logRedactedError(
               `Error cleaning up timed-out session ${maskSessionId(sessionId)}`,
@@ -224,7 +246,7 @@ export async function startHttpServer(
       // Handle DELETE for session cleanup (must be checked before session lookup)
       if (req.method === 'DELETE' && sessionId) {
         if (sessions.has(sessionId)) {
-          await cleanupSession(sessionId);
+          await cleanupSession(sessionId, 'deleted');
           res.writeHead(200);
           res.end();
         } else {
@@ -260,10 +282,36 @@ export async function startHttpServer(
         return;
       }
 
-      // Unknown session
+      // Unknown or expired session - check if it was previously known
       if (sessionId) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Session not found' }));
+        const expiredInfo = expiredSessions.get(sessionId);
+        if (expiredInfo) {
+          // Session expired - client should reconnect
+          res.writeHead(404, {
+            'Content-Type': 'application/json',
+            'X-Session-Expired': 'true',
+            'X-Session-Expired-Reason': expiredInfo.reason,
+          });
+          res.end(
+            JSON.stringify({
+              error: 'Session expired',
+              code: 'SESSION_EXPIRED',
+              message: `Session expired due to ${expiredInfo.reason}. Please reconnect without session ID.`,
+              expiredAt: expiredInfo.expiredAt.toISOString(),
+            })
+          );
+        } else {
+          // Session never existed
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: 'Session not found',
+              code: 'SESSION_NOT_FOUND',
+              message:
+                'Session ID not recognized. It may have been invalid or the server was restarted.',
+            })
+          );
+        }
         return;
       }
 
@@ -359,8 +407,9 @@ async function handleNewSession(req: IncomingMessage, res: ServerResponse): Prom
   transport.onclose = (): void => {
     const sid = transport.sessionId;
     if (sid) {
-      sessions.delete(sid);
-      console.error(`MCP session closed: ${maskSessionId(sid)}`);
+      cleanupSession(sid, 'closed').catch((err) => {
+        logRedactedError(`Error during session close cleanup for ${maskSessionId(sid)}`, err);
+      });
     }
   };
 
@@ -373,8 +422,13 @@ async function handleNewSession(req: IncomingMessage, res: ServerResponse): Prom
 
 /**
  * Clean up a specific session.
+ * @param sessionId - The session ID to clean up
+ * @param reason - The reason for cleanup (timeout, closed, deleted)
  */
-async function cleanupSession(sessionId: string): Promise<void> {
+async function cleanupSession(
+  sessionId: string,
+  reason: 'timeout' | 'closed' | 'deleted'
+): Promise<void> {
   const session = sessions.get(sessionId);
   if (session) {
     // Shutdown extensions for this session's server
@@ -383,7 +437,14 @@ async function cleanupSession(sessionId: string): Promise<void> {
     }
     await session.transport.close();
     sessions.delete(sessionId);
-    console.error(`MCP session cleaned up: ${maskSessionId(sessionId)}`);
+
+    // Track expired session for reconnection support
+    expiredSessions.set(sessionId, {
+      expiredAt: new Date(),
+      reason,
+    });
+
+    console.error(`MCP session cleaned up: ${maskSessionId(sessionId)} (reason: ${reason})`);
   }
 }
 
@@ -404,6 +465,11 @@ export async function stopHttpServer(): Promise<void> {
         await shutdownExtensions(session.server.loadedExtensions);
       }
       await session.transport.close();
+      // Track as closed for reconnection support
+      expiredSessions.set(sessionId, {
+        expiredAt: new Date(),
+        reason: 'closed',
+      });
     } catch (error) {
       logRedactedError(`Error closing session ${maskSessionId(sessionId)}`, error);
     }
