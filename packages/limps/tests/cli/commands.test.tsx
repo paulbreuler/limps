@@ -77,7 +77,7 @@ describe('Pastel CLI Commands', () => {
 
       const configPath = createConfig({ plansPath: plansDir });
 
-      const { default: ListPlansCommand } = await import('../../src/commands/list-plans.js');
+      const { default: ListPlansCommand } = await import('../../src/commands/plan/list.js');
 
       const { lastFrame } = render(<ListPlansCommand options={{ config: configPath }} />);
 
@@ -91,7 +91,7 @@ describe('Pastel CLI Commands', () => {
 
       const configPath = createConfig({ plansPath: plansDir });
 
-      const { default: ListPlansCommand } = await import('../../src/commands/list-plans.js');
+      const { default: ListPlansCommand } = await import('../../src/commands/plan/list.js');
 
       const { lastFrame } = render(<ListPlansCommand options={{ config: configPath }} />);
 

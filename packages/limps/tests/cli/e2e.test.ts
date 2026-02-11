@@ -142,6 +142,7 @@ This is a test feature plan.
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('limps');
       expect(result.stdout).toContain('Commands:');
+      expect(result.stdout).not.toContain('__complete');
       expect(result.stdout).toContain('version');
     });
 
@@ -158,14 +159,14 @@ This is a test feature plan.
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('limps');
-      expect(result.stdout).toContain('HTTP Server:');
-      expect(result.stdout).toContain('Plan Management:');
+      expect(result.stdout).toContain('Recommended Groups:');
+      expect(result.stdout).toContain('Common Commands:');
     });
   });
 
   describe('plan commands', () => {
     it('should list plans without crashing', async () => {
-      const result = await runCli(['list-plans', '--config', configPath]);
+      const result = await runCli(['plan', 'list', '--config', configPath]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Test Feature');
@@ -194,14 +195,14 @@ This is a test feature plan.
         'utf-8'
       );
 
-      const result = await runCli(['list-plans', '--config', emptyConfig]);
+      const result = await runCli(['plan', 'list', '--config', emptyConfig]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout.toLowerCase()).toMatch(/no plans|empty/i);
     });
 
     it('should show status for a plan', async () => {
-      const result = await runCli(['status', '0001', '--config', configPath]);
+      const result = await runCli(['plan', 'status', '0001', '--config', configPath]);
 
       expect(result.exitCode).toBe(0);
       // Should show some status information
@@ -209,7 +210,7 @@ This is a test feature plan.
     });
 
     it('should handle status with invalid plan gracefully', async () => {
-      const result = await runCli(['status', '9999', '--config', configPath]);
+      const result = await runCli(['plan', 'status', '9999', '--config', configPath]);
 
       // Should handle error gracefully (may exit with non-zero or show error message)
       expect(result.stdout.length + result.stderr.length).toBeGreaterThan(0);
@@ -235,7 +236,7 @@ This is a test feature plan.
     });
 
     it('should handle invalid config path gracefully', async () => {
-      const result = await runCli(['list-plans', '--config', '/nonexistent/config.json']);
+      const result = await runCli(['plan', 'list', '--config', '/nonexistent/config.json']);
 
       // Should show error message, not crash
       expect(result.stdout.length + result.stderr.length).toBeGreaterThan(0);
@@ -248,12 +249,26 @@ This is a test feature plan.
       expect(result.stdout.length + result.stderr.length).toBeGreaterThan(0);
     });
 
+    it('should return non-zero when plan score is missing required flags', async () => {
+      const result = await runCli(['plan', 'score']);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('--plan and --agent are required');
+    });
+
+    it('should return non-zero when plan scores is missing required flags', async () => {
+      const result = await runCli(['plan', 'scores']);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('--plan is required');
+    });
+
     it('should show clear error when no config is found', async () => {
       // Use isolated directory that has no .limps/config.json in tree
       const isolatedDir = join(tmpdir(), `limps-no-config-${Date.now()}`);
       mkdirSync(isolatedDir, { recursive: true });
 
-      const result = await runCli(['list-plans'], {
+      const result = await runCli(['plan', 'list'], {
         cwd: isolatedDir,
         env: {
           HOME: isolatedDir,

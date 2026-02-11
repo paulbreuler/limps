@@ -512,7 +512,7 @@ export function generateChatGptInstructions(configPath: string): string {
   lines.push(`  Server Name: ${serverName}`);
   lines.push('  Server URL: https://your-tunnel-domain.example/mcp');
   lines.push('  Authentication: (required by your proxy/deployment)');
-  lines.push(`  Local command: limps start --config ${configPath}`);
+  lines.push(`  Local command: limps server start --config ${configPath}`);
   lines.push('');
   lines.push('Tip: create one connector per project config.');
 

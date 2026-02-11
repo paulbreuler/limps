@@ -94,7 +94,7 @@ export async function startHttpServer(
   if (existing) {
     throw new Error(
       `limps daemon already running (PID ${existing.pid} on ${existing.host}:${existing.port}). ` +
-        `Run 'limps stop' first.`
+        `Run 'limps server stop' first.`
     );
   }
 
@@ -291,13 +291,13 @@ export async function startHttpServer(
             `Command: ${processInfo.command}`,
             ``,
             `To stop the process: kill ${processInfo.pid}`,
-            `Or use a different port: limps start --port <port>`,
+            `Or use a different port: limps server start --port <port>`,
           ].join('\n');
           reject(new Error(errorMsg));
         } else {
           reject(
             new Error(
-              `Port ${httpConfig.port} is already in use. Use a different port: limps start --port <port>`
+              `Port ${httpConfig.port} is already in use. Use a different port: limps server start --port <port>`
             )
           );
         }

@@ -82,7 +82,7 @@ export function initProject(targetPath = '.'): string {
   // Start the HTTP daemon
   lines.push('Next steps:\n');
   lines.push('1. Start the HTTP daemon:');
-  lines.push(`   ${localPlannerPath} start --config "${configPath}"`);
+  lines.push(`   ${localPlannerPath} server start --config "${configPath}"`);
   lines.push('');
   lines.push('2. Generate MCP client config:');
   lines.push(`   ${localPlannerPath} config print --client claude-code --config "${configPath}"`);
@@ -109,13 +109,13 @@ export function initProject(targetPath = '.'): string {
 
   // Daemon management
   lines.push('Manage the daemon:');
-  lines.push(`  ${localPlannerPath} server-status --config "${configPath}"  # Check status`);
-  lines.push(`  ${localPlannerPath} stop --config "${configPath}"           # Stop daemon`);
+  lines.push(`  ${localPlannerPath} server status --config "${configPath}"  # Check status`);
+  lines.push(`  ${localPlannerPath} server stop --config "${configPath}"    # Stop daemon`);
   lines.push('');
 
   // CLI usage
   lines.push('Use --config for CLI commands:');
-  lines.push(`  ${localPlannerPath} list-plans --config "${configPath}"`);
+  lines.push(`  ${localPlannerPath} plan list --config "${configPath}"`);
 
   return lines.join('\n');
 }

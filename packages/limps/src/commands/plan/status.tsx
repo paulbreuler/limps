@@ -1,21 +1,25 @@
 import React from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
-import { getPlanStatusSummary, getAgentStatusSummary, updateAgentStatus } from '../cli/status.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { PlanStatus } from '../components/PlanStatus.js';
-import { AgentStatus } from '../components/AgentStatus.js';
+import {
+  getPlanStatusSummary,
+  getAgentStatusSummary,
+  updateAgentStatus,
+} from '../../cli/status.js';
+import type { ServerConfig } from '../../config.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { PlanStatus } from '../../components/PlanStatus.js';
+import { AgentStatus } from '../../components/AgentStatus.js';
 import {
   handleJsonOutput,
   isJsonMode,
   outputJson,
   wrapError,
   wrapSuccess,
-} from '../cli/json-output.js';
+} from '../../cli/json-output.js';
 import { useEffect } from 'react';
-import { resolveTaskId } from '../cli/task-resolver.js';
+import { resolveTaskId } from '../../cli/task-resolver.js';
 
 export const description = 'Show plan or agent status';
 
@@ -43,7 +47,7 @@ interface Props {
 interface AgentStatusLoaderProps {
   agentId: string;
   planContext: string | undefined;
-  config: ReturnType<typeof loadConfig>;
+  config: ServerConfig;
 }
 
 function AgentStatusLoader({
@@ -85,10 +89,9 @@ function AgentStatusLoader({
 
 export default function StatusCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
-  const configPath = resolveConfigPath(options.config);
-  const config = loadConfig(configPath);
+  const { config } = loadCommandContext(options.config);
   const help = buildHelpOutput({
-    usage: 'limps status <plan> [options]',
+    usage: 'limps plan status <plan> [options]',
     arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
     options: [
       '--config Path to config file',
@@ -101,22 +104,26 @@ export default function StatusCommand({ args, options }: Props): React.ReactNode
       {
         title: 'Agent Status Examples',
         lines: [
-          'limps status --agent 0001#002',
-          'limps status 0001 --agent 002',
-          'limps status --agent 0001#002 --json',
+          'limps plan status --agent 0001#002',
+          'limps plan status 0001 --agent 002',
+          'limps plan status --agent 0001#002 --json',
         ],
       },
       {
         title: 'Update Agent Status Examples',
         lines: [
-          'limps status 0001 --agent 002 --set PASS',
-          'limps status --agent 0001#002 --set WIP',
-          'limps status 0001 --agent 002 --set PASS --notes "Completed in PR #116"',
+          'limps plan status 0001 --agent 002 --set PASS',
+          'limps plan status --agent 0001#002 --set WIP',
+          'limps plan status 0001 --agent 002 --set PASS --notes "Completed in PR #116"',
         ],
       },
       {
         title: 'Plan Status Examples',
-        lines: ['limps status 4', 'limps status 0004-my-feature', 'limps status 4 --json'],
+        lines: [
+          'limps plan status 4',
+          'limps plan status 0004-my-feature',
+          'limps plan status 4 --json',
+        ],
       },
     ],
   });

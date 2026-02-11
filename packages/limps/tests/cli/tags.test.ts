@@ -16,7 +16,7 @@ const CONFIG_PATH = join(TEST_DIR, 'config.json');
 // Path to limps CLI
 const LIMPS_CLI = join(process.cwd(), 'dist', 'cli.js');
 
-describe('tags CLI commands', () => {
+describe('docs tags CLI commands', () => {
   beforeEach(() => {
     // Clean up test directory
     if (existsSync(TEST_DIR)) {
@@ -50,7 +50,7 @@ describe('tags CLI commands', () => {
     }
   });
 
-  describe('limps tags list', () => {
+  describe('limps docs tags list', () => {
     it('lists tags from frontmatter', () => {
       const filePath = join(TEST_REPO_ROOT, 'plans', 'test.md');
       mkdirSync(dirname(filePath), { recursive: true });
@@ -68,7 +68,7 @@ tags:
       );
 
       const result = execSync(
-        `node ${LIMPS_CLI} tags list plans/test.md --config ${CONFIG_PATH} --json`,
+        `node ${LIMPS_CLI} docs tags list plans/test.md --config ${CONFIG_PATH} --json`,
         {
           encoding: 'utf-8',
         }
@@ -99,7 +99,7 @@ This has #inline-tag and #another-tag in the content.
       );
 
       const result = execSync(
-        `node ${LIMPS_CLI} tags list plans/test.md --config ${CONFIG_PATH} --json`,
+        `node ${LIMPS_CLI} docs tags list plans/test.md --config ${CONFIG_PATH} --json`,
         {
           encoding: 'utf-8',
         }
@@ -113,7 +113,7 @@ This has #inline-tag and #another-tag in the content.
     });
   });
 
-  describe('limps tags add', () => {
+  describe('limps docs tags add', () => {
     it('adds tags to document', () => {
       const filePath = join(TEST_REPO_ROOT, 'plans', 'test.md');
       mkdirSync(dirname(filePath), { recursive: true });
@@ -130,7 +130,7 @@ tags:
       );
 
       const result = execSync(
-        `node ${LIMPS_CLI} tags add plans/test.md --tags new-tag another-tag --config ${CONFIG_PATH} --json`,
+        `node ${LIMPS_CLI} docs tags add plans/test.md --tags new-tag another-tag --config ${CONFIG_PATH} --json`,
         {
           encoding: 'utf-8',
         }
@@ -163,7 +163,7 @@ Has #inline-tag here.
       );
 
       const result = execSync(
-        `node ${LIMPS_CLI} tags add plans/test.md --tags new-tag --config ${CONFIG_PATH} --json`,
+        `node ${LIMPS_CLI} docs tags add plans/test.md --tags new-tag --config ${CONFIG_PATH} --json`,
         {
           encoding: 'utf-8',
         }
@@ -183,7 +183,7 @@ Has #inline-tag here.
     });
   });
 
-  describe('limps tags remove', () => {
+  describe('limps docs tags remove', () => {
     it('removes tags from document', () => {
       const filePath = join(TEST_REPO_ROOT, 'plans', 'test.md');
       mkdirSync(dirname(filePath), { recursive: true });
@@ -202,7 +202,7 @@ tags:
       );
 
       const result = execSync(
-        `node ${LIMPS_CLI} tags remove plans/test.md --tags remove also-remove --config ${CONFIG_PATH} --json`,
+        `node ${LIMPS_CLI} docs tags remove plans/test.md --tags remove also-remove --config ${CONFIG_PATH} --json`,
         {
           encoding: 'utf-8',
         }
@@ -233,7 +233,7 @@ tags:
       );
 
       const result = execSync(
-        `node ${LIMPS_CLI} tags remove plans/test.md --tags only-tag --config ${CONFIG_PATH} --json`,
+        `node ${LIMPS_CLI} docs tags remove plans/test.md --tags only-tag --config ${CONFIG_PATH} --json`,
         {
           encoding: 'utf-8',
         }

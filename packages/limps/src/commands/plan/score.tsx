@@ -1,19 +1,21 @@
 import { Text } from 'ink';
 import { useEffect } from 'react';
 import { z } from 'zod';
-import { getScoredTaskById } from '../cli/next-task.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
+import { getScoredTaskById } from '../../cli/next-task.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { resolveTaskIdFromPlanAndAgent } from '../../core/task-target.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../../cli/json-output.js';
 
-export const description = 'Show scoring breakdown for a task';
+export const description = 'Show scoring breakdown for a specific agent task';
 
-export const args = z.tuple([z.string().describe('task id (e.g., 0004-feature#001)').optional()]);
+export const args = z.tuple([]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
   json: z.boolean().optional().describe('Output as JSON'),
+  plan: z.string().optional().describe('Plan ID or name (e.g., "4" or "0004-feature-name")'),
+  agent: z.string().optional().describe('Agent number (e.g., "3" or "003")'),
 });
 
 interface Props {
@@ -22,12 +24,25 @@ interface Props {
 }
 
 export default function ScoreTaskCommand({ args, options }: Props): React.ReactNode {
-  const [taskId] = args;
+  void args;
+  const { plan: planId, agent: agentId } = options;
   const help = buildHelpOutput({
-    usage: 'limps score-task <task-id> [options]',
-    arguments: ['task-id Task ID (e.g., "0004-feature#001")'],
-    options: ['--config Path to config file', '--json Output as JSON'],
-    examples: ['limps score-task 0004-feature#001', 'limps score-task 0004-feature#001 --json'],
+    usage: 'limps plan score --plan <plan> --agent <agent> [options]',
+    options: [
+      '--plan Plan ID or name (required)',
+      '--agent Agent number in the plan (required)',
+      '--config Path to config file',
+      '--json Output as JSON',
+    ],
+    examples: [
+      'limps plan score --plan 4 --agent 3',
+      'limps plan score --plan 0004-feature-name --agent 003',
+      'limps plan score --plan 4 --agent 3 --json',
+    ],
+    tips: [
+      'Use short IDs for convenience: --plan 4 --agent 3',
+      'For all candidate tasks in a plan, run: limps plan scores --plan 4',
+    ],
   });
   const jsonMode = isJsonMode(options);
 
@@ -37,14 +52,18 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
     }
     const timer = setTimeout(() => {
       try {
-        if (!taskId) {
+        if (!planId || !agentId) {
           outputJson(
-            wrapError('Task ID is required', { code: 'MISSING_TASK_ID', help: help.meta }),
+            wrapError('--plan and --agent are required', {
+              code: 'MISSING_PLAN_OR_AGENT',
+              help: help.meta,
+            }),
             1
           );
+          return;
         }
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
+        const taskId = resolveTaskIdFromPlanAndAgent(config, planId, agentId);
         const result = getScoredTaskById(config, taskId, { suppressWarnings: true });
         if ('error' in result) {
           outputJson(wrapError(result.error, { code: 'SCORE_TASK_ERROR' }), 1);
@@ -60,21 +79,29 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [help.meta, jsonMode, options.config, taskId]);
+  }, [agentId, help.meta, jsonMode, options.config, planId]);
 
   if (jsonMode) {
     return null;
   }
 
-  if (!taskId) {
-    return <Text>{help.text}</Text>;
+  if (!planId || !agentId) {
+    process.exitCode = 1;
+    return (
+      <Text>
+        <Text color="red">Error: --plan and --agent are required</Text>
+        {'\n\n'}
+        {help.text}
+      </Text>
+    );
   }
 
   try {
-    const configPath = resolveConfigPath(options.config);
-    const config = loadConfig(configPath);
+    const { config } = loadCommandContext(options.config);
+    const taskId = resolveTaskIdFromPlanAndAgent(config, planId, agentId);
     const result = getScoredTaskById(config, taskId);
     if ('error' in result) {
+      process.exitCode = 1;
       return <Text color="red">{result.error}</Text>;
     }
 
@@ -101,6 +128,7 @@ export default function ScoreTaskCommand({ args, options }: Props): React.ReactN
 
     return <Text>{lines.join('\n')}</Text>;
   } catch (error) {
+    process.exitCode = 1;
     return <Text color="red">Error: {(error as Error).message}</Text>;
   }
 }

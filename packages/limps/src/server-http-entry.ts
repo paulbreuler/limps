@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * HTTP daemon entry point.
- * Spawned as a detached child process by `limps start`.
+ * Spawned as a detached child process by `limps server start`.
  * Reads config path from argv[2].
  */
 

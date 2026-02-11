@@ -1,12 +1,11 @@
 import { Text } from 'ink';
 import { z } from 'zod';
 import { useState, useEffect } from 'react';
-import { getNextTaskData, type TaskScoreBreakdown } from '../cli/next-task.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { NextTask } from '../components/NextTask.js';
-import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
+import { getNextTaskData, type TaskScoreBreakdown } from '../../cli/next-task.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { NextTask } from '../../components/NextTask.js';
+import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../../cli/json-output.js';
 
 export const description = 'Get the next best task';
 
@@ -25,10 +24,10 @@ interface Props {
 export default function NextTaskCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
   const help = buildHelpOutput({
-    usage: 'limps next-task <plan> [options]',
+    usage: 'limps plan next <plan> [options]',
     arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
     options: ['--config Path to config file', '--json Output as JSON'],
-    examples: ['limps next-task 4', 'limps next-task 0004-my-feature', 'limps next-task 4 --json'],
+    examples: ['limps plan next 4', 'limps plan next 0004-my-feature', 'limps plan next 4 --json'],
     sections: [
       {
         title: 'Scoring Algorithm',
@@ -55,8 +54,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
               1
             );
           }
-          const configPath = resolveConfigPath(options.config);
-          const config = loadConfig(configPath);
+          const { config } = loadCommandContext(options.config);
           const data = await getNextTaskData(config, planId, { suppressWarnings: true });
           if ('error' in data) {
             outputJson(wrapError(data.error, { code: 'NEXT_TASK_ERROR' }), 1);
@@ -91,8 +89,7 @@ export default function NextTaskCommand({ args, options }: Props): React.ReactNo
   useEffect(() => {
     const run = async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
         const data = await getNextTaskData(config, planId);
         setResult(data);
       } catch (err) {

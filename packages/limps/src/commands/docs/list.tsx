@@ -1,10 +1,9 @@
 import { Text } from 'ink';
 import React, { useEffect, useState } from 'react';
 import { z } from 'zod';
-import { listDocs, getDocsListData } from '../cli/docs-list.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { listDocs, getDocsListData } from '../../cli/docs-list.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 
 export const description = 'List files and directories';
 
@@ -38,8 +37,7 @@ export default function ListDocsCommand({ args, options }: Props): React.ReactNo
       const timer = setTimeout((): void => {
         (async (): Promise<void> => {
           try {
-            const configPath = resolveConfigPath(options.config);
-            const config = loadConfig(configPath);
+            const { config } = loadCommandContext(options.config);
 
             const result = await getDocsListData(config, {
               path,
@@ -79,8 +77,7 @@ export default function ListDocsCommand({ args, options }: Props): React.ReactNo
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
         const result = await listDocs(config, {
           path,
           pattern: options.pattern,

@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { z } from 'zod';
-import { loadConfig, getHttpServerConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { getHttpServerConfig } from '../../config.js';
+import { loadCommandContext } from '../../core/command-context.js';
 import {
   getPidFilePath,
   getRunningDaemon,
   discoverRunningDaemons,
   type PidFileContents,
-} from '../pidfile.js';
-import { getDaemonLogPath } from '../utils/daemon-log.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
-import { checkDaemonHealth, type HttpClientOptions } from '../utils/http-client.js';
+} from '../../pidfile.js';
+import { getDaemonLogPath } from '../../utils/daemon-log.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
+import { checkDaemonHealth, type HttpClientOptions } from '../../utils/http-client.js';
 
 export const description = 'Show limps HTTP server status';
 
@@ -86,8 +86,7 @@ async function getDaemonStatus(daemon: PidFileContents): Promise<StatusResult> {
  * Resolve config and gather daemon + health status for a specific project.
  */
 function getServerStatus(opts: z.infer<typeof options>): Promise<StatusResult> {
-  const configPath = resolveConfigPath(opts.config);
-  const config = loadConfig(configPath);
+  const { config } = loadCommandContext(opts.config);
   const httpConfig = getHttpServerConfig(config);
   const pidFilePath = getPidFilePath(httpConfig.port);
   const daemon = getRunningDaemon(pidFilePath);
@@ -132,7 +131,7 @@ async function getProjectAndGlobalStatus(
  */
 function hasConfig(configOpt?: string): boolean {
   try {
-    resolveConfigPath(configOpt);
+    loadCommandContext(configOpt);
     return true;
   } catch {
     return false;
