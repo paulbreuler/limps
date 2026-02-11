@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/paulbreuler/limps/compare/limps-v3.3.0...limps-v3.3.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* **limps:** finalize grouped CLI migration and completion UX ([#138](https://github.com/paulbreuler/limps/issues/138)) ([94ae5c3](https://github.com/paulbreuler/limps/commit/94ae5c33bf7de2cb5038e73c332c67ab741807bc))
+
 ## [3.3.0](https://github.com/paulbreuler/limps/compare/limps-v3.2.0...limps-v3.3.0) (2026-02-11)
 
 
