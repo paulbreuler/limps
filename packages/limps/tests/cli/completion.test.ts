@@ -115,8 +115,9 @@ files: []
     const fish = getCompletionScript('fish');
 
     expect(zsh).toContain('LIMPS_COMPLETE=1 limps --');
+    expect(zsh).toContain('limps -- "${words[@]:2}"');
     expect(bash).toContain('LIMPS_COMPLETE=1 limps --');
-    expect(fish).toContain('env LIMPS_COMPLETE=1 limps --');
+    expect(fish).toContain('env LIMPS_COMPLETE=1 limps -- "$args[2..-1]"');
     expect(zsh).toContain('compdef _limps limps');
     expect(bash).toContain('complete -F _limps_completion limps');
     expect(fish).toContain("complete -c limps -f -a '(__limps_complete)'");

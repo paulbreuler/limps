@@ -192,6 +192,9 @@ function commandPath(positionals: string[]): string {
   }
 
   if (first === 'docs' && second === 'tags' && third) {
+    if ((GROUP_COMMANDS['docs tags'] ?? []).includes(third)) {
+      return `docs tags ${third}`;
+    }
     return 'docs tags';
   }
 
@@ -282,7 +285,7 @@ function zshCompletionScript(): string {
     '',
     '_limps() {',
     '  local -a results',
-    '  results=("${(@f)$(LIMPS_COMPLETE=1 limps -- ${words[@]:2})}")',
+    '  results=("${(@f)$(LIMPS_COMPLETE=1 limps -- "${words[@]:2}")}")',
     "  _describe 'limps' results",
     '}',
     '',
@@ -307,7 +310,7 @@ function fishCompletionScript(): string {
   return [
     'function __limps_complete',
     '  set -l args (commandline -opc)',
-    '  env LIMPS_COMPLETE=1 limps -- $args[2..-1]',
+    '  env LIMPS_COMPLETE=1 limps -- "$args[2..-1]"',
     'end',
     '',
     "complete -c limps -f -a '(__limps_complete)'",
