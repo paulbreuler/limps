@@ -50,7 +50,7 @@ cd ~/Documents/my-planning-docs
 limps init
 
 # Start the HTTP daemon
-limps start
+limps server start
 # → Daemon starts on http://127.0.0.1:4269/mcp
 # → PID file written to OS-standard location
 # → Ready for MCP client connections
@@ -62,7 +62,7 @@ limps config print --client claude-code
 
 That's it. Your AI assistant now has access to your documents via HTTP transport. The folder can be anywhere—local, synced, or in a repo; limps does not require a git repository or a `plans/` directory.
 
-**Tip:** `limps server-status` always includes system-wide daemon discovery. If a project config is found (or passed via `--config`), it also reconciles the configured project target against that global list.
+**Tip:** `limps server status` always includes system-wide daemon discovery. If a project config is found (or passed via `--config`), it also reconciles the configured project target against that global list.
 
 ## Features
 
@@ -81,7 +81,7 @@ That's it. Your AI assistant now has access to your documents via HTTP transport
 
 - **Local only** — Your data stays on disk (SQLite index + your files). No cloud, no subscription.
 - **Restart after changes** — If you change the indexed folder or config, restart the MCP server (or rely on the file watcher) so the index and tools reflect the current state.
-- **Daemon management** — The HTTP server runs as a background process. Use `limps start`, `limps stop`, and `limps server-status` to manage the daemon lifecycle. PID files are stored in OS-standard directories for system-wide awareness.
+- **Daemon management** — The HTTP server runs as a background process. Use `limps server start`, `limps server stop`, and `limps server status` to manage the daemon lifecycle. PID files are stored in OS-standard directories for system-wide awareness.
 - **Sandboxed user code** — `process_doc` and `process_docs` run your JavaScript in a QuickJS sandbox with time and memory limits; no network or Node APIs.
 - **One optional network call** — `limps version --check` fetches from the npm registry to compare versions. All other commands (serve, init, list, search, create/update/delete docs, process_doc, etc.) do **not** contact the internet. Omit `version --check` if you want zero external calls.
 
@@ -145,7 +145,7 @@ v3 uses **HTTP transport exclusively**. stdio transport has been removed.
 
 1. **Start the HTTP daemon** for each project:
    ```bash
-   limps start --config /path/to/.limps/config.json
+   limps server start --config /path/to/.limps/config.json
    ```
 
 2. **Update MCP client configs** — Replace stdio configs with HTTP transport:
@@ -173,7 +173,7 @@ v3 removes the centralized project registry. If you previously used `limps confi
 
 **Removed commands:** `config list`, `config use`, `config add`, `config remove`, `config set`, `config discover`, `config migrate`, `config sync-mcp`, `serve`.
 
-**Replaced by:** `limps init` + `limps start` + `limps config print`.
+**Replaced by:** `limps init` + `limps server start` + `limps config print`.
 
 ## Project Setup
 
@@ -199,7 +199,7 @@ If the directory contains a `plans/` subdirectory, limps uses it. Otherwise, it 
 Each project has its own `.limps/config.json`. Use `--config` to target a specific project:
 
 ```bash
-limps list-plans --config ~/docs/project-b/.limps/config.json
+limps plan list --config ~/docs/project-b/.limps/config.json
 ```
 
 ## Client Setup
@@ -216,7 +216,7 @@ The output tells you exactly what JSON (or TOML) to add and where the config fil
 
 ### Per-Client Examples
 
-All clients connect to the HTTP daemon. Start the daemon first with `limps start`, then configure your client.
+All clients connect to the HTTP daemon. Start the daemon first with `limps server start`, then configure your client.
 
 <details>
 <summary><b>Cursor</b></summary>
@@ -317,13 +317,13 @@ limps v3 uses **HTTP transport exclusively** via a persistent daemon. This allow
 
 ```bash
 # Start the daemon
-limps start
+limps server start
 
 # Check status (shows uptime, sessions, PID)
-limps server-status
+limps server status
 
 # Stop the daemon
-limps stop
+limps server stop
 ```
 
 The daemon runs at `http://127.0.0.1:4269/mcp` by default. Use `limps config print` to generate the correct MCP client configuration:
@@ -381,7 +381,7 @@ Example custom server config:
 - **Linux**: `$XDG_DATA_HOME/limps/pids/` or `~/.local/share/limps/pids/`
 - **Windows**: `%APPDATA%/limps/pids/`
 
-This enables `limps server-status` to perform system-wide daemon discovery from any directory. When a limps config is found for the current directory (or passed via `--config`), the CLI also reports and reconciles that project's configured target.
+This enables `limps server status` to perform system-wide daemon discovery from any directory. When a limps config is found for the current directory (or passed via `--config`), the CLI also reports and reconciles that project's configured target.
 
 - **Remote clients**: Use an MCP-compatible HTTPS proxy for remote clients (e.g., ChatGPT).
 
@@ -423,7 +423,7 @@ Each PID file is named by port number (`limps-{port}.pid`) to enable system-wide
 }
 ```
 
-This port-based naming allows `limps server-status` to find all running daemons across different projects without needing a config file.
+This port-based naming allows `limps server status` to find all running daemons across different projects without needing a config file.
 
 Daemon logs are written to OS-standard application log directories:
 
@@ -452,7 +452,7 @@ Daemon log files are append-only and are not auto-rotated; if you run long-lived
 **Background mode (default):**
 
 ```bash
-limps start
+limps server start
 # → Daemon starts on http://127.0.0.1:4269/mcp
 # → PID file written to OS-standard location
 # → Logs written to OS-standard log file (append mode)
@@ -462,7 +462,7 @@ limps start
 **Foreground mode (debugging):**
 
 ```bash
-limps start --foreground
+limps server start --foreground
 # → Runs in foreground (blocks terminal)
 # → Logs appear in stderr
 # → Useful for debugging startup issues
@@ -485,14 +485,14 @@ Configure `server.port` and `server.host` in your `.limps/config.json`:
 Then start normally:
 
 ```bash
-limps start
+limps server start
 # → Starts using server.port/server.host from config
 # → PID file: limps-8080.pid
 ```
 
 The `start` command performs health verification by polling the `/health` endpoint for up to 5 seconds, issuing repeated HTTP requests. Each individual health-check request has its own shorter timeout (for example, ~1000ms). If any request fails during this window, you'll see one of these error codes:
 
-- **TIMEOUT** — A single health-check HTTP request exceeded its per-request timeout (e.g., ~1000ms). The daemon may be slow to start or system resources may be constrained. Try `limps start --foreground` to see logs.
+- **TIMEOUT** — A single health-check HTTP request exceeded its per-request timeout (e.g., ~1000ms). The daemon may be slow to start or system resources may be constrained. Try `limps server start --foreground` to see logs.
 - **NETWORK_ERROR** — Cannot connect to daemon. Port may be blocked or already in use by another process.
 - **NON_200_STATUS** — Health endpoint returned a non-200 status code. Check daemon logs with foreground mode.
 - **INVALID_RESPONSE** — Health endpoint responded, but the response was invalid or could not be parsed as expected (for example, malformed or missing required fields).
@@ -503,7 +503,7 @@ The `start` command performs health verification by polling the `/health` endpoi
 
 ```bash
 # From within a project directory with .limps/config.json
-limps server-status
+limps server status
 # Project target:
 # limps server is running
 # PID: 12345 | 127.0.0.1:4269
@@ -517,7 +517,7 @@ limps server-status
 #   Log: /Users/you/Library/Application Support/limps/logs/limps-4269.log
 
 # Or specify config explicitly
-limps server-status --config /path/to/.limps/config.json
+limps server status --config /path/to/.limps/config.json
 ```
 
 **Without project config (global discovery only):**
@@ -525,7 +525,7 @@ limps server-status --config /path/to/.limps/config.json
 ```bash
 # From a directory without a limps config
 cd /tmp
-limps server-status
+limps server status
 # Found 2 running daemons:
 # 127.0.0.1:4269 (PID 12345)
 #   Uptime: 2h 15m | Sessions: 3
@@ -535,13 +535,13 @@ limps server-status
 #   Log: /Users/you/Library/Application Support/limps/logs/limps-8080.log
 ```
 
-When `limps server-status` cannot resolve a config file in the current directory (and no `--config` is provided), it reports global daemon discovery only. When a config is found, it reports both the configured project target and the global daemon list.
+When `limps server status` cannot resolve a config file in the current directory (and no `--config` is provided), it reports global daemon discovery only. When a config is found, it reports both the configured project target and the global daemon list.
 
 ### Stopping the Daemon
 
 ```bash
 # From the project directory (where your .limps config lives):
-limps stop
+limps server stop
 # → Gracefully shuts down daemon
 # → Closes all MCP sessions
 # → Stops file watchers
@@ -549,7 +549,7 @@ limps stop
 # → Process exits
 
 # Or from any directory, by specifying the config explicitly:
-limps stop --config /path/to/.limps/config.json
+limps server stop --config /path/to/.limps/config.json
 ```
 
 The `stop` command is project-specific and resolves the config to determine which daemon to stop. The daemon performs a graceful shutdown by:
@@ -563,13 +563,13 @@ The `stop` command is project-specific and resolves the config to determine whic
 If you try to start a daemon on a port that's already in use, limps will detect the conflict and provide resolution guidance:
 
 ```bash
-limps start
+limps server start
 # Error: Port 4269 is already in use.
 # Process using port: node (PID 12345)
-# Command: /usr/local/bin/node /usr/local/bin/limps start
+# Command: /usr/local/bin/node /usr/local/bin/limps server start
 #
 # To stop the process: kill 12345
-# Or use a different port: limps start --port <port>
+# Or use a different port: limps server start --port <port>
 ```
 
 On systems with `lsof` available (macOS, Linux), limps can identify which process is using the port and show its command line. If `lsof` is not available, you'll see a simpler error message suggesting a different port.
@@ -579,7 +579,7 @@ On systems with `lsof` available (macOS, Linux), limps can identify which proces
 Use foreground mode for debugging, Docker deployments, or CI/CD pipelines:
 
 ```bash
-limps start --foreground
+limps server start --foreground
 ```
 
 **Use cases:**
@@ -630,13 +630,13 @@ You can run multiple limps daemons on different ports for different projects by 
 # Project A with default port (4269)
 cd ~/projects/project-a
 # .limps/config.json has server.port: 4269 (or uses default)
-limps start
+limps server start
 # → Running on http://127.0.0.1:4269/mcp
 
 # Project B with custom port (8080)
 cd ~/projects/project-b
 # .limps/config.json has server.port: 8080
-limps start
+limps server start
 # → Running on http://127.0.0.1:8080/mcp
 ```
 
@@ -648,7 +648,7 @@ Discover all running daemons (run from a directory without a limps config):
 
 ```bash
 cd /tmp
-limps server-status
+limps server status
 # Found 2 running daemons:
 # 127.0.0.1:4269 (PID 12345)
 #   Uptime: 2h 15m | Sessions: 3
@@ -660,25 +660,30 @@ Each MCP client can connect to different daemons by configuring different URLs i
 
 ## CLI Commands
 
-### Viewing Plans
+### Recommended Grouped Commands
 
 ```bash
-limps list-plans              # List all plans with status
-limps list-agents <plan>      # List agents in a plan
-limps status <plan>           # Show plan progress summary
-limps next-task <plan>        # Get highest-priority available task
+limps plan list                              # List all plans with status
+limps plan agents <plan>                     # List agents in a plan
+limps plan status <plan>                     # Show plan progress summary
+limps plan next <plan>                       # Get highest-priority available task
+limps plan score --plan <plan> --agent <n>  # Score a single task
+limps plan scores --plan <plan>              # Score all available tasks in a plan
+limps docs list [path]                       # List files/directories
+limps docs search <query>                    # Search indexed docs
+limps docs process [path] --code "<js>"      # Process docs with JavaScript
+limps server start                           # Start HTTP daemon
+limps server status                          # Show daemon status
+limps server stop                            # Stop HTTP daemon
 ```
 
 ### Project Management
 
 ```bash
 limps init [path]             # Initialize new project
-limps start                   # Start HTTP daemon (background by default)
-limps start --foreground      # Start in foreground (debugging mode)
-limps stop                    # Stop HTTP daemon
-limps server-status           # Show daemon status (current project or all daemons)
 limps config show             # Display current config
 limps config print            # Print MCP client config snippets
+limps completion zsh          # Generate Zsh tab-completion script
 ```
 
 ### Health & Automation
@@ -710,9 +715,9 @@ limps graph watch                # Watch and update incrementally
 ### Scoring & Repair
 
 ```bash
-limps score-all <plan>           # Score all agents in a plan
-limps score-task <task-id>       # Score a single task
-limps repair-plans [--fix]       # Check/fix agent frontmatter
+limps plan scores --plan <plan>                # Score all agents in a plan
+limps plan score --plan <plan> --agent <n>   # Score a single task
+limps plan repair [--fix]                   # Check/fix agent frontmatter
 ```
 
 ## Configuration
@@ -755,7 +760,7 @@ Config lives at `.limps/config.json` in your project directory, created by `limp
 
 | Variable               | Description                                                | Example                                           |
 | ---------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
-| `MCP_PLANNING_CONFIG`  | Path to config file (overrides default discovery)          | `MCP_PLANNING_CONFIG=./my-config.json limps serve`|
+| `MCP_PLANNING_CONFIG`  | Path to config file (overrides default discovery)          | `MCP_PLANNING_CONFIG=./my-config.json limps server bridge`|
 | `LIMPS_ALLOWED_TOOLS`  | Comma-separated allowlist; only these tools are registered | `LIMPS_ALLOWED_TOOLS="list_docs,search_docs"`     |
 | `LIMPS_DISABLED_TOOLS` | Comma-separated denylist; tools to hide                    | `LIMPS_DISABLED_TOOLS="process_doc,process_docs"` |
 
@@ -770,30 +775,30 @@ Config lives at `.limps/config.json` in your project directory, created by `limp
 If you see this error, another process is using the port:
 
 ```bash
-limps start
+limps server start
 # Error: Port 4269 is already in use.
 # Process using port: node (PID 12345)
 ```
 
 **Resolution:**
 1. **Kill the existing process**: `kill 12345`
-2. **Or use a different port**: `limps start --port 8080`
-3. **Check if it's another limps daemon**: `limps server-status` (if so, use `limps stop` first)
+2. **Or use a different port**: `limps server start --port 8080`
+3. **Check if it's another limps daemon**: `limps server status` (if so, use `limps server stop` first)
 
 **"Daemon may have failed to start" error:**
 
 If the daemon starts but doesn't respond to health checks:
 
 ```bash
-limps start
-# Error: Daemon may have failed to start. Check logs or try: limps start --foreground
+limps server start
+# Error: Daemon may have failed to start. Check logs or try: limps server start --foreground
 ```
 
 **Resolution:**
-1. **Check daemon log path**: `limps server-status` (or run foreground mode: `limps start --foreground`)
+1. **Check daemon log path**: `limps server status` (or run foreground mode: `limps server start --foreground`)
 2. **Check for permission issues**: Ensure you have write access to the PID directory
 3. **Verify port is accessible**: Try `curl http://127.0.0.1:4269/health`
-4. **Enable debug logging**: `DEBUG=1 limps start --foreground`
+4. **Enable debug logging**: `DEBUG=1 limps server start --foreground`
 
 **Permission issues with PID directory:**
 
@@ -827,7 +832,7 @@ mkdir %APPDATA%\limps\pids
 
 **TIMEOUT error:**
 
-The daemon did not respond within the configured timeout. Each health-check request has its own timeout (for example, 1000ms during the final `limps start` check and 3000ms for `server-status`), and during startup limps will poll for up to about 5 seconds before reporting "Daemon may have failed to start".
+The daemon did not respond within the configured timeout. Each health-check request has its own timeout (for example, 1000ms during the final `limps server start` check and 3000ms for `limps server status`), and during startup limps will poll for up to about 5 seconds before reporting "Daemon may have failed to start".
 
 **Common causes:**
 - System resource constraints (high CPU/memory usage)
@@ -836,8 +841,8 @@ The daemon did not respond within the configured timeout. Each health-check requ
 
 **Resolution:**
 1. Check system resources: `top` or Activity Monitor
-2. Wait a bit longer and retry: `limps server-status`
-3. Run in foreground to see progress: `limps start --foreground`
+2. Wait a bit longer and retry: `limps server status`
+3. Run in foreground to see progress: `limps server start --foreground`
 
 **NETWORK_ERROR:**
 
@@ -849,17 +854,17 @@ Cannot establish connection to the daemon.
 - Incorrect host/port configuration
 
 **Resolution:**
-1. Verify daemon is running: `limps server-status`
+1. Verify daemon is running: `limps server status`
 2. Check firewall settings for port 4269
 3. Try `curl http://127.0.0.1:4269/health` manually
-4. Check daemon logs: see `Log:` path in `limps server-status` output
+4. Check daemon logs: see `Log:` path in `limps server status` output
 
 ### Stale PID Files
 
 limps automatically cleans up stale PID files when:
-- Running `limps server-status` (discovers and removes stale files)
-- Running `limps start` (removes stale file for the target port)
-- The daemon shuts down gracefully with `limps stop`
+- Running `limps server status` (discovers and removes stale files)
+- Running `limps server start` (removes stale file for the target port)
+- The daemon shuts down gracefully with `limps server stop`
 
 If you need to manually clean up PID files:
 
@@ -876,7 +881,7 @@ del %APPDATA%\limps\pids\limps-*.pid
 
 **When to manually clean up:**
 - After a system crash or forced shutdown
-- If `limps start` reports a daemon is running but it's not
+- If `limps server start` reports a daemon is running but it's not
 - Before uninstalling limps
 
 ### Multiple Daemons Conflict
@@ -884,16 +889,16 @@ del %APPDATA%\limps\pids\limps-*.pid
 If you accidentally try to start a second daemon on the same port:
 
 ```bash
-limps start
-# Error: limps daemon already running (PID 12345 on 127.0.0.1:4269). Run 'limps stop' first.
+limps server start
+# Error: limps daemon already running (PID 12345 on 127.0.0.1:4269). Run 'limps server stop' first.
 ```
 
 This is expected behavior — limps prevents multiple daemons on the same port using PID-based locking.
 
 **Resolution:**
-1. **Check all running daemons**: `limps server-status`
-2. **Stop the existing daemon**: `limps stop`
-3. **Or start on a different port**: `limps start --port 8080`
+1. **Check all running daemons**: `limps server status`
+2. **Stop the existing daemon**: `limps server stop`
+3. **Or start on a different port**: `limps server start --port 8080`
 
 ### Debugging Connection Issues
 
@@ -902,7 +907,7 @@ If MCP clients can't connect to the daemon, verify connectivity step by step:
 **1. Check daemon status:**
 
 ```bash
-limps server-status
+limps server status
 # Should show daemon running with healthy status
 ```
 
@@ -925,7 +930,7 @@ curl -X POST http://127.0.0.1:4269/mcp \
 **4. Enable debug logging:**
 
 ```bash
-DEBUG=1 limps start --foreground
+DEBUG=1 limps server start --foreground
 # Watch for connection attempts and errors
 ```
 
@@ -995,7 +1000,7 @@ This shows all three priority levels for config resolution:
 
 ```bash
 # Override with explicit path
-limps list-plans --config /path/to/project/.limps/config.json
+limps plan list --config /path/to/project/.limps/config.json
 
 # Or set environment variable
 export MCP_PLANNING_CONFIG=/path/to/project/.limps/config.json

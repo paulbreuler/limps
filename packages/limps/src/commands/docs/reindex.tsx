@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { resolve } from 'path';
 import { mkdirSync } from 'fs';
-import { loadConfig, getAllDocsPaths, getFileExtensions } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { initializeDatabase, createSchema, clearIndex, indexAllPaths } from '../indexer.js';
+import { getAllDocsPaths, getFileExtensions } from '../../config.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { initializeDatabase, createSchema, clearIndex, indexAllPaths } from '../../indexer.js';
 
 export const description = 'Clear and rebuild the document search index';
 
@@ -32,8 +32,7 @@ export default function ReindexCommand({ options }: Props): React.ReactNode {
     const run = async (): Promise<void> => {
       let db: ReturnType<typeof initializeDatabase> | null = null;
       try {
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
         mkdirSync(config.dataPath, { recursive: true });
         const dbPath = resolve(config.dataPath, 'documents.sqlite');
         db = initializeDatabase(dbPath);

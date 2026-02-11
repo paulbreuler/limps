@@ -6,7 +6,9 @@ import { logRedactedError } from './utils/safe-logging.js';
 
 // Check if running start command with --foreground flag — bypass Ink for clean stdio
 const args = process.argv.slice(2);
-const isStartForeground = args[0] === 'start' && args.includes('--foreground');
+const isStartForeground =
+  args.includes('--foreground') &&
+  ((args[0] === 'server' && args[1] === 'start') || args[0] === 'start');
 const wantsHelp =
   args.includes('--help') || args.includes('-h') || (isStartForeground && args.includes('help'));
 

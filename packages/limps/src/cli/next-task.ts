@@ -146,7 +146,7 @@ function getPlanScoringOverrides(
     !hasAnyOverrides
   ) {
     console.warn(
-      `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps repair-plans --check --json\` for a structured report.`
+      `Malformed frontmatter in plan file: ${planFilePath}. Run \`limps plan repair --check --json\` for a structured report.`
     );
   }
 

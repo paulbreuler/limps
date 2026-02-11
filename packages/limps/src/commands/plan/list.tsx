@@ -1,11 +1,10 @@
 import { Box, Text } from 'ink';
 import { useEffect } from 'react';
 import { z } from 'zod';
-import { getPlansData } from '../cli/list-plans.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { PlansList } from '../components/PlansList.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { getPlansData } from '../../cli/list-plans.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { PlansList } from '../../components/PlansList.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 
 export const description = 'List all plans';
 
@@ -24,8 +23,7 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
     if (jsonMode) {
       const timer = setTimeout(() => {
         try {
-          const configPath = resolveConfigPath(options.config);
-          const config = loadConfig(configPath);
+          const { config } = loadCommandContext(options.config);
           handleJsonOutput(() => {
             const result = getPlansData(config);
             if ('error' in result) {
@@ -51,8 +49,7 @@ export default function ListPlansCommand({ options }: Props): React.ReactNode {
     return null;
   }
 
-  const configPath = resolveConfigPath(options.config);
-  const config = loadConfig(configPath);
+  const { config } = loadCommandContext(options.config);
 
   // Normal Ink rendering
   const result = getPlansData(config);

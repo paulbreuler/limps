@@ -1,20 +1,22 @@
 import { Text } from 'ink';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
-import { deleteDoc, getDeleteDocData } from '../cli/docs-delete.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { createDoc, getCreateDocData } from '../../cli/docs-create.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 
-export const description = 'Delete a document';
+export const description = 'Create a new document';
 
 export const args = z.tuple([z.string().describe('document path')]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  confirm: z.boolean().optional().describe('Confirm deletion'),
-  permanent: z.boolean().optional().describe('Permanent deletion (skip trash)'),
+  template: z
+    .enum(['addendum', 'research', 'example', 'none'])
+    .optional()
+    .describe('Template to apply'),
+  content: z.string().optional().describe('Document content'),
   json: z.boolean().optional().describe('Output as JSON'),
 });
 
@@ -23,21 +25,20 @@ interface Props {
   options: z.infer<typeof options>;
 }
 
-export default function DeleteDocCommand({ args, options }: Props): React.ReactNode {
+export default function CreateDocCommand({ args, options }: Props): React.ReactNode {
   const [path] = args;
   const help = buildHelpOutput({
-    usage: 'limps delete-doc <path> [options]',
-    arguments: ['path Path to document to delete'],
+    usage: 'limps docs create <path> [options]',
+    arguments: ['path Path for new document (relative to repo root)'],
     options: [
       '--config Path to config file',
-      '--confirm Confirm deletion',
-      '--permanent Permanent deletion (skip trash)',
+      '--template Template to apply (addendum|research|example|none)',
+      '--content Document content',
       '--json Output as JSON',
     ],
     examples: [
-      'limps delete-doc "notes.md"',
-      'limps delete-doc "notes.md" --confirm',
-      'limps delete-doc "old-file.md" --confirm --permanent',
+      'limps docs create "research/notes.md" --content "# Notes"',
+      'limps docs create "addendum.md" --template addendum --content "Details..."',
     ],
   });
 
@@ -58,13 +59,12 @@ export default function DeleteDocCommand({ args, options }: Props): React.ReactN
             return;
           }
 
-          const configPath = resolveConfigPath(options.config);
-          const config = loadConfig(configPath);
+          const { config } = loadCommandContext(options.config);
 
-          const result = await getDeleteDocData(config, {
+          const result = await getCreateDocData(config, {
             path,
-            confirm: options.confirm,
-            permanent: options.permanent,
+            content: options.content || '',
+            template: options.template,
           });
 
           handleJsonOutput(() => {
@@ -72,11 +72,11 @@ export default function DeleteDocCommand({ args, options }: Props): React.ReactN
               throw new Error(result.error);
             }
             return result;
-          }, 'DELETE_DOC_ERROR');
+          }, 'CREATE_DOC_ERROR');
         } catch (error) {
           outputJson(
             wrapError(error instanceof Error ? error.message : String(error), {
-              code: 'DELETE_DOC_ERROR',
+              code: 'CREATE_DOC_ERROR',
             }),
             1
           );
@@ -84,7 +84,7 @@ export default function DeleteDocCommand({ args, options }: Props): React.ReactN
       })();
     }, 0);
     return () => clearTimeout(timer);
-  }, [help.meta, jsonMode, options.config, path, options.confirm, options.permanent]);
+  }, [help.meta, jsonMode, options.config, path, options.content, options.template]);
 
   if (jsonMode) {
     return null;
@@ -95,24 +95,23 @@ export default function DeleteDocCommand({ args, options }: Props): React.ReactN
   }
 
   // Normal Ink rendering
-  const [output, setOutput] = useState<string>('Processing...');
+  const [output, setOutput] = useState<string>('Creating document...');
 
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
-        const result = await deleteDoc(config, {
+        const { config } = loadCommandContext(options.config);
+        const result = await createDoc(config, {
           path,
-          confirm: options.confirm,
-          permanent: options.permanent,
+          content: options.content || '',
+          template: options.template,
         });
         setOutput(result);
       } catch (error) {
         setOutput(`Error: ${error instanceof Error ? error.message : String(error)}`);
       }
     })();
-  }, [options.config, path, options.confirm, options.permanent]);
+  }, [options.config, path, options.content, options.template]);
 
   return <Text>{output}</Text>;
 }

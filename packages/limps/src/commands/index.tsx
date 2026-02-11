@@ -24,36 +24,34 @@ export default function DefaultCommand(): React.ReactNode {
       </Text>{' '}
       <Text color="yellow">v{version}</Text> - Local Intelligent MCP Planning Server{'\n'}
       {'\n'}
-      <Text color="yellow">Usage:</Text> limps {'<command>'} [options]{'\n'}
+      <Text color="yellow">Usage:</Text> limps {'<group|command>'} [options]{'\n'}
       {'\n'}
-      <Text color="cyan">HTTP Server:</Text>
+      <Text color="cyan">Recommended Groups:</Text>
       {'\n'}
-      {'  '}start{'          '}Start the HTTP daemon{'\n'}
-      {'  '}stop{'           '}Stop the HTTP daemon{'\n'}
-      {'  '}server-status{'  '}Show daemon status{'\n'}
+      {'  '}server{'         '}Daemon lifecycle (start/stop/status/bridge){'\n'}
+      {'  '}plan{'           '}Plan and task workflows{'\n'}
+      {'  '}docs{'           '}Document CRUD/search/process/tags{'\n'}
+      {'  '}config{'         '}Project configuration{'\n'}
+      {'  '}health{'         '}Health checks and inference{'\n'}
+      {'  '}graph{'          '}Knowledge graph operations{'\n'}
+      {'  '}proposals{'      '}Review and apply suggested fixes{'\n'}
       {'\n'}
-      <Text color="cyan">Plan Management:</Text>
+      <Text color="cyan">Common Commands:</Text>
       {'\n'}
       {'  '}init {'<name>   '}Initialize a new project{'\n'}
-      {'  '}list-plans{'    '}List all plans with status{'\n'}
-      {'  '}list-agents{'   '}List agents in a plan{'\n'}
-      {'  '}next-task{'     '}Get the next best task{'\n'}
-      {'  '}score-task{'    '}Show scoring for a task{'\n'}
-      {'  '}score-all{'     '}Compare scores across tasks{'\n'}
-      {'  '}status{'        '}Show plan progress{'\n'}
-      {'  '}repair-plans{'  '}Repair plan frontmatter{'\n'}
-      {'  '}health{'        '}Run plan health checks{'\n'}
-      {'  '}proposals{'     '}List and apply update proposals{'\n'}
+      {'  '}plan list{'      '}List plans with status{'\n'}
+      {'  '}plan agents 4{'  '}List agents in plan 4{'\n'}
+      {'  '}plan score --plan 4 --agent 3{'  '}Score a specific task{'\n'}
+      {'  '}plan scores --plan 4{'  '}Compare all available task scores{'\n'}
+      {'  '}docs search "query"{'  '}Search indexed documents{'\n'}
+      {'  '}completion zsh Enable shell tab completion{'\n'}
       {'\n'}
-      <Text color="cyan">System:</Text>
+      <Text color="cyan">Other:</Text>
       {'\n'}
-      {'  '}reindex{'       '}Rebuild the document index{'\n'}
-      {'  '}config{'        '}Manage project configuration{'\n'}
-      {'  '}graph{'         '}Knowledge graph commands{'\n'}
       {'  '}version{'       '}Show version information{'\n'}
       {'\n'}
-      Run <Text color="green">limps {'<command>'}</Text> without args for usage help.{'\n'}
-      Run <Text color="green">limps {'<command>'} --help</Text> for full documentation.
+      Run <Text color="green">limps {'<group|command>'}</Text> without args for guided help.{'\n'}
+      Run <Text color="green">limps {'<group|command>'} --help</Text> for full documentation.
     </Text>
   );
 

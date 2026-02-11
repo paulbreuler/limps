@@ -62,7 +62,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -87,7 +87,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -107,7 +107,7 @@ describe('process command', () => {
     it('shows error for missing code option', async () => {
       const configPath = createConfig();
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -123,7 +123,7 @@ describe('process command', () => {
     it('shows error for non-existent file', async () => {
       const configPath = createConfig();
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -149,7 +149,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -173,7 +173,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -196,7 +196,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [docsDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -217,7 +217,7 @@ describe('process command', () => {
     it('shows error when both path and pattern provided', async () => {
       const configPath = createConfig();
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -236,7 +236,7 @@ describe('process command', () => {
     it('shows error when neither path nor pattern provided', async () => {
       const configPath = createConfig();
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -258,7 +258,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -283,7 +283,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -307,7 +307,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       const { lastFrame } = render(
         <ProcessCommand
@@ -334,7 +334,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       render(
         <ProcessCommand
@@ -358,7 +358,7 @@ describe('process command', () => {
 
       const configPath = createConfig({ docsPaths: [testDir] });
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       render(
         <ProcessCommand
@@ -377,7 +377,7 @@ describe('process command', () => {
     it('outputs JSON error when path is missing', async () => {
       const configPath = createConfig();
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       render(
         <ProcessCommand
@@ -398,7 +398,7 @@ describe('process command', () => {
     it('outputs JSON error when code is missing', async () => {
       const configPath = createConfig();
 
-      const { default: ProcessCommand } = await import('../../src/commands/process.js');
+      const { default: ProcessCommand } = await import('../../src/commands/docs/process.js');
 
       render(
         <ProcessCommand

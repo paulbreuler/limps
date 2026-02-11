@@ -1,11 +1,10 @@
 import { Text } from 'ink';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
-import { searchDocs, getSearchDocsData } from '../cli/docs-search.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { searchDocs, getSearchDocsData } from '../../cli/docs-search.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 
 export const description = 'Search documents using full-text search';
 
@@ -27,7 +26,7 @@ interface Props {
 export default function SearchDocsCommand({ args, options }: Props): React.ReactNode {
   const [query] = args;
   const help = buildHelpOutput({
-    usage: 'limps search-docs <query> [options]',
+    usage: 'limps docs search <query> [options]',
     arguments: ['query Search query text'],
     options: [
       '--config Path to config file',
@@ -37,9 +36,9 @@ export default function SearchDocsCommand({ args, options }: Props): React.React
       '--json Output as JSON',
     ],
     examples: [
-      'limps search-docs "authentication"',
-      'limps search-docs "API" --limit 10',
-      'limps search-docs "status" --frontmatter',
+      'limps docs search "authentication"',
+      'limps docs search "API" --limit 10',
+      'limps docs search "status" --frontmatter',
     ],
   });
 
@@ -60,8 +59,7 @@ export default function SearchDocsCommand({ args, options }: Props): React.React
             return;
           }
 
-          const configPath = resolveConfigPath(options.config);
-          const config = loadConfig(configPath);
+          const { config } = loadCommandContext(options.config);
 
           const result = await getSearchDocsData(config, {
             query,
@@ -111,8 +109,7 @@ export default function SearchDocsCommand({ args, options }: Props): React.React
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
         const result = await searchDocs(config, {
           query,
           limit: options.limit,

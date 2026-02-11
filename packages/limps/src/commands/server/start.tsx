@@ -5,16 +5,16 @@ import { spawn } from 'child_process';
 import { closeSync, openSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { loadConfig, getHttpServerConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { getPidFilePath, getRunningDaemon } from '../pidfile.js';
-import { getDaemonLogPath, ensureSystemLogDir } from '../utils/daemon-log.js';
-import { startHttpServer, stopHttpServer } from '../server-http.js';
+import { getHttpServerConfig } from '../../config.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { getPidFilePath, getRunningDaemon } from '../../pidfile.js';
+import { getDaemonLogPath, ensureSystemLogDir } from '../../utils/daemon-log.js';
+import { startHttpServer, stopHttpServer } from '../../server-http.js';
 import {
   checkDaemonHealth,
   isDaemonHealthy,
   type HttpClientOptions,
-} from '../utils/http-client.js';
+} from '../../utils/http-client.js';
 
 export const description = 'Start the limps HTTP server';
 
@@ -37,8 +37,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
   useEffect(() => {
     const run = async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(opts.config);
-        const config = loadConfig(configPath);
+        const { configPath, config } = loadCommandContext(opts.config);
         const httpConfig = getHttpServerConfig(config);
         const port = opts.port ?? httpConfig.port;
         const host = opts.host ?? httpConfig.host;
@@ -48,7 +47,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
         const existing = getRunningDaemon(pidFilePath);
         if (existing) {
           setError(
-            `limps daemon already running (PID ${existing.pid} on ${existing.host}:${existing.port}). Run 'limps stop' first.`
+            `limps daemon already running (PID ${existing.pid} on ${existing.host}:${existing.port}). Run 'limps server stop' first.`
           );
           return;
         }
@@ -74,7 +73,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
           // Daemon mode — spawn detached child
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = dirname(__filename);
-          const entryPath = resolve(__dirname, '../server-http-entry.js');
+          const entryPath = resolve(__dirname, '../../server-http-entry.js');
           ensureSystemLogDir();
           const logPath = getDaemonLogPath(port);
           const logFd = openSync(logPath, 'a');
@@ -141,7 +140,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
                   ? 'Daemon may be slow to start. Check system resources and daemon logs.'
                   : !healthResult.ok && healthResult.error.code === 'NETWORK_ERROR'
                     ? 'Cannot connect to daemon. Check if port is blocked or already in use.'
-                    : 'Try running: limps start --foreground';
+                    : 'Try running: limps server start --foreground';
 
               setError(
                 `${errorMsg}\n${suggestion}\nLog: ${logPath}\n\nRun with DEBUG=1 for more details.`
@@ -149,7 +148,7 @@ export default function StartCommand({ options: opts }: Props): React.ReactNode 
             }
           } else {
             setError(
-              `Daemon may have failed to start. Check log: ${logPath}\nOr try: limps start --foreground`
+              `Daemon may have failed to start. Check log: ${logPath}\nOr try: limps server start --foreground`
             );
           }
           setDone(true);

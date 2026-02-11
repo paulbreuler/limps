@@ -3,11 +3,10 @@ import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { resolve } from 'path';
 import { mkdirSync } from 'fs';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { initializeDatabase, createSchema } from '../indexer.js';
-import { handleCreatePlan, CreatePlanInputSchema } from '../tools/create-plan.js';
-import type { ToolContext } from '../types.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { initializeDatabase, createSchema } from '../../indexer.js';
+import { handleCreatePlan, CreatePlanInputSchema } from '../../tools/create-plan.js';
+import type { ToolContext } from '../../types.js';
 
 export const description = 'Create a new plan with directory structure';
 
@@ -39,8 +38,7 @@ export default function CreatePlanCommand({ args, options }: Props): React.React
       let db: ReturnType<typeof initializeDatabase> | null = null;
       try {
         const [name] = args;
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
         mkdirSync(config.dataPath, { recursive: true });
         const dbPath = resolve(config.dataPath, 'documents.sqlite');
         db = initializeDatabase(dbPath);

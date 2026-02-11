@@ -1,11 +1,10 @@
 import { Text } from 'ink';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
-import { updateDoc, getUpdateDocData } from '../cli/docs-update.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { updateDoc, getUpdateDocData } from '../../cli/docs-update.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 
 export const description = 'Update an existing document';
 
@@ -32,7 +31,7 @@ interface Props {
 export default function UpdateDocCommand({ args, options }: Props): React.ReactNode {
   const [path] = args;
   const help = buildHelpOutput({
-    usage: 'limps update-doc <path> [options]',
+    usage: 'limps docs update <path> [options]',
     arguments: ['path Path to existing document'],
     options: [
       '--config Path to config file',
@@ -44,9 +43,9 @@ export default function UpdateDocCommand({ args, options }: Props): React.ReactN
       '--json Output as JSON',
     ],
     examples: [
-      'limps update-doc "notes.md" --content "New content" --mode overwrite',
-      'limps update-doc "notes.md" --content "More notes" --mode append',
-      'limps update-doc "notes.md" --patch "old text:::new text"',
+      'limps docs update "notes.md" --content "New content" --mode overwrite',
+      'limps docs update "notes.md" --content "More notes" --mode append',
+      'limps docs update "notes.md" --patch "old text:::new text"',
     ],
   });
 
@@ -67,8 +66,7 @@ export default function UpdateDocCommand({ args, options }: Props): React.ReactN
             return;
           }
 
-          const configPath = resolveConfigPath(options.config);
-          const config = loadConfig(configPath);
+          const { config } = loadCommandContext(options.config);
 
           let patchObj: { search: string; replace: string } | undefined;
           if (options.patch) {
@@ -130,8 +128,7 @@ export default function UpdateDocCommand({ args, options }: Props): React.ReactN
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
 
         let patchObj: { search: string; replace: string } | undefined;
         if (options.patch) {

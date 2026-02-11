@@ -7,15 +7,15 @@ import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { createServer } from '../server.js';
+import { createServer } from '../../server.js';
 import {
   initServerResources,
   shutdownServerResources,
   type ServerResources,
-} from '../server-shared.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { ensureDaemonRunning } from '../utils/daemon-manager.js';
-import { shutdownExtensions, type LoadedExtension } from '../extensions/loader.js';
+} from '../../server-shared.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { ensureDaemonRunning } from '../../utils/daemon-manager.js';
+import { shutdownExtensions, type LoadedExtension } from '../../extensions/loader.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 export const description = 'Start stdio-to-HTTP bridge for Claude Desktop/Cursor';
@@ -79,7 +79,7 @@ export default function Serve({ options: opts }: Props): React.ReactNode {
 
     const run = async (): Promise<void> => {
       try {
-        const configPath = resolveConfigPath(opts.config);
+        const { configPath } = loadCommandContext(opts.config);
 
         // Ensure daemon is running (starts if needed)
         setStatus('Checking daemon status...');
@@ -130,10 +130,10 @@ export default function Serve({ options: opts }: Props): React.ReactNode {
         if (errorMessage.includes('ECONNREFUSED')) {
           setError(
             `Cannot connect to daemon. The daemon may have failed to start.\n` +
-              `Try starting it manually: limps start --foreground`
+              `Try starting it manually: limps server start --foreground`
           );
         } else if (errorMessage.includes('Failed to start daemon')) {
-          setError(errorMessage + '\n\nTry: limps start --foreground');
+          setError(errorMessage + '\n\nTry: limps server start --foreground');
         } else {
           setError(`Failed to start bridge: ${errorMessage}`);
         }

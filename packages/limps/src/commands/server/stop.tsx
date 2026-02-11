@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Text } from 'ink';
 import { z } from 'zod';
-import { loadConfig, getHttpServerConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { getPidFilePath, getRunningDaemon, removePidFile } from '../pidfile.js';
+import { getHttpServerConfig } from '../../config.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { getPidFilePath, getRunningDaemon, removePidFile } from '../../pidfile.js';
 
 export const description = 'Stop the limps HTTP server';
 
@@ -24,8 +24,7 @@ export default function StopCommand({ options: opts }: Props): React.ReactNode {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     try {
-      const configPath = resolveConfigPath(opts.config);
-      const config = loadConfig(configPath);
+      const { config } = loadCommandContext(opts.config);
       const httpConfig = getHttpServerConfig(config);
       const pidFilePath = getPidFilePath(httpConfig.port);
       const daemon = getRunningDaemon(pidFilePath);

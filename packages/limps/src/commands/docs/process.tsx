@@ -1,24 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { Text, Box } from 'ink';
 import { z } from 'zod';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 import {
   handleProcessDoc,
   type ProcessDocOutput,
   ProcessDocInputSchema,
-} from '../tools/process-doc.js';
+} from '../../tools/process-doc.js';
 import {
   handleProcessDocs,
   type ProcessDocsOutput,
   ProcessDocsInputSchema,
-} from '../tools/process-docs.js';
-import { initializeDatabase, createSchema } from '../indexer.js';
+} from '../../tools/process-docs.js';
+import { initializeDatabase, createSchema } from '../../indexer.js';
 import { join } from 'path';
 import { mkdirSync } from 'fs';
-import type { ToolContext } from '../types.js';
+import type { ToolContext } from '../../types.js';
 
 export const description = 'Process document(s) with JavaScript code';
 
@@ -48,7 +47,8 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
   const [error, setError] = useState<string | null>(null);
 
   const help = buildHelpOutput({
-    usage: 'limps process <path> | limps process --pattern <glob> --code <code> [options]',
+    usage:
+      'limps docs process <path> | limps docs process --pattern <glob> --code <code> [options]',
     arguments: ['path Optional document path (mutually exclusive with --pattern)'],
     options: [
       '--config Path to config file',
@@ -63,15 +63,15 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
       {
         title: 'Single Document Examples',
         lines: [
-          'limps process plans/0001-feature/plan.md --code "doc.content.length"',
-          'limps process plan.md --code "extractFrontmatter(doc.content).meta.name"',
+          'limps docs process plans/0001-feature/plan.md --code "doc.content.length"',
+          'limps docs process plan.md --code "extractFrontmatter(doc.content).meta.name"',
         ],
       },
       {
         title: 'Multiple Documents Examples',
         lines: [
-          'limps process --pattern "plans/*/*-plan.md" --code "docs.length"',
-          'limps process --pattern "**/*.md" --code "docs.map(d => d.path)"',
+          'limps docs process --pattern "plans/*/*-plan.md" --code "docs.length"',
+          'limps docs process --pattern "**/*.md" --code "docs.map(d => d.path)"',
         ],
       },
     ],
@@ -122,8 +122,7 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
           return;
         }
 
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
 
         // Initialize database
         mkdirSync(config.dataPath, { recursive: true });
@@ -223,8 +222,7 @@ export default function ProcessCommand({ args, options }: Props): React.ReactNod
           return;
         }
 
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
 
         // Initialize database
         mkdirSync(config.dataPath, { recursive: true });

@@ -2,22 +2,20 @@ import { Text } from 'ink';
 import React, { useEffect } from 'react';
 import { join } from 'path';
 import { z } from 'zod';
-import { handleManageTags } from '../../tools/manage-tags.js';
-import { loadConfig } from '../../config.js';
-import { resolveConfigPath } from '../../utils/config-resolver.js';
-import { initializeDatabase, createSchema } from '../../indexer.js';
-import { buildHelpOutput } from '../../utils/cli-help.js';
-import { isJsonMode, outputJson, wrapError, wrapSuccess } from '../../cli/json-output.js';
-import type { ManageTagsOutput } from '../../tools/manage-tags.js';
+import { handleManageTags } from '../../../tools/manage-tags.js';
+import { loadCommandContext } from '../../../core/command-context.js';
+import { initializeDatabase, createSchema } from '../../../indexer.js';
+import { buildHelpOutput } from '../../../utils/cli-help.js';
+import { isJsonMode, outputJson, wrapError, wrapSuccess } from '../../../cli/json-output.js';
+import type { ManageTagsOutput } from '../../../tools/manage-tags.js';
 
-export const description = 'Remove tags from a document';
+export const description = 'List tags in a document';
 
 export const args = z.tuple([z.string().describe('path to document').min(1)]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
   json: z.boolean().optional().describe('Output as JSON'),
-  tags: z.array(z.string()).optional().describe('Tags to remove (space-separated)'),
 });
 
 interface Props {
@@ -25,22 +23,15 @@ interface Props {
   options: z.infer<typeof options>;
 }
 
-export default function TagsRemoveCommand({ args, options }: Props): React.ReactNode {
-  const path = args[0];
-  // Get tags from options or from remaining args
-  const tags = options.tags || args.slice(1);
+export default function TagsListCommand({ args, options }: Props): React.ReactNode {
+  const [path] = args;
   const help = buildHelpOutput({
-    usage: 'limps tags remove <path> [options]',
+    usage: 'limps docs tags list <path> [options]',
     arguments: ['path Path to the document'],
-    options: [
-      '--config Path to config file',
-      '--json Output as JSON',
-      '--tags Tags to remove (space-separated)',
-    ],
+    options: ['--config Path to config file', '--json Output as JSON'],
     examples: [
-      'limps tags remove plans/0001-feature/000-agent.md --tags urgent',
-      'limps tags remove plans/0001-feature/000-agent.md --tags urgent high-priority',
-      'limps tags remove plans/0001-feature/000-agent.md --tags urgent --json',
+      'limps docs tags list plans/0001-feature/000-agent.md',
+      'limps docs tags list plans/0001-feature/000-agent.md --json',
     ],
   });
 
@@ -59,29 +50,20 @@ export default function TagsRemoveCommand({ args, options }: Props): React.React
             return;
           }
 
-          if (!tags || tags.length === 0) {
-            outputJson(
-              wrapError('At least one tag is required', { code: 'MISSING_TAGS', help: help.meta }),
-              1
-            );
-            return;
-          }
-
-          const configPath = resolveConfigPath(options.config);
-          const config = loadConfig(configPath);
+          const { config } = loadCommandContext(options.config);
           const dbPath = join(config.dataPath, 'documents.sqlite');
           const db = initializeDatabase(dbPath);
           createSchema(db);
 
           const result = await handleManageTags(
-            { path, operation: 'remove', tags, prettyPrint: false },
+            { path, operation: 'list', prettyPrint: false },
             { db, config }
           );
 
           db.close();
 
           if (result.isError) {
-            outputJson(wrapError(result.content[0].text, { code: 'TAGS_REMOVE_ERROR' }), 1);
+            outputJson(wrapError(result.content[0].text, { code: 'TAGS_LIST_ERROR' }), 1);
             return;
           }
 
@@ -90,7 +72,7 @@ export default function TagsRemoveCommand({ args, options }: Props): React.React
         } catch (error) {
           outputJson(
             wrapError(error instanceof Error ? error.message : String(error), {
-              code: 'TAGS_REMOVE_ERROR',
+              code: 'TAGS_LIST_ERROR',
             }),
             1
           );
@@ -99,18 +81,17 @@ export default function TagsRemoveCommand({ args, options }: Props): React.React
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [help.meta, jsonMode, options.config, path, tags]);
+  }, [help.meta, jsonMode, options.config, path]);
 
   if (jsonMode) {
     return null;
   }
 
-  if (!path || !tags || tags.length === 0) {
+  if (!path) {
     return <Text>{help.text}</Text>;
   }
 
-  const configPath = resolveConfigPath(options.config);
-  const config = loadConfig(configPath);
+  const { config } = loadCommandContext(options.config);
 
   const [result, setResult] = React.useState<ManageTagsOutput | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -124,7 +105,7 @@ export default function TagsRemoveCommand({ args, options }: Props): React.React
         createSchema(db);
 
         const toolResult = await handleManageTags(
-          { path, operation: 'remove', tags, prettyPrint: false },
+          { path, operation: 'list', prettyPrint: false },
           { db, config }
         );
 
@@ -143,7 +124,7 @@ export default function TagsRemoveCommand({ args, options }: Props): React.React
     };
 
     void run();
-  }, [config, path, tags]);
+  }, [config, path]);
 
   if (error) {
     return <Text color="red">Error: {error}</Text>;
@@ -153,17 +134,18 @@ export default function TagsRemoveCommand({ args, options }: Props): React.React
     return <Text>Loading...</Text>;
   }
 
+  if (result.tags.length === 0) {
+    return <Text color="yellow">No tags found in {result.path}</Text>;
+  }
+
   return (
     <>
-      <Text color="green">✓ Successfully removed tags from {result.path}</Text>
       <Text color="cyan" bold>
-        Remaining tags:
+        Tags in {result.path}:
       </Text>
-      {result.tags.length > 0 ? (
-        result.tags.map((tag) => <Text key={tag}> • {tag}</Text>)
-      ) : (
-        <Text color="yellow"> No tags remaining</Text>
-      )}
+      {result.tags.map((tag) => (
+        <Text key={tag}> • {tag}</Text>
+      ))}
     </>
   );
 }

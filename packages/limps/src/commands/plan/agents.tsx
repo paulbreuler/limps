@@ -1,12 +1,11 @@
 import { Text } from 'ink';
 import { useEffect } from 'react';
 import { z } from 'zod';
-import { getAgentsData } from '../cli/list-agents.js';
-import { loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
-import { buildHelpOutput } from '../utils/cli-help.js';
-import { AgentsList } from '../components/AgentsList.js';
-import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../cli/json-output.js';
+import { getAgentsData } from '../../cli/list-agents.js';
+import { loadCommandContext } from '../../core/command-context.js';
+import { buildHelpOutput } from '../../utils/cli-help.js';
+import { AgentsList } from '../../components/AgentsList.js';
+import { handleJsonOutput, isJsonMode, outputJson, wrapError } from '../../cli/json-output.js';
 
 export const description = 'List agents in a plan';
 
@@ -25,13 +24,13 @@ interface Props {
 export default function ListAgentsCommand({ args, options }: Props): React.ReactNode {
   const [planId] = args;
   const help = buildHelpOutput({
-    usage: 'limps list-agents <plan> [options]',
+    usage: 'limps plan agents <plan> [options]',
     arguments: ['plan Plan ID or name (e.g., "4" or "0004-feature-name")'],
     options: ['--config Path to config file', '--json Output as JSON'],
     examples: [
-      'limps list-agents 4',
-      'limps list-agents 0004-my-feature',
-      'limps list-agents 4 --json',
+      'limps plan agents 4',
+      'limps plan agents 0004-my-feature',
+      'limps plan agents 4 --json',
     ],
   });
 
@@ -48,8 +47,7 @@ export default function ListAgentsCommand({ args, options }: Props): React.React
             1
           );
         }
-        const configPath = resolveConfigPath(options.config);
-        const config = loadConfig(configPath);
+        const { config } = loadCommandContext(options.config);
         handleJsonOutput(() => {
           const result = getAgentsData(config, planId);
           if ('error' in result) {
@@ -78,8 +76,7 @@ export default function ListAgentsCommand({ args, options }: Props): React.React
   }
 
   try {
-    const configPath = resolveConfigPath(options.config);
-    const config = loadConfig(configPath);
+    const { config } = loadCommandContext(options.config);
     const result = getAgentsData(config, planId);
 
     if ('error' in result) {

@@ -93,7 +93,7 @@ export async function ensureDaemonRunning(
   }
 
   throw new Error(
-    `Failed to start daemon within ${timeoutMs}ms. Try running 'limps start' manually.`
+    `Failed to start daemon within ${timeoutMs}ms. Try running 'limps server start' manually.`
   );
 }
 

@@ -3,15 +3,15 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { type ServerConfig, loadConfig } from '../config.js';
-import { resolveConfigPath } from '../utils/config-resolver.js';
+import { type ServerConfig } from '../../config.js';
+import { loadCommandContext } from '../../core/command-context.js';
 import {
   repairPlanFrontmatter,
   inspectPlanFrontmatter,
   inspectAgentFrontmatter,
   repairAgentFrontmatter,
-} from '../cli/plan-repair.js';
-import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../cli/json-output.js';
+} from '../../cli/plan-repair.js';
+import { isJsonMode, outputJson, wrapSuccess, wrapError } from '../../cli/json-output.js';
 
 export const description = 'Repair malformed plan frontmatter (priority/severity)';
 
@@ -54,8 +54,7 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
   const jsonMode = isJsonMode(options);
 
   const getConfig = (): ServerConfig => {
-    const configPath = resolveConfigPath(options.config);
-    return loadConfig(configPath);
+    return loadCommandContext(options.config).config;
   };
 
   const getPlanDirs = (plansPath: string): string[] =>
@@ -227,7 +226,7 @@ export default function RepairPlansCommand({ args, options }: Props): React.Reac
       }
     }
     lines.push('');
-    lines.push('Run `limps repair-plans` to apply fixes.');
+    lines.push('Run `limps plan repair` to apply fixes.');
     return <Text>{lines.join('\n')}</Text>;
   }
 
