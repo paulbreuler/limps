@@ -16,6 +16,10 @@ tags: [foundation, sqlite, schema]
 
 
 
+
+
+
+
 # Agent 000: Entity Schema & Storage
 
 ## Objective

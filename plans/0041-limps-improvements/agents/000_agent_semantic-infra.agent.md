@@ -32,6 +32,10 @@ files:
 
 
 
+
+
+
+
 # Agent 0: Semantic Infra
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`
