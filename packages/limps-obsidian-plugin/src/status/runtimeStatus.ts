@@ -48,7 +48,7 @@ export function buildRuntimeStatusLabel(input: RuntimeStatusLabelInput): string 
   const daemonLabel = input.daemonRunning ? 'daemon:up' : 'daemon:down';
   const linksLabel = `links:r${input.links.resolvedReferences}/u${input.links.unresolvedReferences}`;
   const mcpLabel = input.mcpEnabled ? `mcp:${input.mcpConnected ? 'up' : 'down'}` : 'mcp:off';
-  return `limps ${daemonLabel} ${linksLabel} ${mcpLabel}`;
+  return `local-intel ${daemonLabel} ${linksLabel} ${mcpLabel}`;
 }
 
 function toNonNegativeInt(value: unknown): number {

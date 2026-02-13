@@ -51,17 +51,18 @@ export default class LimpsPlugin extends Plugin {
     this.addSettingTab(new LimpsSettingTab(this.app, this));
 
     if (this.settings.showHealthRibbon) {
-      this.addRibbonIcon('activity', 'Open limps Health', () => {
+      this.addRibbonIcon('activity', 'Open Local Intelligence Hub', () => {
         void this.openHealthView();
       });
     }
 
     this.registerCommands();
     this.registerObsidianEventHooks();
+    this.registerContextMenuHooks();
 
     if (this.settings.showStatusBar) {
       this.statusBarEl = this.addStatusBarItem();
-      this.statusBarEl.textContent = 'limps daemon:unknown links:r0/u0 mcp:off';
+      this.statusBarEl.textContent = 'local-intel daemon:unknown links:r0/u0 mcp:off';
     }
 
     const interval = setInterval(() => {
@@ -134,7 +135,7 @@ export default class LimpsPlugin extends Plugin {
   private registerCommands(): void {
     this.addCommand({
       id: 'limps:check-daemon-status',
-      name: 'limps: Check Daemon Status',
+      name: 'Local Intelligence: Check Daemon Status',
       callback: async () => {
         await this.checkDaemonStatus();
       },
@@ -142,7 +143,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:open-health-view',
-      name: 'limps: Open Health View',
+      name: 'Local Intelligence: Open Hub',
       callback: async () => {
         await this.openHealthView();
       },
@@ -150,7 +151,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:refresh-health-view',
-      name: 'limps: Refresh Health View',
+      name: 'Local Intelligence: Refresh Hub',
       callback: async () => {
         await this.refreshHealthView(true);
       },
@@ -158,7 +159,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:graph-reindex',
-      name: 'limps: Graph Reindex',
+      name: 'Local Intelligence: Graph Reindex',
       callback: async () => {
         await this.graphReindex();
       },
@@ -166,7 +167,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:open-directed-graph-view',
-      name: 'limps: Open Directed Graph View',
+      name: 'Local Intelligence: Open Directed Graph (Editor)',
       callback: async () => {
         await this.openDirectedGraphView();
       },
@@ -174,7 +175,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:refresh-directed-graph-view',
-      name: 'limps: Refresh Directed Graph View',
+      name: 'Local Intelligence: Refresh Directed Graph',
       callback: async () => {
         await this.refreshDirectedGraphView(true);
       },
@@ -182,7 +183,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:convert-deps-to-paths',
-      name: 'limps: Convert Dependencies To Paths',
+      name: 'Local Intelligence: Convert Dependencies To Paths',
       callback: async () => {
         await this.convertDependenciesToPaths();
       },
@@ -190,7 +191,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:sync-obsidian-graph-links',
-      name: 'limps: Sync Obsidian Graph Links',
+      name: 'Local Intelligence: Sync Obsidian Graph Links',
       callback: async () => {
         await this.syncObsidianGraphLinks();
       },
@@ -198,7 +199,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:check-obsidian-mcp',
-      name: 'limps: Check Obsidian MCP',
+      name: 'Local Intelligence: Check Obsidian MCP',
       callback: async () => {
         await this.checkObsidianMcp();
       },
@@ -206,7 +207,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:audit-obsidian-surfaces',
-      name: 'limps: Audit Obsidian Surfaces (.md/.canvas/.base)',
+      name: 'Local Intelligence: Audit Obsidian Surfaces (.md/.canvas/.base)',
       callback: async () => {
         await this.auditObsidianSurfaces();
       },
@@ -214,7 +215,7 @@ export default class LimpsPlugin extends Plugin {
 
     this.addCommand({
       id: 'limps:use-repo-binary',
-      name: 'limps: Use Repo Binary Path',
+      name: 'Local Intelligence: Use Repo Binary Path',
       callback: async () => {
         const result = await this.useRepoBinaryPath();
         if (!result.ok) {
@@ -405,9 +406,9 @@ export default class LimpsPlugin extends Plugin {
   }
 
   async openDirectedGraphView(): Promise<void> {
-    const leaf = this.app.workspace.getRightLeaf(false);
+    const leaf = this.getEditorLeaf();
     await leaf.setViewState({ type: VIEW_TYPE_DIRECTED_GRAPH, active: true });
-    await this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf as never);
     await this.refreshDirectedGraphView();
   }
 
@@ -592,6 +593,48 @@ export default class LimpsPlugin extends Plugin {
     registerEvent(this.app.metadataCache, 'resolved');
   }
 
+  private registerContextMenuHooks(): void {
+    const workspace = this.app.workspace as {
+      on?: (eventName: string, callback: (...args: unknown[]) => unknown) => unknown;
+    };
+    if (!workspace.on || typeof workspace.on !== 'function') return;
+
+    const eventRef = workspace.on('file-menu', (menu: unknown, file: unknown) => {
+      const menuApi = menu as {
+        addItem?: (build: (item: { setTitle: (title: string) => unknown; setIcon?: (icon: string) => unknown; onClick: (cb: () => void) => unknown }) => void) => void;
+      };
+      const filePath = (file as { path?: string } | null)?.path;
+      if (!menuApi.addItem || typeof filePath !== 'string') return;
+
+      menuApi.addItem((item) => {
+        item.setTitle('Open Local Intelligence Graph');
+        if (typeof item.setIcon === 'function') {
+          item.setIcon('network');
+        }
+        item.onClick(() => {
+          void this.openDirectedGraphView();
+        });
+      });
+    });
+
+    if (eventRef && typeof this.registerEvent === 'function') {
+      this.registerEvent(eventRef);
+    }
+  }
+
+  private getEditorLeaf(): { setViewState: (state: { type: string; active?: boolean }) => Promise<void> } {
+    const workspace = this.app.workspace as {
+      getLeaf?: (newLeaf?: boolean | 'tab' | 'split') => { setViewState: (state: { type: string; active?: boolean }) => Promise<void> };
+      getRightLeaf: (split: boolean) => { setViewState: (state: { type: string; active?: boolean }) => Promise<void> };
+    };
+
+    if (typeof workspace.getLeaf === 'function') {
+      return workspace.getLeaf('tab');
+    }
+
+    return workspace.getRightLeaf(false);
+  }
+
   private scheduleRuntimeRefresh(): void {
     const debounceMs = Math.max(200, this.settings.eventRefreshDebounceMs);
     if (this.eventRefreshTimeoutId !== null) {
@@ -641,7 +684,7 @@ export default class LimpsPlugin extends Plugin {
         mcpEnabled: this.settings.enableObsidianMcp,
         mcpConnected,
       });
-      this.statusBarEl.title = 'limps runtime governance status';
+      this.statusBarEl.title = 'local intelligence runtime governance status';
     } finally {
       this.statusRefreshInFlight = false;
       if (this.statusRefreshPending) {

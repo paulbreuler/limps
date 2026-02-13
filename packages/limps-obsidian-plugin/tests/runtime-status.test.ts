@@ -51,5 +51,5 @@ test('buildRuntimeStatusLabel includes daemon, link, and mcp state', () => {
     mcpConnected: false,
   });
 
-  assert.equal(label, 'limps daemon:up links:r80/u3 mcp:down');
+  assert.equal(label, 'local-intel daemon:up links:r80/u3 mcp:down');
 });

@@ -1,4 +1,4 @@
-# limps Obsidian Plugin
+# Local Intelligence Obsidian Plugin
 
 This package provides a local-first Obsidian plugin that wraps `limps` CLI commands.
 

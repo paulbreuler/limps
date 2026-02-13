@@ -12,10 +12,11 @@ cytoscape.use(dagre as unknown as cytoscape.Ext);
 const EDGE_LABELS: Record<string, string> = {
   'plan-contains': 'contains',
   'depends-on': 'depends_on',
-  blocks: 'blocks',
   'related-doc': 'related_doc',
   'related-canvas': 'related_canvas',
   'related-base': 'related_base',
+  references: 'references',
+  'semantic-tag': 'semantic',
 };
 
 export class DirectedGraphView extends ItemView {
@@ -27,6 +28,7 @@ export class DirectedGraphView extends ItemView {
   private graphEl: HTMLDivElement | null = null;
   private actionInFlight = false;
   private cy: cytoscape.Core | null = null;
+  private layoutMode: 'physics' | 'hierarchy' = 'physics';
 
   constructor(leaf: WorkspaceLeaf, plugin: LimpsPlugin) {
     super(leaf);
@@ -38,7 +40,7 @@ export class DirectedGraphView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'limps Directed Graph';
+    return 'Local Intelligence Graph';
   }
 
   async onOpen(): Promise<void> {
@@ -85,11 +87,11 @@ export class DirectedGraphView extends ItemView {
     root.className = 'limps-directed-graph-view';
 
     const heading = document.createElement('h3');
-    heading.textContent = 'limps Directed Graph';
+    heading.textContent = 'Local Intelligence Graph';
 
     const summary = document.createElement('div');
     summary.className = 'summary loading';
-    summary.textContent = 'Loading LIMPS directed relationships...';
+    summary.textContent = 'Loading local intelligence directed relationships...';
 
     const actions = document.createElement('div');
     actions.className = 'actions';
@@ -105,8 +107,14 @@ export class DirectedGraphView extends ItemView {
     syncButton.textContent = 'Sync Obsidian Graph';
     syncButton.dataset.action = 'sync';
 
+    const layoutButton = document.createElement('button');
+    layoutButton.type = 'button';
+    layoutButton.textContent = this.getLayoutButtonLabel();
+    layoutButton.dataset.action = 'toggle-layout';
+
     actions.appendChild(refreshButton);
     actions.appendChild(syncButton);
+    actions.appendChild(layoutButton);
 
     const warning = document.createElement('div');
     warning.className = 'warnings';
@@ -149,6 +157,17 @@ export class DirectedGraphView extends ItemView {
         });
       });
     }
+
+    const layoutButton = this.rootEl?.querySelector<HTMLButtonElement>('button[data-action="toggle-layout"]');
+    if (layoutButton) {
+      layoutButton.addEventListener('click', () => {
+        this.layoutMode = this.layoutMode === 'physics' ? 'hierarchy' : 'physics';
+        this.updateLayoutButtonLabel();
+        if (this.graph) {
+          this.renderCytoscape(this.graph);
+        }
+      });
+    }
   }
 
   private async runAction(run: () => Promise<void>): Promise<void> {
@@ -186,11 +205,16 @@ export class DirectedGraphView extends ItemView {
     this.summaryEl.className = this.graph.cycles.length > 0 ? 'summary warning' : 'summary healthy';
     this.summaryEl.textContent = [
       `Plans: ${this.graph.stats.plans}`,
+      `Roadmap: ${this.graph.stats.roadmap}`,
       `Agents: ${this.graph.stats.agents}`,
+      `Docs: ${this.graph.stats.docs}`,
       `Edges: ${this.graph.stats.edges}`,
+      `Refs: ${this.graph.stats.referenceEdges}`,
+      `Semantic: ${this.graph.stats.semanticEdges}`,
       `Cycles: ${this.graph.cycles.length}`,
       `Isolated agents: ${this.graph.stats.isolatedAgents}`,
     ].join(' | ');
+    this.updateLayoutButtonLabel();
 
     const warningLines: string[] = [];
     if (this.graph.cycles.length > 0) {
@@ -320,6 +344,18 @@ export class DirectedGraphView extends ItemView {
           },
         },
         {
+          selector: '.node-roadmap',
+          style: {
+            shape: 'round-rectangle',
+            width: 96,
+            height: 22,
+            'background-color': '#fce7f3',
+            'border-color': '#9d174d',
+            'font-size': 9,
+            'font-weight': 700,
+          },
+        },
+        {
           selector: '.node-canvas',
           style: {
             shape: 'round-rectangle',
@@ -361,21 +397,32 @@ export class DirectedGraphView extends ItemView {
         },
         { selector: '.edge-plan-contains', style: { 'line-color': '#2563eb', 'target-arrow-color': '#2563eb' } },
         { selector: '.edge-depends-on', style: { 'line-color': '#dc2626', 'target-arrow-color': '#dc2626' } },
-        { selector: '.edge-blocks', style: { 'line-color': '#ea580c', 'target-arrow-color': '#ea580c' } },
         { selector: '.edge-related-doc', style: { 'line-color': '#14b8a6', 'target-arrow-color': '#14b8a6' } },
         { selector: '.edge-related-canvas', style: { 'line-color': '#7c3aed', 'target-arrow-color': '#7c3aed' } },
         { selector: '.edge-related-base', style: { 'line-color': '#0f766e', 'target-arrow-color': '#0f766e' } },
+        {
+          selector: '.edge-references',
+          style: {
+            'line-color': '#64748b',
+            'target-arrow-color': '#64748b',
+            width: 1,
+            opacity: 0.65,
+            label: '',
+          },
+        },
+        {
+          selector: '.edge-semantic-tag',
+          style: {
+            'line-color': '#f59e0b',
+            'target-arrow-color': '#f59e0b',
+            width: 1,
+            'line-style': 'dashed',
+            opacity: 0.7,
+            label: '',
+          },
+        },
       ],
-      layout: {
-        name: 'dagre',
-        rankDir: 'LR',
-        nodeSep: 20,
-        rankSep: 120,
-        edgeSep: 8,
-        fit: true,
-        padding: 20,
-        spacingFactor: 1.1,
-      } as cytoscape.LayoutOptions,
+      layout: this.getLayoutOptions(),
     });
 
     this.cy.on('tap', 'node', (event) => {
@@ -401,6 +448,46 @@ export class DirectedGraphView extends ItemView {
     });
 
     this.cy.fit();
+  }
+
+  private getLayoutOptions(): cytoscape.LayoutOptions {
+    if (this.layoutMode === 'hierarchy') {
+      return {
+        name: 'dagre',
+        rankDir: 'TB',
+        nodeSep: 22,
+        rankSep: 140,
+        edgeSep: 10,
+        fit: true,
+        padding: 24,
+        spacingFactor: 1.12,
+      } as cytoscape.LayoutOptions;
+    }
+
+    return {
+      name: 'cose',
+      fit: true,
+      animate: true,
+      animationDuration: 450,
+      padding: 24,
+      nodeRepulsion: 10000,
+      idealEdgeLength: 90,
+      edgeElasticity: 140,
+      gravity: 0.25,
+      randomize: false,
+      componentSpacing: 80,
+      numIter: 1000,
+    } as cytoscape.LayoutOptions;
+  }
+
+  private getLayoutButtonLabel(): string {
+    return this.layoutMode === 'physics' ? 'Layout: Physics' : 'Layout: Hierarchy';
+  }
+
+  private updateLayoutButtonLabel(): void {
+    const button = this.rootEl?.querySelector<HTMLButtonElement>('button[data-action="toggle-layout"]');
+    if (!button) return;
+    button.textContent = this.getLayoutButtonLabel();
   }
 
   private openNodeFile(node: DirectedGraphNode, filePath: string): void {

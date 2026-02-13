@@ -1,8 +1,15 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, normalize, resolve } from 'node:path';
 
-export type DirectedNodeType = 'plan' | 'agent' | 'doc' | 'canvas' | 'base';
-export type DirectedEdgeType = 'plan-contains' | 'depends-on' | 'blocks' | 'related-doc' | 'related-canvas' | 'related-base';
+export type DirectedNodeType = 'plan' | 'agent' | 'doc' | 'roadmap' | 'canvas' | 'base';
+export type DirectedEdgeType =
+  | 'plan-contains'
+  | 'depends-on'
+  | 'related-doc'
+  | 'related-canvas'
+  | 'related-base'
+  | 'references'
+  | 'semantic-tag';
 
 export interface DirectedGraphNode {
   id: string;
@@ -32,9 +39,12 @@ export interface DirectedGraphData {
     plans: number;
     agents: number;
     docs: number;
+    roadmap: number;
     canvas: number;
     base: number;
     edges: number;
+    referenceEdges: number;
+    semanticEdges: number;
     unresolvedRelations: number;
     isolatedAgents: number;
   };
@@ -43,11 +53,26 @@ export interface DirectedGraphData {
 interface FrontmatterSlice {
   frontmatter?: string;
   body: string;
-  hasFrontmatter: boolean;
 }
 
-function walkDirectories(root: string, dirName: string): string[] {
-  const found: string[] = [];
+interface GraphBuildContext {
+  plansPath: string;
+  nodeByPath: Map<string, DirectedGraphNode>;
+  nodesByStem: Map<string, DirectedGraphNode[]>;
+  agentsByNumber: Map<string, DirectedGraphNode[]>;
+  edges: DirectedGraphEdge[];
+  edgeSet: Set<string>;
+  warnings: string[];
+}
+
+const SUPPORTED_EXTENSIONS = ['.md', '.canvas', '.base'];
+
+function normalizePath(value: string): string {
+  return normalize(value).replace(/\\/g, '/');
+}
+
+function walkFiles(root: string): string[] {
+  const files: string[] = [];
   const stack = [root];
 
   while (stack.length > 0) {
@@ -64,34 +89,38 @@ function walkDirectories(root: string, dirName: string): string[] {
     for (const entry of entries) {
       const name = String(entry.name);
       const fullPath = join(current, name);
-      if (!entry.isDirectory()) continue;
-      if (name === '.obsidian' || name === '.git' || name === 'node_modules') {
+
+      if (entry.isDirectory()) {
+        if (name === '.obsidian' || name === '.git' || name === 'node_modules') {
+          continue;
+        }
+        stack.push(fullPath);
         continue;
       }
-      if (name === dirName) {
-        found.push(fullPath);
-      } else {
-        stack.push(fullPath);
+
+      const lower = name.toLowerCase();
+      if (SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+        files.push(fullPath);
       }
     }
   }
 
-  return found;
+  return files.sort();
 }
 
 function parseFrontmatterSections(content: string): FrontmatterSlice {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (!match || !match[0]) {
-    return { hasFrontmatter: false, body: content };
+    return { body: content };
   }
+
   return {
-    hasFrontmatter: true,
     frontmatter: match[1] ?? '',
     body: content.slice(match[0].length),
   };
 }
 
-function parseRelationFromFrontmatter(frontmatter: string | undefined, keys: string[]): string[] {
+function parseListFrontmatter(frontmatter: string | undefined, keys: string[]): string[] {
   if (!frontmatter) return [];
 
   const values: string[] = [];
@@ -102,8 +131,8 @@ function parseRelationFromFrontmatter(frontmatter: string | undefined, keys: str
     values.push(
       ...inlineMatch[1]
         .split(',')
-        .map((part) => parseRelationToken(part))
-        .filter((value): value is string => Boolean(value))
+        .map((part) => part.trim().replace(/^['"]|['"]$/g, ''))
+        .filter(Boolean)
     );
   }
 
@@ -113,107 +142,152 @@ function parseRelationFromFrontmatter(frontmatter: string | undefined, keys: str
     if (!(new RegExp(`^${keyPattern}:\\s*$`).test(line.trim()))) continue;
 
     for (let j = i + 1; j < lines.length; j++) {
-      const depLine = lines[j] ?? '';
-      const match = depLine.match(/^\s*-\s*(.+)$/);
+      const listLine = lines[j] ?? '';
+      const match = listLine.match(/^\s*-\s*(.+)$/);
       if (!match?.[1]) break;
-      const normalized = parseRelationToken(match[1]);
-      if (normalized) values.push(normalized);
+      values.push(match[1].trim().replace(/^['"]|['"]$/g, ''));
     }
   }
 
   return Array.from(new Set(values));
 }
 
-function parseRelationToken(value: string): string | null {
-  const trimmed = value.trim().replace(/^['"]|['"]$/g, '');
-  if (!trimmed) return null;
-
-  const markdown = trimmed.match(/^\[[^\]]*]\(([^)]+)\)$/);
-  const wikilink = trimmed.match(/^\[\[([^\]]+)\]\]$/);
-  const token = markdown?.[1]?.trim() ?? wikilink?.[1]?.split('|')[0]?.trim() ?? trimmed;
-  if (!token) return null;
-
-  if (/^\d{1,3}$/.test(token)) {
-    return token.padStart(3, '0');
-  }
-
-  if (/^\d{4}#\d{3}$/.test(token)) {
-    return token.slice(-3);
-  }
-
-  return token;
-}
-
-function getAgentNumber(filename: string): string | null {
-  const stem = basename(filename, extname(filename));
-  const match = stem.match(/^(\d{3})/);
-  return match ? match[1] : null;
-}
-
-function normalizePathForMap(value: string): string {
-  return normalize(value).replace(/\\/g, '/');
-}
-
 function parseDependsOn(frontmatter: string | undefined): string[] {
-  return parseRelationFromFrontmatter(frontmatter, ['depends_on', 'dependencies']);
+  return parseListFrontmatter(frontmatter, ['depends_on', 'dependencies']);
 }
 
 function parseBlocks(frontmatter: string | undefined): string[] {
-  return parseRelationFromFrontmatter(frontmatter, ['blocks']);
+  return parseListFrontmatter(frontmatter, ['blocks']);
 }
 
-function findPlanMarkdown(agentsDir: string): string | null {
-  const planRoot = dirname(agentsDir);
-  const candidates = readdirSync(planRoot).filter((name) => name.toLowerCase().endsWith('.md'));
-  const preferred = candidates.find((name) => /-plan\.md$/i.test(name));
-  const selected = preferred ?? candidates[0];
-  return selected ? join(planRoot, selected) : null;
+function parseTags(frontmatter: string | undefined): string[] {
+  return parseListFrontmatter(frontmatter, ['tags'])
+    .map((tag) => tag.toLowerCase())
+    .filter(Boolean);
 }
 
-function resolveAgentRelation(
-  relation: string,
-  currentFile: string,
-  planRoot: string,
-  agentsDir: string,
-  byNumber: Map<string, string>,
-  byStem: Map<string, string>,
-  byPath: Map<string, string>
-): string | null {
-  if (/^\d{3}$/.test(relation)) {
-    return byNumber.get(relation) ?? null;
+function parseMarkdownLinks(text: string): string[] {
+  const tokens: string[] = [];
+
+  const markdownRegex = /(?<!!)\[[^\]]*]\(([^)]+)\)/g;
+  let markdownMatch: RegExpExecArray | null;
+  while ((markdownMatch = markdownRegex.exec(text)) !== null) {
+    const raw = markdownMatch[1]?.trim();
+    if (!raw) continue;
+    tokens.push(raw);
   }
 
-  const stripped = relation.split('#')[0]?.split('?')[0] ?? relation;
-  if (!stripped) return null;
+  const wikilinkRegex = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?]]/g;
+  let wikilinkMatch: RegExpExecArray | null;
+  while ((wikilinkMatch = wikilinkRegex.exec(text)) !== null) {
+    const raw = wikilinkMatch[1]?.trim();
+    if (!raw) continue;
+    tokens.push(raw);
+  }
 
-  const stem = basename(stripped, extname(stripped));
-  const byStemMatch = byStem.get(stem);
-  if (byStemMatch) return byStemMatch;
+  return Array.from(new Set(tokens));
+}
+
+function getAgentNumberFromFilename(filename: string): string | null {
+  const stem = basename(filename, extname(filename));
+  const match = stem.match(/^(\d{3})/);
+  return match?.[1] ?? null;
+}
+
+function classifyNodeType(filePath: string): DirectedNodeType {
+  const lowerPath = filePath.toLowerCase();
+  const fileName = basename(filePath).toLowerCase();
+
+  if (lowerPath.endsWith('.agent.md')) return 'agent';
+  if (lowerPath.endsWith('-plan.md')) return 'plan';
+  if (lowerPath.endsWith('.canvas')) return 'canvas';
+  if (lowerPath.endsWith('.base')) return 'base';
+  if (fileName === 'roadmap.md' || lowerPath.includes('/roadmap/')) return 'roadmap';
+  return 'doc';
+}
+
+function labelForNode(filePath: string, type: DirectedNodeType): string {
+  const fileName = basename(filePath);
+
+  if (type === 'agent') {
+    const number = getAgentNumberFromFilename(fileName);
+    const readable = fileName.replace(/^\d{3}[_-]?/, '').replace(/\.agent\.md$/i, '');
+    return number ? `${number} ${readable}` : readable;
+  }
+
+  if (type === 'plan') {
+    return basename(filePath).replace(/-plan\.md$/i, '');
+  }
+
+  return basename(filePath, extname(filePath));
+}
+
+function planIdForPath(plansPath: string, filePath: string): string {
+  const relativePath = normalizePath(filePath).slice(normalizePath(plansPath).length).replace(/^\/+/, '');
+  const top = relativePath.split('/')[0];
+  return top && top.length > 0 ? top : '_root';
+}
+
+function addEdge(context: GraphBuildContext, from: string, to: string, type: DirectedEdgeType): void {
+  if (!from || !to) return;
+  const key = `${from}::${to}::${type}`;
+  if (context.edgeSet.has(key)) return;
+  context.edgeSet.add(key);
+  context.edges.push({ from, to, type });
+}
+
+function resolveLinkedNode(context: GraphBuildContext, currentFile: string, token: string): DirectedGraphNode | null {
+  const stripped = token.split('?')[0]?.split('#')[0]?.trim() ?? token.trim();
+  if (!stripped) return null;
 
   const candidates: string[] = [];
   if (isAbsolute(stripped)) {
     candidates.push(stripped);
   } else {
     candidates.push(resolve(dirname(currentFile), stripped));
-    candidates.push(resolve(planRoot, stripped));
-    candidates.push(resolve(agentsDir, stripped));
+    candidates.push(resolve(context.plansPath, stripped));
   }
 
   for (const candidate of candidates) {
-    const normalized = normalizePathForMap(candidate);
-    const match = byPath.get(normalized);
-    if (match) return match;
+    const normalized = normalizePath(candidate);
+    const nodeByExactPath = context.nodeByPath.get(normalized);
+    if (nodeByExactPath) return nodeByExactPath;
+
+    for (const ext of ['', '.md', '.agent.md', '.canvas', '.base']) {
+      const byExt = context.nodeByPath.get(normalizePath(`${candidate}${ext}`));
+      if (byExt) return byExt;
+    }
+  }
+
+  const stem = basename(stripped, extname(stripped));
+  const byStem = context.nodesByStem.get(stem);
+  if (byStem && byStem.length === 1) {
+    return byStem[0] ?? null;
   }
 
   return null;
 }
 
-function addEdge(edges: DirectedGraphEdge[], seen: Set<string>, from: string, to: string, type: DirectedEdgeType): void {
-  if (!from || !to) return;
-  const key = `${from}::${to}::${type}`;
-  if (seen.has(key)) return;
-  seen.add(key);
-  edges.push({ from, to, type });
+function resolveAgentDependency(context: GraphBuildContext, currentNode: DirectedGraphNode, token: string): DirectedGraphNode | null {
+  const normalized = token.trim().replace(/^['"]|['"]$/g, '');
+  if (!normalized) return null;
+
+  if (/^\d{1,3}$/.test(normalized)) {
+    const number = normalized.padStart(3, '0');
+    const candidates = context.agentsByNumber.get(number) ?? [];
+    if (candidates.length === 0) return null;
+    const samePlan = candidates.find((node) => node.planId === currentNode.planId);
+    return samePlan ?? candidates[0] ?? null;
+  }
+
+  if (/^\d{4}#\d{3}$/.test(normalized)) {
+    const candidates = context.agentsByNumber.get(normalized.slice(-3)) ?? [];
+    if (candidates.length === 0) return null;
+    const samePlan = candidates.find((node) => node.planId === currentNode.planId);
+    return samePlan ?? candidates[0] ?? null;
+  }
+
+  return resolveLinkedNode(context, currentNode.filePath, normalized);
 }
 
 function detectCycles(nodes: DirectedGraphNode[], edges: DirectedGraphEdge[]): DirectedGraphCycle[] {
@@ -244,20 +318,14 @@ function detectCycles(nodes: DirectedGraphNode[], edges: DirectedGraphEdge[]): D
         continue;
       }
 
-      if (!inStack.has(next)) {
-        continue;
-      }
+      if (!inStack.has(next)) continue;
 
       const cycleStart = stack.lastIndexOf(next);
-      if (cycleStart === -1) {
-        continue;
-      }
+      if (cycleStart === -1) continue;
 
       const cycleNodeIds = stack.slice(cycleStart);
       const signature = [...cycleNodeIds].sort().join('|');
-      if (seenSignatures.has(signature)) {
-        continue;
-      }
+      if (seenSignatures.has(signature)) continue;
 
       seenSignatures.add(signature);
       cycles.push({
@@ -290,172 +358,161 @@ function countIsolatedAgents(nodes: DirectedGraphNode[], edges: DirectedGraphEdg
 }
 
 export function buildDirectedGraph(plansPath: string): DirectedGraphData {
+  const files = walkFiles(plansPath);
+
   const nodes: DirectedGraphNode[] = [];
-  const edges: DirectedGraphEdge[] = [];
-  const edgeSet = new Set<string>();
+  const nodeByPath = new Map<string, DirectedGraphNode>();
+  const nodeById = new Map<string, DirectedGraphNode>();
+  const nodesByStem = new Map<string, DirectedGraphNode[]>();
+  const agentsByNumber = new Map<string, DirectedGraphNode[]>();
   const warnings: string[] = [];
-  const nodeIds = new Set<string>();
 
-  const addNode = (node: DirectedGraphNode): void => {
-    if (nodeIds.has(node.id)) return;
-    nodeIds.add(node.id);
+  for (const filePath of files) {
+    const type = classifyNodeType(filePath);
+    const normalizedPath = normalizePath(filePath);
+    const node: DirectedGraphNode = {
+      id: `${type}:${normalizedPath}`,
+      type,
+      label: labelForNode(filePath, type),
+      filePath,
+      planId: planIdForPath(plansPath, filePath),
+    };
+
     nodes.push(node);
-  };
+    nodeByPath.set(normalizedPath, node);
+    nodeById.set(node.id, node);
 
-  const agentsDirs = walkDirectories(plansPath, 'agents');
-  for (const agentsDir of agentsDirs) {
-    const planRoot = dirname(agentsDir);
-    const planMarkdown = findPlanMarkdown(agentsDir);
-    const planId = relative(plansPath, planRoot).replace(/\\/g, '/') || basename(planRoot);
-    const planFilePath = planMarkdown ?? planRoot;
-    const planNodeId = `plan:${normalizePathForMap(planFilePath)}`;
+    const stem = basename(filePath, extname(filePath));
+    if (!nodesByStem.has(stem)) nodesByStem.set(stem, []);
+    nodesByStem.get(stem)?.push(node);
 
-    addNode({
-      id: planNodeId,
-      type: 'plan',
-      label: basename(planRoot),
-      filePath: planFilePath,
-      planId,
-    });
-
-    const agentFiles = readdirSync(agentsDir)
-      .filter((name) => name.endsWith('.agent.md'))
-      .map((name) => join(agentsDir, name))
-      .sort();
-
-    const byNumber = new Map<string, string>();
-    const byStem = new Map<string, string>();
-    const byPath = new Map<string, string>();
-
-    for (const agentPath of agentFiles) {
-      const nodeId = `agent:${normalizePathForMap(agentPath)}`;
-      const number = getAgentNumber(basename(agentPath));
-      if (number) byNumber.set(number, agentPath);
-      byStem.set(basename(agentPath, extname(agentPath)), agentPath);
-      byPath.set(normalizePathForMap(agentPath), agentPath);
-
-      const label = number
-        ? `${number} ${basename(agentPath).replace(/^\d{3}[_-]?/, '').replace(/\.agent\.md$/, '')}`
-        : basename(agentPath, '.agent.md');
-
-      addNode({
-        id: nodeId,
-        type: 'agent',
-        label,
-        filePath: agentPath,
-        planId,
-      });
-
-      addEdge(edges, edgeSet, planNodeId, nodeId, 'plan-contains');
-    }
-
-    for (const agentPath of agentFiles) {
-      const sourceId = `agent:${normalizePathForMap(agentPath)}`;
-      let raw: string;
-      try {
-        raw = readFileSync(agentPath, 'utf8');
-      } catch {
-        warnings.push(`Failed reading ${agentPath}`);
-        continue;
+    if (type === 'agent') {
+      const number = getAgentNumberFromFilename(basename(filePath));
+      if (number) {
+        if (!agentsByNumber.has(number)) agentsByNumber.set(number, []);
+        agentsByNumber.get(number)?.push(node);
       }
-
-      const frontmatter = parseFrontmatterSections(raw).frontmatter;
-      const deps = parseDependsOn(frontmatter);
-      const blocks = parseBlocks(frontmatter);
-
-      for (const dep of deps) {
-        const targetFile = resolveAgentRelation(dep, agentPath, planRoot, agentsDir, byNumber, byStem, byPath);
-        if (!targetFile) {
-          warnings.push(`Unresolved depends_on '${dep}' in ${basename(agentPath)}`);
-          continue;
-        }
-
-        const targetId = `agent:${normalizePathForMap(targetFile)}`;
-        addEdge(edges, edgeSet, sourceId, targetId, 'depends-on');
-      }
-
-      for (const block of blocks) {
-        const targetFile = resolveAgentRelation(block, agentPath, planRoot, agentsDir, byNumber, byStem, byPath);
-        if (!targetFile) {
-          warnings.push(`Unresolved blocks '${block}' in ${basename(agentPath)}`);
-          continue;
-        }
-
-        const targetId = `agent:${normalizePathForMap(targetFile)}`;
-        addEdge(edges, edgeSet, sourceId, targetId, 'blocks');
-      }
-    }
-
-    const docs = readdirSync(planRoot)
-      .filter((name) => name.toLowerCase().endsWith('.md'))
-      .map((name) => join(planRoot, name))
-      .filter((docPath) => docPath !== planMarkdown)
-      .sort();
-
-    for (const docPath of docs) {
-      const nodeId = `doc:${normalizePathForMap(docPath)}`;
-      addNode({
-        id: nodeId,
-        type: 'doc',
-        label: basename(docPath, '.md'),
-        filePath: docPath,
-        planId,
-      });
-      addEdge(edges, edgeSet, planNodeId, nodeId, 'related-doc');
-    }
-
-    const canvases = readdirSync(planRoot)
-      .filter((name) => name.toLowerCase().endsWith('.canvas'))
-      .map((name) => join(planRoot, name))
-      .sort();
-
-    for (const canvasPath of canvases) {
-      const nodeId = `canvas:${normalizePathForMap(canvasPath)}`;
-      addNode({
-        id: nodeId,
-        type: 'canvas',
-        label: basename(canvasPath, '.canvas'),
-        filePath: canvasPath,
-        planId,
-      });
-      addEdge(edges, edgeSet, planNodeId, nodeId, 'related-canvas');
-    }
-
-    const bases = readdirSync(planRoot)
-      .filter((name) => name.toLowerCase().endsWith('.base'))
-      .map((name) => join(planRoot, name))
-      .sort();
-
-    for (const basePath of bases) {
-      const nodeId = `base:${normalizePathForMap(basePath)}`;
-      addNode({
-        id: nodeId,
-        type: 'base',
-        label: basename(basePath, '.base'),
-        filePath: basePath,
-        planId,
-      });
-      addEdge(edges, edgeSet, planNodeId, nodeId, 'related-base');
     }
   }
 
-  const cycles = detectCycles(nodes, edges);
+  const context: GraphBuildContext = {
+    plansPath,
+    nodeByPath,
+    nodesByStem,
+    agentsByNumber,
+    edges: [],
+    edgeSet: new Set<string>(),
+    warnings,
+  };
+
+  const planNodeByPlanId = new Map<string, DirectedGraphNode>();
+  for (const node of nodes) {
+    if (node.type === 'plan' && !planNodeByPlanId.has(node.planId)) {
+      planNodeByPlanId.set(node.planId, node);
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.type === 'plan') continue;
+    const planNode = planNodeByPlanId.get(node.planId);
+    if (!planNode) continue;
+
+    if (node.type === 'agent') {
+      addEdge(context, planNode.id, node.id, 'plan-contains');
+    } else if (node.type === 'canvas') {
+      addEdge(context, planNode.id, node.id, 'related-canvas');
+    } else if (node.type === 'base') {
+      addEdge(context, planNode.id, node.id, 'related-base');
+    } else {
+      addEdge(context, planNode.id, node.id, 'related-doc');
+    }
+  }
+
+  const tagToNodes = new Map<string, string[]>();
+
+  for (const node of nodes) {
+    const isMarkdownLike = node.type === 'agent' || node.type === 'plan' || node.type === 'doc' || node.type === 'roadmap';
+    if (!isMarkdownLike) continue;
+
+    let raw: string;
+    try {
+      raw = readFileSync(node.filePath, 'utf8');
+    } catch {
+      warnings.push(`Failed reading ${node.filePath}`);
+      continue;
+    }
+
+    const sections = parseFrontmatterSections(raw);
+    const combinedText = `${sections.frontmatter ?? ''}\n${sections.body}`;
+
+    if (node.type === 'agent') {
+      for (const dep of parseDependsOn(sections.frontmatter)) {
+        const resolved = resolveAgentDependency(context, node, dep);
+        if (!resolved || resolved.type !== 'agent') {
+          warnings.push(`Unresolved depends_on '${dep}' in ${basename(node.filePath)}`);
+          continue;
+        }
+        addEdge(context, node.id, resolved.id, 'depends-on');
+      }
+
+      for (const blockedAgent of parseBlocks(sections.frontmatter)) {
+        const resolved = resolveAgentDependency(context, node, blockedAgent);
+        if (!resolved || resolved.type !== 'agent') {
+          warnings.push(`Unresolved blocks '${blockedAgent}' in ${basename(node.filePath)}`);
+          continue;
+        }
+        // Canonicalize "A blocks B" as "B depends-on A" to keep one directed relation type.
+        addEdge(context, resolved.id, node.id, 'depends-on');
+      }
+    }
+
+    for (const linkToken of parseMarkdownLinks(combinedText)) {
+      const linkedNode = resolveLinkedNode(context, node.filePath, linkToken);
+      if (!linkedNode) {
+        warnings.push(`Unresolved link '${linkToken}' in ${basename(node.filePath)}`);
+        continue;
+      }
+      if (linkedNode.id === node.id) continue;
+      addEdge(context, node.id, linkedNode.id, 'references');
+    }
+
+    for (const tag of parseTags(sections.frontmatter)) {
+      if (!tagToNodes.has(tag)) tagToNodes.set(tag, []);
+      tagToNodes.get(tag)?.push(node.id);
+    }
+  }
+
+  for (const nodeIds of tagToNodes.values()) {
+    const unique = Array.from(new Set(nodeIds));
+    if (unique.length < 2) continue;
+    const anchor = unique[0];
+    for (let index = 1; index < Math.min(unique.length, 30); index++) {
+      const target = unique[index];
+      if (!target) continue;
+      addEdge(context, anchor, target, 'semantic-tag');
+    }
+  }
+
+  const cycles = detectCycles(nodes, context.edges);
   const unresolvedRelations = warnings.filter((warning) => warning.startsWith('Unresolved')).length;
 
   return {
     nodes,
-    edges,
+    edges: context.edges,
     warnings,
     cycles,
     stats: {
       plans: nodes.filter((node) => node.type === 'plan').length,
       agents: nodes.filter((node) => node.type === 'agent').length,
       docs: nodes.filter((node) => node.type === 'doc').length,
+      roadmap: nodes.filter((node) => node.type === 'roadmap').length,
       canvas: nodes.filter((node) => node.type === 'canvas').length,
       base: nodes.filter((node) => node.type === 'base').length,
-      edges: edges.length,
+      edges: context.edges.length,
+      referenceEdges: context.edges.filter((edge) => edge.type === 'references').length,
+      semanticEdges: context.edges.filter((edge) => edge.type === 'semantic-tag').length,
       unresolvedRelations,
-      isolatedAgents: countIsolatedAgents(nodes, edges),
+      isolatedAgents: countIsolatedAgents(nodes, context.edges),
     },
   };
 }

@@ -24,7 +24,7 @@ export class HealthView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'limps Health';
+    return 'Local Intelligence';
   }
 
   async onOpen(): Promise<void> {
@@ -56,11 +56,11 @@ export class HealthView extends ItemView {
 
   private renderStatusLine(): string {
     const state = this.snapshot.state;
-    if (state === 'loading') return 'Loading limps health...';
-    if (state === 'disconnected') return 'Disconnected: limps daemon is not running';
-    if (state === 'error') return 'Error fetching limps health';
+    if (state === 'loading') return 'Loading local intelligence status...';
+    if (state === 'disconnected') return 'Disconnected: local intelligence daemon is not running';
+    if (state === 'error') return 'Error fetching local intelligence status';
     if (state === 'healthy-empty') return 'Connected: graph index is empty';
-    return 'Connected: limps health is available';
+    return 'Connected: local intelligence is available';
   }
 
   private renderCards(): string {
@@ -115,10 +115,10 @@ export class HealthView extends ItemView {
 
     const graphLinksHint =
       `<div class="card">
-        <div>Project LIMPS relationships into Obsidian Graph.</div>
+        <div>Project Local Intelligence relationships into Obsidian Graph.</div>
         <div class="actions stacked">
           <button type="button" class="mod-cta" data-action="sync-links" ${disabledAttr}>Sync Obsidian Graph</button>
-          <button type="button" data-action="open-directed-graph" ${disabledAttr}>Open Directed Graph</button>
+          <button type="button" data-action="open-directed-graph" ${disabledAttr}>Open Directed Graph (Editor)</button>
           <button type="button" data-action="audit-surfaces" ${disabledAttr}>Audit surfaces</button>
         </div>
       </div>`;
@@ -188,7 +188,7 @@ export class HealthView extends ItemView {
     root.className = 'limps-health-view';
 
     const heading = document.createElement('h3');
-    heading.textContent = 'limps Health';
+    heading.textContent = 'Local Intelligence';
 
     const status = document.createElement('div');
     status.className = 'status loading';
