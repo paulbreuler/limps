@@ -4,6 +4,7 @@
     "target": "ES2020",
     "module": "CommonJS",
     "moduleResolution": "node",
+    "jsx": "react-jsx",
     "lib": ["ES2020", "DOM"],
     "rootDir": ".",
     "outDir": "dist",
@@ -12,5 +13,5 @@
     "declarationMap": false,
     "sourceMap": true
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "tests/**/*.ts"]
 }

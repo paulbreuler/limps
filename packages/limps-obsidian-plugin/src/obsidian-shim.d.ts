@@ -17,14 +17,18 @@ declare module 'obsidian' {
 
   export class WorkspaceLeaf {
     view: ItemView;
+    getViewState?(): ViewState;
     setViewState(state: ViewState): Promise<void>;
   }
 
   export class Workspace {
+    getLeaf?(newLeaf?: boolean | 'tab' | 'split'): WorkspaceLeaf;
+    getMostRecentLeaf?(): WorkspaceLeaf;
     getRightLeaf(split: boolean): WorkspaceLeaf;
     getLeavesOfType(type: string): WorkspaceLeaf[];
     revealLeaf(leaf: WorkspaceLeaf): Promise<void>;
     on(name: string, callback: (...args: unknown[]) => unknown): unknown;
+    openLinkText?(linkText: string, sourcePath: string, newLeaf?: boolean): unknown;
   }
 
   export interface DataAdapter {
@@ -50,6 +54,7 @@ declare module 'obsidian' {
     app: App;
     leaf: WorkspaceLeaf;
     containerEl: HTMLElement;
+    contentEl: HTMLElement;
     constructor(leaf: WorkspaceLeaf);
     getViewType(): string;
     getDisplayText(): string;

@@ -1,4 +1,4 @@
-import { Notice, Plugin } from 'obsidian';
+import { Notice, Plugin, WorkspaceLeaf } from 'obsidian';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getDaemonStatus, getGraphHealth, runDepsToPaths, runGraphReindex } from './cli/wrapper.js';
@@ -408,7 +408,7 @@ export default class LimpsPlugin extends Plugin {
   async openDirectedGraphView(): Promise<void> {
     const leaf = this.getEditorLeaf();
     await leaf.setViewState({ type: VIEW_TYPE_DIRECTED_GRAPH, active: true });
-    await this.app.workspace.revealLeaf(leaf as never);
+    await this.app.workspace.revealLeaf(leaf);
     await this.refreshDirectedGraphView();
   }
 
@@ -622,11 +622,23 @@ export default class LimpsPlugin extends Plugin {
     }
   }
 
-  private getEditorLeaf(): { setViewState: (state: { type: string; active?: boolean }) => Promise<void> } {
+  private getEditorLeaf(): WorkspaceLeaf {
     const workspace = this.app.workspace as {
-      getLeaf?: (newLeaf?: boolean | 'tab' | 'split') => { setViewState: (state: { type: string; active?: boolean }) => Promise<void> };
-      getRightLeaf: (split: boolean) => { setViewState: (state: { type: string; active?: boolean }) => Promise<void> };
+      getLeaf?: (newLeaf?: boolean | 'tab' | 'split') => WorkspaceLeaf;
+      getMostRecentLeaf?: () => WorkspaceLeaf | null;
+      getRightLeaf: (split: boolean) => WorkspaceLeaf;
     };
+
+    const recentLeaf = workspace.getMostRecentLeaf?.() ?? null;
+    const recentType = recentLeaf?.getViewState?.().type;
+    if (recentLeaf && recentType === 'markdown') {
+      return recentLeaf;
+    }
+
+    const markdownLeaves = this.app.workspace.getLeavesOfType('markdown');
+    if (markdownLeaves.length > 0) {
+      return markdownLeaves[0];
+    }
 
     if (typeof workspace.getLeaf === 'function') {
       return workspace.getLeaf('tab');

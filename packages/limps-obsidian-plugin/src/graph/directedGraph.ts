@@ -188,6 +188,18 @@ function parseMarkdownLinks(text: string): string[] {
   return Array.from(new Set(tokens));
 }
 
+function isExternalReference(token: string): boolean {
+  const value = token.trim().toLowerCase();
+  if (!value) return true;
+  if (value.startsWith('#')) return true;
+  return (
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('mailto:') ||
+    value.startsWith('obsidian://')
+  );
+}
+
 function getAgentNumberFromFilename(filename: string): string | null {
   const stem = basename(filename, extname(filename));
   const match = stem.match(/^(\d{3})/);
@@ -467,6 +479,9 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
     }
 
     for (const linkToken of parseMarkdownLinks(combinedText)) {
+      if (isExternalReference(linkToken)) {
+        continue;
+      }
       const linkedNode = resolveLinkedNode(context, node.filePath, linkToken);
       if (!linkedNode) {
         warnings.push(`Unresolved link '${linkToken}' in ${basename(node.filePath)}`);
