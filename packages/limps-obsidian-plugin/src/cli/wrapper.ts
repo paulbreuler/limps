@@ -49,6 +49,11 @@ export interface LimpsRunOptions {
   parseJson?: boolean;
 }
 
+interface CommandInvocation {
+  command: string;
+  args: string[];
+}
+
 interface ExecErrorShape {
   stdout?: string;
   stderr?: string;
@@ -203,14 +208,16 @@ export async function runLimps<T = unknown>(
     args.push('--config', options.configPath);
   }
 
-  const runWithCommand = (command: string): Promise<CommandExecResult<T>> =>
-    execCommand<T>({
-      command,
-      args,
+  const runWithCommand = (command: string): Promise<CommandExecResult<T>> => {
+    const invocation = resolveCommandInvocation(command, args);
+    return execCommand<T>({
+      command: invocation.command,
+      args: invocation.args,
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       parseJson: options.parseJson,
     });
+  };
 
   const initial = await runWithCommand(options.limpsPath);
   if (initial.ok) {
@@ -224,6 +231,21 @@ export async function runLimps<T = unknown>(
   }
 
   return runWithCommand(repoBinary);
+}
+
+function resolveCommandInvocation(command: string, args: string[]): CommandInvocation {
+  const lower = command.toLowerCase();
+  if (lower.endsWith('.js') || lower.endsWith('.cjs') || lower.endsWith('.mjs')) {
+    return {
+      command: process.execPath,
+      args: [command, ...args],
+    };
+  }
+
+  return {
+    command,
+    args,
+  };
 }
 
 function isCommandNotFound(result: CommandExecResult): boolean {

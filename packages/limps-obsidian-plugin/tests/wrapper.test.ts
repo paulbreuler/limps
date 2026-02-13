@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { execCommand, parseDependencyPathConversionText, runLimps } from '../src/cli/wrapper.js';
 
 test('execCommand parses valid JSON output', async () => {
@@ -67,6 +70,30 @@ test('runLimps injects --config when provided', async () => {
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.data, ['--config', '/tmp/test-config.json']);
+});
+
+test('runLimps executes js entrypoint via node process', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'limps-obsidian-wrapper-'));
+  const scriptPath = join(root, 'cli.js');
+  writeFileSync(
+    scriptPath,
+    'console.log(JSON.stringify(process.argv.slice(2)));',
+    'utf8'
+  );
+
+  const result = await runLimps<string[]>(['server', 'status'], {
+    limpsPath: scriptPath,
+    configPath: '/tmp/test-config.json',
+    cwd: process.cwd(),
+    timeoutMs: 2000,
+    parseJson: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data, ['server', 'status', '--config', '/tmp/test-config.json']);
+  assert.equal(result.command, process.execPath);
+
+  rmSync(root, { recursive: true, force: true });
 });
 
 test('parseDependencyPathConversionText parses structured plain text output', () => {
