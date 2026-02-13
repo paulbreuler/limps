@@ -193,3 +193,50 @@ blocks: [000]
   assert.match(content, /Blocks:/);
   assert.match(content, /\[Agent 000\]\(\.\/000-base\.agent\.md\)/);
 });
+
+test('syncObsidianGraphLinks includes canvas and base links in plan block', () => {
+  const root = mkdtempSync(join(tmpdir(), 'limps-obsidian-sync-surfaces-'));
+  const plansPath = join(root, 'plans');
+  const planDir = join(plansPath, '0020-surface-plan');
+  const agentsDir = join(planDir, 'agents');
+  mkdirSync(agentsDir, { recursive: true });
+
+  writeAgent(
+    join(agentsDir, '000-bootstrap.agent.md'),
+    `---
+title: Bootstrap
+depends_on: []
+---
+
+# Agent 000
+`
+  );
+
+  writeAgent(
+    join(planDir, '0020-surface-plan-plan.md'),
+    `---
+title: Surface Plan
+---
+
+# Plan
+`
+  );
+
+  writeFileSync(join(planDir, 'Flow.canvas'), '{}\n', 'utf8');
+  writeFileSync(
+    join(planDir, 'Ops.base'),
+    `views:
+  - type: table
+    name: Table
+`,
+    'utf8'
+  );
+
+  syncObsidianGraphLinks(root, plansPath);
+  const planContent = readFileSync(join(planDir, '0020-surface-plan-plan.md'), 'utf8');
+
+  assert.match(planContent, /Canvas boards:/);
+  assert.match(planContent, /\[Flow]\(\.\/Flow\.canvas\)/);
+  assert.match(planContent, /Bases:/);
+  assert.match(planContent, /\[Ops]\(\.\/Ops\.base\)/);
+});

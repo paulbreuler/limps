@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS, LimpsSettingTab } from './settings.js';
 import type { LimpsPluginSettings } from './settings.js';
 import { HealthView } from './views/healthView.js';
 import { syncObsidianGraphLinks } from './graph/syncLinks.js';
+import { auditObsidianSurfaces } from './graph/surfaceAudit.js';
 import { probeObsidianMcp } from './mcp/client.js';
 import type { ObsidianMcpProbeResult } from './mcp/client.js';
 import { buildRuntimeStatusLabel, computeLinkStats } from './status/runtimeStatus.js';
@@ -183,6 +184,14 @@ export default class LimpsPlugin extends Plugin {
         await this.checkObsidianMcp();
       },
     });
+
+    this.addCommand({
+      id: 'limps:audit-obsidian-surfaces',
+      name: 'limps: Audit Obsidian Surfaces (.md/.canvas/.base)',
+      callback: async () => {
+        await this.auditObsidianSurfaces();
+      },
+    });
   }
 
   async checkDaemonStatus(): Promise<void> {
@@ -325,6 +334,24 @@ export default class LimpsPlugin extends Plugin {
     new Notice('Obsidian MCP reachable via /health endpoint', 5000);
     await this.updateStatusBar();
     return result;
+  }
+
+  async auditObsidianSurfaces(): Promise<void> {
+    try {
+      const plansPath = this.getPlansPathFromConfig();
+      const report = auditObsidianSurfaces(plansPath);
+      const warnings = report.warnings.length > 0 ? `, warnings:${report.warnings.length}` : '';
+      const empties =
+        report.emptyCanvasFiles.length + report.emptyBaseFiles.length > 0
+          ? `, empty surfaces:${report.emptyCanvasFiles.length + report.emptyBaseFiles.length}`
+          : '';
+      new Notice(
+        `limps surface audit plans:${report.planDirectories} md:${report.markdownFiles} canvas:${report.canvasFiles} base:${report.baseFiles}${empties}${warnings}`,
+        9000
+      );
+    } catch (error) {
+      new Notice(`limps surface audit failed: ${String(error)}`, 9000);
+    }
   }
 
   private async notifyIfDisconnected(): Promise<void> {

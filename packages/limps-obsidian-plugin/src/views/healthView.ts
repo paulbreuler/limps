@@ -117,6 +117,7 @@ export class HealthView extends ItemView {
         <div>Project LIMPS relationships into Obsidian Graph.</div>
         <div class="actions">
           <button type="button" class="mod-cta" data-action="sync-links" ${disabledAttr}>Sync Obsidian Graph</button>
+          <button type="button" data-action="audit-surfaces" ${disabledAttr}>Audit surfaces</button>
         </div>
       </div>`;
 
@@ -246,6 +247,9 @@ export class HealthView extends ItemView {
     });
     this.bindAction('convert-deps', async () => {
       await this.plugin.convertDependenciesToPaths();
+    });
+    this.bindAction('audit-surfaces', async () => {
+      await this.plugin.auditObsidianSurfaces();
     });
     this.bindAction('check-obsidian-mcp', async () => {
       await this.plugin.checkObsidianMcp();

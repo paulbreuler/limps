@@ -20,6 +20,7 @@ This package provides a local-first Obsidian plugin that wraps `limps` CLI comma
 - `limps:convert-deps-to-paths`
 - `limps:sync-obsidian-graph-links`
 - `limps:check-obsidian-mcp`
+- `limps:audit-obsidian-surfaces`
 
 ## Local build
 
@@ -72,6 +73,14 @@ limps server start --config /Users/paul/Documents/GitHub/limps/.limps/config.jso
   - workspace `file-open`, `active-leaf-change`
   - vault `create`, `modify`, `rename`, `delete`
   - metadata cache `changed`, `resolved`
+
+## Obsidian surface support
+
+- Graph sync now projects plan-level links to:
+  - Markdown docs (`.md`)
+  - Canvas boards (`.canvas`)
+  - Bases files (`.base`)
+- Use `limps:audit-obsidian-surfaces` to verify counts and detect empty canvas/base files.
 
 ## Troubleshooting
 

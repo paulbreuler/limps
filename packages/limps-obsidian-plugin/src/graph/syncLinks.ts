@@ -26,6 +26,8 @@ interface GraphSections {
 interface PlanGraphSections {
   agentLinks: string[];
   docLinks: string[];
+  canvasLinks: string[];
+  baseLinks: string[];
 }
 
 function walkDirectories(root: string, dirName: string): string[] {
@@ -181,6 +183,8 @@ function buildPlanGraphLinksBlock(sections: PlanGraphSections): string {
 
   lines.push(...buildListSection('Agents:', sections.agentLinks, '_No agents found_'));
   lines.push(...buildListSection('Related docs:', sections.docLinks, '_No related docs found_'));
+  lines.push(...buildListSection('Canvas boards:', sections.canvasLinks, '_No canvas files found_'));
+  lines.push(...buildListSection('Bases:', sections.baseLinks, '_No base files found_'));
   lines.push(END_MARKER);
 
   return lines.join('\n');
@@ -314,8 +318,18 @@ export function syncObsidianGraphLinks(_vaultPath: string, plansPath: string): G
         .map((name) => `[${basename(name, extname(name))}](./${name})`)
         .sort();
 
-      result.linksGenerated += agentLinks.length + docLinks.length;
-      const planBlock = buildPlanGraphLinksBlock({ agentLinks, docLinks });
+      const canvasLinks = readdirSync(planRoot)
+        .filter((name) => name.toLowerCase().endsWith('.canvas'))
+        .map((name) => `[${basename(name, extname(name))}](./${name})`)
+        .sort();
+
+      const baseLinks = readdirSync(planRoot)
+        .filter((name) => name.toLowerCase().endsWith('.base'))
+        .map((name) => `[${basename(name, extname(name))}](./${name})`)
+        .sort();
+
+      result.linksGenerated += agentLinks.length + docLinks.length + canvasLinks.length + baseLinks.length;
+      const planBlock = buildPlanGraphLinksBlock({ agentLinks, docLinks, canvasLinks, baseLinks });
       const planBody = upsertGeneratedBlock(planSections.body, planBlock);
       const planNextContent = planSections.hasFrontmatter
         ? `---\n${planSections.frontmatter ?? ''}\n---\n\n${planBody}`
