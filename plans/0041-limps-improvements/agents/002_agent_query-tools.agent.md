@@ -17,6 +17,11 @@ files:
     action: modify
 ---
 
+
+
+
+
+
 # Agent 2: Query Improvements
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`
@@ -67,3 +72,17 @@ TDD:
 - [ ] query_docs works without semantic (FTS5 only)
 - [ ] query_docs blends semantic when available
 - [ ] Clear fallback messaging in responses
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0041-limps-improvements-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+- [Agent 003](./003_agent_ai-generation.agent.md)
+
+<!-- limps:graph-links:end -->

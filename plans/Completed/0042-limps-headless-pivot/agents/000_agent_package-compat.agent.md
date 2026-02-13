@@ -70,3 +70,17 @@ Gotchas:
 - [x] CLI entrypoint verified
 - [x] Config defaults documented
 - [x] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-limps-headless-pivot-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

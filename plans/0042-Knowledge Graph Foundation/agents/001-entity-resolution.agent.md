@@ -2,10 +2,22 @@
 title: Dependency-Based Entity Extraction
 status: PASS
 persona: coder
-depends_on: [000]
-files: [src/graph/extractor.ts, src/graph/patterns.ts, src/graph/parser.ts]
-tags: [extraction, nlp, no-llm]
+depends_on:
+  - ./000-entity-schema-storage.agent.md
+files:
+  - src/graph/extractor.ts
+  - src/graph/patterns.ts
+  - src/graph/parser.ts
+tags:
+  - extraction
+  - nlp
+  - no-llm
 ---
+
+
+
+
+
 
 # Agent 001: Dependency-Based Entity Extraction
 
@@ -143,3 +155,17 @@ export function extractConcepts(text: string): string[] {
 - [ ] Handles malformed frontmatter gracefully
 - [ ] Cross-references detected from inline mentions
 - [ ] Performance: <100ms per plan
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 000](./000-entity-schema-storage.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

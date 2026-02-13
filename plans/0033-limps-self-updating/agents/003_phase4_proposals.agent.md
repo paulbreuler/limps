@@ -2,13 +2,25 @@
 title: Phase 4 - Update Proposals
 status: PASS
 persona: coder
-dependencies: ["002"]
-blocks: ["004"]
-tags: [limps/agent, limps/status/pass, limps/persona/coder]
-aliases: ["#003", "Update Proposals"]
-created: 2026-02-01
-updated: 2026-02-01
+dependencies:
+  - ./002_phase3_inference.agent.md
+blocks:
+  - '004'
+tags:
+  - limps/agent
+  - limps/status/pass
+  - limps/persona/coder
+aliases:
+  - '#003'
+  - Update Proposals
+created: 2026-02-01T00:00:00.000Z
+updated: 2026-02-01T00:00:00.000Z
 ---
+
+
+
+
+
 
 # Agent 003: Phase 4 - Update Proposals
 
@@ -42,3 +54,17 @@ TL;DR: List and apply proposals from the CLI.
 - [x] Proposal schema finalized
 - [x] Tools implemented
 - [x] CLI commands wired
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0033-limps-self-updating-plan.md)
+
+Depends on:
+- [Agent 002](./002_phase3_inference.agent.md)
+
+Blocks:
+- [Agent 004](./004_phase5_automation.agent.md)
+
+<!-- limps:graph-links:end -->

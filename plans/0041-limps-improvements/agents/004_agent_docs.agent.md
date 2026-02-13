@@ -2,12 +2,20 @@
 title: Docs
 status: GAP
 persona: coder
-dependencies: ["000", "001", "002"]
+dependencies:
+  - ./000_agent_semantic-infra.agent.md
+  - ./001_agent_semantic-tools.agent.md
+  - ./002_agent_query-tools.agent.md
 blocks: []
-tags: [limps/agent, limps/status/gap, limps/persona/coder]
-aliases: ["#004", "Docs Agent"]
-created: 2026-01-28
-updated: 2026-01-28
+tags:
+  - limps/agent
+  - limps/status/gap
+  - limps/persona/coder
+aliases:
+  - '#004'
+  - Docs Agent
+created: 2026-01-28T00:00:00.000Z
+updated: 2026-01-28T00:00:00.000Z
 files:
   - path: README.md
     action: modify
@@ -16,6 +24,11 @@ files:
   - path: config.json.example
     action: modify
 ---
+
+
+
+
+
 
 # Agent 4: Docs
 
@@ -88,3 +101,19 @@ TDD:
 - [ ] Troubleshooting guide
 - [ ] Tool reference with examples
 - [ ] config.json.example updated
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0041-limps-improvements-plan.md)
+
+Depends on:
+- [Agent 000](./000_agent_semantic-infra.agent.md)
+- [Agent 001](./001_agent_semantic-tools.agent.md)
+- [Agent 002](./002_agent_query-tools.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

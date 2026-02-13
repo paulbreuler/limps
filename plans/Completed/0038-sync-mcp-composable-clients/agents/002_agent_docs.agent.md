@@ -46,3 +46,17 @@ TDD:
 - [ ] Exports match interface
 - [ ] Test IDs implemented
 - [ ] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0038-sync-mcp-composable-clients-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

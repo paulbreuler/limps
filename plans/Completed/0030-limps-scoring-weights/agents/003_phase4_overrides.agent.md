@@ -17,6 +17,11 @@ files:
     action: modify
 ---
 
+
+
+
+
+
 # Agent 003: Granular Overrides
 
 **Plan Location**: `plans/0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md`
@@ -113,3 +118,18 @@ TDD:
 - [x] Tests for plan overrides
 - [x] Tests for agent overrides
 - [x] Tests for precedence
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0030-limps-scoring-weights-plan.md)
+
+Depends on:
+- [Agent 000](./000_phase1_core-weights.agent.md)
+- [Agent 001](./001_phase2_biases.agent.md)
+
+Blocks:
+- [Agent 004](./004_phase5_mcp.agent.md)
+
+<!-- limps:graph-links:end -->

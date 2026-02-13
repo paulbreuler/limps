@@ -1,0 +1,75 @@
+.limps-health-view {
+  padding: 0.75rem;
+}
+
+.limps-health-view h3 {
+  margin: 0 0 0.75rem;
+}
+
+.limps-health-view .status {
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.limps-health-view .next-check {
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.limps-health-view .status.disconnected {
+  color: var(--text-error);
+}
+
+.limps-health-view .status.error {
+  color: var(--text-error);
+}
+
+.limps-health-view .status.healthy {
+  color: var(--text-success);
+}
+
+.limps-health-view .status.loading {
+  color: var(--text-muted);
+}
+
+.limps-health-view .card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.limps-health-view .actions-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.limps-health-view .actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.limps-health-view button {
+  cursor: pointer;
+}
+
+.limps-health-view button[disabled] {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.limps-health-view .meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.limps-health-view pre {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  overflow-x: auto;
+}

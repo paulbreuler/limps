@@ -2,10 +2,27 @@
 title: HTTP Server and CLI Commands
 status: GAP
 persona: coder
-depends_on: [000]
-files: [packages/limps/src/server-http.ts, packages/limps/src/server-http-entry.ts, packages/limps/src/commands/start.tsx, packages/limps/src/commands/stop.tsx, packages/limps/tests/server-http.test.ts, packages/limps/tests/commands/start.test.ts, packages/limps/tests/commands/stop.test.ts]
-tags: [server, http, cli, transport]
+depends_on:
+  - ./000_agent_foundation.agent.md
+files:
+  - packages/limps/src/server-http.ts
+  - packages/limps/src/server-http-entry.ts
+  - packages/limps/src/commands/start.tsx
+  - packages/limps/src/commands/stop.tsx
+  - packages/limps/tests/server-http.test.ts
+  - packages/limps/tests/commands/start.test.ts
+  - packages/limps/tests/commands/stop.test.ts
+tags:
+  - server
+  - http
+  - cli
+  - transport
 ---
+
+
+
+
+
 
 # Agent 1: HTTP Server and CLI Commands
 
@@ -197,3 +214,17 @@ Gotchas:
 - [ ] `npm run build` clean
 - [ ] `npm test` passes
 - [ ] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0049-persistent-http-server-plan.md)
+
+Depends on:
+- [Agent 000](./000_agent_foundation.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

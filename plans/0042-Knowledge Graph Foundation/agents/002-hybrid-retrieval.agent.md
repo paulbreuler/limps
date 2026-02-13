@@ -2,10 +2,22 @@
 title: Entity Resolution & Similarity
 status: PASS
 persona: coder
-depends_on: [000, 001]
-files: [src/graph/resolver.ts, src/graph/similarity.ts]
-tags: [similarity, dedup, embeddings]
+depends_on:
+  - ./000-entity-schema-storage.agent.md
+  - ./001-entity-resolution.agent.md
+files:
+  - src/graph/resolver.ts
+  - src/graph/similarity.ts
+tags:
+  - similarity
+  - dedup
+  - embeddings
 ---
+
+
+
+
+
 
 # Agent 002: Entity Resolution & Similarity
 
@@ -165,3 +177,18 @@ if (score.combined >= THRESHOLDS.similar) {
 ## Integration with Plan 0041
 
 This agent consumes embeddings from Plan 0041's semantic search infrastructure. If 0041 isn't complete, use a simple embedding (e.g., OpenAI API directly) as fallback.
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 000](./000-entity-schema-storage.agent.md)
+- [Agent 001](./001-entity-resolution.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

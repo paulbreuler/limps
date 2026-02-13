@@ -79,3 +79,17 @@ Gotchas:
 - [x] Migration issues appear in report
 - [x] Summary includes backend counts
 - [x] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-limps-headless-pivot-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

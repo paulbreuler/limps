@@ -10,6 +10,11 @@ created: 2026-02-01
 updated: 2026-02-02
 ---
 
+
+
+
+
+
 # Agent 000: Phase 1 - Staleness Detection
 
 **Plan Location**: `plans/0033-limps-self-updating/0033-limps-self-updating-plan.md`
@@ -47,3 +52,20 @@ TL;DR: Human + JSON output for staleness checks.
 - [x] Staleness rules implemented
 - [x] `check_staleness` tool implemented
 - [x] CLI command output wired
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0033-limps-self-updating-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+- [Agent 001](./001_phase2_drift.agent.md)
+- [Agent 002](./002_phase3_inference.agent.md)
+- [Agent 003](./003_phase4_proposals.agent.md)
+- [Agent 004](./004_phase5_automation.agent.md)
+
+<!-- limps:graph-links:end -->

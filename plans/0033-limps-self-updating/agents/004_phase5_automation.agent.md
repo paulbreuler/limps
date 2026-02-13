@@ -2,13 +2,24 @@
 title: Phase 5 - Automation
 status: WIP
 persona: coder
-dependencies: ["003"]
+dependencies:
+  - ./003_phase4_proposals.agent.md
 blocks: []
-tags: [limps/agent, limps/status/wip, limps/persona/coder]
-aliases: ["#004", "Automation"]
-created: 2026-02-01
-updated: 2026-02-01
+tags:
+  - limps/agent
+  - limps/status/wip
+  - limps/persona/coder
+aliases:
+  - '#004'
+  - Automation
+created: 2026-02-01T00:00:00.000Z
+updated: 2026-02-01T00:00:00.000Z
 ---
+
+
+
+
+
 
 # Agent 004: Phase 5 - Automation
 
@@ -42,3 +53,17 @@ TL;DR: Wire hooks for later Slack/Discord integration.
 - [x] Background health checks implemented (limps health check)
 - [x] Safe auto-apply path wired (config health.proposals.autoApply)
 - [ ] Notification hooks (HealthCheckHook type + onComplete; integration TBD)
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0033-limps-self-updating-plan.md)
+
+Depends on:
+- [Agent 003](./003_phase4_proposals.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

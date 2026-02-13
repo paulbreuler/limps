@@ -41,3 +41,17 @@ Gotchas:
 - [x] Skill package created
 - [x] README contains install + usage snippet
 - [x] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0044-mcp-server-chart-learnings-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

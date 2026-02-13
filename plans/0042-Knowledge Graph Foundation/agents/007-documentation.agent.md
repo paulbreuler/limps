@@ -2,10 +2,27 @@
 title: Documentation
 status: GAP
 persona: coder
-depends_on: [000, 001, 002, 003, 004, 005, 006]
-files: [docs/knowledge-graph.md, docs/cli-reference.md, README.md]
-tags: [docs, integration]
+depends_on:
+  - ./000-entity-schema-storage.agent.md
+  - ./001-entity-resolution.agent.md
+  - ./002-hybrid-retrieval.agent.md
+  - ./003-cross-plan-awareness.agent.md
+  - ./004-agentic-orchestration.agent.md
+  - ./005-integration-migration.agent.md
+  - ./006-documentation.agent.md
+files:
+  - docs/knowledge-graph.md
+  - docs/cli-reference.md
+  - README.md
+tags:
+  - docs
+  - integration
 ---
+
+
+
+
+
 
 # Agent 007: Documentation
 
@@ -253,3 +270,23 @@ The deterministic router decides when to use semantic vs lexical vs graph.
 - [ ] Integration guide for Obsidian, MCP, Plan 0041
 - [ ] Examples for common use cases
 - [ ] README updated with graph commands
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 000](./000-entity-schema-storage.agent.md)
+- [Agent 001](./001-entity-resolution.agent.md)
+- [Agent 002](./002-hybrid-retrieval.agent.md)
+- [Agent 003](./003-cross-plan-awareness.agent.md)
+- [Agent 004](./004-agentic-orchestration.agent.md)
+- [Agent 005](./005-integration-migration.agent.md)
+- [Agent 006](./006-documentation.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

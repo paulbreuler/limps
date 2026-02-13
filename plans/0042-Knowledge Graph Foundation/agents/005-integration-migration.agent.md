@@ -2,10 +2,25 @@
 title: CLI Interface
 status: GAP
 persona: coder
-depends_on: [003, 004]
-files: [src/cli/commands/graph/index.ts, src/cli/commands/graph/health.ts, src/cli/commands/graph/search.ts, src/cli/commands/graph/trace.ts, src/cli/commands/graph/watch.ts]
-tags: [cli, interface, primary]
+depends_on:
+  - ./003-cross-plan-awareness.agent.md
+  - ./004-agentic-orchestration.agent.md
+files:
+  - src/cli/commands/graph/index.ts
+  - src/cli/commands/graph/health.ts
+  - src/cli/commands/graph/search.ts
+  - src/cli/commands/graph/trace.ts
+  - src/cli/commands/graph/watch.ts
+tags:
+  - cli
+  - interface
+  - primary
 ---
+
+
+
+
+
 
 # Agent 005: CLI Interface
 
@@ -233,3 +248,18 @@ async function graph_health(params: {}) {
 - [ ] Help text for all commands
 - [ ] Tab completion support
 - [ ] Performance: <100ms startup
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 003](./003-cross-plan-awareness.agent.md)
+- [Agent 004](./004-agentic-orchestration.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

@@ -7,6 +7,11 @@ files: [src/graph/schema.ts, src/graph/storage.ts, src/graph/types.ts]
 tags: [foundation, sqlite, schema]
 ---
 
+
+
+
+
+
 # Agent 000: Entity Schema & Storage
 
 ## Objective
@@ -218,3 +223,17 @@ describe('GraphStorage', () => {
 - Use better-sqlite3 for synchronous operations (faster than async for local)
 - Schema is additive — never remove columns, only add
 - Canonical IDs must be globally unique across types
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

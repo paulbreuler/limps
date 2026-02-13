@@ -1,0 +1,10 @@
+{
+  "id": "limps-obsidian-plugin",
+  "name": "Limps",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Bootstrap + Health integration for limps in Obsidian",
+  "author": "Paul Breuler",
+  "authorUrl": "https://github.com/paulbreuler",
+  "isDesktopOnly": true
+}

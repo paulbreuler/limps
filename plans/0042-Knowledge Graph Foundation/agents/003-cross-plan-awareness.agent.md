@@ -2,11 +2,24 @@
 title: Deterministic Hybrid Retrieval
 status: PASS
 persona: coder
-depends_on: [000, 001]
-files: [src/retrieval/router.ts, src/retrieval/hybrid.ts, src/retrieval/rrf.ts]
-tags: [retrieval, rrf, deterministic]
-completed: 2026-02-05
+depends_on:
+  - ./000-entity-schema-storage.agent.md
+  - ./001-entity-resolution.agent.md
+files:
+  - src/retrieval/router.ts
+  - src/retrieval/hybrid.ts
+  - src/retrieval/rrf.ts
+tags:
+  - retrieval
+  - rrf
+  - deterministic
+completed: 2026-02-05T00:00:00.000Z
 ---
+
+
+
+
+
 
 # Agent 003: Deterministic Hybrid Retrieval
 
@@ -236,3 +249,18 @@ describe('RRF Fusion', () => {
   it('produces deterministic output for same input');
 });
 ```
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 000](./000-entity-schema-storage.agent.md)
+- [Agent 001](./001-entity-resolution.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

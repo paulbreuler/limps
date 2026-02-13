@@ -17,6 +17,11 @@ files:
     action: modify
 ---
 
+
+
+
+
+
 # Agent 001: Scoring Biases
 
 **Plan Location**: `plans/0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md`
@@ -122,3 +127,18 @@ TDD:
 - [x] Tests for plan biases
 - [x] Tests for persona biases
 - [x] Tests for combined biases
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0030-limps-scoring-weights-plan.md)
+
+Depends on:
+- [Agent 000](./000_phase1_core-weights.agent.md)
+
+Blocks:
+- [Agent 003](./003_phase4_overrides.agent.md)
+- [Agent 004](./004_phase5_mcp.agent.md)
+
+<!-- limps:graph-links:end -->

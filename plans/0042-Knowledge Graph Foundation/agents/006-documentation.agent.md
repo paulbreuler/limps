@@ -2,10 +2,20 @@
 title: MCP Wrappers
 status: GAP
 persona: coder
-depends_on: [005]
-files: [src/mcp/tools/graph.ts]
-tags: [mcp, wrapper, thin]
+depends_on:
+  - ./005-integration-migration.agent.md
+files:
+  - src/mcp/tools/graph.ts
+tags:
+  - mcp
+  - wrapper
+  - thin
 ---
+
+
+
+
+
 
 # Agent 006: MCP Wrappers
 
@@ -213,3 +223,17 @@ handler: async ({ query }) => {
 - [ ] Error messages are helpful (timeout, not found, etc.)
 - [ ] No business logic in MCP layer
 - [ ] Works with existing MCP infrastructure
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 005](./005-integration-migration.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

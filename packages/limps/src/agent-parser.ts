@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, statSync, readdirSync } from 'fs';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { ScoringWeights } from './config.js';
+import { parseDependencyRef } from './utils/dependency-ref.js';
 
 /**
  * Agent file frontmatter interface.
@@ -69,30 +70,30 @@ const DEFAULT_FRONTMATTER: AgentFrontmatter = {
   files: [],
 };
 
-function normalizeDependencyValue(value: unknown): string | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value).padStart(3, '0');
+function normalizeDependencyValue(value: unknown, currentPlanId?: string): string | null {
+  const parsed = parseDependencyRef(value);
+  if (parsed) {
+    if (parsed.planId && currentPlanId && parsed.planId !== currentPlanId) {
+      return `${parsed.planId}#${parsed.agentNumber}`;
+    }
+    return parsed.agentNumber;
   }
+
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (trimmed.length === 0) {
-      return null;
-    }
-    if (/^\d+$/.test(trimmed)) {
-      return trimmed.padStart(3, '0');
-    }
-    return trimmed;
+    return trimmed.length > 0 ? trimmed : null;
   }
+
   return null;
 }
 
-function normalizeDependencies(value: unknown): string[] {
+function normalizeDependencies(value: unknown, currentPlanId?: string): string[] {
   if (Array.isArray(value)) {
     return value
-      .map((entry) => normalizeDependencyValue(entry))
+      .map((entry) => normalizeDependencyValue(entry, currentPlanId))
       .filter((entry): entry is string => Boolean(entry));
   }
-  const single = normalizeDependencyValue(value);
+  const single = normalizeDependencyValue(value, currentPlanId);
   return single ? [single] : [];
 }
 
@@ -359,14 +360,15 @@ export function parseAgentFile(path: string, content: string): ParsedAgentFile |
   let body: string;
 
   if (parsed) {
+    const currentPlanId = planFolder.match(/^(\d{4})/)?.[1];
     // Merge with defaults
     frontmatter = {
       ...DEFAULT_FRONTMATTER,
       ...parsed.frontmatter,
     };
     const rawFrontmatter = parsed.frontmatter as Record<string, unknown>;
-    const dependencyOverrides = normalizeDependencies(rawFrontmatter.depends_on);
-    const parsedDependencies = normalizeDependencies(rawFrontmatter.dependencies);
+    const dependencyOverrides = normalizeDependencies(rawFrontmatter.depends_on, currentPlanId);
+    const parsedDependencies = normalizeDependencies(rawFrontmatter.dependencies, currentPlanId);
     const mergedDependencies = Array.from(new Set([...parsedDependencies, ...dependencyOverrides]));
     frontmatter.dependencies = mergedDependencies;
     body = parsed.body;

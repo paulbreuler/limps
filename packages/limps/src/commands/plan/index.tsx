@@ -18,6 +18,7 @@ export default function PlanCommand(): React.ReactNode {
           'score --plan <p> --agent <a>  Score a specific task',
           'scores --plan <p>          Score all available tasks in a plan',
           'repair [plan]              Check/fix plan frontmatter issues',
+          'deps-to-paths [plan]       Convert numeric depends_on to file paths',
         ],
       },
       {

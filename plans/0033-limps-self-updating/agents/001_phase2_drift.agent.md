@@ -2,13 +2,27 @@
 title: Phase 2 - Code Drift Detection
 status: PASS
 persona: coder
-dependencies: ["000"]
-blocks: ["002", "003", "004"]
-tags: [limps/agent, limps/status/pass, limps/persona/coder]
-aliases: ["#001", "Drift Detection"]
-created: 2026-02-01
-updated: 2026-02-02
+dependencies:
+  - ./000_phase1_staleness.agent.md
+blocks:
+  - '002'
+  - '003'
+  - '004'
+tags:
+  - limps/agent
+  - limps/status/pass
+  - limps/persona/coder
+aliases:
+  - '#001'
+  - Drift Detection
+created: 2026-02-01T00:00:00.000Z
+updated: 2026-02-02T00:00:00.000Z
 ---
+
+
+
+
+
 
 # Agent 001: Phase 2 - Code Drift Detection
 
@@ -47,3 +61,19 @@ TL;DR: Human + JSON output for drift checks.
 - [x] Missing file detection implemented
 - [x] `check_drift` tool implemented
 - [x] CLI command output wired
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0033-limps-self-updating-plan.md)
+
+Depends on:
+- [Agent 000](./000_phase1_staleness.agent.md)
+
+Blocks:
+- [Agent 002](./002_phase3_inference.agent.md)
+- [Agent 003](./003_phase4_proposals.agent.md)
+- [Agent 004](./004_phase5_automation.agent.md)
+
+<!-- limps:graph-links:end -->

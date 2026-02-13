@@ -1,0 +1,30 @@
+{
+  "name": "@sudosandwich/limps-obsidian-plugin",
+  "version": "0.0.1",
+  "description": "Obsidian plugin for limps (Bootstrap + Health MVP)",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-plugin.mjs",
+    "dev": "tsc -p tsconfig.json --watch",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test \"dist/tests/**/*.test.js\""
+  },
+  "keywords": [
+    "obsidian",
+    "limps",
+    "plugin"
+  ],
+  "author": "Paul Breuler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulbreuler/limps.git",
+    "directory": "packages/limps-obsidian-plugin"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.0"
+  }
+}

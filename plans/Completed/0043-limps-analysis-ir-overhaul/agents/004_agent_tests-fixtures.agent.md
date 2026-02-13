@@ -51,3 +51,17 @@ Gotchas:
 
 - [ ] TDD cycles pass
 - [ ] Status -> PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0043-limps-analysis-ir-overhaul-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

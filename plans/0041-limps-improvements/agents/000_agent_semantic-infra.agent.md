@@ -23,6 +23,11 @@ files:
     action: modify
 ---
 
+
+
+
+
+
 # Agent 0: Semantic Infra
 
 **Plan Location**: `plans/0041-limps-improvements/0041-limps-improvements-plan.md`
@@ -92,3 +97,17 @@ TDD:
 - [ ] Character-based chunker (2000 chars, 200 overlap)
 - [ ] Embed pipeline with error handling
 - [ ] Indexer hooks for semantic indexing
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0041-limps-improvements-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+- [Agent 001](./001_agent_semantic-tools.agent.md)
+
+<!-- limps:graph-links:end -->

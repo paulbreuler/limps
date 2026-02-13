@@ -1,11 +1,24 @@
 ---
-title: Remove serve, bump v3, update deps
+title: 'Remove serve, bump v3, update deps'
 status: GAP
 persona: coder
-depends_on: [000, 001]
-files: [packages/limps/src/commands/serve.tsx, packages/limps/src/cli.tsx, packages/limps/package.json]
-tags: [cleanup, breaking-change, v3]
+depends_on:
+  - ./000_agent_foundation.agent.md
+  - ./001_agent_http-server.agent.md
+files:
+  - packages/limps/src/commands/serve.tsx
+  - packages/limps/src/cli.tsx
+  - packages/limps/package.json
+tags:
+  - cleanup
+  - breaking-change
+  - v3
 ---
+
+
+
+
+
 
 # Agent 2: Cleanup — Remove serve, bump v3
 
@@ -68,3 +81,18 @@ Gotchas:
 - [ ] `npm run build` clean
 - [ ] `npm test` passes
 - [ ] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0049-persistent-http-server-plan.md)
+
+Depends on:
+- [Agent 000](./000_agent_foundation.agent.md)
+- [Agent 001](./001_agent_http-server.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

@@ -64,3 +64,17 @@ TDD:
 - [ ] Exports match interface
 - [ ] Test IDs implemented
 - [ ] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0037-limps-codex-chatgpt-mcp-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

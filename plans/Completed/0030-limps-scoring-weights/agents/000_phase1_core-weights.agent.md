@@ -17,6 +17,11 @@ files:
     action: modify
 ---
 
+
+
+
+
+
 # Agent 000: Core Weight System
 
 **Plan Location**: `plans/0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md`
@@ -115,3 +120,20 @@ Implementation:
 - [x] Tests for default weights
 - [x] Tests for custom weights
 - [x] Tests for partial overrides
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0030-limps-scoring-weights-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+- [Agent 001](./001_phase2_biases.agent.md)
+- [Agent 002](./002_phase3_presets-cli.agent.md)
+- [Agent 003](./003_phase4_overrides.agent.md)
+- [Agent 004](./004_phase5_mcp.agent.md)
+
+<!-- limps:graph-links:end -->

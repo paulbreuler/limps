@@ -7,6 +7,11 @@ files: [packages/limps/src/server-shared.ts, packages/limps/src/server-main.ts, 
 tags: [server, config, infrastructure]
 ---
 
+
+
+
+
+
 # Agent 0: Foundation
 
 **Plan Location**: `plans/0049-persistent-http-server/0049-persistent-http-server-plan.md`
@@ -151,3 +156,17 @@ Gotchas:
 - [ ] `npm run build` clean
 - [ ] `npm test` passes
 - [ ] Status → PASS
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0049-persistent-http-server-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

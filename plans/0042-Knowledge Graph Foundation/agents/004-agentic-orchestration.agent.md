@@ -2,10 +2,24 @@
 title: Proactive Watch Mode
 status: GAP
 persona: coder
-depends_on: [000, 001, 002]
-files: [src/watch/index.ts, src/watch/detector.ts, src/watch/notifier.ts]
-tags: [watch, proactive, conflicts]
+depends_on:
+  - ./000-entity-schema-storage.agent.md
+  - ./001-entity-resolution.agent.md
+  - ./002-hybrid-retrieval.agent.md
+files:
+  - src/watch/index.ts
+  - src/watch/detector.ts
+  - src/watch/notifier.ts
+tags:
+  - watch
+  - proactive
+  - conflicts
 ---
+
+
+
+
+
 
 # Agent 004: Proactive Watch Mode
 
@@ -326,3 +340,19 @@ limps graph watch --on-conflict webhook --url http://...
 - [ ] Notifications work (log, file, desktop, webhook)
 - [ ] Watch mode is daemon-friendly (runs in background)
 - [ ] Low CPU overhead (<5%)
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0042-Knowledge Graph Foundation-plan.md)
+
+Depends on:
+- [Agent 000](./000-entity-schema-storage.agent.md)
+- [Agent 001](./001-entity-resolution.agent.md)
+- [Agent 002](./002-hybrid-retrieval.agent.md)
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

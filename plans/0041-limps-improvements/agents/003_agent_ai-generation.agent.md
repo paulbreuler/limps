@@ -11,6 +11,11 @@ updated: 2026-01-28
 files: []
 ---
 
+
+
+
+
+
 # Agent 3: AI Generation — MOVED TO PLAN 0042
 
 **This feature has been moved to a separate plan for cleaner scope separation.**
@@ -33,3 +38,17 @@ The semantic search features (Agents 0-2) form a coherent unit. AI generation de
 ---
 
 **Status: MOVED — Do not implement in this plan**
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0041-limps-improvements-plan.md)
+
+Depends on:
+_No dependencies found_
+
+Blocks:
+_No blocks found_
+
+<!-- limps:graph-links:end -->

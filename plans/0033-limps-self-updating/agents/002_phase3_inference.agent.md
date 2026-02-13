@@ -2,13 +2,26 @@
 title: Phase 3 - Status Inference
 status: PASS
 persona: coder
-dependencies: ["001"]
-blocks: ["003", "004"]
-tags: [limps/agent, limps/status/pass, limps/persona/coder]
-aliases: ["#002", "Status Inference"]
-created: 2026-02-01
-updated: 2026-02-02
+dependencies:
+  - ./001_phase2_drift.agent.md
+blocks:
+  - '003'
+  - '004'
+tags:
+  - limps/agent
+  - limps/status/pass
+  - limps/persona/coder
+aliases:
+  - '#002'
+  - Status Inference
+created: 2026-02-01T00:00:00.000Z
+updated: 2026-02-02T00:00:00.000Z
 ---
+
+
+
+
+
 
 # Agent 002: Phase 3 - Status Inference
 
@@ -42,3 +55,18 @@ TL;DR: Aggregate staleness + drift + inference findings.
 - [x] Rule engine implemented (conservative: BLOCKED from body text, WIP→PASS when deps PASS)
 - [x] `infer_status` tool implemented
 - [ ] CLI health check aggregates results (staleness + drift + inference)
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Plan:
+- [Plan](../0033-limps-self-updating-plan.md)
+
+Depends on:
+- [Agent 001](./001_phase2_drift.agent.md)
+
+Blocks:
+- [Agent 003](./003_phase4_proposals.agent.md)
+- [Agent 004](./004_phase5_automation.agent.md)
+
+<!-- limps:graph-links:end -->
