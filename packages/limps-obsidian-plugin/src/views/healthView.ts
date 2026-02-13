@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import type { HealthSnapshot } from '../main.js';
 import { VIEW_TYPE_HEALTH } from '../main.js';
 import type LimpsPlugin from '../main.js';
+import { LIMPS_HUB_ICON } from '../icons.js';
 
 export class HealthView extends ItemView {
   private readonly plugin: LimpsPlugin;
@@ -25,6 +26,10 @@ export class HealthView extends ItemView {
 
   getDisplayText(): string {
     return 'Local Intelligence';
+  }
+
+  getIcon(): string {
+    return LIMPS_HUB_ICON;
   }
 
   async onOpen(): Promise<void> {

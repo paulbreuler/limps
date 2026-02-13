@@ -149,11 +149,11 @@ const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   theme: 'day',
   showArrows: true,
   planLevelReferences: true,
-  textFadeThreshold: 0.7,
-  nodeSizeScale: 0.95,
+  textFadeThreshold: 0.62,
+  nodeSizeScale: 1.2,
   nodeRelSize3D: 5.6,
-  linkThickness: 1.25,
-  linkOpacity: 0.66,
+  linkThickness: 1.35,
+  linkOpacity: 0.78,
   labelMaxChars: 26,
 };
 
@@ -206,13 +206,13 @@ const EDGE_IS_HARD: Record<DirectedEdgeType, boolean> = {
 
 const EDGE_COLORS: Record<DisplayTheme, Record<DirectedEdgeType, string>> = {
   day: {
-    'plan-contains': '#1d4ed8',
-    'depends-on': '#dc2626',
+    'plan-contains': '#1e40af',
+    'depends-on': '#b91c1c',
     'related-doc': '#0f766e',
-    'related-canvas': '#7c3aed',
+    'related-canvas': '#6d28d9',
     'related-base': '#0f766e',
-    references: '#475569',
-    'semantic-tag': '#d97706',
+    references: '#334155',
+    'semantic-tag': '#b45309',
   },
   night: {
     'plan-contains': '#60a5fa',
@@ -227,12 +227,12 @@ const EDGE_COLORS: Record<DisplayTheme, Record<DirectedEdgeType, string>> = {
 
 const NODE_COLORS: Record<DisplayTheme, Record<DirectedGraphNode['type'], string>> = {
   day: {
-    plan: '#60a5fa',
-    agent: '#a78bfa',
-    doc: '#34d399',
-    roadmap: '#f472b6',
-    canvas: '#fbbf24',
-    base: '#f87171',
+    plan: '#3b82f6',
+    agent: '#8b5cf6',
+    doc: '#10b981',
+    roadmap: '#ec4899',
+    canvas: '#f59e0b',
+    base: '#ef4444',
   },
   night: {
     plan: '#60a5fa',

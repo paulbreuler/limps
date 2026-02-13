@@ -2,6 +2,30 @@
   padding: 0.75rem;
 }
 
+/* Built-in Obsidian Graph styling (official variables):
+   https://docs.obsidian.md/Reference/CSS+variables/Plugins/Graph */
+.theme-light {
+  --graph-controls-width: 320px;
+  --graph-text: #0f172a;
+  --graph-line: rgba(30, 41, 59, 0.34);
+  --graph-node: #1e293b;
+  --graph-node-unresolved: #64748b;
+  --graph-node-focused: #0b1220;
+  --graph-node-tag: #5b21b6;
+  --graph-node-attachment: #0f766e;
+}
+
+.theme-dark {
+  --graph-controls-width: 320px;
+  --graph-text: #e2e8f0;
+  --graph-line: rgba(148, 163, 184, 0.42);
+  --graph-node: #e2e8f0;
+  --graph-node-unresolved: #94a3b8;
+  --graph-node-focused: #ffffff;
+  --graph-node-tag: #c4b5fd;
+  --graph-node-attachment: #5eead4;
+}
+
 .limps-health-view h3 {
   margin: 0 0 0.75rem;
 }

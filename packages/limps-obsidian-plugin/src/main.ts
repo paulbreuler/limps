@@ -12,6 +12,7 @@ import { auditObsidianSurfaces } from './graph/surfaceAudit.js';
 import { probeObsidianMcp } from './mcp/client.js';
 import type { ObsidianMcpProbeResult } from './mcp/client.js';
 import { buildRuntimeStatusLabel, computeLinkStats } from './status/runtimeStatus.js';
+import { LIMPS_HUB_ICON, registerLimpsIcons } from './icons.js';
 
 export const VIEW_TYPE_HEALTH = 'limps-health-view';
 export const VIEW_TYPE_DIRECTED_GRAPH = 'limps-directed-graph-view';
@@ -45,13 +46,14 @@ export default class LimpsPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
+    registerLimpsIcons();
 
     this.registerView(VIEW_TYPE_HEALTH, (leaf) => new HealthView(leaf, this));
     this.registerView(VIEW_TYPE_DIRECTED_GRAPH, (leaf) => new DirectedGraphView(leaf, this));
     this.addSettingTab(new LimpsSettingTab(this.app, this));
 
     if (this.settings.showHealthRibbon) {
-      this.addRibbonIcon('activity', 'Open Local Intelligence Hub', () => {
+      this.addRibbonIcon(LIMPS_HUB_ICON, 'Open Local Intelligence Hub', () => {
         void this.openHealthView();
       });
     }

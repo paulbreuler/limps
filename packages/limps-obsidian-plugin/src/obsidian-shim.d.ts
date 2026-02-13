@@ -1,4 +1,6 @@
 declare module 'obsidian' {
+  export function addIcon(iconId: string, svgContent: string): void;
+
   export interface Command {
     id: string;
     name: string;

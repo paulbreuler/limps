@@ -5,6 +5,7 @@ import type LimpsPlugin from '../main.js';
 import { VIEW_TYPE_DIRECTED_GRAPH } from '../main.js';
 import { AppContext } from '../react/app-context.js';
 import { DirectedGraphReactView } from './DirectedGraphReactView.js';
+import { LIMPS_GRAPH_ICON } from '../icons.js';
 
 export class DirectedGraphView extends ItemView {
   private readonly plugin: LimpsPlugin;
@@ -22,6 +23,10 @@ export class DirectedGraphView extends ItemView {
 
   getDisplayText(): string {
     return 'Local Intelligence Graph';
+  }
+
+  getIcon(): string {
+    return LIMPS_GRAPH_ICON;
   }
 
   async onOpen(): Promise<void> {
