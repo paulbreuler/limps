@@ -85,6 +85,8 @@ const DEFAULT_LAYERS: LayerState = {
   semantic: true,
 };
 
+const PHYSICS_COOLDOWN_TICKS = 1_000_000;
+
 const EDGE_LABELS: Record<DirectedEdgeType, string> = {
   'plan-contains': 'contains',
   'depends-on': 'depends_on',
@@ -452,7 +454,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
             d3AlphaDecay={layoutMode === 'physics' ? 0.014 : 0.04}
             d3VelocityDecay={layoutMode === 'physics' ? 0.25 : 0.45}
             warmupTicks={layoutMode === 'physics' ? 60 : 20}
-            cooldownTicks={layoutMode === 'physics' ? 0 : 120}
+            cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
             linkDirectionalArrowLength={4}
             linkDirectionalArrowRelPos={1}
             linkWidth={(link) => Math.max(0.8, link.weight)}
@@ -466,6 +468,12 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               return '#f59e0b';
             }}
             onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+            onNodeDrag={() => {
+              const graphApi = fgRef.current as unknown as { d3ReheatSimulation?: () => void } | undefined;
+              if (graphApi && typeof graphApi.d3ReheatSimulation === 'function') {
+                graphApi.d3ReheatSimulation();
+              }
+            }}
             onZoomEnd={(transform: ZoomTransform) => {
               if (typeof transform.k === 'number' && Number.isFinite(transform.k)) {
                 zoomRef.current = transform.k;
