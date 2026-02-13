@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { forceCollide } from 'd3-force-3d';
-import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
+import ForceGraph2D, { type ForceGraphMethods as ForceGraph2DMethods } from 'react-force-graph-2d';
+import ForceGraph3D, { type ForceGraphMethods as ForceGraph3DMethods } from 'react-force-graph-3d';
 import type LimpsPlugin from '../main.js';
 import { buildDirectedGraph } from '../graph/directedGraph.js';
 import type { DirectedEdgeType, DirectedGraphData, DirectedGraphEdge, DirectedGraphNode } from '../graph/directedGraph.js';
@@ -65,6 +66,27 @@ interface LinkEndpoint {
   degree?: number;
 }
 
+interface GraphCameraPosition {
+  x?: number;
+  y?: number;
+  z?: number;
+}
+
+interface GraphLookAt {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface GraphApi {
+  centerAt?: (x?: number, y?: number, ms?: number) => void;
+  zoomToFit: (ms?: number, padding?: number) => void;
+  zoom?: (k: number, ms?: number) => void;
+  cameraPosition?: (position?: GraphCameraPosition, lookAt?: GraphLookAt, ms?: number) => void;
+  d3Force: (name: string, force?: unknown) => unknown;
+  d3ReheatSimulation?: () => void;
+}
+
 const LAYER_OPTIONS: LayerOption[] = [
   {
     id: 'plan-structure',
@@ -111,16 +133,16 @@ const PHYSICS_COOLDOWN_TICKS = 1_000_000;
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showArrows: true,
   textFadeThreshold: 1.1,
-  nodeSizeScale: 1,
+  nodeSizeScale: 0.85,
   linkThickness: 1,
   labelMaxChars: 26,
 };
 
 const DEFAULT_FORCE_SETTINGS: ForceSettings = {
-  centerForce: 0.5,
-  repelForce: 180,
-  linkForce: 0.5,
-  linkDistance: 130,
+  centerForce: 0.22,
+  repelForce: 220,
+  linkForce: 0.22,
+  linkDistance: 180,
 };
 
 const EDGE_LABELS: Record<DirectedEdgeType, string> = {
@@ -197,7 +219,7 @@ function truncateLabel(value: string, limit: number): string {
 function estimateCollisionRadius(node: DirectedGraphNode, degree: number, sizeScale: number, labelMaxChars: number): number {
   const nodeRadius = Math.max(3.5, (nodeValue(node.type) + Math.sqrt(degree) * 1.35) * 1.35 * sizeScale);
   const visibleChars = Math.min(labelMaxChars, Math.max(8, node.label.length));
-  const labelRadius = visibleChars * 2.3;
+  const labelRadius = Math.min(28, visibleChars * 1.1);
   return nodeRadius + labelRadius;
 }
 
@@ -211,9 +233,20 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(DEFAULT_DISPLAY_SETTINGS);
   const [forceSettings, setForceSettings] = useState<ForceSettings>(DEFAULT_FORCE_SETTINGS);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showLayerPanel, setShowLayerPanel] = useState<boolean>(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState<boolean>(false);
+  const [use3D, setUse3D] = useState<boolean>(true);
 
-  const fgRef = useRef<ForceGraphMethods<ForceNode, ForceLink> | undefined>(undefined);
+  const fg2dRef = useRef<ForceGraph2DMethods<ForceNode, ForceLink> | undefined>(undefined);
+  const fg3dRef = useRef<ForceGraph3DMethods<ForceNode, ForceLink> | undefined>(undefined);
   const zoomRef = useRef<number>(1);
+  const cameraDistanceRef = useRef<number>(800);
+
+  const getGraphApi = useCallback((): GraphApi | null => {
+    return use3D
+      ? ((fg3dRef.current as unknown as GraphApi | undefined) ?? null)
+      : ((fg2dRef.current as unknown as GraphApi | undefined) ?? null);
+  }, [use3D]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -354,7 +387,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   ]);
 
   useEffect(() => {
-    const graphApi = fgRef.current;
+    const graphApi = getGraphApi();
     if (!graphApi || layoutMode !== 'physics') return;
 
     const charge = graphApi.d3Force('charge');
@@ -385,8 +418,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         const targetDegree = getEndpointDegree(link.target);
         const hubness = (sourceDegree + targetDegree) / 2;
         const orbitDistance = Math.max(30, forceSettings.linkDistance);
-        const distanceByHub = Math.min(130, hubness * 3.2);
-        const weightBias = Math.min(70, link.weight * 16);
+        const distanceByHub = Math.min(90, hubness * 2.5);
+        const weightBias = Math.min(45, link.weight * 10);
         return Math.max(30, orbitDistance + distanceByHub - weightBias);
       });
 
@@ -396,7 +429,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         const hubness = (sourceDegree + targetDegree) / 2;
         const elastic = Math.max(0.02, forceSettings.linkForce);
         const weighted = 0.06 + link.weight * 0.08 + Math.min(0.25, hubness * 0.01);
-        return Math.min(0.9, elastic * weighted);
+        return Math.min(0.55, elastic * weighted);
       });
     }
 
@@ -413,15 +446,15 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }
 
     const collisionForce = forceCollide<ForceNode>((node: ForceNode) => Math.max(10, node.collisionRadius))
-      .strength(0.92)
-      .iterations(2);
+      .strength(0.35)
+      .iterations(1);
     graphApi.d3Force('collision', collisionForce);
 
     const reheatApi = graphApi as { d3ReheatSimulation?: () => void };
     if (typeof reheatApi.d3ReheatSimulation === 'function') {
       reheatApi.d3ReheatSimulation();
     }
-  }, [forceData, forceSettings, layoutMode]);
+  }, [forceData, forceSettings, layoutMode, getGraphApi]);
 
   const toggleLayer = useCallback((layerId: LayerId) => {
     setLayers((current) => ({
@@ -445,31 +478,44 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   }, []);
 
   const centerGraph = useCallback(() => {
-    const graphApi = fgRef.current;
+    const graphApi = getGraphApi();
     if (!graphApi) return;
-    graphApi.centerAt(0, 0, 350);
-  }, []);
+    if (use3D && graphApi.cameraPosition) {
+      graphApi.cameraPosition({ x: 0, y: 0, z: cameraDistanceRef.current }, { x: 0, y: 0, z: 0 }, 350);
+      return;
+    }
+    graphApi.centerAt?.(0, 0, 350);
+  }, [getGraphApi, use3D]);
 
   const fitGraph = useCallback(() => {
-    const graphApi = fgRef.current;
+    const graphApi = getGraphApi();
     if (!graphApi) return;
     graphApi.zoomToFit(450, 70);
-  }, []);
+  }, [getGraphApi]);
 
   const zoomByFactor = useCallback((factor: number) => {
-    const graphApi = fgRef.current as { zoom: (k: number, ms?: number) => void } | undefined;
+    const graphApi = getGraphApi();
     if (!graphApi) return;
-    const next = Math.max(0.2, Math.min(10, zoomRef.current * factor));
-    graphApi.zoom(next, 220);
-    zoomRef.current = next;
-  }, []);
+    if (typeof graphApi.zoom === 'function') {
+      const next = Math.max(0.2, Math.min(10, zoomRef.current * factor));
+      graphApi.zoom(next, 220);
+      zoomRef.current = next;
+      return;
+    }
+
+    if (use3D && typeof graphApi.cameraPosition === 'function') {
+      const nextDistance = Math.max(140, Math.min(3200, cameraDistanceRef.current / factor));
+      cameraDistanceRef.current = nextDistance;
+      graphApi.cameraPosition({ z: nextDistance }, { x: 0, y: 0, z: 0 }, 220);
+    }
+  }, [getGraphApi, use3D]);
 
   const reheatSimulation = useCallback(() => {
-    const graphApi = fgRef.current as { d3ReheatSimulation?: () => void } | undefined;
+    const graphApi = getGraphApi();
     if (graphApi && typeof graphApi.d3ReheatSimulation === 'function') {
       graphApi.d3ReheatSimulation();
     }
-  }, []);
+  }, [getGraphApi]);
 
   const handleNodeClick = useCallback(
     (node: ForceNode) => {
@@ -548,51 +594,93 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       <div className="graph-scroll">
         <div className="graph-canvas-host">
           <div className="graph-overlay graph-overlay-left">
-            <div className="layer-panel">
-              <div className="layer-panel-title">Filters</div>
-              <div className="layer-search-wrap">
-                <input
-                  className="layer-search"
-                  type="text"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.currentTarget.value)}
-                  placeholder="Search files..."
-                />
-              </div>
-              {LAYER_OPTIONS.map((option) => (
-                <label className="layer-toggle" key={option.id}>
+            {showLayerPanel ? (
+              <div className="layer-panel">
+                <div className="layer-panel-title">Filters</div>
+                <div className="layer-search-wrap">
                   <input
-                    type="checkbox"
-                    checked={layers[option.id]}
-                    onChange={() => toggleLayer(option.id)}
+                    className="layer-search"
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                    placeholder="Search files..."
                   />
-                  <span className="label">{option.label}</span>
-                  <span className="count">{layerCounts[option.id]}</span>
-                  <span className="desc">{option.description}</span>
-                </label>
-              ))}
+                </div>
+                {LAYER_OPTIONS.map((option) => (
+                  <label className="layer-toggle" key={option.id}>
+                    <input
+                      type="checkbox"
+                      checked={layers[option.id]}
+                      onChange={() => toggleLayer(option.id)}
+                    />
+                    <span className="label">{option.label}</span>
+                    <span className="count">{layerCounts[option.id]}</span>
+                    <span className="desc">{option.description}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            <div className="map-toolbar">
+              <button
+                type="button"
+                className={`map-icon-btn ${showLayerPanel ? 'active' : ''}`}
+                title="Filters and layers"
+                aria-label="Filters and layers"
+                onClick={() => setShowLayerPanel((open) => !open)}
+              >
+                ☰
+              </button>
             </div>
           </div>
 
           <div className="graph-overlay graph-overlay-right">
-            <div className="graph-controls">
-              <button type="button" onClick={centerGraph}>
-                Center
+            <div className="map-toolbar">
+              <button type="button" className="map-icon-btn" title="Center" aria-label="Center" onClick={centerGraph}>
+                ◎
               </button>
-              <button type="button" onClick={fitGraph}>
-                Fit
+              <button type="button" className="map-icon-btn" title="Fit" aria-label="Fit" onClick={fitGraph}>
+                ⤢
               </button>
-              <div className="zoom-row">
-                <button type="button" onClick={() => zoomByFactor(0.85)}>
-                  −
-                </button>
-                <button type="button" onClick={() => zoomByFactor(1.2)}>
-                  +
-                </button>
-              </div>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Zoom out"
+                aria-label="Zoom out"
+                onClick={() => zoomByFactor(0.85)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Zoom in"
+                aria-label="Zoom in"
+                onClick={() => zoomByFactor(1.2)}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className={`map-icon-btn ${showSettingsPanel ? 'active' : ''}`}
+                title="Display and force settings"
+                aria-label="Display and force settings"
+                onClick={() => setShowSettingsPanel((open) => !open)}
+              >
+                ⚙
+              </button>
+              <button
+                type="button"
+                className={`map-icon-btn ${use3D ? 'active' : ''}`}
+                title={use3D ? 'Switch to 2D' : 'Switch to 3D'}
+                aria-label={use3D ? 'Switch to 2D' : 'Switch to 3D'}
+                onClick={() => setUse3D((value) => !value)}
+              >
+                3D
+              </button>
             </div>
-            <div className="graph-settings-panel">
-              <details open>
+            {showSettingsPanel ? (
+              <div className="graph-settings-panel">
+                <details>
                 <summary>Display</summary>
                 <label className="toggle-row">
                   <span>Arrows</span>
@@ -650,7 +738,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 </label>
               </details>
 
-              <details open>
+              <details>
                 <summary>Forces</summary>
                 <label className="slider-row">
                   <span>Center force</span>
@@ -700,82 +788,127 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                   Animate
                 </button>
               </details>
-            </div>
+              </div>
+            ) : null}
           </div>
 
-          <ForceGraph2D
-            ref={fgRef}
-            graphData={forceData}
-            nodeRelSize={4.5}
-            dagMode={layoutMode === 'flow' ? 'td' : undefined}
-            dagLevelDistance={layoutMode === 'flow' ? 90 : undefined}
-            d3AlphaDecay={layoutMode === 'physics' ? 0.014 : 0.04}
-            d3VelocityDecay={layoutMode === 'physics' ? 0.25 : 0.45}
-            warmupTicks={layoutMode === 'physics' ? 60 : 20}
-            cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
-            linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
-            linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
-            linkWidth={(link) => Math.max(0.8, link.weight * displaySettings.linkThickness)}
-            linkColor={(link) => {
-              if (link.type === 'depends-on') return '#dc2626';
-              if (link.type === 'plan-contains') return '#2563eb';
-              if (link.type === 'related-doc') return '#14b8a6';
-              if (link.type === 'related-canvas') return '#7c3aed';
-              if (link.type === 'related-base') return '#0f766e';
-              if (link.type === 'references') return '#64748b';
-              return '#f59e0b';
-            }}
-            nodeLabel={(node) => {
-              const current = node as ForceNode;
-              const truncated = truncateLabel(current.label, displaySettings.labelMaxChars);
-              if (truncated === current.label) {
-                return `${current.label}\n${current.filePath}`;
-              }
-              return `${truncated}\n${current.label}\n${current.filePath}`;
-            }}
-            onNodeClick={(node) => handleNodeClick(node as ForceNode)}
-            onNodeDrag={reheatSimulation}
-            onZoomEnd={(transform: ZoomTransform) => {
-              if (typeof transform.k === 'number' && Number.isFinite(transform.k)) {
-                zoomRef.current = transform.k;
-              }
-            }}
-            onNodeDragEnd={(node) => {
-              const dragged = node as { fx?: number; fy?: number; vx?: number; vy?: number };
-              dragged.fx = undefined;
-              dragged.fy = undefined;
-              if (typeof dragged.vx === 'number') dragged.vx *= 0.75;
-              if (typeof dragged.vy === 'number') dragged.vy *= 0.75;
-              reheatSimulation();
-            }}
-            nodeCanvasObject={(node, ctx, globalScale) => {
-              const current = node as ForceNode;
-              const color = NODE_COLOR[current.type] ?? '#64748b';
-              const size = Math.max(2.5, (current.val ?? 2.5) * 1.35);
+          {use3D ? (
+            <ForceGraph3D
+              ref={fg3dRef}
+              graphData={forceData}
+              warmupTicks={layoutMode === 'physics' ? 60 : 20}
+              cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
+              linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
+              linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
+              linkWidth={(link) => Math.max(0.8, link.weight * displaySettings.linkThickness)}
+              linkColor={(link) => {
+                if (link.type === 'depends-on') return '#dc2626';
+                if (link.type === 'plan-contains') return '#2563eb';
+                if (link.type === 'related-doc') return '#14b8a6';
+                if (link.type === 'related-canvas') return '#7c3aed';
+                if (link.type === 'related-base') return '#0f766e';
+                if (link.type === 'references') return '#64748b';
+                return '#f59e0b';
+              }}
+              nodeColor={(node) => NODE_COLOR[(node as ForceNode).type] ?? '#64748b'}
+              nodeVal={(node) => Math.max(1.2, (node as ForceNode).val)}
+              nodeLabel={(node) => {
+                const current = node as ForceNode;
+                const truncated = truncateLabel(current.label, displaySettings.labelMaxChars);
+                if (truncated === current.label) {
+                  return `${current.label}\n${current.filePath}`;
+                }
+                return `${truncated}\n${current.label}\n${current.filePath}`;
+              }}
+              onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+              onNodeDrag={reheatSimulation}
+              onNodeDragEnd={(node) => {
+                const dragged = node as { fx?: number; fy?: number; fz?: number; vx?: number; vy?: number; vz?: number };
+                dragged.fx = undefined;
+                dragged.fy = undefined;
+                dragged.fz = undefined;
+                if (typeof dragged.vx === 'number') dragged.vx *= 0.8;
+                if (typeof dragged.vy === 'number') dragged.vy *= 0.8;
+                if (typeof dragged.vz === 'number') dragged.vz *= 0.8;
+                reheatSimulation();
+              }}
+              backgroundColor="rgba(0,0,0,0)"
+            />
+          ) : (
+            <ForceGraph2D
+              ref={fg2dRef}
+              graphData={forceData}
+              nodeRelSize={4.5}
+              dagMode={layoutMode === 'flow' ? 'td' : undefined}
+              dagLevelDistance={layoutMode === 'flow' ? 90 : undefined}
+              d3AlphaDecay={layoutMode === 'physics' ? 0.009 : 0.04}
+              d3VelocityDecay={layoutMode === 'physics' ? 0.18 : 0.45}
+              warmupTicks={layoutMode === 'physics' ? 60 : 20}
+              cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
+              linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
+              linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
+              linkWidth={(link) => Math.max(0.8, link.weight * displaySettings.linkThickness)}
+              linkColor={(link) => {
+                if (link.type === 'depends-on') return '#dc2626';
+                if (link.type === 'plan-contains') return '#2563eb';
+                if (link.type === 'related-doc') return '#14b8a6';
+                if (link.type === 'related-canvas') return '#7c3aed';
+                if (link.type === 'related-base') return '#0f766e';
+                if (link.type === 'references') return '#64748b';
+                return '#f59e0b';
+              }}
+              nodeLabel={(node) => {
+                const current = node as ForceNode;
+                const truncated = truncateLabel(current.label, displaySettings.labelMaxChars);
+                if (truncated === current.label) {
+                  return `${current.label}\n${current.filePath}`;
+                }
+                return `${truncated}\n${current.label}\n${current.filePath}`;
+              }}
+              onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+              onNodeDrag={reheatSimulation}
+              onZoomEnd={(transform: ZoomTransform) => {
+                if (typeof transform.k === 'number' && Number.isFinite(transform.k)) {
+                  zoomRef.current = transform.k;
+                }
+              }}
+              onNodeDragEnd={(node) => {
+                const dragged = node as { fx?: number; fy?: number; vx?: number; vy?: number };
+                dragged.fx = undefined;
+                dragged.fy = undefined;
+                if (typeof dragged.vx === 'number') dragged.vx *= 0.75;
+                if (typeof dragged.vy === 'number') dragged.vy *= 0.75;
+                reheatSimulation();
+              }}
+              nodeCanvasObject={(node, ctx, globalScale) => {
+                const current = node as ForceNode;
+                const color = NODE_COLOR[current.type] ?? '#64748b';
+                const size = Math.max(2.5, (current.val ?? 2.5) * 1.35);
 
-              ctx.beginPath();
-              ctx.arc(node.x ?? 0, node.y ?? 0, size, 0, 2 * Math.PI, false);
-              ctx.fillStyle = color;
-              ctx.fill();
+                ctx.beginPath();
+                ctx.arc(node.x ?? 0, node.y ?? 0, size, 0, 2 * Math.PI, false);
+                ctx.fillStyle = color;
+                ctx.fill();
 
-              if (shouldRenderLabel(current, globalScale, displaySettings.textFadeThreshold)) {
-                const fontSize = Math.max(8, 11 / globalScale);
-                ctx.font = `${fontSize}px sans-serif`;
-                ctx.fillStyle = '#0f172a';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                const zoomRatio = Math.max(
-                  0.35,
-                  Math.min(1, globalScale - displaySettings.textFadeThreshold + 0.2)
-                );
-                const maxChars = Math.max(
-                  10,
-                  Math.min(displaySettings.labelMaxChars, Math.round(displaySettings.labelMaxChars * zoomRatio))
-                );
-                ctx.fillText(truncateLabel(current.label, maxChars), (node.x ?? 0) + size + 2, node.y ?? 0);
-              }
-            }}
-          />
+                if (shouldRenderLabel(current, globalScale, displaySettings.textFadeThreshold)) {
+                  const fontSize = Math.max(8, 11 / globalScale);
+                  ctx.font = `${fontSize}px sans-serif`;
+                  ctx.fillStyle = '#0f172a';
+                  ctx.textAlign = 'left';
+                  ctx.textBaseline = 'middle';
+                  const zoomRatio = Math.max(
+                    0.35,
+                    Math.min(1, globalScale - displaySettings.textFadeThreshold + 0.2)
+                  );
+                  const maxChars = Math.max(
+                    10,
+                    Math.min(displaySettings.labelMaxChars, Math.round(displaySettings.labelMaxChars * zoomRatio))
+                  );
+                  ctx.fillText(truncateLabel(current.label, maxChars), (node.x ?? 0) + size + 2, node.y ?? 0);
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

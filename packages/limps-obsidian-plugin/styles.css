@@ -166,6 +166,10 @@
 .limps-directed-graph-view .graph-overlay-left {
   left: 0.75rem;
   bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
 }
 
 .limps-directed-graph-view .graph-overlay-right {
@@ -174,6 +178,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  align-items: flex-end;
 }
 
 .limps-directed-graph-view .layer-panel {
@@ -228,28 +233,35 @@
   font-size: 0.72rem;
 }
 
-.limps-directed-graph-view .graph-controls {
+.limps-directed-graph-view .map-toolbar {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.45rem;
+}
+
+.limps-directed-graph-view .map-icon-btn {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
   background: color-mix(in srgb, var(--background-primary) 94%, white 6%);
   box-shadow: var(--shadow-s);
+  font-size: 0.95rem;
+  line-height: 1;
+  font-weight: 700;
 }
 
-.limps-directed-graph-view .graph-controls button {
-  min-width: 92px;
+.limps-directed-graph-view .map-icon-btn.active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: color-mix(in srgb, var(--interactive-accent) 75%, black 25%);
 }
 
-.limps-directed-graph-view .graph-controls .zoom-row {
-  display: flex;
-  gap: 0.35rem;
-}
-
-.limps-directed-graph-view .graph-controls .zoom-row button {
-  flex: 1;
+.limps-directed-graph-view .graph-settings-panel {
+  margin-bottom: 0.1rem;
 }
 
 .limps-directed-graph-view .graph-settings-panel {
