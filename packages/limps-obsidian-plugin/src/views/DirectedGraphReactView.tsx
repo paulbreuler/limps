@@ -83,6 +83,7 @@ interface GraphApi {
   zoomToFit: (ms?: number, padding?: number) => void;
   zoom?: (k: number, ms?: number) => void;
   cameraPosition?: (position?: GraphCameraPosition, lookAt?: GraphLookAt, ms?: number) => void;
+  getGraphBbox?: () => { x?: [number, number]; y?: [number, number]; z?: [number, number] } | null;
   d3Force: (name: string, force?: unknown) => unknown;
   d3ReheatSimulation?: () => void;
 }
@@ -216,6 +217,12 @@ function truncateLabel(value: string, limit: number): string {
   return `${value.slice(0, Math.max(0, limit - 1))}…`;
 }
 
+function fileNameFromPath(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  const name = normalized.split('/').pop();
+  return name && name.length > 0 ? name : filePath;
+}
+
 function estimateCollisionRadius(node: DirectedGraphNode, degree: number, sizeScale: number, labelMaxChars: number): number {
   const nodeRadius = Math.max(3.5, (nodeValue(node.type) + Math.sqrt(degree) * 1.35) * 1.35 * sizeScale);
   const visibleChars = Math.min(labelMaxChars, Math.max(8, node.label.length));
@@ -236,7 +243,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   const [showLayerPanel, setShowLayerPanel] = useState<boolean>(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState<boolean>(false);
   const [use3D, setUse3D] = useState<boolean>(true);
+  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 960, height: 640 });
 
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const fg2dRef = useRef<ForceGraph2DMethods<ForceNode, ForceLink> | undefined>(undefined);
   const fg3dRef = useRef<ForceGraph3DMethods<ForceNode, ForceLink> | undefined>(undefined);
   const zoomRef = useRef<number>(1);
@@ -271,6 +280,34 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const width = Math.max(300, Math.floor(entry.contentRect.width));
+      const height = Math.max(260, Math.floor(entry.contentRect.height));
+      setCanvasSize((current) => {
+        if (current.width === width && current.height === height) return current;
+        return { width, height };
+      });
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!use3D) return;
+    if (typeof document === 'undefined') return;
+    const canvas = document.createElement('canvas');
+    const hasWebGl = Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+    if (!hasWebGl) {
+      setUse3D(false);
+    }
+  }, [use3D]);
 
   const layerCounts = useMemo(() => {
     const counts: Record<LayerId, number> = {
@@ -477,21 +514,118 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }));
   }, []);
 
+  const getCurrentBounds = useCallback(() => {
+    const graphApi = getGraphApi();
+    const bbox = graphApi?.getGraphBbox?.();
+    const x0 = bbox?.x?.[0];
+    const x1 = bbox?.x?.[1];
+    const y0 = bbox?.y?.[0];
+    const y1 = bbox?.y?.[1];
+    const z0 = bbox?.z?.[0] ?? 0;
+    const z1 = bbox?.z?.[1] ?? 0;
+    if (
+      typeof x0 === 'number' &&
+      typeof x1 === 'number' &&
+      typeof y0 === 'number' &&
+      typeof y1 === 'number' &&
+      Number.isFinite(x0) &&
+      Number.isFinite(x1) &&
+      Number.isFinite(y0) &&
+      Number.isFinite(y1)
+    ) {
+      return { x0, x1, y0, y1, z0, z1 };
+    }
+
+    if (forceData.nodes.length === 0) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+
+    for (const raw of forceData.nodes) {
+      const node = raw as ForceNode & { x?: number; y?: number; z?: number };
+      const x = typeof node.x === 'number' ? node.x : 0;
+      const y = typeof node.y === 'number' ? node.y : 0;
+      const z = typeof node.z === 'number' ? node.z : 0;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      minZ = Math.min(minZ, z);
+      maxZ = Math.max(maxZ, z);
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return null;
+    }
+
+    return { x0: minX, x1: maxX, y0: minY, y1: maxY, z0: minZ, z1: maxZ };
+  }, [forceData.nodes, getGraphApi]);
+
   const centerGraph = useCallback(() => {
     const graphApi = getGraphApi();
     if (!graphApi) return;
+    const bounds = getCurrentBounds();
+    const centerX = bounds ? (bounds.x0 + bounds.x1) / 2 : 0;
+    const centerY = bounds ? (bounds.y0 + bounds.y1) / 2 : 0;
+    const centerZ = bounds ? (bounds.z0 + bounds.z1) / 2 : 0;
     if (use3D && graphApi.cameraPosition) {
-      graphApi.cameraPosition({ x: 0, y: 0, z: cameraDistanceRef.current }, { x: 0, y: 0, z: 0 }, 350);
+      graphApi.cameraPosition(
+        { x: centerX, y: centerY, z: centerZ + cameraDistanceRef.current },
+        { x: centerX, y: centerY, z: centerZ },
+        350
+      );
       return;
     }
-    graphApi.centerAt?.(0, 0, 350);
-  }, [getGraphApi, use3D]);
+    graphApi.centerAt?.(centerX, centerY, 350);
+  }, [getCurrentBounds, getGraphApi, use3D]);
 
   const fitGraph = useCallback(() => {
     const graphApi = getGraphApi();
     if (!graphApi) return;
+    const bounds = getCurrentBounds();
+    if (!bounds) {
+      graphApi.zoomToFit(450, 70);
+      return;
+    }
+
+    const centerX = (bounds.x0 + bounds.x1) / 2;
+    const centerY = (bounds.y0 + bounds.y1) / 2;
+    const centerZ = (bounds.z0 + bounds.z1) / 2;
+    const dx = Math.max(1, bounds.x1 - bounds.x0);
+    const dy = Math.max(1, bounds.y1 - bounds.y0);
+    const dz = Math.max(1, bounds.z1 - bounds.z0);
+
+    if (use3D && graphApi.cameraPosition) {
+      const extent = Math.max(dx, dy, dz);
+      const distance = Math.max(240, Math.min(4200, extent * 2.25));
+      cameraDistanceRef.current = distance;
+      graphApi.cameraPosition(
+        { x: centerX, y: centerY, z: centerZ + distance },
+        { x: centerX, y: centerY, z: centerZ },
+        450
+      );
+      return;
+    }
+
+    graphApi.centerAt?.(centerX, centerY, 250);
+    if (typeof graphApi.zoom === 'function') {
+      const paddingPx = 80;
+      const usableWidth = Math.max(120, canvasSize.width - paddingPx * 2);
+      const usableHeight = Math.max(120, canvasSize.height - paddingPx * 2);
+      const fitScale = Math.max(0.14, Math.min(8, Math.min(usableWidth / dx, usableHeight / dy)));
+      zoomRef.current = fitScale;
+      graphApi.zoom(fitScale, 250);
+      return;
+    }
+
     graphApi.zoomToFit(450, 70);
-  }, [getGraphApi]);
+  }, [canvasSize.height, canvasSize.width, getCurrentBounds, getGraphApi, use3D]);
 
   const zoomByFactor = useCallback((factor: number) => {
     const graphApi = getGraphApi();
@@ -506,9 +640,13 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     if (use3D && typeof graphApi.cameraPosition === 'function') {
       const nextDistance = Math.max(140, Math.min(3200, cameraDistanceRef.current / factor));
       cameraDistanceRef.current = nextDistance;
-      graphApi.cameraPosition({ z: nextDistance }, { x: 0, y: 0, z: 0 }, 220);
+      const bounds = getCurrentBounds();
+      const centerX = bounds ? (bounds.x0 + bounds.x1) / 2 : 0;
+      const centerY = bounds ? (bounds.y0 + bounds.y1) / 2 : 0;
+      const centerZ = bounds ? (bounds.z0 + bounds.z1) / 2 : 0;
+      graphApi.cameraPosition({ x: centerX, y: centerY, z: centerZ + nextDistance }, { x: centerX, y: centerY, z: centerZ }, 220);
     }
-  }, [getGraphApi, use3D]);
+  }, [getCurrentBounds, getGraphApi, use3D]);
 
   const reheatSimulation = useCallback(() => {
     const graphApi = getGraphApi();
@@ -592,7 +730,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       {warningText ? <div className="warnings">{warningText}</div> : null}
 
       <div className="graph-scroll">
-        <div className="graph-canvas-host">
+        <div className="graph-canvas-host" ref={hostRef}>
           <div className="graph-overlay graph-overlay-left">
             {showLayerPanel ? (
               <div className="layer-panel">
@@ -796,6 +934,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
             <ForceGraph3D
               ref={fg3dRef}
               graphData={forceData}
+              width={canvasSize.width}
+              height={canvasSize.height}
               warmupTicks={layoutMode === 'physics' ? 60 : 20}
               cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
@@ -814,11 +954,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               nodeVal={(node) => Math.max(1.2, (node as ForceNode).val)}
               nodeLabel={(node) => {
                 const current = node as ForceNode;
-                const truncated = truncateLabel(current.label, displaySettings.labelMaxChars);
-                if (truncated === current.label) {
-                  return `${current.label}\n${current.filePath}`;
-                }
-                return `${truncated}\n${current.label}\n${current.filePath}`;
+                return fileNameFromPath(current.filePath);
               }}
               onNodeClick={(node) => handleNodeClick(node as ForceNode)}
               onNodeDrag={reheatSimulation}
@@ -838,6 +974,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
             <ForceGraph2D
               ref={fg2dRef}
               graphData={forceData}
+              width={canvasSize.width}
+              height={canvasSize.height}
               nodeRelSize={4.5}
               dagMode={layoutMode === 'flow' ? 'td' : undefined}
               dagLevelDistance={layoutMode === 'flow' ? 90 : undefined}
@@ -859,11 +997,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               }}
               nodeLabel={(node) => {
                 const current = node as ForceNode;
-                const truncated = truncateLabel(current.label, displaySettings.labelMaxChars);
-                if (truncated === current.label) {
-                  return `${current.label}\n${current.filePath}`;
-                }
-                return `${truncated}\n${current.label}\n${current.filePath}`;
+                return fileNameFromPath(current.filePath);
               }}
               onNodeClick={(node) => handleNodeClick(node as ForceNode)}
               onNodeDrag={reheatSimulation}
