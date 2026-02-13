@@ -196,9 +196,15 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-muted);
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.25rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.limps-directed-graph-view .layer-legend {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
 }
 
 .limps-directed-graph-view .layer-search-wrap {
@@ -211,12 +217,24 @@
 
 .limps-directed-graph-view .layer-toggle {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto;
   gap: 0.125rem 0.5rem;
   align-items: center;
   margin-bottom: 0.35rem;
   font-size: 0.84rem;
   cursor: pointer;
+}
+
+.limps-directed-graph-view .layer-edge-key {
+  display: inline-block;
+  width: 1rem;
+  height: 0;
+  border-top: 2px solid currentColor;
+  margin-right: 0.05rem;
+}
+
+.limps-directed-graph-view .layer-edge-key.dashed {
+  border-top-style: dashed;
 }
 
 .limps-directed-graph-view .layer-toggle .label {
@@ -228,7 +246,7 @@
 }
 
 .limps-directed-graph-view .layer-toggle .desc {
-  grid-column: 2 / 4;
+  grid-column: 3 / 5;
   color: var(--text-muted);
   font-size: 0.72rem;
 }

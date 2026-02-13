@@ -49,6 +49,7 @@ interface ZoomTransform {
 
 interface DisplaySettings {
   showArrows: boolean;
+  planLevelReferences: boolean;
   textFadeThreshold: number;
   nodeSizeScale: number;
   linkThickness: number;
@@ -133,7 +134,8 @@ const PHYSICS_COOLDOWN_TICKS = 1_000_000;
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showArrows: true,
-  textFadeThreshold: 1.1,
+  planLevelReferences: true,
+  textFadeThreshold: 0.8,
   nodeSizeScale: 0.85,
   linkThickness: 1,
   labelMaxChars: 26,
@@ -158,12 +160,30 @@ const EDGE_LABELS: Record<DirectedEdgeType, string> = {
 
 const EDGE_WEIGHT: Record<DirectedEdgeType, number> = {
   'plan-contains': 1.1,
-  'depends-on': 2.2,
+  'depends-on': 1.6,
   'related-doc': 0.9,
   'related-canvas': 0.9,
   'related-base': 0.9,
   references: 0.55,
   'semantic-tag': 0.45,
+};
+
+const EDGE_STYLE_BY_TYPE: Record<DirectedEdgeType, { color: string; dashed: boolean; hard: boolean }> = {
+  'plan-contains': { color: '#2563eb', dashed: false, hard: true },
+  'depends-on': { color: '#dc2626', dashed: false, hard: true },
+  'related-doc': { color: '#0f766e', dashed: true, hard: false },
+  'related-canvas': { color: '#7c3aed', dashed: true, hard: false },
+  'related-base': { color: '#0f766e', dashed: true, hard: false },
+  references: { color: '#64748b', dashed: true, hard: false },
+  'semantic-tag': { color: '#f59e0b', dashed: true, hard: false },
+};
+
+const LAYER_STYLE_BY_ID: Record<LayerId, { color: string; dashed: boolean }> = {
+  'plan-structure': { color: EDGE_STYLE_BY_TYPE['plan-contains'].color, dashed: false },
+  dependencies: { color: EDGE_STYLE_BY_TYPE['depends-on'].color, dashed: false },
+  'plan-surfaces': { color: EDGE_STYLE_BY_TYPE['related-doc'].color, dashed: true },
+  references: { color: EDGE_STYLE_BY_TYPE.references.color, dashed: true },
+  semantic: { color: EDGE_STYLE_BY_TYPE['semantic-tag'].color, dashed: true },
 };
 
 const NODE_COLOR: Record<DirectedGraphNode['type'], string> = {
@@ -221,6 +241,16 @@ function fileNameFromPath(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/');
   const name = normalized.split('/').pop();
   return name && name.length > 0 ? name : filePath;
+}
+
+function isSoftEdgeType(type: DirectedEdgeType): boolean {
+  return EDGE_STYLE_BY_TYPE[type].dashed;
+}
+
+function edgeWidthForLink(link: ForceLink, linkThickness: number): number {
+  const style = EDGE_STYLE_BY_TYPE[link.type];
+  const scale = style.hard ? 0.8 : 0.45;
+  return Math.max(0.4, link.weight * linkThickness * scale);
 }
 
 function estimateCollisionRadius(node: DirectedGraphNode, degree: number, sizeScale: number, labelMaxChars: number): number {
@@ -335,15 +365,52 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       return { nodes: [] as ForceNode[], links: [] as ForceLink[] };
     }
 
-    const filteredByLayer = graph.edges
-      .filter((edge) => shouldShowEdge(edge, layers))
-      .map((edge) => ({
-        source: edge.from,
-        target: edge.to,
-        type: edge.type,
-        label: EDGE_LABELS[edge.type],
-        weight: EDGE_WEIGHT[edge.type],
-      }));
+    const nodeById = new Map<string, DirectedGraphNode>(graph.nodes.map((node) => [node.id, node] as const));
+    const planNodeByPlanId = new Map<string, DirectedGraphNode>();
+    for (const node of graph.nodes) {
+      if (node.type === 'plan' && !planNodeByPlanId.has(node.planId)) {
+        planNodeByPlanId.set(node.planId, node);
+      }
+    }
+
+    const normalizedEdges: DirectedGraphEdge[] = [];
+    const normalizedEdgeSet = new Set<string>();
+    for (const edge of graph.edges) {
+      if (!shouldShowEdge(edge, layers)) continue;
+
+      if (displaySettings.planLevelReferences && edge.type === 'references') {
+        const sourceNode = nodeById.get(edge.from);
+        const targetNode = nodeById.get(edge.to);
+        if (!sourceNode || !targetNode) continue;
+        const sourcePlan = planNodeByPlanId.get(sourceNode.planId);
+        const targetPlan = planNodeByPlanId.get(targetNode.planId);
+        if (!sourcePlan || !targetPlan) continue;
+        if (sourcePlan.id === targetPlan.id) continue;
+
+        const collapsedKey = `${sourcePlan.id}::${targetPlan.id}::references`;
+        if (normalizedEdgeSet.has(collapsedKey)) continue;
+        normalizedEdgeSet.add(collapsedKey);
+        normalizedEdges.push({
+          from: sourcePlan.id,
+          to: targetPlan.id,
+          type: 'references',
+        });
+        continue;
+      }
+
+      const key = `${edge.from}::${edge.to}::${edge.type}`;
+      if (normalizedEdgeSet.has(key)) continue;
+      normalizedEdgeSet.add(key);
+      normalizedEdges.push(edge);
+    }
+
+    const filteredByLayer = normalizedEdges.map((edge) => ({
+      source: edge.from,
+      target: edge.to,
+      type: edge.type,
+      label: EDGE_LABELS[edge.type],
+      weight: EDGE_WEIGHT[edge.type],
+    }));
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchedNodeIds = new Set<string>();
@@ -419,9 +486,23 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     graph,
     layers,
     searchTerm,
+    displaySettings.planLevelReferences,
     displaySettings.labelMaxChars,
     displaySettings.nodeSizeScale,
   ]);
+
+  useEffect(() => {
+    if (!use3D) return;
+    if (forceData.nodes.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const graphApi = getGraphApi();
+      if (!graphApi) return;
+      graphApi.zoomToFit(500, 95);
+    }, 260);
+
+    return () => clearTimeout(timer);
+  }, [forceData.links.length, forceData.nodes.length, getGraphApi, use3D]);
 
   useEffect(() => {
     const graphApi = getGraphApi();
@@ -734,11 +815,12 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
           <div className="graph-overlay graph-overlay-left">
             {showLayerPanel ? (
               <div className="layer-panel">
-                <div className="layer-panel-title">Filters</div>
-                <div className="layer-search-wrap">
-                  <input
-                    className="layer-search"
-                    type="text"
+              <div className="layer-panel-title">Filters</div>
+              <div className="layer-legend">Solid: hard links · Dotted: soft/semantic links</div>
+              <div className="layer-search-wrap">
+                <input
+                  className="layer-search"
+                  type="text"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.currentTarget.value)}
                     placeholder="Search files..."
@@ -746,6 +828,10 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 </div>
                 {LAYER_OPTIONS.map((option) => (
                   <label className="layer-toggle" key={option.id}>
+                    <span
+                      className={`layer-edge-key ${LAYER_STYLE_BY_ID[option.id].dashed ? 'dashed' : 'solid'}`}
+                      style={{ color: LAYER_STYLE_BY_ID[option.id].color }}
+                    />
                     <input
                       type="checkbox"
                       checked={layers[option.id]}
@@ -818,7 +904,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
             </div>
             {showSettingsPanel ? (
               <div className="graph-settings-panel">
-                <details>
+              <details>
                 <summary>Display</summary>
                 <label className="toggle-row">
                   <span>Arrows</span>
@@ -828,12 +914,22 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                     onChange={(event) => updateDisplaySetting('showArrows', event.currentTarget.checked)}
                   />
                 </label>
+                <label className="toggle-row">
+                  <span>Plan-level references</span>
+                  <input
+                    type="checkbox"
+                    checked={displaySettings.planLevelReferences}
+                    onChange={(event) =>
+                      updateDisplaySetting('planLevelReferences', event.currentTarget.checked)
+                    }
+                  />
+                </label>
                 <label className="slider-row">
                   <span>Text fade threshold</span>
                   <input
                     type="range"
-                    min={0.8}
-                    max={2.2}
+                    min={0.4}
+                    max={1.8}
                     step={0.05}
                     value={displaySettings.textFadeThreshold}
                     onChange={(event) =>
@@ -932,6 +1028,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
           {use3D ? (
             <ForceGraph3D
+              key={`three-d-${canvasSize.width}-${canvasSize.height}`}
               ref={fg3dRef}
               graphData={forceData}
               width={canvasSize.width}
@@ -940,16 +1037,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
               linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
-              linkWidth={(link) => Math.max(0.8, link.weight * displaySettings.linkThickness)}
-              linkColor={(link) => {
-                if (link.type === 'depends-on') return '#dc2626';
-                if (link.type === 'plan-contains') return '#2563eb';
-                if (link.type === 'related-doc') return '#14b8a6';
-                if (link.type === 'related-canvas') return '#7c3aed';
-                if (link.type === 'related-base') return '#0f766e';
-                if (link.type === 'references') return '#64748b';
-                return '#f59e0b';
-              }}
+              linkWidth={(link) => edgeWidthForLink(link as ForceLink, displaySettings.linkThickness)}
+              linkColor={(link) => EDGE_STYLE_BY_TYPE[(link as ForceLink).type].color}
               nodeColor={(node) => NODE_COLOR[(node as ForceNode).type] ?? '#64748b'}
               nodeVal={(node) => Math.max(1.2, (node as ForceNode).val)}
               nodeLabel={(node) => {
@@ -985,16 +1074,11 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
               linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
-              linkWidth={(link) => Math.max(0.8, link.weight * displaySettings.linkThickness)}
-              linkColor={(link) => {
-                if (link.type === 'depends-on') return '#dc2626';
-                if (link.type === 'plan-contains') return '#2563eb';
-                if (link.type === 'related-doc') return '#14b8a6';
-                if (link.type === 'related-canvas') return '#7c3aed';
-                if (link.type === 'related-base') return '#0f766e';
-                if (link.type === 'references') return '#64748b';
-                return '#f59e0b';
-              }}
+              linkWidth={(link) => edgeWidthForLink(link as ForceLink, displaySettings.linkThickness)}
+              linkColor={(link) => EDGE_STYLE_BY_TYPE[(link as ForceLink).type].color}
+              linkLineDash={(link) =>
+                isSoftEdgeType((link as ForceLink).type) ? [3, 3] : null
+              }
               nodeLabel={(node) => {
                 const current = node as ForceNode;
                 return fileNameFromPath(current.filePath);

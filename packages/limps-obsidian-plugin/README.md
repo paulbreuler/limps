@@ -8,7 +8,7 @@ This package provides a local-first Obsidian plugin that wraps `limps` CLI comma
 - Health sidebar view
 - Manual daemon prerequisite UX (clear startup guidance)
 - Graph reindex command and refresh flow
-- Directed LIMPS graph view (Cytoscape + Dagre, clickable nodes)
+- Directed LIMPS graph view (React Force Graph, 2D/3D toggle, clickable nodes)
 - Event-driven refresh from vault/workspace/metadata changes (debounced)
 - Status bar governance indicator (`daemon`, `links`, `mcp`)
 
@@ -35,6 +35,16 @@ npm run build --workspace @sudosandwich/limps-obsidian-plugin
 ```
 
 This creates `main.js` in this package directory.
+
+## Preview outside Obsidian (3D)
+
+After building, run:
+
+```bash
+npm run preview:3d --workspace @sudosandwich/limps-obsidian-plugin -- /Users/paul/Documents/GitHub/limps/.limps/config.json
+```
+
+This starts a local preview server and opens a browser window with a standalone 3D graph for debugging.
 
 ## Sideload into Obsidian
 
