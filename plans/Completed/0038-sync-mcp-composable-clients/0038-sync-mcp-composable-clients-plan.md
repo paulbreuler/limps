@@ -10,6 +10,7 @@ updated: 2026-01-27
 
 
 
+
 **Retired (2026-01-30):** Scope merged into [0039 LLM Usage Improvements](../0039-llm-usage-improvements/0039-llm-usage-improvements-plan.md). Registry + preview/print + docs are now covered there.
 
 # Composable MCP Client Sync Registry

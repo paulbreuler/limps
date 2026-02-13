@@ -10,6 +10,7 @@ updated: 2026-01-31
 
 
 
+
 # Knowledge Graph Foundation — Full Feature Plan
 
 ## The Problem

@@ -25,6 +25,7 @@ files:
 
 
 
+
 # Agent 004: MCP Integration
 
 **Plan Location**: `plans/0030-limps-scoring-weights/0030-limps-scoring-weights-plan.md`

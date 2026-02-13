@@ -200,6 +200,18 @@ function isExternalReference(token: string): boolean {
   );
 }
 
+function isDirectoryLikeReference(token: string): boolean {
+  return token.trim().endsWith('/');
+}
+
+function isPlaceholderReference(token: string): boolean {
+  const value = token.trim().toLowerCase();
+  if (!value) return true;
+  if (value === 'path.md' || value === 'file.md' || value === 'example.md') return true;
+  if (value.startsWith('<') || value.includes('{') || value.includes('}')) return true;
+  return false;
+}
+
 function getAgentNumberFromFilename(filename: string): string | null {
   const stem = basename(filename, extname(filename));
   const match = stem.match(/^(\d{3})/);
@@ -255,6 +267,13 @@ function resolveLinkedNode(context: GraphBuildContext, currentFile: string, toke
   const candidates: string[] = [];
   if (isAbsolute(stripped)) {
     candidates.push(stripped);
+    const withoutRoot = stripped.replace(/^\/+/, '');
+    if (withoutRoot.length > 0) {
+      candidates.push(resolve(context.plansPath, withoutRoot));
+      if (withoutRoot.toLowerCase().startsWith('plans/')) {
+        candidates.push(resolve(context.plansPath, withoutRoot.slice('plans/'.length)));
+      }
+    }
   } else {
     candidates.push(resolve(dirname(currentFile), stripped));
     candidates.push(resolve(context.plansPath, stripped));
@@ -480,6 +499,9 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
 
     for (const linkToken of parseMarkdownLinks(combinedText)) {
       if (isExternalReference(linkToken)) {
+        continue;
+      }
+      if (isDirectoryLikeReference(linkToken) || isPlaceholderReference(linkToken)) {
         continue;
       }
       const linkedNode = resolveLinkedNode(context, node.filePath, linkToken);

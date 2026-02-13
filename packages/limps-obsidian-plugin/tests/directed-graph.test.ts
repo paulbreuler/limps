@@ -137,3 +137,40 @@ test('buildDirectedGraph includes roadmap and cross-plan references', () => {
 
   rmSync(root, { recursive: true, force: true });
 });
+
+test('buildDirectedGraph resolves /plans absolute links and ignores placeholder path warnings', () => {
+  const root = mkdtempSync(join(tmpdir(), 'limps-directed-absolute-links-'));
+  const plansPath = join(root, 'plans');
+  const planDir = join(plansPath, '0032-limps-llms-txt');
+  mkdirSync(join(planDir, 'agents'), { recursive: true });
+  mkdirSync(join(plansPath, '0027-limps-roadmap'), { recursive: true });
+
+  writeFileSync(join(planDir, '0032-limps-llms-txt-plan.md'), '# llms\n', 'utf8');
+  writeFileSync(join(plansPath, 'Roadmap.md'), '# roadmap\n', 'utf8');
+  writeFileSync(join(plansPath, '0027-limps-roadmap', '0027-limps-roadmap-plan.md'), '# 0027\n', 'utf8');
+  writeFileSync(
+    join(planDir, 'notes.md'),
+    [
+      '[/plans/0027-limps-roadmap/0027-limps-roadmap-plan.md](/plans/0027-limps-roadmap/0027-limps-roadmap-plan.md)',
+      '',
+      '[Directory](/plans/active/)',
+      '[Template](path.md)',
+    ].join('\n'),
+    'utf8'
+  );
+
+  const graph = buildDirectedGraph(plansPath);
+  const notes = graph.nodes.find((node) => node.filePath.endsWith('/0032-limps-llms-txt/notes.md'));
+  const targetPlan = graph.nodes.find((node) => node.filePath.endsWith('/0027-limps-roadmap/0027-limps-roadmap-plan.md'));
+  assert.ok(notes);
+  assert.ok(targetPlan);
+  assert.ok(
+    graph.edges.some(
+      (edge) => edge.type === 'references' && edge.from === notes?.id && edge.to === targetPlan?.id
+    )
+  );
+  assert.ok(!graph.warnings.some((warning) => warning.includes('/plans/active/')));
+  assert.ok(!graph.warnings.some((warning) => warning.includes('path.md')));
+
+  rmSync(root, { recursive: true, force: true });
+});

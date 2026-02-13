@@ -15,6 +15,7 @@ tags: [server, config, infrastructure]
 
 
 
+
 # Agent 0: Foundation
 
 **Plan Location**: `plans/0049-persistent-http-server/0049-persistent-http-server-plan.md`

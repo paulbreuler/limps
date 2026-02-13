@@ -406,6 +406,14 @@ export default class LimpsPlugin extends Plugin {
   }
 
   async openDirectedGraphView(): Promise<void> {
+    const existingMainLeaf = this.getDirectedGraphLeafInEditorArea();
+    if (existingMainLeaf) {
+      await existingMainLeaf.setViewState({ type: VIEW_TYPE_DIRECTED_GRAPH, active: true });
+      await this.app.workspace.revealLeaf(existingMainLeaf);
+      await this.refreshDirectedGraphView();
+      return;
+    }
+
     const leaf = this.getEditorLeaf();
     await leaf.setViewState({ type: VIEW_TYPE_DIRECTED_GRAPH, active: true });
     await this.app.workspace.revealLeaf(leaf);
@@ -448,6 +456,12 @@ export default class LimpsPlugin extends Plugin {
 
     const view = leaves[0].view;
     return view instanceof DirectedGraphView ? view : null;
+  }
+
+  private getDirectedGraphLeafInEditorArea(): WorkspaceLeaf | null {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIRECTED_GRAPH);
+    const mainLeaf = leaves.find((leaf) => !this.isSidebarLeaf(leaf));
+    return mainLeaf ?? null;
   }
 
   private getRunOptions(parseJson: boolean): LimpsRunOptions {
@@ -624,20 +638,27 @@ export default class LimpsPlugin extends Plugin {
 
   private getEditorLeaf(): WorkspaceLeaf {
     const workspace = this.app.workspace as {
+      activeLeaf?: WorkspaceLeaf | null;
       getLeaf?: (newLeaf?: boolean | 'tab' | 'split') => WorkspaceLeaf;
       getMostRecentLeaf?: () => WorkspaceLeaf | null;
       getRightLeaf: (split: boolean) => WorkspaceLeaf;
     };
 
-    const recentLeaf = workspace.getMostRecentLeaf?.() ?? null;
-    const recentType = recentLeaf?.getViewState?.().type;
-    if (recentLeaf && recentType === 'markdown') {
-      return recentLeaf;
+    const activeLeaf = workspace.activeLeaf ?? null;
+    if (activeLeaf && !this.isSidebarLeaf(activeLeaf)) {
+      return activeLeaf;
     }
 
     const markdownLeaves = this.app.workspace.getLeavesOfType('markdown');
     if (markdownLeaves.length > 0) {
-      return markdownLeaves[0];
+      const inMainArea = markdownLeaves.filter((leaf) => !this.isSidebarLeaf(leaf));
+      const candidates = inMainArea.length > 0 ? inMainArea : markdownLeaves;
+      return this.pickWidestLeaf(candidates);
+    }
+
+    const recentLeaf = workspace.getMostRecentLeaf?.() ?? null;
+    if (recentLeaf && !this.isSidebarLeaf(recentLeaf)) {
+      return recentLeaf;
     }
 
     if (typeof workspace.getLeaf === 'function') {
@@ -645,6 +666,32 @@ export default class LimpsPlugin extends Plugin {
     }
 
     return workspace.getRightLeaf(false);
+  }
+
+  private pickWidestLeaf(leaves: WorkspaceLeaf[]): WorkspaceLeaf {
+    return leaves.reduce((widest, current) => {
+      const widestWidth = this.readLeafWidth(widest);
+      const currentWidth = this.readLeafWidth(current);
+      return currentWidth > widestWidth ? current : widest;
+    }, leaves[0] as WorkspaceLeaf);
+  }
+
+  private readLeafWidth(leaf: WorkspaceLeaf): number {
+    const maybeContainer = (leaf as unknown as { containerEl?: HTMLElement }).containerEl;
+    if (!maybeContainer) return 0;
+    return maybeContainer.getBoundingClientRect().width;
+  }
+
+  private isSidebarLeaf(leaf: WorkspaceLeaf): boolean {
+    const root =
+      (leaf as unknown as { getRoot?: () => { id?: string; type?: string } | null }).getRoot?.() ??
+      null;
+    const parent = (leaf as unknown as { parent?: { id?: string; type?: string; root?: { id?: string; type?: string } } }).parent;
+
+    const rootId = String(root?.id ?? root?.type ?? parent?.root?.id ?? parent?.id ?? parent?.type ?? '').toLowerCase();
+    if (!rootId) return false;
+
+    return rootId.includes('left') || rootId.includes('right') || rootId.includes('sidebar');
   }
 
   private scheduleRuntimeRefresh(): void {
