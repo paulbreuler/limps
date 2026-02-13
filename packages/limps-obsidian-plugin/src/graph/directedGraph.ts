@@ -248,8 +248,24 @@ function labelForNode(filePath: string, type: DirectedNodeType): string {
 
 function planIdForPath(plansPath: string, filePath: string): string {
   const relativePath = normalizePath(filePath).slice(normalizePath(plansPath).length).replace(/^\/+/, '');
-  const top = relativePath.split('/')[0];
-  return top && top.length > 0 ? top : '_root';
+  const segments = relativePath.split('/').filter(Boolean);
+  if (segments.length === 0) return '_root';
+
+  const first = segments[0] ?? '';
+  const second = segments[1] ?? '';
+  const firstLooksLikePlanId = /^\d{3,4}[-_]/.test(first);
+  const secondLooksLikePlanId = /^\d{3,4}[-_]/.test(second);
+
+  if (firstLooksLikePlanId) {
+    return first;
+  }
+
+  if (secondLooksLikePlanId) {
+    // Preserve container namespace (for example Completed/0030-...) so grouped folders don't collapse to one plan.
+    return `${first}/${second}`;
+  }
+
+  return first;
 }
 
 function addEdge(context: GraphBuildContext, from: string, to: string, type: DirectedEdgeType): void {

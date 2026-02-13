@@ -492,19 +492,6 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   ]);
 
   useEffect(() => {
-    if (!use3D) return;
-    if (forceData.nodes.length === 0) return;
-
-    const timer = setTimeout(() => {
-      const graphApi = getGraphApi();
-      if (!graphApi) return;
-      graphApi.zoomToFit(500, 95);
-    }, 260);
-
-    return () => clearTimeout(timer);
-  }, [forceData.links.length, forceData.nodes.length, getGraphApi, use3D]);
-
-  useEffect(() => {
     const graphApi = getGraphApi();
     if (!graphApi || layoutMode !== 'physics') return;
 
@@ -707,6 +694,48 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
     graphApi.zoomToFit(450, 70);
   }, [canvasSize.height, canvasSize.width, getCurrentBounds, getGraphApi, use3D]);
+
+  useEffect(() => {
+    if (!use3D) return;
+    if (forceData.nodes.length === 0) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const placeCamera = () => {
+      if (cancelled) return;
+      const graphApi = getGraphApi();
+      const bounds = getCurrentBounds();
+      if (!graphApi || !bounds || typeof graphApi.cameraPosition !== 'function') {
+        attempts += 1;
+        if (attempts < 12) {
+          requestAnimationFrame(placeCamera);
+        }
+        return;
+      }
+
+      const centerX = (bounds.x0 + bounds.x1) / 2;
+      const centerY = (bounds.y0 + bounds.y1) / 2;
+      const centerZ = (bounds.z0 + bounds.z1) / 2;
+      const extent = Math.max(1, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0);
+      const distance = Math.max(240, Math.min(4200, extent * 2.25));
+      cameraDistanceRef.current = distance;
+      graphApi.cameraPosition(
+        { x: centerX, y: centerY, z: centerZ + distance },
+        { x: centerX, y: centerY, z: centerZ },
+        450
+      );
+    };
+
+    const timer = setTimeout(() => {
+      requestAnimationFrame(placeCamera);
+    }, 80);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [forceData.links.length, forceData.nodes.length, getCurrentBounds, getGraphApi, use3D]);
 
   const zoomByFactor = useCallback((factor: number) => {
     const graphApi = getGraphApi();

@@ -174,3 +174,33 @@ test('buildDirectedGraph resolves /plans absolute links and ignores placeholder 
 
   rmSync(root, { recursive: true, force: true });
 });
+
+test('buildDirectedGraph does not collapse grouped folders (Completed/*) into one plan', () => {
+  const root = mkdtempSync(join(tmpdir(), 'limps-directed-completed-namespace-'));
+  const plansPath = join(root, 'plans');
+  const completedA = join(plansPath, 'Completed', '0030-alpha');
+  const completedB = join(plansPath, 'Completed', '0031-beta');
+  mkdirSync(join(completedA, 'agents'), { recursive: true });
+  mkdirSync(join(completedB, 'agents'), { recursive: true });
+
+  writeFileSync(join(completedA, '0030-alpha-plan.md'), '# alpha\n', 'utf8');
+  writeFileSync(join(completedB, '0031-beta-plan.md'), '# beta\n', 'utf8');
+  writeFileSync(join(completedA, 'agents', '000_a.agent.md'), '---\ndepends_on: []\n---\n', 'utf8');
+  writeFileSync(join(completedB, 'agents', '000_b.agent.md'), '---\ndepends_on: []\n---\n', 'utf8');
+
+  const graph = buildDirectedGraph(plansPath);
+  const alphaPlan = graph.nodes.find((node) => node.filePath.endsWith('/Completed/0030-alpha/0030-alpha-plan.md'));
+  const betaPlan = graph.nodes.find((node) => node.filePath.endsWith('/Completed/0031-beta/0031-beta-plan.md'));
+  const alphaAgent = graph.nodes.find((node) => node.filePath.endsWith('/Completed/0030-alpha/agents/000_a.agent.md'));
+  const betaAgent = graph.nodes.find((node) => node.filePath.endsWith('/Completed/0031-beta/agents/000_b.agent.md'));
+
+  assert.ok(alphaPlan);
+  assert.ok(betaPlan);
+  assert.ok(alphaAgent);
+  assert.ok(betaAgent);
+  assert.ok(graph.edges.some((edge) => edge.type === 'plan-contains' && edge.from === alphaPlan?.id && edge.to === alphaAgent?.id));
+  assert.ok(graph.edges.some((edge) => edge.type === 'plan-contains' && edge.from === betaPlan?.id && edge.to === betaAgent?.id));
+  assert.ok(!graph.edges.some((edge) => edge.type === 'plan-contains' && edge.from === alphaPlan?.id && edge.to === betaAgent?.id));
+
+  rmSync(root, { recursive: true, force: true });
+});
