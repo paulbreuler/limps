@@ -66,6 +66,7 @@ export class HealthView extends ItemView {
   private renderCards(): string {
     const state = this.snapshot.state;
     const disabledAttr = this.actionInFlight || state === 'loading' ? 'disabled' : '';
+    const errorMessage = this.escapeHtml(this.snapshot.message ?? 'Unknown error');
 
     if (state === 'loading') {
       return '<div class="card">Waiting for limps command output...</div>';
@@ -86,7 +87,7 @@ export class HealthView extends ItemView {
     if (state === 'error') {
       return `
         <div class="card">
-          <div>${this.snapshot.message ?? 'Unknown error'}</div>
+          <pre class="error-details">${errorMessage}</pre>
           <div class="actions">
             <button type="button" class="mod-cta" data-action="refresh-health" ${disabledAttr}>Refresh health</button>
           </div>
@@ -115,7 +116,7 @@ export class HealthView extends ItemView {
     const graphLinksHint =
       `<div class="card">
         <div>Project LIMPS relationships into Obsidian Graph.</div>
-        <div class="actions">
+        <div class="actions stacked">
           <button type="button" class="mod-cta" data-action="sync-links" ${disabledAttr}>Sync Obsidian Graph</button>
           <button type="button" data-action="open-directed-graph" ${disabledAttr}>Open Directed Graph</button>
           <button type="button" data-action="audit-surfaces" ${disabledAttr}>Audit surfaces</button>
@@ -279,5 +280,14 @@ export class HealthView extends ItemView {
       this.actionInFlight = false;
       this.render();
     }
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

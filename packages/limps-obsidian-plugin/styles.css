@@ -50,6 +50,24 @@
   margin-top: 0.75rem;
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.limps-health-view .actions.stacked {
+  flex-direction: column;
+}
+
+.limps-health-view .actions.stacked button {
+  width: 100%;
+}
+
+.limps-health-view .error-details {
+  margin: 0;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: auto;
 }
 
 .limps-health-view button {
@@ -131,4 +149,18 @@
 .limps-directed-graph-view .graph-canvas-host {
   width: 100%;
   height: 100%;
+}
+
+.limps-settings-section {
+  margin: 1rem 0 0.25rem;
+}
+
+.limps-settings-section h3 {
+  margin: 0 0 0.25rem;
+}
+
+.limps-settings-section p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }

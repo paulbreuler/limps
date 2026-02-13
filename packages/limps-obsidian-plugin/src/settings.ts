@@ -48,6 +48,11 @@ export class LimpsSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.innerHTML = '';
+    this.renderSectionHeader(
+      containerEl,
+      'Binary & Paths',
+      'Configure how limps commands are executed and which config file is used.'
+    );
 
     new Setting(containerEl)
       .setName('Use system limps binary')
@@ -79,8 +84,8 @@ export class LimpsSettingTab extends PluginSettingTab {
 
     if (!this.plugin.settings.useSystemLimpsBinary) {
       new Setting(containerEl)
-      .setName('limps binary path')
-        .setDesc('Path to the limps executable (used only when system binary is disabled)')
+        .setName('limps binary path')
+        .setDesc('Path to limps executable. If you give a directory, plugin tries dist/cli.js automatically.')
         .addText((text) => {
           text
             .setPlaceholder('/path/to/limps')
@@ -88,8 +93,13 @@ export class LimpsSettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.limpsPath = value.trim() || DEFAULT_SETTINGS.limpsPath;
               await this.plugin.saveSettings();
+              this.display();
             });
         });
+
+      new Setting(containerEl)
+        .setName('Effective binary path')
+        .setDesc(this.plugin.getEffectiveBinaryPathPreview());
     }
 
     new Setting(containerEl)
@@ -104,6 +114,12 @@ export class LimpsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    this.renderSectionHeader(
+      containerEl,
+      'Runtime',
+      'Control command timeout and auto-refresh behavior for health/runtime checks.'
+    );
 
     new Setting(containerEl)
       .setName('Command timeout (ms)')
@@ -132,6 +148,12 @@ export class LimpsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    this.renderSectionHeader(
+      containerEl,
+      'UI',
+      'Toggle health entry points and runtime indicators shown in Obsidian.'
+    );
 
     new Setting(containerEl)
       .setName('Show health ribbon icon')
@@ -166,6 +188,12 @@ export class LimpsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    this.renderSectionHeader(
+      containerEl,
+      'Obsidian MCP',
+      'Probe an Obsidian MCP server so AI workflows can verify vault governance paths.'
+    );
 
     new Setting(containerEl)
       .setName('Enable Obsidian MCP checks')
@@ -261,5 +289,20 @@ export class LimpsSettingTab extends PluginSettingTab {
             });
         });
     }
+  }
+
+  private renderSectionHeader(containerEl: HTMLElement, title: string, description: string): void {
+    const section = document.createElement('div');
+    section.className = 'limps-settings-section';
+
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+
+    const desc = document.createElement('p');
+    desc.textContent = description;
+
+    section.appendChild(heading);
+    section.appendChild(desc);
+    containerEl.appendChild(section);
   }
 }

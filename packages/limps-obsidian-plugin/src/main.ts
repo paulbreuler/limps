@@ -1,5 +1,5 @@
 import { Notice, Plugin } from 'obsidian';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getDaemonStatus, getGraphHealth, runDepsToPaths, runGraphReindex } from './cli/wrapper.js';
 import type { LimpsRunOptions } from './cli/wrapper.js';
@@ -450,9 +450,7 @@ export default class LimpsPlugin extends Plugin {
   }
 
   private getRunOptions(parseJson: boolean): LimpsRunOptions {
-    const limpsPath = this.settings.useSystemLimpsBinary
-      ? 'limps'
-      : this.settings.limpsPath || DEFAULT_SETTINGS.limpsPath;
+    const limpsPath = this.resolveConfiguredLimpsPath();
 
     return {
       limpsPath,
@@ -469,9 +467,7 @@ export default class LimpsPlugin extends Plugin {
   }
 
   getDaemonStartCommand(): string {
-    const limpsPath = this.settings.useSystemLimpsBinary
-      ? 'limps'
-      : this.settings.limpsPath || DEFAULT_SETTINGS.limpsPath;
+    const limpsPath = this.resolveConfiguredLimpsPath();
     const configPath = this.settings.configPath || DEFAULT_SETTINGS.configPath;
     return `${limpsPath} server start --config ${configPath}`;
   }
@@ -495,6 +491,52 @@ export default class LimpsPlugin extends Plugin {
     this.settings.limpsPath = candidate;
     await this.saveSettings();
     return { ok: true, path: candidate };
+  }
+
+  getEffectiveBinaryPathPreview(): string {
+    return this.resolveConfiguredLimpsPath();
+  }
+
+  private resolveConfiguredLimpsPath(): string {
+    if (this.settings.useSystemLimpsBinary) {
+      return 'limps';
+    }
+
+    const configured = this.settings.limpsPath?.trim() || DEFAULT_SETTINGS.limpsPath;
+    return this.normalizeLimpsPath(configured);
+  }
+
+  private normalizeLimpsPath(path: string): string {
+    if (!path || path === 'limps') {
+      return path || 'limps';
+    }
+
+    try {
+      if (!existsSync(path)) {
+        return path;
+      }
+
+      const stat = statSync(path);
+      if (!stat.isDirectory()) {
+        return path;
+      }
+
+      const candidates = [
+        join(path, 'dist', 'cli.js'),
+        join(path, 'packages', 'limps', 'dist', 'cli.js'),
+        join(path, 'cli.js'),
+      ];
+
+      for (const candidate of candidates) {
+        if (existsSync(candidate)) {
+          return candidate;
+        }
+      }
+    } catch {
+      return path;
+    }
+
+    return path;
   }
 
   getPlansPathFromConfig(): string {
