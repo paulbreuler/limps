@@ -152,7 +152,7 @@ const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
 };
 
 const DEFAULT_FORCE_SETTINGS: ForceSettings = {
-  centerForce: 0.22,
+  centerForce: 0.14,
   repelForce: 220,
   linkForce: 0.22,
   linkDistance: 180,
@@ -659,15 +659,23 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }
 
     const xForce = graphApi.d3Force('x');
-    const xApi = xForce as unknown as { strength?: (value: number) => unknown };
+    const xApi = xForce as unknown as {
+      strength?: (value: number | ((node: ForceNode) => number)) => unknown;
+    };
     if (xApi && typeof xApi.strength === 'function') {
-      xApi.strength(forceSettings.centerForce * 0.12);
+      xApi.strength((node: ForceNode) =>
+        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0
+      );
     }
 
     const yForce = graphApi.d3Force('y');
-    const yApi = yForce as unknown as { strength?: (value: number) => unknown };
+    const yApi = yForce as unknown as {
+      strength?: (value: number | ((node: ForceNode) => number)) => unknown;
+    };
     if (yApi && typeof yApi.strength === 'function') {
-      yApi.strength(forceSettings.centerForce * 0.12);
+      yApi.strength((node: ForceNode) =>
+        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0
+      );
     }
 
     const collisionForce = forceCollide<ForceNode>((node: ForceNode) => Math.max(10, node.collisionRadius))
@@ -676,11 +684,20 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     graphApi.d3Force('collision', collisionForce);
 
     const radialForce = forceRadial<ForceNode>(
-      (node: ForceNode) => 50 + Math.min(260, Math.sqrt(Math.max(0, node.degree)) * 30),
+      (node: ForceNode) => {
+        const degree = Math.max(0, node.degree ?? 0);
+        if (degree === 0) {
+          // Keep isolated nodes free-floating; no radial anchor.
+          return Number.NaN;
+        }
+        return 60 + Math.min(250, Math.sqrt(degree) * 28);
+      },
       0,
       0,
       0
-    ).strength(Math.max(0.008, forceSettings.centerForce * 0.06));
+    ).strength((node: ForceNode) =>
+      node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.03) : 0
+    );
     graphApi.d3Force('radial', radialForce);
 
     const reheatApi = graphApi as { d3ReheatSimulation?: () => void };
