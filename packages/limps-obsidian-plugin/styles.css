@@ -153,6 +153,27 @@
   height: 100%;
 }
 
+.limps-directed-graph-view .graph-render-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.limps-directed-graph-view .graph-render-layer.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.limps-directed-graph-view .graph-render-layer.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .limps-directed-graph-view .graph-overlay {
   position: absolute;
   z-index: 2;
