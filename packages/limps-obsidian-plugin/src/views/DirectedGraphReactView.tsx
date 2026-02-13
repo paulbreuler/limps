@@ -337,7 +337,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showLayerPanel, setShowLayerPanel] = useState<boolean>(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState<boolean>(false);
-  const [use3D, setUse3D] = useState<boolean>(true);
+  const [use3D, setUse3D] = useState<boolean>(false);
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 960, height: 640 });
 
   const hostRef = useRef<HTMLDivElement | null>(null);
