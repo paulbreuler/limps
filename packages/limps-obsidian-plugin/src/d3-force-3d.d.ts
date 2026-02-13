@@ -9,4 +9,17 @@ declare module 'd3-force-3d' {
   export function forceCollide<NodeT = unknown>(
     radius?: number | ((node: NodeT) => number)
   ): ForceCollideApi<NodeT>;
+
+  export interface ForceRadialApi<NodeT = unknown> {
+    (alpha: number): void;
+    initialize?(nodes: NodeT[]): void;
+    strength(value: number): ForceRadialApi<NodeT>;
+  }
+
+  export function forceRadial<NodeT = unknown>(
+    radius?: number | ((node: NodeT) => number),
+    x?: number,
+    y?: number,
+    z?: number
+  ): ForceRadialApi<NodeT>;
 }

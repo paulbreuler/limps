@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { forceCollide } from 'd3-force-3d';
+import { forceCollide, forceRadial } from 'd3-force-3d';
 import ForceGraph2D, { type ForceGraphMethods as ForceGraph2DMethods } from 'react-force-graph-2d';
 import ForceGraph3D, { type ForceGraphMethods as ForceGraph3DMethods } from 'react-force-graph-3d';
 import type LimpsPlugin from '../main.js';
@@ -13,6 +13,7 @@ interface DirectedGraphReactViewProps {
 
 type LayoutMode = 'physics' | 'flow';
 type LayerId = 'plan-structure' | 'dependencies' | 'plan-surfaces' | 'references' | 'semantic';
+type DisplayTheme = 'day' | 'night';
 
 interface LayerOption {
   id: LayerId;
@@ -48,11 +49,14 @@ interface ZoomTransform {
 }
 
 interface DisplaySettings {
+  theme: DisplayTheme;
   showArrows: boolean;
   planLevelReferences: boolean;
   textFadeThreshold: number;
   nodeSizeScale: number;
+  nodeRelSize3D: number;
   linkThickness: number;
+  linkOpacity: number;
   labelMaxChars: number;
 }
 
@@ -87,6 +91,9 @@ interface GraphApi {
   getGraphBbox?: () => { x?: [number, number]; y?: [number, number]; z?: [number, number] } | null;
   d3Force: (name: string, force?: unknown) => unknown;
   d3ReheatSimulation?: () => void;
+  pauseAnimation?: () => unknown;
+  resumeAnimation?: () => unknown;
+  refresh?: () => unknown;
 }
 
 const LAYER_OPTIONS: LayerOption[] = [
@@ -133,11 +140,14 @@ const DEFAULT_LAYERS: LayerState = {
 const PHYSICS_COOLDOWN_TICKS = 1_000_000;
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  theme: 'day',
   showArrows: true,
   planLevelReferences: true,
-  textFadeThreshold: 0.8,
-  nodeSizeScale: 0.85,
-  linkThickness: 1,
+  textFadeThreshold: 0.7,
+  nodeSizeScale: 0.95,
+  nodeRelSize3D: 5.6,
+  linkThickness: 1.25,
+  linkOpacity: 0.66,
   labelMaxChars: 26,
 };
 
@@ -168,31 +178,72 @@ const EDGE_WEIGHT: Record<DirectedEdgeType, number> = {
   'semantic-tag': 0.45,
 };
 
-const EDGE_STYLE_BY_TYPE: Record<DirectedEdgeType, { color: string; dashed: boolean; hard: boolean }> = {
-  'plan-contains': { color: '#2563eb', dashed: false, hard: true },
-  'depends-on': { color: '#dc2626', dashed: false, hard: true },
-  'related-doc': { color: '#0f766e', dashed: true, hard: false },
-  'related-canvas': { color: '#7c3aed', dashed: true, hard: false },
-  'related-base': { color: '#0f766e', dashed: true, hard: false },
-  references: { color: '#64748b', dashed: true, hard: false },
-  'semantic-tag': { color: '#f59e0b', dashed: true, hard: false },
+const EDGE_IS_DASHED: Record<DirectedEdgeType, boolean> = {
+  'plan-contains': false,
+  'depends-on': false,
+  'related-doc': true,
+  'related-canvas': true,
+  'related-base': true,
+  references: true,
+  'semantic-tag': true,
 };
 
-const LAYER_STYLE_BY_ID: Record<LayerId, { color: string; dashed: boolean }> = {
-  'plan-structure': { color: EDGE_STYLE_BY_TYPE['plan-contains'].color, dashed: false },
-  dependencies: { color: EDGE_STYLE_BY_TYPE['depends-on'].color, dashed: false },
-  'plan-surfaces': { color: EDGE_STYLE_BY_TYPE['related-doc'].color, dashed: true },
-  references: { color: EDGE_STYLE_BY_TYPE.references.color, dashed: true },
-  semantic: { color: EDGE_STYLE_BY_TYPE['semantic-tag'].color, dashed: true },
+const EDGE_IS_HARD: Record<DirectedEdgeType, boolean> = {
+  'plan-contains': true,
+  'depends-on': true,
+  'related-doc': false,
+  'related-canvas': false,
+  'related-base': false,
+  references: false,
+  'semantic-tag': false,
 };
 
-const NODE_COLOR: Record<DirectedGraphNode['type'], string> = {
-  plan: '#60a5fa',
-  agent: '#a78bfa',
-  doc: '#34d399',
-  roadmap: '#f472b6',
-  canvas: '#fbbf24',
-  base: '#f87171',
+const EDGE_COLORS: Record<DisplayTheme, Record<DirectedEdgeType, string>> = {
+  day: {
+    'plan-contains': '#1d4ed8',
+    'depends-on': '#dc2626',
+    'related-doc': '#0f766e',
+    'related-canvas': '#7c3aed',
+    'related-base': '#0f766e',
+    references: '#475569',
+    'semantic-tag': '#d97706',
+  },
+  night: {
+    'plan-contains': '#60a5fa',
+    'depends-on': '#f87171',
+    'related-doc': '#2dd4bf',
+    'related-canvas': '#c084fc',
+    'related-base': '#2dd4bf',
+    references: '#cbd5e1',
+    'semantic-tag': '#fbbf24',
+  },
+};
+
+const NODE_COLORS: Record<DisplayTheme, Record<DirectedGraphNode['type'], string>> = {
+  day: {
+    plan: '#60a5fa',
+    agent: '#a78bfa',
+    doc: '#34d399',
+    roadmap: '#f472b6',
+    canvas: '#fbbf24',
+    base: '#f87171',
+  },
+  night: {
+    plan: '#60a5fa',
+    agent: '#c4b5fd',
+    doc: '#5eead4',
+    roadmap: '#f9a8d4',
+    canvas: '#fde68a',
+    base: '#fca5a5',
+  },
+};
+
+const LAYER_PRIMARY_EDGE_TYPE: Record<LayerId, DirectedEdgeType> = {
+  'plan-structure': 'plan-contains',
+  dependencies: 'depends-on',
+  'plan-surfaces': 'related-doc',
+  references: 'references',
+  semantic: 'semantic-tag',
 };
 
 function nodeValue(type: DirectedGraphNode['type']): number {
@@ -244,13 +295,27 @@ function fileNameFromPath(filePath: string): string {
 }
 
 function isSoftEdgeType(type: DirectedEdgeType): boolean {
-  return EDGE_STYLE_BY_TYPE[type].dashed;
+  return EDGE_IS_DASHED[type];
 }
 
 function edgeWidthForLink(link: ForceLink, linkThickness: number): number {
-  const style = EDGE_STYLE_BY_TYPE[link.type];
-  const scale = style.hard ? 0.8 : 0.45;
-  return Math.max(0.4, link.weight * linkThickness * scale);
+  const hard = EDGE_IS_HARD[link.type];
+  const weighted = Math.sqrt(Math.max(0.2, link.weight));
+  const scale = hard ? 0.92 : 0.76;
+  const minWidth = hard ? 0.9 : 0.65;
+  const maxWidth = hard ? 2.2 : 1.65;
+  return Math.min(maxWidth, Math.max(minWidth, weighted * linkThickness * scale));
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return hex;
+  }
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
 function estimateCollisionRadius(node: DirectedGraphNode, degree: number, sizeScale: number, labelMaxChars: number): number {
@@ -276,6 +341,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 960, height: 640 });
 
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const graph2dHostRef = useRef<HTMLDivElement | null>(null);
+  const graph3dHostRef = useRef<HTMLDivElement | null>(null);
   const fg2dRef = useRef<ForceGraph2DMethods<ForceNode, ForceLink> | undefined>(undefined);
   const fg3dRef = useRef<ForceGraph3DMethods<ForceNode, ForceLink> | undefined>(undefined);
   const zoomRef = useRef<number>(1);
@@ -339,6 +406,48 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }
   }, [use3D]);
 
+  useEffect(() => {
+    const graph3d = fg3dRef.current as unknown as GraphApi | undefined;
+    const graph2d = fg2dRef.current as unknown as GraphApi | undefined;
+
+    if (use3D) {
+      graph2d?.pauseAnimation?.();
+      graph3d?.resumeAnimation?.();
+      graph3d?.refresh?.();
+      console.info('[limps-graph] switched to 3D');
+    } else {
+      graph3d?.pauseAnimation?.();
+      graph2d?.resumeAnimation?.();
+      graph2d?.refresh?.();
+      console.info('[limps-graph] switched to 2D');
+    }
+  }, [use3D]);
+
+  useEffect(() => {
+    const host = graph3dHostRef.current;
+    if (!host) return;
+
+    const canvas = host.querySelector('canvas');
+    if (!canvas) return;
+
+    const onLost = (event: Event) => {
+      event.preventDefault();
+      console.warn('[limps-graph] 3D WebGL context lost');
+    };
+    const onRestored = () => {
+      console.info('[limps-graph] 3D WebGL context restored');
+      const graph3d = fg3dRef.current as unknown as GraphApi | undefined;
+      graph3d?.refresh?.();
+    };
+
+    canvas.addEventListener('webglcontextlost', onLost, false);
+    canvas.addEventListener('webglcontextrestored', onRestored, false);
+    return () => {
+      canvas.removeEventListener('webglcontextlost', onLost, false);
+      canvas.removeEventListener('webglcontextrestored', onRestored, false);
+    };
+  }, [canvasSize.height, canvasSize.width]);
+
   const layerCounts = useMemo(() => {
     const counts: Record<LayerId, number> = {
       'plan-structure': 0,
@@ -359,6 +468,17 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
     return counts;
   }, [graph]);
+
+  const graphTheme = useMemo(() => {
+    const mode = displaySettings.theme;
+    return {
+      mode,
+      backgroundColor: mode === 'night' ? '#050815' : '#f8fafc',
+      labelColor: mode === 'night' ? '#e2e8f0' : '#0f172a',
+      edgeColors: EDGE_COLORS[mode],
+      nodeColors: NODE_COLORS[mode],
+    };
+  }, [displaySettings.theme]);
 
   const forceData = useMemo(() => {
     if (!graph) {
@@ -554,6 +674,14 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       .strength(0.35)
       .iterations(1);
     graphApi.d3Force('collision', collisionForce);
+
+    const radialForce = forceRadial<ForceNode>(
+      (node: ForceNode) => 50 + Math.min(260, Math.sqrt(Math.max(0, node.degree)) * 30),
+      0,
+      0,
+      0
+    ).strength(Math.max(0.008, forceSettings.centerForce * 0.06));
+    graphApi.d3Force('radial', radialForce);
 
     const reheatApi = graphApi as { d3ReheatSimulation?: () => void };
     if (typeof reheatApi.d3ReheatSimulation === 'function') {
@@ -765,6 +893,13 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }
   }, [getGraphApi]);
 
+  const stabilizeGraph = useCallback(() => {
+    reheatSimulation();
+    setTimeout(() => {
+      fitGraph();
+    }, 420);
+  }, [fitGraph, reheatSimulation]);
+
   const handleNodeClick = useCallback(
     (node: ForceNode) => {
       const vaultPath = plugin.getVaultPath();
@@ -839,7 +974,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
       {warningText ? <div className="warnings">{warningText}</div> : null}
 
-      <div className="graph-scroll">
+      <div className="graph-scroll" style={{ backgroundColor: graphTheme.backgroundColor }}>
         <div className="graph-canvas-host" ref={hostRef}>
           <div className="graph-overlay graph-overlay-left">
             {showLayerPanel ? (
@@ -858,8 +993,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 {LAYER_OPTIONS.map((option) => (
                   <label className="layer-toggle" key={option.id}>
                     <span
-                      className={`layer-edge-key ${LAYER_STYLE_BY_ID[option.id].dashed ? 'dashed' : 'solid'}`}
-                      style={{ color: LAYER_STYLE_BY_ID[option.id].color }}
+                      className={`layer-edge-key ${EDGE_IS_DASHED[LAYER_PRIMARY_EDGE_TYPE[option.id]] ? 'dashed' : 'solid'}`}
+                      style={{ color: graphTheme.edgeColors[LAYER_PRIMARY_EDGE_TYPE[option.id]] }}
                     />
                     <input
                       type="checkbox"
@@ -936,6 +1071,14 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               <details>
                 <summary>Display</summary>
                 <label className="toggle-row">
+                  <span>Night mode</span>
+                  <input
+                    type="checkbox"
+                    checked={displaySettings.theme === 'night'}
+                    onChange={(event) => updateDisplaySetting('theme', event.currentTarget.checked ? 'night' : 'day')}
+                  />
+                </label>
+                <label className="toggle-row">
                   <span>Arrows</span>
                   <input
                     type="checkbox"
@@ -978,6 +1121,17 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                   />
                 </label>
                 <label className="slider-row">
+                  <span>3D node scale</span>
+                  <input
+                    type="range"
+                    min={3.5}
+                    max={9}
+                    step={0.1}
+                    value={displaySettings.nodeRelSize3D}
+                    onChange={(event) => updateDisplaySetting('nodeRelSize3D', Number(event.currentTarget.value))}
+                  />
+                </label>
+                <label className="slider-row">
                   <span>Link thickness</span>
                   <input
                     type="range"
@@ -986,6 +1140,17 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                     step={0.05}
                     value={displaySettings.linkThickness}
                     onChange={(event) => updateDisplaySetting('linkThickness', Number(event.currentTarget.value))}
+                  />
+                </label>
+                <label className="slider-row">
+                  <span>Link opacity</span>
+                  <input
+                    type="range"
+                    min={0.25}
+                    max={0.95}
+                    step={0.01}
+                    value={displaySettings.linkOpacity}
+                    onChange={(event) => updateDisplaySetting('linkOpacity', Number(event.currentTarget.value))}
                   />
                 </label>
                 <label className="slider-row">
@@ -1047,17 +1212,19 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                     onChange={(event) => updateForceSetting('linkDistance', Number(event.currentTarget.value))}
                   />
                 </label>
-                <button type="button" onClick={reheatSimulation}>
-                  Animate
+                <button type="button" onClick={stabilizeGraph} title="Reheat simulation and refit bounds">
+                  Stabilize
                 </button>
               </details>
               </div>
             ) : null}
           </div>
 
-          {use3D ? (
+          <div
+            ref={graph3dHostRef}
+            className={`graph-render-layer ${use3D ? 'visible' : 'hidden'}`}
+          >
             <ForceGraph3D
-              key={`three-d-${canvasSize.width}-${canvasSize.height}`}
               ref={fg3dRef}
               graphData={forceData}
               width={canvasSize.width}
@@ -1067,9 +1234,11 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
               linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
               linkWidth={(link) => edgeWidthForLink(link as ForceLink, displaySettings.linkThickness)}
-              linkColor={(link) => EDGE_STYLE_BY_TYPE[(link as ForceLink).type].color}
-              nodeColor={(node) => NODE_COLOR[(node as ForceNode).type] ?? '#64748b'}
-              nodeVal={(node) => Math.max(1.2, (node as ForceNode).val)}
+              linkColor={(link) => graphTheme.edgeColors[(link as ForceLink).type]}
+              linkOpacity={displaySettings.linkOpacity}
+              nodeColor={(node) => graphTheme.nodeColors[(node as ForceNode).type] ?? '#64748b'}
+              nodeRelSize={displaySettings.nodeRelSize3D}
+              nodeVal={(node) => Math.max(1.45, (node as ForceNode).val)}
               nodeLabel={(node) => {
                 const current = node as ForceNode;
                 return fileNameFromPath(current.filePath);
@@ -1086,14 +1255,19 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 if (typeof dragged.vz === 'number') dragged.vz *= 0.8;
                 reheatSimulation();
               }}
-              backgroundColor="rgba(0,0,0,0)"
+              backgroundColor={graphTheme.backgroundColor}
             />
-          ) : (
+          </div>
+          <div
+            ref={graph2dHostRef}
+            className={`graph-render-layer ${use3D ? 'hidden' : 'visible'}`}
+          >
             <ForceGraph2D
               ref={fg2dRef}
               graphData={forceData}
               width={canvasSize.width}
               height={canvasSize.height}
+              backgroundColor={graphTheme.backgroundColor}
               nodeRelSize={4.5}
               dagMode={layoutMode === 'flow' ? 'td' : undefined}
               dagLevelDistance={layoutMode === 'flow' ? 90 : undefined}
@@ -1104,7 +1278,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
               linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
               linkWidth={(link) => edgeWidthForLink(link as ForceLink, displaySettings.linkThickness)}
-              linkColor={(link) => EDGE_STYLE_BY_TYPE[(link as ForceLink).type].color}
+              linkColor={(link) =>
+                withAlpha(graphTheme.edgeColors[(link as ForceLink).type], displaySettings.linkOpacity)
+              }
               linkLineDash={(link) =>
                 isSoftEdgeType((link as ForceLink).type) ? [3, 3] : null
               }
@@ -1129,7 +1305,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               }}
               nodeCanvasObject={(node, ctx, globalScale) => {
                 const current = node as ForceNode;
-                const color = NODE_COLOR[current.type] ?? '#64748b';
+                const color = graphTheme.nodeColors[current.type] ?? '#64748b';
                 const size = Math.max(2.5, (current.val ?? 2.5) * 1.35);
 
                 ctx.beginPath();
@@ -1140,7 +1316,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 if (shouldRenderLabel(current, globalScale, displaySettings.textFadeThreshold)) {
                   const fontSize = Math.max(8, 11 / globalScale);
                   ctx.font = `${fontSize}px sans-serif`;
-                  ctx.fillStyle = '#0f172a';
+                  ctx.fillStyle = graphTheme.labelColor;
                   ctx.textAlign = 'left';
                   ctx.textBaseline = 'middle';
                   const zoomRatio = Math.max(
@@ -1155,7 +1331,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 }
               }}
             />
-          )}
+          </div>
         </div>
       </div>
     </div>
