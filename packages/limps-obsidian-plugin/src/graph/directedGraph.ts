@@ -34,6 +34,7 @@ export interface DirectedGraphData {
   nodes: DirectedGraphNode[];
   edges: DirectedGraphEdge[];
   warnings: string[];
+  warningDetails: DirectedGraphWarning[];
   cycles: DirectedGraphCycle[];
   stats: {
     plans: number;
@@ -50,6 +51,20 @@ export interface DirectedGraphData {
   };
 }
 
+export type DirectedGraphWarningKind =
+  | 'read-error'
+  | 'unresolved-depends-on'
+  | 'unresolved-blocks'
+  | 'unresolved-link';
+
+export interface DirectedGraphWarning {
+  kind: DirectedGraphWarningKind;
+  message: string;
+  filePath?: string;
+  line?: number;
+  token?: string;
+}
+
 interface FrontmatterSlice {
   frontmatter?: string;
   body: string;
@@ -63,6 +78,7 @@ interface GraphBuildContext {
   edges: DirectedGraphEdge[];
   edgeSet: Set<string>;
   warnings: string[];
+  warningDetails: DirectedGraphWarning[];
 }
 
 const SUPPORTED_EXTENSIONS = ['.md', '.canvas', '.base'];
@@ -186,6 +202,41 @@ function parseMarkdownLinks(text: string): string[] {
   }
 
   return Array.from(new Set(tokens));
+}
+
+function findLineInText(content: string, token: string): number | undefined {
+  const needle = token.trim();
+  if (!needle) return undefined;
+
+  const lines = content.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line && line.includes(needle)) {
+      return index + 1;
+    }
+  }
+
+  return undefined;
+}
+
+function findLineInFrontmatter(frontmatter: string | undefined, token: string): number | undefined {
+  if (!frontmatter) return undefined;
+
+  const lines = frontmatter.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line && line.includes(token)) {
+      // +1 because file starts at line 1 and +1 for opening "---" frontmatter fence.
+      return index + 2;
+    }
+  }
+
+  return undefined;
+}
+
+function pushWarning(context: GraphBuildContext, warning: DirectedGraphWarning): void {
+  context.warnings.push(warning.message);
+  context.warningDetails.push(warning);
 }
 
 function isExternalReference(token: string): boolean {
@@ -413,6 +464,7 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
   const nodesByStem = new Map<string, DirectedGraphNode[]>();
   const agentsByNumber = new Map<string, DirectedGraphNode[]>();
   const warnings: string[] = [];
+  const warningDetails: DirectedGraphWarning[] = [];
 
   for (const filePath of files) {
     const type = classifyNodeType(filePath);
@@ -450,6 +502,7 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
     edges: [],
     edgeSet: new Set<string>(),
     warnings,
+    warningDetails,
   };
 
   const planNodeByPlanId = new Map<string, DirectedGraphNode>();
@@ -485,7 +538,11 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
     try {
       raw = readFileSync(node.filePath, 'utf8');
     } catch {
-      warnings.push(`Failed reading ${node.filePath}`);
+      pushWarning(context, {
+        kind: 'read-error',
+        message: `Failed reading ${node.filePath}`,
+        filePath: node.filePath,
+      });
       continue;
     }
 
@@ -496,7 +553,16 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
       for (const dep of parseDependsOn(sections.frontmatter)) {
         const resolved = resolveAgentDependency(context, node, dep);
         if (!resolved || resolved.type !== 'agent') {
-          warnings.push(`Unresolved depends_on '${dep}' in ${basename(node.filePath)}`);
+          const line =
+            findLineInFrontmatter(sections.frontmatter, dep) ??
+            findLineInText(raw, dep);
+          pushWarning(context, {
+            kind: 'unresolved-depends-on',
+            message: `Unresolved depends_on '${dep}' in ${basename(node.filePath)}`,
+            filePath: node.filePath,
+            line,
+            token: dep,
+          });
           continue;
         }
         addEdge(context, node.id, resolved.id, 'depends-on');
@@ -505,7 +571,16 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
       for (const blockedAgent of parseBlocks(sections.frontmatter)) {
         const resolved = resolveAgentDependency(context, node, blockedAgent);
         if (!resolved || resolved.type !== 'agent') {
-          warnings.push(`Unresolved blocks '${blockedAgent}' in ${basename(node.filePath)}`);
+          const line =
+            findLineInFrontmatter(sections.frontmatter, blockedAgent) ??
+            findLineInText(raw, blockedAgent);
+          pushWarning(context, {
+            kind: 'unresolved-blocks',
+            message: `Unresolved blocks '${blockedAgent}' in ${basename(node.filePath)}`,
+            filePath: node.filePath,
+            line,
+            token: blockedAgent,
+          });
           continue;
         }
         // Canonicalize "A blocks B" as "B depends-on A" to keep one directed relation type.
@@ -522,7 +597,14 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
       }
       const linkedNode = resolveLinkedNode(context, node.filePath, linkToken);
       if (!linkedNode) {
-        warnings.push(`Unresolved link '${linkToken}' in ${basename(node.filePath)}`);
+        const line = findLineInText(raw, linkToken);
+        pushWarning(context, {
+          kind: 'unresolved-link',
+          message: `Unresolved link '${linkToken}' in ${basename(node.filePath)}`,
+          filePath: node.filePath,
+          line,
+          token: linkToken,
+        });
         continue;
       }
       if (linkedNode.id === node.id) continue;
@@ -553,6 +635,7 @@ export function buildDirectedGraph(plansPath: string): DirectedGraphData {
     nodes,
     edges: context.edges,
     warnings,
+    warningDetails,
     cycles,
     stats: {
       plans: nodes.filter((node) => node.type === 'plan').length,

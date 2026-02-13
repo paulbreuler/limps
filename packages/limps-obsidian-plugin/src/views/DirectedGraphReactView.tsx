@@ -4,7 +4,13 @@ import ForceGraph2D, { type ForceGraphMethods as ForceGraph2DMethods } from 'rea
 import ForceGraph3D, { type ForceGraphMethods as ForceGraph3DMethods } from 'react-force-graph-3d';
 import type LimpsPlugin from '../main.js';
 import { buildDirectedGraph } from '../graph/directedGraph.js';
-import type { DirectedEdgeType, DirectedGraphData, DirectedGraphEdge, DirectedGraphNode } from '../graph/directedGraph.js';
+import type {
+  DirectedEdgeType,
+  DirectedGraphData,
+  DirectedGraphEdge,
+  DirectedGraphNode,
+  DirectedGraphWarning,
+} from '../graph/directedGraph.js';
 import { useObsidianApp } from '../react/app-context.js';
 
 interface DirectedGraphReactViewProps {
@@ -931,23 +937,29 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     [plugin]
   );
 
-  const warningText = useMemo(() => {
-    if (!graph) return '';
-    const lines: string[] = [];
+  const openWarningLocation = useCallback(
+    (warning: DirectedGraphWarning) => {
+      if (!warning.filePath) return;
+      void plugin.openFileAtLine(warning.filePath, warning.line);
+    },
+    [plugin]
+  );
 
-    if (graph.cycles.length > 0) {
-      lines.push(`Dependency cycles detected: ${graph.cycles.length}`);
-      lines.push(...graph.cycles.slice(0, 3).map((cycle) => cycle.labels.join(' -> ')));
-    }
+  const cycleLines = useMemo(() => {
+    if (!graph || graph.cycles.length === 0) return [];
+    return graph.cycles.slice(0, 3).map((cycle) => cycle.labels.join(' -> '));
+  }, [graph]);
 
-    if (graph.warnings.length > 0) {
-      lines.push(...graph.warnings.slice(0, 6));
-      if (graph.warnings.length > 6) {
-        lines.push(`...and ${graph.warnings.length - 6} more warnings`);
-      }
-    }
+  const unresolvedWarnings = useMemo(() => {
+    if (!graph) return [] as DirectedGraphWarning[];
+    const details = graph.warningDetails ?? [];
+    return details.filter((warning) => warning.kind.startsWith('unresolved-'));
+  }, [graph]);
 
-    return lines.join('\n');
+  const nonUnresolvedWarnings = useMemo(() => {
+    if (!graph) return [] as DirectedGraphWarning[];
+    const details = graph.warningDetails ?? [];
+    return details.filter((warning) => !warning.kind.startsWith('unresolved-'));
   }, [graph]);
 
   const summary = graph
@@ -978,6 +990,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         <button type="button" onClick={() => void load()} disabled={loading}>
           Refresh
         </button>
+        <button type="button" onClick={() => plugin.openPluginSettings()}>
+          Settings
+        </button>
         <button type="button" className="mod-cta" onClick={() => void syncAndReload()} disabled={loading}>
           Sync Obsidian Graph
         </button>
@@ -989,7 +1004,61 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         </button>
       </div>
 
-      {warningText ? <div className="warnings">{warningText}</div> : null}
+      {graph && (cycleLines.length > 0 || unresolvedWarnings.length > 0 || nonUnresolvedWarnings.length > 0) ? (
+        <div className="warnings">
+          {cycleLines.length > 0 ? (
+            <div className="warning-section">
+              <div className="warning-title">Dependency cycles ({graph.cycles.length})</div>
+              {cycleLines.map((line, index) => (
+                <div className="warning-text-line" key={`cycle-${index}`}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {unresolvedWarnings.length > 0 ? (
+            <div className="warning-section">
+              <div className="warning-title">Unresolved relations ({unresolvedWarnings.length})</div>
+              {unresolvedWarnings.slice(0, 8).map((warning, index) => {
+                const location = warning.filePath
+                  ? `${fileNameFromPath(warning.filePath)}${warning.line ? `:${warning.line}` : ''}`
+                  : 'unknown';
+                return (
+                  <button
+                    type="button"
+                    className="warning-link"
+                    key={`unresolved-${index}-${warning.message}`}
+                    onClick={() => openWarningLocation(warning)}
+                    title={warning.filePath ?? warning.message}
+                    disabled={!warning.filePath}
+                  >
+                    <span className="warning-link-message">{warning.message}</span>
+                    <span className="warning-link-location">{location}</span>
+                  </button>
+                );
+              })}
+              {unresolvedWarnings.length > 8 ? (
+                <div className="warning-text-line">...and {unresolvedWarnings.length - 8} more unresolved warnings</div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {nonUnresolvedWarnings.length > 0 ? (
+            <div className="warning-section">
+              <div className="warning-title">Other warnings ({nonUnresolvedWarnings.length})</div>
+              {nonUnresolvedWarnings.slice(0, 4).map((warning, index) => (
+                <div className="warning-text-line" key={`warning-${index}-${warning.message}`}>
+                  {warning.message}
+                </div>
+              ))}
+              {nonUnresolvedWarnings.length > 4 ? (
+                <div className="warning-text-line">...and {nonUnresolvedWarnings.length - 4} more warnings</div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="graph-scroll" style={{ backgroundColor: graphTheme.backgroundColor }}>
         <div className="graph-canvas-host" ref={hostRef}>

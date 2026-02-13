@@ -226,6 +226,14 @@ export default class LimpsPlugin extends Plugin {
         new Notice(`limps binary path set to ${result.path}`, 7000);
       },
     });
+
+    this.addCommand({
+      id: 'limps:open-plugin-settings',
+      name: 'Local Intelligence: Open Plugin Settings',
+      callback: async () => {
+        this.openPluginSettings();
+      },
+    });
   }
 
   async checkDaemonStatus(): Promise<void> {
@@ -440,6 +448,73 @@ export default class LimpsPlugin extends Plugin {
     }
 
     await view.refresh();
+  }
+
+  openPluginSettings(): void {
+    const appWithSetting = this.app as unknown as {
+      setting?: {
+        open?: () => void;
+        openTabById?: (id: string) => void;
+      };
+    };
+    const pluginWithManifest = this as unknown as { manifest?: { id?: string } };
+    const pluginId = pluginWithManifest.manifest?.id;
+
+    appWithSetting.setting?.open?.();
+    if (pluginId) {
+      appWithSetting.setting?.openTabById?.(pluginId);
+      return;
+    }
+
+    appWithSetting.setting?.openTabById?.('limps-obsidian-plugin');
+  }
+
+  async openFileAtLine(filePath: string, line?: number): Promise<void> {
+    const workspace = this.app.workspace as {
+      openLinkText?: (linkText: string, sourcePath: string, newLeaf?: boolean) => unknown;
+      getMostRecentLeaf?: () => WorkspaceLeaf | null;
+      activeLeaf?: WorkspaceLeaf | null;
+    };
+    const vaultPath = this.getVaultPath().replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalized = filePath.replace(/\\/g, '/');
+    const relativePath = normalized.startsWith(`${vaultPath}/`)
+      ? normalized.slice(vaultPath.length + 1)
+      : normalized.replace(/^\/+/, '');
+
+    if (workspace.openLinkText) {
+      workspace.openLinkText(relativePath, '', false);
+    }
+
+    if (!line || line < 1) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      const leaf = workspace.getMostRecentLeaf?.() ?? workspace.activeLeaf ?? null;
+      const view = leaf?.view as unknown as {
+        editor?: {
+          setCursor?: (position: { line: number; ch: number }) => void;
+          scrollIntoView?: (
+            range: { from: { line: number; ch: number }; to: { line: number; ch: number } },
+            center?: boolean
+          ) => void;
+          focus?: () => void;
+        };
+      };
+      const editor = view?.editor;
+      if (!editor?.setCursor) return;
+
+      const targetLine = Math.max(0, line - 1);
+      editor.setCursor({ line: targetLine, ch: 0 });
+      editor.scrollIntoView?.(
+        {
+          from: { line: targetLine, ch: 0 },
+          to: { line: targetLine, ch: 0 },
+        },
+        true
+      );
+      editor.focus?.();
+    }, 40);
   }
 
   private getHealthView(): HealthView | null {

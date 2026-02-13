@@ -133,9 +133,56 @@
   border-radius: 8px;
   padding: 0.5rem 0.625rem;
   margin-bottom: 0.75rem;
-  white-space: pre-wrap;
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.limps-directed-graph-view .warning-section + .warning-section {
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.limps-directed-graph-view .warning-title {
+  font-weight: 700;
+  color: var(--text-normal);
+  margin-bottom: 0.3rem;
+}
+
+.limps-directed-graph-view .warning-text-line {
+  margin-bottom: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.limps-directed-graph-view .warning-link {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  padding: 0.35rem 0.45rem;
+  margin-bottom: 0.35rem;
+  cursor: pointer;
+}
+
+.limps-directed-graph-view .warning-link:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.limps-directed-graph-view .warning-link-message {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.limps-directed-graph-view .warning-link-location {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 0.74rem;
 }
 
 .limps-directed-graph-view .graph-scroll {
