@@ -1,10 +1,12 @@
 import { Notice, Plugin } from 'obsidian';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { getDaemonStatus, getGraphHealth, runDepsToPaths, runGraphReindex } from './cli/wrapper.js';
 import type { LimpsRunOptions } from './cli/wrapper.js';
 import { DEFAULT_SETTINGS, LimpsSettingTab } from './settings.js';
 import type { LimpsPluginSettings } from './settings.js';
 import { HealthView } from './views/healthView.js';
+import { DirectedGraphView } from './views/directedGraphView.js';
 import { syncObsidianGraphLinks } from './graph/syncLinks.js';
 import { auditObsidianSurfaces } from './graph/surfaceAudit.js';
 import { probeObsidianMcp } from './mcp/client.js';
@@ -12,7 +14,7 @@ import type { ObsidianMcpProbeResult } from './mcp/client.js';
 import { buildRuntimeStatusLabel, computeLinkStats } from './status/runtimeStatus.js';
 
 export const VIEW_TYPE_HEALTH = 'limps-health-view';
-const REQUIRED_START_COMMAND = 'limps server start --config /Users/paul/Documents/GitHub/limps/.limps/config.json';
+export const VIEW_TYPE_DIRECTED_GRAPH = 'limps-directed-graph-view';
 
 export type HealthSnapshotState = 'disconnected' | 'loading' | 'healthy' | 'healthy-empty' | 'error';
 
@@ -45,6 +47,7 @@ export default class LimpsPlugin extends Plugin {
     await this.loadSettings();
 
     this.registerView(VIEW_TYPE_HEALTH, (leaf) => new HealthView(leaf, this));
+    this.registerView(VIEW_TYPE_DIRECTED_GRAPH, (leaf) => new DirectedGraphView(leaf, this));
     this.addSettingTab(new LimpsSettingTab(this.app, this));
 
     if (this.settings.showHealthRibbon) {
@@ -103,7 +106,7 @@ export default class LimpsPlugin extends Plugin {
     if (!daemon.daemon?.running) {
       return {
         state: 'disconnected',
-        message: `Daemon not running. Run: ${REQUIRED_START_COMMAND}`,
+        message: `Daemon not running. Run: ${this.getDaemonStartCommand()}`,
       };
     }
 
@@ -162,6 +165,22 @@ export default class LimpsPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: 'limps:open-directed-graph-view',
+      name: 'limps: Open Directed Graph View',
+      callback: async () => {
+        await this.openDirectedGraphView();
+      },
+    });
+
+    this.addCommand({
+      id: 'limps:refresh-directed-graph-view',
+      name: 'limps: Refresh Directed Graph View',
+      callback: async () => {
+        await this.refreshDirectedGraphView(true);
+      },
+    });
+
+    this.addCommand({
       id: 'limps:convert-deps-to-paths',
       name: 'limps: Convert Dependencies To Paths',
       callback: async () => {
@@ -192,6 +211,20 @@ export default class LimpsPlugin extends Plugin {
         await this.auditObsidianSurfaces();
       },
     });
+
+    this.addCommand({
+      id: 'limps:use-repo-binary',
+      name: 'limps: Use Repo Binary Path',
+      callback: async () => {
+        const result = await this.useRepoBinaryPath();
+        if (!result.ok) {
+          new Notice(result.message, 9000);
+          return;
+        }
+
+        new Notice(`limps binary path set to ${result.path}`, 7000);
+      },
+    });
   }
 
   async checkDaemonStatus(): Promise<void> {
@@ -209,7 +242,7 @@ export default class LimpsPlugin extends Plugin {
       return;
     }
 
-    new Notice(`limps daemon is not running. Run: ${REQUIRED_START_COMMAND}`, 9000);
+    new Notice(`limps daemon is not running. Run: ${this.getDaemonStartCommand()}`, 9000);
     await this.updateStatusBar();
   }
 
@@ -361,7 +394,7 @@ export default class LimpsPlugin extends Plugin {
     if (status.ok && status.daemon?.running) return;
 
     this.disconnectedNoticeShown = true;
-    new Notice(`limps daemon required. Run: ${REQUIRED_START_COMMAND}`, 10000);
+    new Notice(`limps daemon required. Run: ${this.getDaemonStartCommand()}`, 10000);
   }
 
   async openHealthView(): Promise<void> {
@@ -369,6 +402,13 @@ export default class LimpsPlugin extends Plugin {
     await leaf.setViewState({ type: VIEW_TYPE_HEALTH, active: true });
     await this.app.workspace.revealLeaf(leaf);
     await this.pollRuntimeStatus();
+  }
+
+  async openDirectedGraphView(): Promise<void> {
+    const leaf = this.app.workspace.getRightLeaf(false);
+    await leaf.setViewState({ type: VIEW_TYPE_DIRECTED_GRAPH, active: true });
+    await this.app.workspace.revealLeaf(leaf);
+    await this.refreshDirectedGraphView();
   }
 
   async refreshHealthView(forceOpen = false): Promise<void> {
@@ -382,12 +422,31 @@ export default class LimpsPlugin extends Plugin {
     await view.refresh();
   }
 
+  async refreshDirectedGraphView(forceOpen = false): Promise<void> {
+    const view = this.getDirectedGraphView();
+    if (!view) {
+      if (!forceOpen) return;
+      await this.openDirectedGraphView();
+      return;
+    }
+
+    await view.refresh();
+  }
+
   private getHealthView(): HealthView | null {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_HEALTH);
     if (leaves.length === 0) return null;
 
     const view = leaves[0].view;
     return view instanceof HealthView ? view : null;
+  }
+
+  private getDirectedGraphView(): DirectedGraphView | null {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIRECTED_GRAPH);
+    if (leaves.length === 0) return null;
+
+    const view = leaves[0].view;
+    return view instanceof DirectedGraphView ? view : null;
   }
 
   private getRunOptions(parseJson: boolean): LimpsRunOptions {
@@ -404,12 +463,41 @@ export default class LimpsPlugin extends Plugin {
     };
   }
 
-  private getVaultPath(): string {
+  getVaultPath(): string {
     const adapter = this.app.vault.adapter as { basePath?: string };
     return adapter.basePath ?? process.cwd();
   }
 
-  private getPlansPathFromConfig(): string {
+  getDaemonStartCommand(): string {
+    const limpsPath = this.settings.useSystemLimpsBinary
+      ? 'limps'
+      : this.settings.limpsPath || DEFAULT_SETTINGS.limpsPath;
+    const configPath = this.settings.configPath || DEFAULT_SETTINGS.configPath;
+    return `${limpsPath} server start --config ${configPath}`;
+  }
+
+  getSuggestedRepoBinaryPath(): string {
+    const configPath = this.settings.configPath || DEFAULT_SETTINGS.configPath;
+    const repoRoot = dirname(dirname(configPath));
+    return join(repoRoot, 'packages', 'limps', 'dist', 'cli.js');
+  }
+
+  async useRepoBinaryPath(): Promise<{ ok: true; path: string } | { ok: false; message: string }> {
+    const candidate = this.getSuggestedRepoBinaryPath();
+    if (!existsSync(candidate)) {
+      return {
+        ok: false,
+        message: `Repo limps binary not found at ${candidate}. Build package first (npm run build --workspace packages/limps).`,
+      };
+    }
+
+    this.settings.useSystemLimpsBinary = false;
+    this.settings.limpsPath = candidate;
+    await this.saveSettings();
+    return { ok: true, path: candidate };
+  }
+
+  getPlansPathFromConfig(): string {
     const configPath = this.settings.configPath;
     if (!configPath) {
       throw new Error('No limps config path is set in plugin settings.');
@@ -525,6 +613,11 @@ export default class LimpsPlugin extends Plugin {
     }
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_HEALTH);
     for (const leaf of leaves) {
+      void leaf.setViewState({ type: 'empty' });
+    }
+
+    const directedLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIRECTED_GRAPH);
+    for (const leaf of directedLeaves) {
       void leaf.setViewState({ type: 'empty' });
     }
   }

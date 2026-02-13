@@ -7,6 +7,9 @@ created: 2026-01-29
 updated: 2026-01-29
 ---
 
+
+
+
 # limps-headless-pivot
 
 ## Overview
@@ -443,3 +446,25 @@ Feature: test coverage for headless pivot
 - Existing Radix workflow still functions via limps-headless
 - Base UI usage is detected and validated against provider rules
 - Tests cover discovery, migration analysis, report output, and policy gates
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_package-compat.agent.md)
+- [Agent 001](./agents/001_agent_discovery-providers.agent.md)
+- [Agent 002](./agents/002_agent_migration-report.agent.md)
+- [Agent 003](./agents/003_agent_tests-fixtures.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

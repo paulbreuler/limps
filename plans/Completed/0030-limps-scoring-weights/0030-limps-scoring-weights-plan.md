@@ -7,6 +7,9 @@ created: 2026-01-26
 updated: 2026-01-27
 ---
 
+
+
+
 # limps Scoring Weights & Biases
 
 ## Overview
@@ -324,3 +327,24 @@ No breaking changes - all new fields optional.
 Status: Planning
 Work Type: feature
 Created: 2026-01-26
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_phase1_core-weights.agent.md)
+- [Agent 001](./agents/001_phase2_biases.agent.md)
+- [Agent 002](./agents/002_phase3_presets-cli.agent.md)
+- [Agent 003](./agents/003_phase4_overrides.agent.md)
+- [Agent 004](./agents/004_phase5_mcp.agent.md)
+
+Related docs:
+_No related docs found_
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

@@ -7,6 +7,9 @@ created: 2026-01-27
 updated: 2026-01-27
 ---
 
+
+
+
 **Retired (2026-01-30):** Scope merged into [0039 LLM Usage Improvements](../0039-llm-usage-improvements/0039-llm-usage-improvements-plan.md). Registry + preview/print + docs are now covered there.
 
 # Composable MCP Client Sync Registry
@@ -136,3 +139,24 @@ Then ChatGPT instructions mention manual connector setup
 - Adding a new client requires only a registry entry + optional handler.
 - Existing CLI output remains stable for current clients.
 - Tests cover registry iteration and print-only behavior.
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_registry-refactor.agent.md)
+- [Agent 001](./agents/001_agent_preview-print.agent.md)
+- [Agent 002](./agents/002_agent_docs.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

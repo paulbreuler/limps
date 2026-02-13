@@ -12,6 +12,9 @@ created: 2026-01-27
 updated: 2026-01-27
 ---
 
+
+
+
 # Add Codex + ChatGPT MCP Setup Support
 
 ## Overview
@@ -146,3 +149,23 @@ And I see ChatGPT connector instructions with remote MCP requirement
 - `limps config sync-mcp --client chatgpt` outputs manual setup instructions and does not write files.
 - Tests cover Codex config updates and ChatGPT instruction output.
 - README and CLI help mention Codex and ChatGPT setup requirements.
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_codex-adapter.agent.md)
+- [Agent 001](./agents/001_agent_chatgpt-docs.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

@@ -7,6 +7,9 @@ created: 2026-01-30
 updated: 2026-01-30
 ---
 
+
+
+
 # limps-analysis-ir-overhaul
 
 ## Overview
@@ -331,3 +334,26 @@ Feature: testing coverage
 - Legacy Radix detection is possible without impacting Base UI results.
 - Fixtures + tests cover wrappers, aliases, roles, and false positives.
 - CLI/MCP output remains stable for existing consumers.
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_ir-module-graph.agent.md)
+- [Agent 001](./agents/001_agent_evidence-passes.agent.md)
+- [Agent 002](./agents/002_agent_rule-engine.agent.md)
+- [Agent 003](./agents/003_agent_integration-ux.agent.md)
+- [Agent 004](./agents/004_agent_tests-fixtures.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

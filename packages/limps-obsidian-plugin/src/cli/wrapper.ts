@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { dirname } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -202,13 +203,109 @@ export async function runLimps<T = unknown>(
     args.push('--config', options.configPath);
   }
 
-  return execCommand<T>({
-    command: options.limpsPath,
-    args,
-    cwd: options.cwd,
-    timeoutMs: options.timeoutMs,
-    parseJson: options.parseJson,
+  const runWithCommand = (command: string): Promise<CommandExecResult<T>> =>
+    execCommand<T>({
+      command,
+      args,
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      parseJson: options.parseJson,
+    });
+
+  const initial = await runWithCommand(options.limpsPath);
+  if (initial.ok) {
+    return initial;
+  }
+
+  const canFallbackToRepoBinary = options.limpsPath === 'limps';
+  const repoBinary = canFallbackToRepoBinary ? getRepoBinaryCandidate(options.configPath) : null;
+  if (!repoBinary || !isCommandNotFound(initial)) {
+    return initial;
+  }
+
+  return runWithCommand(repoBinary);
+}
+
+function isCommandNotFound(result: CommandExecResult): boolean {
+  const message = `${result.error ?? ''}\n${result.stderr}`.toLowerCase();
+  return message.includes('enoent') || message.includes('not found');
+}
+
+function getRepoBinaryCandidate(configPath?: string): string | null {
+  if (!configPath) return null;
+  const configDir = dirname(configPath);
+  const repoRoot = resolve(configDir, '..');
+  const candidate = join(repoRoot, 'packages', 'limps', 'dist', 'cli.js');
+  return existsSync(candidate) ? candidate : null;
+}
+
+function isUnsupportedJsonFlag(result: CommandExecResult): boolean {
+  const text = `${result.stderr}\n${result.stdout}\n${result.error ?? ''}`.toLowerCase();
+  return text.includes('unknown option') && text.includes('--json');
+}
+
+export function parseDependencyPathConversionText(output: string): DependencyPathConversionResult | null {
+  const parseCount = (label: string): number | null => {
+    const match = output.match(new RegExp(`${label}:\\s*(\\d+)`, 'i'));
+    if (!match?.[1]) return null;
+    const value = Number.parseInt(match[1], 10);
+    return Number.isNaN(value) ? null : value;
+  };
+
+  const plansProcessed = parseCount('Plans processed');
+  const filesScanned = parseCount('Files scanned');
+  const filesUpdated = parseCount('Files updated');
+  const dependenciesConverted = parseCount('Dependencies converted');
+  if (
+    plansProcessed === null ||
+    filesScanned === null ||
+    filesUpdated === null ||
+    dependenciesConverted === null
+  ) {
+    return null;
+  }
+
+  const warnings = output
+    .split(/\r?\n/)
+    .map((line) => line.match(/^\s*-\s+(.+)$/)?.[1]?.trim() ?? null)
+    .filter((line): line is string => Boolean(line));
+
+  return {
+    plansProcessed,
+    filesScanned,
+    filesUpdated,
+    dependenciesConverted,
+    warnings,
+  };
+}
+
+async function runDepsToPathsTextFallback(
+  options: LimpsRunOptions
+): Promise<DependencyPathConversionFetchResult> {
+  const textResult = await runLimps(['plan', 'deps-to-paths'], {
+    ...options,
+    parseJson: false,
   });
+
+  if (!textResult.ok) {
+    return {
+      ok: false,
+      error: textResult.error ?? (textResult.stderr || 'Failed to run limps plan deps-to-paths'),
+    };
+  }
+
+  const parsed = parseDependencyPathConversionText(textResult.stdout || textResult.stderr);
+  if (!parsed) {
+    return {
+      ok: false,
+      error: 'Failed to parse limps plan deps-to-paths output',
+    };
+  }
+
+  return {
+    ok: true,
+    result: parsed,
+  };
 }
 
 function getObjectRecord(value: unknown): Record<string, unknown> | null {
@@ -334,6 +431,9 @@ export async function runDepsToPaths(
   });
 
   if (!result.ok) {
+    if (isUnsupportedJsonFlag(result)) {
+      return runDepsToPathsTextFallback(options);
+    }
     return {
       ok: false,
       error: result.error ?? (result.stderr || 'Failed to run limps plan deps-to-paths'),

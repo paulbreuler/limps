@@ -95,6 +95,11 @@ declare module 'obsidian' {
     onChange(callback: (value: number) => void): this;
   }
 
+  export class ButtonComponent {
+    setButtonText(text: string): this;
+    onClick(callback: () => void): this;
+  }
+
   export class Setting {
     constructor(containerEl: HTMLElement);
     setName(name: string): this;
@@ -102,5 +107,6 @@ declare module 'obsidian' {
     addText(callback: (component: TextComponent) => void): this;
     addToggle(callback: (component: ToggleComponent) => void): this;
     addSlider(callback: (component: SliderComponent) => void): this;
+    addButton(callback: (component: ButtonComponent) => void): this;
   }
 }

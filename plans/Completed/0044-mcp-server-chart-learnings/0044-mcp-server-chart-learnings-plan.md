@@ -154,3 +154,24 @@ features
 - M1: Docs improvements (#1, #4)
 - M2: Tool filtering (#2)
 - M3: Skill packaging (#3)
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_docs.agent.md)
+- [Agent 001](./agents/001_agent_tool_filtering.agent.md)
+- [Agent 002](./agents/002_agent_skills_packaging.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

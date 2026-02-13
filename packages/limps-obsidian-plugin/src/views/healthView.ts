@@ -75,7 +75,7 @@ export class HealthView extends ItemView {
       return `
         <div class="card">
           <div>Start the daemon first:</div>
-          <pre>limps server start --config /Users/paul/Documents/GitHub/limps/.limps/config.json</pre>
+          <pre>${this.plugin.getDaemonStartCommand()}</pre>
           <div class="actions">
             <button type="button" data-action="check-daemon" ${disabledAttr}>Check daemon status</button>
           </div>
@@ -117,6 +117,7 @@ export class HealthView extends ItemView {
         <div>Project LIMPS relationships into Obsidian Graph.</div>
         <div class="actions">
           <button type="button" class="mod-cta" data-action="sync-links" ${disabledAttr}>Sync Obsidian Graph</button>
+          <button type="button" data-action="open-directed-graph" ${disabledAttr}>Open Directed Graph</button>
           <button type="button" data-action="audit-surfaces" ${disabledAttr}>Audit surfaces</button>
         </div>
       </div>`;
@@ -244,6 +245,9 @@ export class HealthView extends ItemView {
     });
     this.bindAction('sync-links', async () => {
       await this.plugin.syncObsidianGraphLinks();
+    });
+    this.bindAction('open-directed-graph', async () => {
+      await this.plugin.openDirectedGraphView();
     });
     this.bindAction('convert-deps', async () => {
       await this.plugin.convertDependenciesToPaths();

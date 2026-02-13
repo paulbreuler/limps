@@ -73,3 +73,62 @@
   background: var(--background-secondary);
   overflow-x: auto;
 }
+
+.limps-directed-graph-view {
+  padding: 0.75rem;
+}
+
+.limps-directed-graph-view h3 {
+  margin: 0 0 0.75rem;
+}
+
+.limps-directed-graph-view .summary {
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.limps-directed-graph-view .summary.healthy {
+  color: var(--text-success);
+}
+
+.limps-directed-graph-view .summary.warning {
+  color: var(--text-warning);
+}
+
+.limps-directed-graph-view .summary.error {
+  color: var(--text-error);
+}
+
+.limps-directed-graph-view .summary.loading {
+  color: var(--text-muted);
+}
+
+.limps-directed-graph-view .actions {
+  margin-bottom: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.limps-directed-graph-view .warnings {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  margin-bottom: 0.75rem;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.limps-directed-graph-view .graph-scroll {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  min-height: 580px;
+  height: calc(100vh - 280px);
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.limps-directed-graph-view .graph-canvas-host {
+  width: 100%;
+  height: 100%;
+}

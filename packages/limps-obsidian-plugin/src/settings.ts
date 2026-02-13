@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type LimpsPlugin from './main.js';
 
 export interface LimpsPluginSettings {
@@ -56,6 +56,23 @@ export class LimpsSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.useSystemLimpsBinary).onChange(async (value) => {
           this.plugin.settings.useSystemLimpsBinary = value;
           await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+
+    const suggestedRepoPath = this.plugin.getSuggestedRepoBinaryPath();
+    new Setting(containerEl)
+      .setName('Repo binary helper')
+      .setDesc(`Auto-detect from config path: ${suggestedRepoPath}`)
+      .addButton((button) => {
+        button.setButtonText('Use repo binary').onClick(async () => {
+          const result = await this.plugin.useRepoBinaryPath();
+          if (!result.ok) {
+            new Notice(result.message, 9000);
+            return;
+          }
+
+          new Notice(`limps binary path set to ${result.path}`, 7000);
           this.display();
         });
       });

@@ -5,6 +5,9 @@ work_type: overhaul
 tags: [server, transport, http, breaking-change, v3]
 ---
 
+
+
+
 # 0049: Persistent HTTP Server
 
 ## Overview
@@ -323,3 +326,24 @@ Feature #7 (extensions) ──> Feature #4                               v
 - **Port conflicts**: Catch `EADDRINUSE` in start command, suggest `--port`.
 - **Log rotation**: Out of scope for v1, single `server.log` file.
 - **stdio-only clients**: Clients that can't do HTTP need a proxy (`limps connect`) — fast follow, not in scope.
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_foundation.agent.md)
+- [Agent 001](./agents/001_agent_http-server.agent.md)
+- [Agent 002](./agents/002_agent_cleanup.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

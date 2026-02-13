@@ -7,6 +7,9 @@ created: 2026-01-28
 updated: 2026-01-28
 ---
 
+
+
+
 # limps Improvements — Full Feature Plan
 
 ## Overview
@@ -276,3 +279,26 @@ Log the following metrics (structured JSON when possible):
 - [ ] Graceful degradation when Ollama unavailable
 - [ ] Observability logs for search/index operations
 - [ ] README updated with setup, config reference, and troubleshooting
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000_agent_semantic-infra.agent.md)
+- [Agent 001](./agents/001_agent_semantic-tools.agent.md)
+- [Agent 002](./agents/002_agent_query-tools.agent.md)
+- [Agent 003](./agents/003_agent_ai-generation.agent.md)
+- [Agent 004](./agents/004_agent_docs.agent.md)
+
+Related docs:
+- [README](./README.md)
+- [gotchas](./gotchas.md)
+- [interfaces](./interfaces.md)
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

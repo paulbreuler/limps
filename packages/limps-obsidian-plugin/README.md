@@ -1,13 +1,14 @@
-# limps Obsidian Plugin (Bootstrap + Health MVP)
+# limps Obsidian Plugin
 
 This package provides a local-first Obsidian plugin that wraps `limps` CLI commands.
 
-## What this MVP includes
+## What this includes
 
 - Daemon status check command
 - Health sidebar view
 - Manual daemon prerequisite UX (clear startup guidance)
 - Graph reindex command and refresh flow
+- Directed LIMPS graph view (Cytoscape + Dagre, clickable nodes)
 - Event-driven refresh from vault/workspace/metadata changes (debounced)
 - Status bar governance indicator (`daemon`, `links`, `mcp`)
 
@@ -17,10 +18,13 @@ This package provides a local-first Obsidian plugin that wraps `limps` CLI comma
 - `limps:open-health-view`
 - `limps:refresh-health-view`
 - `limps:graph-reindex`
+- `limps:open-directed-graph-view`
+- `limps:refresh-directed-graph-view`
 - `limps:convert-deps-to-paths`
 - `limps:sync-obsidian-graph-links`
 - `limps:check-obsidian-mcp`
 - `limps:audit-obsidian-surfaces`
+- `limps:use-repo-binary`
 
 ## Local build
 
@@ -55,6 +59,9 @@ limps server start --config /Users/paul/Documents/GitHub/limps/.limps/config.jso
 
 - Default behavior uses `limps` from your system `PATH` (production/global install).
 - For local development builds, disable **Use system limps binary** in plugin settings and set a custom path.
+- Use **Repo binary helper** in plugin settings or run `limps:use-repo-binary` to point to:
+  - `<repo>/packages/limps/dist/cli.js`
+- If system `limps` is missing, command execution auto-falls back to repo binary derived from config path.
 
 ## Obsidian MCP probe (optional)
 

@@ -1,6 +1,6 @@
 {
   "name": "@sudosandwich/limps-obsidian-plugin",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Obsidian plugin for limps (Bootstrap + Health MVP)",
   "private": true,
   "main": "main.js",
@@ -26,5 +26,10 @@
     "@types/node": "^25.0.0",
     "esbuild": "^0.27.3",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "cytoscape": "^3.33.1",
+    "cytoscape-dagre": "^2.5.0",
+    "dagre": "^0.8.5"
   }
 }

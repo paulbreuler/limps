@@ -7,6 +7,9 @@ created: 2026-01-30
 updated: 2026-01-31
 ---
 
+
+
+
 # Knowledge Graph Foundation — Full Feature Plan
 
 ## The Problem
@@ -646,3 +649,27 @@ We use classical NLP (regex, SpaCy) for extraction. Embeddings only for similari
 - [Practical GraphRAG (arxiv 2507.03226)](https://arxiv.org/abs/2507.03226) — Dependency parsing at 94% of LLM performance
 - [SpaCy Dependency Parsing](https://spacy.io/usage/linguistic-features#dependency-parse) — Classical NLP for entity extraction
 - [RRF (Reciprocal Rank Fusion)](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf) — Merging ranked lists
+
+<!-- limps:graph-links:start -->
+## LIMPS Graph Links
+
+Agents:
+- [Agent 000](./agents/000-entity-schema-storage.agent.md)
+- [Agent 001](./agents/001-entity-resolution.agent.md)
+- [Agent 002](./agents/002-hybrid-retrieval.agent.md)
+- [Agent 003](./agents/003-cross-plan-awareness.agent.md)
+- [Agent 004](./agents/004-agentic-orchestration.agent.md)
+- [Agent 005](./agents/005-integration-migration.agent.md)
+- [Agent 006](./agents/006-documentation.agent.md)
+- [Agent 007](./agents/007-documentation.agent.md)
+
+Related docs:
+_No related docs found_
+
+Canvas boards:
+_No canvas files found_
+
+Bases:
+_No base files found_
+
+<!-- limps:graph-links:end -->

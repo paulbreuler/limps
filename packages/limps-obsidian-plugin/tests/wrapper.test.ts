@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execCommand, runLimps } from '../src/cli/wrapper.js';
+import { execCommand, parseDependencyPathConversionText, runLimps } from '../src/cli/wrapper.js';
 
 test('execCommand parses valid JSON output', async () => {
   const result = await execCommand<{ ok: boolean }>({
@@ -67,4 +67,32 @@ test('runLimps injects --config when provided', async () => {
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.data, ['--config', '/tmp/test-config.json']);
+});
+
+test('parseDependencyPathConversionText parses structured plain text output', () => {
+  const parsed = parseDependencyPathConversionText(`
+Dependency path conversion complete
+
+Plans processed: 7
+Files scanned: 26
+Files updated: 10
+Dependencies converted: 42
+
+Warnings:
+  - unresolved dependency in 001.agent.md
+  - another warning
+`);
+
+  assert.deepEqual(parsed, {
+    plansProcessed: 7,
+    filesScanned: 26,
+    filesUpdated: 10,
+    dependenciesConverted: 42,
+    warnings: ['unresolved dependency in 001.agent.md', 'another warning'],
+  });
+});
+
+test('parseDependencyPathConversionText returns null when required fields are missing', () => {
+  const parsed = parseDependencyPathConversionText('Files scanned: 2');
+  assert.equal(parsed, null);
 });
