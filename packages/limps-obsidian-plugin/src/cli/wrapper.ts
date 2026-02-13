@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -32,6 +33,7 @@ function buildExecEnv(command: string): NodeJS.ProcessEnv {
     pathParts.push(dirname(command));
   }
   pathParts.push('/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin');
+  pathParts.push(...getNvmNodeBinDirs());
   if (process.env.PATH) pathParts.push(process.env.PATH);
 
   const mergedPath = pathParts.filter(Boolean).join(':');
@@ -236,8 +238,16 @@ export async function runLimps<T = unknown>(
 function resolveCommandInvocation(command: string, args: string[]): CommandInvocation {
   const lower = command.toLowerCase();
   if (lower.endsWith('.js') || lower.endsWith('.cjs') || lower.endsWith('.mjs')) {
+    const nodeExecutable = getNodeExecutable();
+    if (nodeExecutable === 'node') {
+      return {
+        command: '/usr/bin/env',
+        args: ['node', command, ...args],
+      };
+    }
+
     return {
-      command: process.execPath,
+      command: nodeExecutable,
       args: [command, ...args],
     };
   }
@@ -246,6 +256,47 @@ function resolveCommandInvocation(command: string, args: string[]): CommandInvoc
     command,
     args,
   };
+}
+
+function getNodeExecutable(): string {
+  const envCandidates = [
+    process.env.NODE,
+    process.env.npm_node_execpath,
+  ].filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+  for (const candidate of envCandidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  const absoluteCandidates = [
+    '/opt/homebrew/bin/node',
+    '/usr/local/bin/node',
+    '/usr/bin/node',
+    ...getNvmNodeBinDirs().map((dir) => join(dir, 'node')),
+  ];
+
+  for (const candidate of absoluteCandidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return 'node';
+}
+
+function getNvmNodeBinDirs(): string[] {
+  const root = join(homedir(), '.nvm', 'versions', 'node');
+  if (!existsSync(root)) return [];
+
+  try {
+    return readdirSync(root)
+      .map((entry) => join(root, entry, 'bin'))
+      .filter((dir) => existsSync(join(dir, 'node')));
+  } catch {
+    return [];
+  }
 }
 
 function isCommandNotFound(result: CommandExecResult): boolean {

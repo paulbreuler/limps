@@ -91,7 +91,7 @@ test('runLimps executes js entrypoint via node process', async () => {
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.data, ['server', 'status', '--config', '/tmp/test-config.json']);
-  assert.equal(result.command, process.execPath);
+  assert.notEqual(result.command, scriptPath);
 
   rmSync(root, { recursive: true, force: true });
 });

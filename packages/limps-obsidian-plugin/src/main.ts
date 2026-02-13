@@ -470,7 +470,7 @@ export default class LimpsPlugin extends Plugin {
     const limpsPath = this.resolveConfiguredLimpsPath();
     const configPath = this.settings.configPath || DEFAULT_SETTINGS.configPath;
     const executable = limpsPath.toLowerCase().endsWith('.js')
-      ? `${process.execPath} ${limpsPath}`
+      ? `node ${limpsPath}`
       : limpsPath;
     return `${executable} server start --config ${configPath}`;
   }
