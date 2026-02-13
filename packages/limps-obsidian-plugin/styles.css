@@ -100,6 +100,29 @@
   margin: 0 0 0.75rem;
 }
 
+.limps-directed-graph-view .graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.limps-directed-graph-view .graph-header h3 {
+  margin: 0;
+}
+
+.limps-directed-graph-view .graph-close-btn {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  width: 1.9rem;
+  height: 1.9rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .limps-directed-graph-view .summary {
   margin-bottom: 0.75rem;
   font-weight: 600;
@@ -147,6 +170,27 @@
   font-weight: 700;
   color: var(--text-normal);
   margin-bottom: 0.3rem;
+}
+
+.limps-directed-graph-view .warnings-under-chart {
+  margin-top: 0.75rem;
+}
+
+.limps-directed-graph-view .warning-collapsible + .warning-collapsible {
+  margin-top: 0.4rem;
+}
+
+.limps-directed-graph-view .warning-collapsible > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.limps-directed-graph-view .warning-scroll {
+  margin-top: 0.45rem;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 0.1rem;
 }
 
 .limps-directed-graph-view .warning-text-line {

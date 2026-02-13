@@ -450,6 +450,14 @@ export default class LimpsPlugin extends Plugin {
     await view.refresh();
   }
 
+  async closeDirectedGraphAndOpenHealthView(): Promise<void> {
+    const directedLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DIRECTED_GRAPH);
+    for (const leaf of directedLeaves) {
+      await leaf.setViewState({ type: 'empty' });
+    }
+    await this.openHealthView();
+  }
+
   openPluginSettings(): void {
     const appWithSetting = this.app as unknown as {
       setting?: {

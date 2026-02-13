@@ -981,7 +981,18 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
   return (
     <div className="limps-directed-graph-view">
-      <h3>Local Intelligence Graph</h3>
+      <div className="graph-header">
+        <h3>Local Intelligence Graph</h3>
+        <button
+          type="button"
+          className="graph-close-btn"
+          title="Close graph and return to Local Intelligence Hub"
+          aria-label="Close graph and return to Local Intelligence Hub"
+          onClick={() => void plugin.closeDirectedGraphAndOpenHealthView()}
+        >
+          ✕
+        </button>
+      </div>
       <div className={`summary ${error ? 'error' : graph && graph.cycles.length > 0 ? 'warning' : 'healthy'}`}>
         {summary}
       </div>
@@ -989,9 +1000,6 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       <div className="actions">
         <button type="button" onClick={() => void load()} disabled={loading}>
           Refresh
-        </button>
-        <button type="button" onClick={() => plugin.openPluginSettings()}>
-          Settings
         </button>
         <button type="button" className="mod-cta" onClick={() => void syncAndReload()} disabled={loading}>
           Sync Obsidian Graph
@@ -1003,62 +1011,6 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
           Layout: {layoutMode === 'physics' ? 'Physics' : 'Flow'}
         </button>
       </div>
-
-      {graph && (cycleLines.length > 0 || unresolvedWarnings.length > 0 || nonUnresolvedWarnings.length > 0) ? (
-        <div className="warnings">
-          {cycleLines.length > 0 ? (
-            <div className="warning-section">
-              <div className="warning-title">Dependency cycles ({graph.cycles.length})</div>
-              {cycleLines.map((line, index) => (
-                <div className="warning-text-line" key={`cycle-${index}`}>
-                  {line}
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {unresolvedWarnings.length > 0 ? (
-            <div className="warning-section">
-              <div className="warning-title">Unresolved relations ({unresolvedWarnings.length})</div>
-              {unresolvedWarnings.slice(0, 8).map((warning, index) => {
-                const location = warning.filePath
-                  ? `${fileNameFromPath(warning.filePath)}${warning.line ? `:${warning.line}` : ''}`
-                  : 'unknown';
-                return (
-                  <button
-                    type="button"
-                    className="warning-link"
-                    key={`unresolved-${index}-${warning.message}`}
-                    onClick={() => openWarningLocation(warning)}
-                    title={warning.filePath ?? warning.message}
-                    disabled={!warning.filePath}
-                  >
-                    <span className="warning-link-message">{warning.message}</span>
-                    <span className="warning-link-location">{location}</span>
-                  </button>
-                );
-              })}
-              {unresolvedWarnings.length > 8 ? (
-                <div className="warning-text-line">...and {unresolvedWarnings.length - 8} more unresolved warnings</div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {nonUnresolvedWarnings.length > 0 ? (
-            <div className="warning-section">
-              <div className="warning-title">Other warnings ({nonUnresolvedWarnings.length})</div>
-              {nonUnresolvedWarnings.slice(0, 4).map((warning, index) => (
-                <div className="warning-text-line" key={`warning-${index}-${warning.message}`}>
-                  {warning.message}
-                </div>
-              ))}
-              {nonUnresolvedWarnings.length > 4 ? (
-                <div className="warning-text-line">...and {nonUnresolvedWarnings.length - 4} more warnings</div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
 
       <div className="graph-scroll" style={{ backgroundColor: graphTheme.backgroundColor }}>
         <div className="graph-canvas-host" ref={hostRef}>
@@ -1420,6 +1372,62 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
           </div>
         </div>
       </div>
+
+      {graph && (cycleLines.length > 0 || unresolvedWarnings.length > 0 || nonUnresolvedWarnings.length > 0) ? (
+        <div className="warnings warnings-under-chart">
+          {unresolvedWarnings.length > 0 ? (
+            <details className="warning-collapsible">
+              <summary>Unresolved relations ({unresolvedWarnings.length})</summary>
+              <div className="warning-scroll">
+                {unresolvedWarnings.map((warning, index) => {
+                  const location = warning.filePath
+                    ? `${fileNameFromPath(warning.filePath)}${warning.line ? `:${warning.line}` : ''}`
+                    : 'unknown';
+                  return (
+                    <button
+                      type="button"
+                      className="warning-link"
+                      key={`unresolved-${index}-${warning.message}`}
+                      onClick={() => openWarningLocation(warning)}
+                      title={warning.filePath ?? warning.message}
+                      disabled={!warning.filePath}
+                    >
+                      <span className="warning-link-message">{warning.message}</span>
+                      <span className="warning-link-location">{location}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
+
+          {cycleLines.length > 0 ? (
+            <details className="warning-collapsible">
+              <summary>Dependency cycles ({graph.cycles.length})</summary>
+              <div className="warning-scroll">
+                {cycleLines.map((line, index) => (
+                  <div className="warning-text-line" key={`cycle-${index}`}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+
+          {nonUnresolvedWarnings.length > 0 ? (
+            <details className="warning-collapsible">
+              <summary>Other warnings ({nonUnresolvedWarnings.length})</summary>
+              <div className="warning-scroll">
+                {nonUnresolvedWarnings.map((warning, index) => (
+                  <div className="warning-text-line" key={`warning-${index}-${warning.message}`}>
+                    {warning.message}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
