@@ -32,7 +32,7 @@ export interface LimpsPluginSettings {
 export const DEFAULT_SETTINGS: LimpsPluginSettings = {
   useSystemLimpsBinary: true,
   limpsPath: 'limps',
-  configPath: '/Users/paul/Documents/GitHub/limps/.limps/config.json',
+  configPath: '',
   commandTimeoutMs: 5000,
   healthRefreshMs: 10000,
   eventRefreshDebounceMs: 750,
@@ -124,16 +124,28 @@ export class LimpsSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Config path')
-      .setDesc('Path to limps config file used for all commands')
+      .setDesc('Path to limps config file. Leave empty to auto-discover .limps/config.json from vault directory.')
       .addText((text) => {
         text
-          .setPlaceholder('/path/to/.limps/config.json')
+          .setPlaceholder('(auto-discover from vault)')
           .setValue(this.plugin.settings.configPath)
           .onChange(async (value) => {
             this.plugin.settings.configPath = value.trim();
             await this.plugin.saveSettings();
+            this.display();
           });
       });
+
+    const resolvedConfig = this.plugin.getResolvedConfigPath();
+    if (resolvedConfig) {
+      new Setting(containerEl)
+        .setName('Resolved config')
+        .setDesc(resolvedConfig);
+    } else if (!this.plugin.settings.configPath) {
+      new Setting(containerEl)
+        .setName('Resolved config')
+        .setDesc('No .limps/config.json found in vault directory tree');
+    }
 
     this.renderSectionHeader(
       containerEl,

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -485,6 +485,102 @@ export async function getGraphHealth(options: LimpsRunOptions): Promise<GraphHea
       summary,
       conflicts,
     },
+  };
+}
+
+/**
+ * Walk up from `fromDir` looking for `.limps/config.json`.
+ * Mirrors the logic in `packages/limps/src/utils/config-resolver.ts`.
+ */
+export function discoverConfig(fromDir: string): string | null {
+  let currentDir = resolve(fromDir);
+  const root = resolve('/');
+
+  while (currentDir !== root) {
+    const configPath = resolve(currentDir, '.limps', 'config.json');
+    if (existsSync(configPath)) {
+      return configPath;
+    }
+    currentDir = dirname(currentDir);
+  }
+
+  const rootConfigPath = resolve(root, '.limps', 'config.json');
+  if (existsSync(rootConfigPath)) {
+    return rootConfigPath;
+  }
+
+  return null;
+}
+
+export interface LimpsConfig {
+  server?: { port?: number; host?: string };
+  [key: string]: unknown;
+}
+
+/**
+ * Read and parse a limps config.json file.
+ */
+export function readLimpsConfig(configPath: string): LimpsConfig | null {
+  try {
+    const raw = readFileSync(configPath, 'utf8');
+    const parsed = JSON.parse(raw) as LimpsConfig;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export interface StartDaemonResult {
+  ok: boolean;
+  host?: string;
+  port?: number;
+  error?: string;
+}
+
+/**
+ * Start the limps daemon via `limps server start --json`.
+ * If the daemon is already running, returns success with current status.
+ */
+export async function startDaemon(options: LimpsRunOptions): Promise<StartDaemonResult> {
+  // First check if daemon is already running
+  const status = await getDaemonStatus(options);
+  if (status.ok && status.daemon?.running) {
+    return {
+      ok: true,
+      host: status.daemon.host,
+      port: status.daemon.port,
+    };
+  }
+
+  // Try to start the daemon (server start does not support --json)
+  const result = await runLimps(['server', 'start'], {
+    ...options,
+    parseJson: false,
+    timeoutMs: Math.max(options.timeoutMs, 10_000),
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error ?? (result.stderr || 'Failed to start limps daemon'),
+    };
+  }
+
+  // Wait briefly then verify the daemon is up
+  await new Promise((r) => setTimeout(r, 1500));
+
+  const verify = await getDaemonStatus(options);
+  if (verify.ok && verify.daemon?.running) {
+    return {
+      ok: true,
+      host: verify.daemon.host,
+      port: verify.daemon.port,
+    };
+  }
+
+  return {
+    ok: false,
+    error: 'Daemon started but health check failed',
   };
 }
 

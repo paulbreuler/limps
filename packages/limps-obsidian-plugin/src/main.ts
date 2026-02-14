@@ -1,7 +1,7 @@
 import { Menu, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { getDaemonStatus, getGraphHealth, runDepsToPaths, runGraphReindex } from './cli/wrapper.js';
+import { discoverConfig, getDaemonStatus, getGraphHealth, readLimpsConfig, runDepsToPaths, runGraphReindex, startDaemon } from './cli/wrapper.js';
 import type { LimpsRunOptions } from './cli/wrapper.js';
 import { DEFAULT_SETTINGS, LimpsSettingTab } from './settings.js';
 import type { LimpsPluginSettings } from './settings.js';
@@ -64,6 +64,8 @@ export default class LimpsPlugin extends Plugin {
   private workflowScheduler: WorkflowScheduler | null = null;
   private vaultEventHandler: VaultEventHandler | null = null;
   private lastHealthCheckResults: HealthCheckResult[] = [];
+  private resolvedConfigPath: string | null = null;
+  private resolvedMcpEndpoint: string | null = null;
   private readonly notificationManager = new NotificationManager(
     (message, timeout) => { new Notice(message, timeout); }
   );
@@ -71,6 +73,9 @@ export default class LimpsPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings();
     registerLimpsIcons();
+
+    // Auto-discover config if not explicitly set
+    this.resolveAndCacheConfig();
 
     this.registerView(VIEW_TYPE_HEALTH, (leaf) => new HealthView(leaf, this));
     this.registerView(VIEW_TYPE_DIRECTED_GRAPH, (leaf) => new DirectedGraphView(leaf, this));
@@ -95,6 +100,9 @@ export default class LimpsPlugin extends Plugin {
       this.statusBarEl = this.addStatusBarItem();
       this.statusBarEl.textContent = 'local-intel daemon:unknown links:r0/u0 mcp:off';
     }
+
+    // Auto-start daemon if not running
+    void this.autoStartDaemon();
 
     if (this.settings.enablePersistentMcp) {
       void this.initMcpClient();
@@ -133,6 +141,50 @@ export default class LimpsPlugin extends Plugin {
     };
   }
 
+  getResolvedConfigPath(): string | null {
+    return this.resolvedConfigPath;
+  }
+
+  private resolveAndCacheConfig(): void {
+    if (this.settings.configPath) {
+      this.resolvedConfigPath = this.settings.configPath;
+    } else {
+      const vaultPath = this.getVaultPath();
+      this.resolvedConfigPath = discoverConfig(vaultPath);
+      if (this.resolvedConfigPath) {
+        console.log(`[limps] Auto-discovered config: ${this.resolvedConfigPath}`);
+      }
+    }
+
+    // Derive MCP endpoint from config
+    if (this.resolvedConfigPath) {
+      const config = readLimpsConfig(this.resolvedConfigPath);
+      if (config?.server) {
+        const host = config.server.host ?? '127.0.0.1';
+        const port = config.server.port ?? 4269;
+        this.resolvedMcpEndpoint = `http://${host}:${port}/mcp`;
+      }
+    }
+  }
+
+  private async autoStartDaemon(): Promise<void> {
+    const effectiveConfig = this.resolvedConfigPath;
+    if (!effectiveConfig) return;
+
+    const options = this.getRunOptions(true);
+    const status = await getDaemonStatus(options);
+    if (status.ok && status.daemon?.running) return;
+
+    console.log('[limps] Daemon not running, attempting auto-start...');
+    const result = await startDaemon(options);
+    if (result.ok) {
+      console.log(`[limps] Daemon auto-started on ${result.host ?? '127.0.0.1'}:${result.port ?? 4269}`);
+      new Notice(`limps daemon auto-started on port ${result.port ?? 4269}`, 4000);
+    } else {
+      console.warn(`[limps] Daemon auto-start failed: ${result.error}`);
+    }
+  }
+
   getMcpClient(): McpClientManager | null {
     return this.mcpClient;
   }
@@ -146,8 +198,9 @@ export default class LimpsPlugin extends Plugin {
   }
 
   private async initMcpClient(): Promise<void> {
+    const endpoint = this.resolvedMcpEndpoint ?? this.settings.mcpEndpoint;
     const client = new McpClientManager({
-      endpoint: this.settings.mcpEndpoint,
+      endpoint,
       maxReconnectAttempts: this.settings.mcpReconnectMaxAttempts,
       keepaliveIntervalMs: this.settings.mcpKeepaliveIntervalMs,
     });
@@ -654,7 +707,7 @@ export default class LimpsPlugin extends Plugin {
 
     return {
       limpsPath,
-      configPath: this.settings.configPath,
+      configPath: this.resolvedConfigPath ?? this.settings.configPath,
       cwd: this.getVaultPath(),
       timeoutMs: this.settings.commandTimeoutMs,
       parseJson,
@@ -668,7 +721,10 @@ export default class LimpsPlugin extends Plugin {
 
   getDaemonStartCommand(): string {
     const limpsPath = this.resolveConfiguredLimpsPath();
-    const configPath = this.settings.configPath || DEFAULT_SETTINGS.configPath;
+    const configPath = this.resolvedConfigPath ?? this.settings.configPath;
+    if (!configPath) {
+      return `${limpsPath} server start`;
+    }
     const executable = limpsPath.toLowerCase().endsWith('.js')
       ? `node ${limpsPath}`
       : limpsPath;
@@ -676,7 +732,8 @@ export default class LimpsPlugin extends Plugin {
   }
 
   getSuggestedRepoBinaryPath(): string {
-    const configPath = this.settings.configPath || DEFAULT_SETTINGS.configPath;
+    const configPath = this.resolvedConfigPath ?? this.settings.configPath;
+    if (!configPath) return '';
     const repoRoot = dirname(dirname(configPath));
     return join(repoRoot, 'packages', 'limps', 'dist', 'cli.js');
   }
@@ -743,7 +800,7 @@ export default class LimpsPlugin extends Plugin {
   }
 
   getPlansPathFromConfig(): string {
-    const configPath = this.settings.configPath;
+    const configPath = this.resolvedConfigPath ?? this.settings.configPath;
     if (!configPath) {
       throw new Error('No limps config path is set in plugin settings.');
     }
