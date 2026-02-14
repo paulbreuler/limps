@@ -1,5 +1,6 @@
 declare module 'obsidian' {
   export function addIcon(iconId: string, svgContent: string): void;
+  export type ObsidianProtocolHandler = (params: Record<string, string>) => void;
 
   export interface Command {
     id: string;
@@ -23,13 +24,41 @@ declare module 'obsidian' {
     setViewState(state: ViewState): Promise<void>;
   }
 
+  export interface TAbstractFile {
+    path: string;
+    name: string;
+  }
+
+  export interface TFile extends TAbstractFile {}
+
+  export interface MarkdownFileInfo {
+    file?: TFile | null;
+  }
+
+  export interface MarkdownView extends MarkdownFileInfo {}
+
+  export interface Editor {}
+
+  export interface MenuItem {
+    setTitle(title: string): MenuItem;
+    setIcon(icon: string): MenuItem;
+    onClick(callback: () => void): MenuItem;
+  }
+
+  export interface Menu {
+    addItem(callback: (item: MenuItem) => void): void;
+  }
+
   export class Workspace {
     getLeaf?(newLeaf?: boolean | 'tab' | 'split'): WorkspaceLeaf;
     getMostRecentLeaf?(): WorkspaceLeaf;
+    getActiveFile?(): TFile | null;
     getRightLeaf(split: boolean): WorkspaceLeaf;
     getLeavesOfType(type: string): WorkspaceLeaf[];
     revealLeaf(leaf: WorkspaceLeaf): Promise<void>;
-    on(name: string, callback: (...args: unknown[]) => unknown): unknown;
+    on(name: string, callback: (...args: unknown[]) => unknown, ctx?: unknown): unknown;
+    on(name: 'file-menu', callback: (menu: Menu, file: TAbstractFile, source: string, leaf?: WorkspaceLeaf) => unknown, ctx?: unknown): unknown;
+    on(name: 'editor-menu', callback: (menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo) => unknown, ctx?: unknown): unknown;
     openLinkText?(linkText: string, sourcePath: string, newLeaf?: boolean): unknown;
   }
 
@@ -71,6 +100,8 @@ declare module 'obsidian' {
     addSettingTab(settingTab: PluginSettingTab): void;
     addRibbonIcon(icon: string, title: string, callback: (evt: MouseEvent) => void): HTMLElement;
     addStatusBarItem(): HTMLElement;
+    registerEditorExtension(extension: unknown): void;
+    registerObsidianProtocolHandler(action: string, handler: ObsidianProtocolHandler): void;
     registerInterval(id: number): void;
     registerEvent(eventRef: unknown): void;
     loadData(): Promise<unknown>;

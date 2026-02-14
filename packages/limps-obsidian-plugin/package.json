@@ -31,6 +31,9 @@
     "typescript": "^5.9.0"
   },
   "dependencies": {
+    "@codemirror/lint": "^6.9.4",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.14",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-force-graph-2d": "^1.29.1",

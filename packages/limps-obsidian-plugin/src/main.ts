@@ -1,4 +1,4 @@
-import { Notice, Plugin, WorkspaceLeaf } from 'obsidian';
+import { Menu, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getDaemonStatus, getGraphHealth, runDepsToPaths, runGraphReindex } from './cli/wrapper.js';
@@ -13,6 +13,7 @@ import { probeObsidianMcp } from './mcp/client.js';
 import type { ObsidianMcpProbeResult } from './mcp/client.js';
 import { buildRuntimeStatusLabel, computeLinkStats } from './status/runtimeStatus.js';
 import { LIMPS_HUB_ICON, registerLimpsIcons } from './icons.js';
+import { createLimpsEditorDiagnosticsExtension } from './editor/linkDiagnostics.js';
 
 export const VIEW_TYPE_HEALTH = 'limps-health-view';
 export const VIEW_TYPE_DIRECTED_GRAPH = 'limps-directed-graph-view';
@@ -59,8 +60,10 @@ export default class LimpsPlugin extends Plugin {
     }
 
     this.registerCommands();
+    this.registerEditorExtension(createLimpsEditorDiagnosticsExtension(this));
     this.registerObsidianEventHooks();
     this.registerContextMenuHooks();
+    this.registerProtocolHandlers();
 
     if (this.settings.showStatusBar) {
       this.statusBarEl = this.addStatusBarItem();
@@ -699,26 +702,125 @@ export default class LimpsPlugin extends Plugin {
     if (!workspace.on || typeof workspace.on !== 'function') return;
 
     const eventRef = workspace.on('file-menu', (menu: unknown, file: unknown) => {
-      const menuApi = menu as {
-        addItem?: (build: (item: { setTitle: (title: string) => unknown; setIcon?: (icon: string) => unknown; onClick: (cb: () => void) => unknown }) => void) => void;
-      };
+      const menuApi = menu as Menu;
       const filePath = (file as { path?: string } | null)?.path;
-      if (!menuApi.addItem || typeof filePath !== 'string') return;
+      if (!menuApi?.addItem || typeof filePath !== 'string') return;
+      this.addLimpsMenuActions(menuApi, filePath);
+    });
 
-      menuApi.addItem((item) => {
-        item.setTitle('Open Local Intelligence Graph');
-        if (typeof item.setIcon === 'function') {
-          item.setIcon('network');
-        }
-        item.onClick(() => {
-          void this.openDirectedGraphView();
-        });
-      });
+    const editorEventRef = workspace.on('editor-menu', (menu: unknown, _editor: unknown, info: unknown) => {
+      const menuApi = menu as Menu;
+      if (!menuApi?.addItem) return;
+      const filePath = (info as { file?: { path?: string } | null } | null)?.file?.path ?? null;
+      this.addLimpsMenuActions(menuApi, filePath);
     });
 
     if (eventRef && typeof this.registerEvent === 'function') {
       this.registerEvent(eventRef);
     }
+    if (editorEventRef && typeof this.registerEvent === 'function') {
+      this.registerEvent(editorEventRef);
+    }
+  }
+
+  private addLimpsMenuActions(menu: Menu, filePath: string | null): void {
+    menu.addItem((item) => {
+      item.setTitle('Local Intelligence: Open Hub');
+      item.setIcon('sparkles');
+      item.onClick(() => {
+        void this.openHealthView();
+      });
+    });
+
+    menu.addItem((item) => {
+      item.setTitle('Local Intelligence: Open Directed Graph');
+      item.setIcon('network');
+      item.onClick(() => {
+        void this.openDirectedGraphView();
+      });
+    });
+
+    if (filePath) {
+      menu.addItem((item) => {
+        item.setTitle('Local Intelligence: Open File In Graph Context');
+        item.setIcon('search');
+        item.onClick(() => {
+          void this.openDirectedGraphView();
+          setTimeout(() => {
+            void this.openFileAtLine(filePath);
+          }, 60);
+        });
+      });
+    }
+
+    menu.addItem((item) => {
+      item.setTitle('Local Intelligence: Convert Dependencies To Paths');
+      item.setIcon('link');
+      item.onClick(() => {
+        void this.convertDependenciesToPaths();
+      });
+    });
+
+    menu.addItem((item) => {
+      item.setTitle('Local Intelligence: Sync Obsidian Graph Links');
+      item.setIcon('refresh-cw');
+      item.onClick(() => {
+        void this.syncObsidianGraphLinks();
+      });
+    });
+  }
+
+  private registerProtocolHandlers(): void {
+    this.registerObsidianProtocolHandler('limps', (params) => {
+      void this.handleLimpsProtocol(params);
+    });
+  }
+
+  private async handleLimpsProtocol(params: Record<string, string>): Promise<void> {
+    const target = (params.target ?? params.view ?? params.command ?? '').toLowerCase();
+    const path = params.path ?? params.file ?? '';
+    const lineRaw = params.line ?? params.lineno ?? '';
+    const parsedLine = Number.parseInt(lineRaw, 10);
+    const line = Number.isFinite(parsedLine) && parsedLine > 0 ? parsedLine : undefined;
+
+    if (target === 'hub' || target === 'health') {
+      await this.openHealthView();
+      return;
+    }
+
+    if (target === 'graph') {
+      await this.openDirectedGraphView();
+      return;
+    }
+
+    if (target === 'sync') {
+      await this.syncObsidianGraphLinks();
+      return;
+    }
+
+    if (target === 'reindex') {
+      await this.graphReindex();
+      return;
+    }
+
+    if (target === 'daemon') {
+      await this.checkDaemonStatus();
+      return;
+    }
+
+    if (target === 'file' || path) {
+      if (!path) {
+        new Notice('LIMPS protocol missing file path.', 5000);
+        return;
+      }
+      await this.openFileAtLine(path, line);
+      return;
+    }
+
+    new Notice(
+      'Unknown LIMPS protocol target. Use target=hub|graph|sync|reindex|daemon|file',
+      7000
+    );
   }
 
   private getEditorLeaf(): WorkspaceLeaf {
