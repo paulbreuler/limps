@@ -67,7 +67,10 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
   const maxFileSize = getMaxFileSize(config);
   const maxDepth = getMaxDepth(config);
   const exclusions = getExclusions(config);
-  const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian', 'dist', 'build', '.cache'];
+  // Merge default ignore patterns with exclusions.directories from config
+  const defaultIgnore = ['.git', 'node_modules', '.tmp', '.obsidian', 'dist', 'build', '.cache'];
+  const configDirs = exclusions.directories ?? [];
+  const ignorePatterns = [...new Set([...defaultIgnore, ...configDirs])];
 
   // Separate full-index paths from presence-only paths
   const presenceOnlyPaths = new Set<string>();
