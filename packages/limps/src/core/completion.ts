@@ -20,7 +20,17 @@ const ROOT_COMMANDS = [
 
 const GROUP_COMMANDS: Record<string, string[]> = {
   server: ['start', 'stop', 'status', 'bridge'],
-  plan: ['create', 'list', 'agents', 'status', 'next', 'score', 'scores', 'repair', 'deps-to-paths'],
+  plan: [
+    'create',
+    'list',
+    'agents',
+    'status',
+    'next',
+    'score',
+    'scores',
+    'repair',
+    'deps-to-paths',
+  ],
   docs: ['list', 'search', 'create', 'update', 'delete', 'process', 'reindex', 'tags'],
   'docs tags': ['list', 'add', 'remove'],
   config: ['show', 'scoring', 'path', 'show-resolution', 'print', 'update', 'upgrade'],

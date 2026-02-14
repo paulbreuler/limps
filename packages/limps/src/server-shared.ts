@@ -9,6 +9,7 @@ import {
   getFileExtensions,
   getMaxFileSize,
   getMaxDepth,
+  getExclusions,
   DEFAULT_DEBOUNCE_DELAY,
   type ServerConfig,
 } from './config.js';
@@ -22,6 +23,7 @@ import {
   indexAllPaths,
   indexDocument,
   removeDocument,
+  indexPresence,
 } from './indexer.js';
 import { startWatcher, stopWatcher, DEFAULT_SETTLE_DELAY } from './watcher.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
@@ -64,7 +66,18 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
   const fileExtensions = getFileExtensions(config);
   const maxFileSize = getMaxFileSize(config);
   const maxDepth = getMaxDepth(config);
+  const exclusions = getExclusions(config);
   const ignorePatterns = ['.git', 'node_modules', '.tmp', '.obsidian', 'dist', 'build', '.cache'];
+
+  // Separate full-index paths from presence-only paths
+  const presenceOnlyPaths = new Set<string>();
+  if (config.paths) {
+    for (const pc of config.paths) {
+      if (pc.indexMode === 'presence') {
+        presenceOnlyPaths.add(pc.path);
+      }
+    }
+  }
 
   // Validate paths before indexing — filter to only existing directories
   const validPaths = docsPaths.filter((p) => existsSync(p));
@@ -82,11 +95,15 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
     }
   }
 
-  // Initial indexing (only valid paths)
-  if (validPaths.length > 0) {
+  // Split valid paths into full-index and presence-only
+  const fullIndexPaths = validPaths.filter((p) => !presenceOnlyPaths.has(p));
+  const validPresencePaths = validPaths.filter((p) => presenceOnlyPaths.has(p));
+
+  // Initial full indexing
+  if (fullIndexPaths.length > 0) {
     const result = await indexAllPaths(
       db,
-      validPaths,
+      fullIndexPaths,
       fileExtensions,
       ignorePatterns,
       maxDepth,
@@ -95,7 +112,7 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
     console.error(
       `Indexed ${result.indexed} documents (${result.updated} updated, ${result.skipped} skipped)`
     );
-    console.error(`Paths: ${validPaths.join(', ')}`);
+    console.error(`Paths: ${fullIndexPaths.join(', ')}`);
     console.error(`Extensions: ${fileExtensions.join(', ')}`);
     if (result.errors.length > 0) {
       console.error(`Indexing errors: ${result.errors.length}`);
@@ -103,13 +120,25 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
         console.error(`  - ${err.path}: ${err.error}`);
       }
     }
-  } else {
+  } else if (validPresencePaths.length === 0) {
     console.error('No valid paths to index.');
   }
 
-  // Check FD budget before starting watcher
-  if (validPaths.length > 0) {
-    const budget = checkFdBudget(validPaths, maxDepth, ignorePatterns);
+  // Presence-only indexing (no content parsing, no FTS)
+  for (const presencePath of validPresencePaths) {
+    try {
+      const presenceResult = indexPresence(db, presencePath, exclusions, maxDepth);
+      console.error(
+        `Presence-indexed ${presenceResult.recorded} files from ${presencePath} (${presenceResult.skipped} unchanged)`
+      );
+    } catch (err) {
+      console.error(`[limps] Failed to presence-index ${presencePath}:`, err);
+    }
+  }
+
+  // Check FD budget before starting watcher (only for full-index paths)
+  if (fullIndexPaths.length > 0) {
+    const budget = checkFdBudget(fullIndexPaths, maxDepth, ignorePatterns);
     if (!budget.safe) {
       console.error(
         `[limps] Warning: estimated ${budget.estimated} watch entries ` +
@@ -118,33 +147,42 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
     }
   }
 
-  // Start file watcher (only watch valid paths)
+  // Start file watcher (only watch full-index paths, NOT presence-only paths)
   let watcher: LimpsWatcher | null = null;
-  try {
-    watcher = await startWatcher(
-      validPaths,
-      async (path, event) => {
-        if (event === 'unlink') {
-          await removeDocument(db, path);
-          console.error(`Removed document: ${path}`);
-        } else {
-          await indexDocument(db, path, maxFileSize);
-          console.error(`Indexed document: ${path} (${event})`);
-        }
-      },
-      fileExtensions,
-      ignorePatterns,
-      DEFAULT_DEBOUNCE_DELAY,
-      DEFAULT_SETTLE_DELAY,
-      undefined,
-      maxDepth
-    );
-    console.error(`File watcher started for ${validPaths.length} path(s)`);
-  } catch (watchErr) {
-    console.error(
-      `[limps] Warning: File watcher failed to start. The server will continue without live file watching.`,
-      watchErr
-    );
+  if (fullIndexPaths.length > 0) {
+    try {
+      watcher = await startWatcher(
+        fullIndexPaths,
+        async (path, event) => {
+          if (event === 'unlink') {
+            await removeDocument(db, path);
+            console.error(`Removed document: ${path}`);
+          } else {
+            await indexDocument(db, path, maxFileSize);
+            console.error(`Indexed document: ${path} (${event})`);
+          }
+        },
+        fileExtensions,
+        ignorePatterns,
+        DEFAULT_DEBOUNCE_DELAY,
+        DEFAULT_SETTLE_DELAY,
+        undefined,
+        maxDepth
+      );
+      console.error(`File watcher started for ${fullIndexPaths.length} path(s)`);
+      if (validPresencePaths.length > 0) {
+        console.error(
+          `Presence-only paths excluded from watcher: ${validPresencePaths.join(', ')}`
+        );
+      }
+    } catch (watchErr) {
+      console.error(
+        `[limps] Warning: File watcher failed to start. The server will continue without live file watching.`,
+        watchErr
+      );
+    }
+  } else {
+    console.error('No full-index paths to watch.');
   }
 
   return { config, db, watcher };

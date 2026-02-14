@@ -83,7 +83,9 @@ export default function PlanDepsToPathsCommand({ args, options }: Props): React.
     });
 
     const lines: string[] = [];
-    lines.push(options.check ? 'Dependency path conversion preview' : 'Dependency path conversion complete');
+    lines.push(
+      options.check ? 'Dependency path conversion preview' : 'Dependency path conversion complete'
+    );
     lines.push('');
     lines.push(`Plans processed: ${result.plansProcessed}`);
     lines.push(`Files scanned: ${result.filesScanned}`);

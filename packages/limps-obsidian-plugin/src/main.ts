@@ -12,8 +12,21 @@ import { auditObsidianSurfaces } from './graph/surfaceAudit.js';
 import { probeObsidianMcp } from './mcp/client.js';
 import type { ObsidianMcpProbeResult } from './mcp/client.js';
 import { buildRuntimeStatusLabel, computeLinkStats } from './status/runtimeStatus.js';
+import type { McpSessionStatus } from './status/runtimeStatus.js';
 import { LIMPS_HUB_ICON, registerLimpsIcons } from './icons.js';
 import { createLimpsEditorDiagnosticsExtension } from './editor/linkDiagnostics.js';
+import { McpClientManager } from './mcp/client-manager.js';
+import { registerDocCommands, addDocContextMenuActions } from './commands/docs.js';
+import { registerTaskCommands } from './commands/tasks.js';
+import { registerSearchProposalCommands } from './commands/search-proposals.js';
+import { WorkflowScheduler } from './workflows/scheduler.js';
+import type { HealthCheckResult } from './workflows/scheduler.js';
+import { VaultEventHandler } from './workflows/event-handler.js';
+import { NotificationManager } from './workflows/notification-manager.js';
+import type { NotificationEntry } from './workflows/notification-manager.js';
+import { runAutoProposals } from './workflows/auto-proposals.js';
+import { LimpsToolWrapper } from './mcp/tool-wrapper.js';
+import type { CliOptions } from './mcp/client-manager.js';
 
 export const VIEW_TYPE_HEALTH = 'limps-health-view';
 export const VIEW_TYPE_DIRECTED_GRAPH = 'limps-directed-graph-view';
@@ -44,6 +57,16 @@ export default class LimpsPlugin extends Plugin {
   private statusRefreshPending = false;
   private lastMcpProbe: ObsidianMcpProbeResult | null = null;
   private lastMcpProbeAt = 0;
+  private mcpClient: McpClientManager | null = null;
+  private mcpSessionStatus: McpSessionStatus = 'off';
+  private mcpConnectedAt: number | null = null;
+  private mcpLastKeepaliveAt: number | null = null;
+  private workflowScheduler: WorkflowScheduler | null = null;
+  private vaultEventHandler: VaultEventHandler | null = null;
+  private lastHealthCheckResults: HealthCheckResult[] = [];
+  private readonly notificationManager = new NotificationManager(
+    (message, timeout) => { new Notice(message, timeout); }
+  );
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -60,6 +83,9 @@ export default class LimpsPlugin extends Plugin {
     }
 
     this.registerCommands();
+    registerDocCommands(this);
+    registerTaskCommands(this);
+    registerSearchProposalCommands(this);
     this.registerEditorExtension(createLimpsEditorDiagnosticsExtension(this));
     this.registerObsidianEventHooks();
     this.registerContextMenuHooks();
@@ -69,6 +95,13 @@ export default class LimpsPlugin extends Plugin {
       this.statusBarEl = this.addStatusBarItem();
       this.statusBarEl.textContent = 'local-intel daemon:unknown links:r0/u0 mcp:off';
     }
+
+    if (this.settings.enablePersistentMcp) {
+      void this.initMcpClient();
+    }
+
+    this.initWorkflowScheduler();
+    this.initVaultEventHandler();
 
     const interval = setInterval(() => {
       void this.pollRuntimeStatus();
@@ -98,6 +131,62 @@ export default class LimpsPlugin extends Plugin {
         ? Boolean(merged.useSystemLimpsBinary)
         : true,
     };
+  }
+
+  getMcpClient(): McpClientManager | null {
+    return this.mcpClient;
+  }
+
+  getMcpSessionInfo(): { status: McpSessionStatus; connectedAt: number | null; lastKeepaliveAt: number | null } {
+    return {
+      status: this.mcpSessionStatus,
+      connectedAt: this.mcpConnectedAt,
+      lastKeepaliveAt: this.mcpLastKeepaliveAt,
+    };
+  }
+
+  private async initMcpClient(): Promise<void> {
+    const client = new McpClientManager({
+      endpoint: this.settings.mcpEndpoint,
+      maxReconnectAttempts: this.settings.mcpReconnectMaxAttempts,
+      keepaliveIntervalMs: this.settings.mcpKeepaliveIntervalMs,
+    });
+
+    client.on('connected', () => {
+      this.mcpSessionStatus = 'connected';
+      this.mcpConnectedAt = Date.now();
+      this.mcpLastKeepaliveAt = Date.now();
+      void this.updateStatusBar();
+    });
+
+    client.on('disconnected', ({ reason }) => {
+      this.mcpSessionStatus = 'disconnected';
+      void this.updateStatusBar();
+      if (reason === 'max reconnect attempts exhausted') {
+        new Notice('limps MCP session lost: all reconnect attempts exhausted. Falling back to CLI.', 10_000);
+      }
+    });
+
+    client.on('reconnecting', ({ attempt, maxAttempts }) => {
+      this.mcpSessionStatus = 'reconnecting';
+      void this.updateStatusBar();
+      if (attempt === 1) {
+        new Notice(`limps MCP reconnecting (attempt ${attempt}/${maxAttempts})...`, 3000);
+      }
+    });
+
+    client.on('error', ({ error }) => {
+      console.error('[limps] MCP client error:', error.message);
+    });
+
+    this.mcpClient = client;
+
+    try {
+      await client.connect();
+    } catch (error) {
+      this.mcpSessionStatus = 'disconnected';
+      console.error('[limps] MCP initial connection failed:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   async getHealthSnapshot(): Promise<HealthSnapshot> {
@@ -237,6 +326,14 @@ export default class LimpsPlugin extends Plugin {
       name: 'Local Intelligence: Open Plugin Settings',
       callback: async () => {
         this.openPluginSettings();
+      },
+    });
+
+    this.addCommand({
+      id: 'limps:run-health-check',
+      name: 'Local Intelligence: Run Health Check',
+      callback: async () => {
+        await this.runManualHealthCheck();
       },
     });
   }
@@ -753,6 +850,8 @@ export default class LimpsPlugin extends Plugin {
       });
     }
 
+    addDocContextMenuActions(this, menu, filePath);
+
     menu.addItem((item) => {
       item.setTitle('Local Intelligence: Convert Dependencies To Paths');
       item.setIcon('link');
@@ -929,6 +1028,7 @@ export default class LimpsPlugin extends Plugin {
         links,
         mcpEnabled: this.settings.enableObsidianMcp,
         mcpConnected,
+        mcpSessionStatus: this.settings.enablePersistentMcp ? this.mcpSessionStatus : 'off',
       });
       this.statusBarEl.title = 'local intelligence runtime governance status';
     } finally {
@@ -940,11 +1040,131 @@ export default class LimpsPlugin extends Plugin {
     }
   }
 
+  private initWorkflowScheduler(): void {
+    this.workflowScheduler = new WorkflowScheduler(
+      () => this.getRunOptions(true),
+      (results) => {
+        this.lastHealthCheckResults = results;
+
+        // Notify on issues found
+        if (this.settings.notifyOnIssuesFound) {
+          const totalIssues = results.reduce((sum, r) => sum + r.issues, 0);
+          if (totalIssues > 0) {
+            const details = results
+              .filter((r) => r.issues > 0)
+              .map((r) => `${r.check}: ${r.issues}`)
+              .join(', ');
+            this.notificationManager.notify('warning', `Health check found issues: ${details}`);
+          }
+        }
+
+        // Auto-apply proposals after health check
+        if (this.settings.autoApplyProposals) {
+          void this.runAutoProposals();
+        }
+
+        void this.refreshHealthView();
+      }
+    );
+
+    if (this.settings.enableScheduledHealthChecks) {
+      this.workflowScheduler.start(this.settings.healthCheckIntervalMs);
+    }
+  }
+
+  private initVaultEventHandler(): void {
+    if (!this.settings.autoReindexOnChange) return;
+
+    try {
+      const plansPath = this.getPlansPathFromConfig();
+      this.vaultEventHandler = new VaultEventHandler({
+        plugin: this,
+        debounceMs: this.settings.eventRefreshDebounceMs,
+        plansPath,
+        vaultPath: this.getVaultPath(),
+        getRunOptions: () => this.getRunOptions(false),
+        onReindex: () => {
+          void this.pollRuntimeStatus();
+        },
+      });
+      this.vaultEventHandler.register();
+    } catch {
+      // Config may not be available yet; skip event handler
+    }
+  }
+
+  private async runAutoProposals(): Promise<void> {
+    const client = this.getMcpClient();
+    if (!client) return;
+
+    const cliOptions: CliOptions = {
+      limpsPath: this.getEffectiveBinaryPathPreview(),
+      cwd: this.getVaultPath(),
+      timeoutMs: this.settings.commandTimeoutMs,
+    };
+
+    const wrapper = new LimpsToolWrapper(client, cliOptions);
+    await runAutoProposals({
+      wrapper,
+      notificationManager: this.notificationManager,
+      allowedTypes: this.settings.autoApplyProposalTypes,
+    });
+  }
+
+  private async runManualHealthCheck(): Promise<void> {
+    if (!this.workflowScheduler) {
+      new Notice('Health check scheduler is not initialized.', 5000);
+      return;
+    }
+
+    new Notice('Running health check...', 2000);
+    const results = await this.workflowScheduler.runNow();
+    const totalIssues = results.reduce((sum, r) => sum + r.issues, 0);
+    if (totalIssues === 0) {
+      new Notice('Health check passed: no issues found.', 4000);
+    } else {
+      const details = results
+        .filter((r) => r.issues > 0)
+        .map((r) => `${r.check}: ${r.issues}`)
+        .join(', ');
+      new Notice(`Health check found issues: ${details}`, 7000);
+    }
+  }
+
+  getLastHealthCheckResults(): HealthCheckResult[] {
+    return this.lastHealthCheckResults;
+  }
+
+  getNotificationLog(): readonly NotificationEntry[] {
+    return this.notificationManager.getLog();
+  }
+
+  clearNotificationLog(): void {
+    this.notificationManager.clearLog();
+  }
+
   onunload(): void {
     if (this.eventRefreshTimeoutId !== null) {
       clearTimeout(this.eventRefreshTimeoutId);
       this.eventRefreshTimeoutId = null;
     }
+
+    if (this.workflowScheduler) {
+      this.workflowScheduler.stop();
+      this.workflowScheduler = null;
+    }
+
+    if (this.vaultEventHandler) {
+      this.vaultEventHandler.unregister();
+      this.vaultEventHandler = null;
+    }
+
+    if (this.mcpClient) {
+      void this.mcpClient.disconnect();
+      this.mcpClient = null;
+      this.mcpSessionStatus = 'off';
+    }
+
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_HEALTH);
     for (const leaf of leaves) {
       void leaf.setViewState({ type: 'empty' });

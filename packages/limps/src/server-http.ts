@@ -63,6 +63,7 @@ let startTime: Date | null = null;
 let rateLimiter: RateLimiter | null = null;
 let cleanupInterval: NodeJS.Timeout | null = null;
 let activePidFilePath: string | null = null;
+let activeSessionTimeoutMs: number = 30 * 60 * 1000;
 
 export interface StartHttpServerOptions {
   port?: number;
@@ -129,6 +130,7 @@ export async function startHttpServer(
 
   // Start session idle timeout cleanup (disabled if sessionTimeoutMs is 0)
   const sessionTimeoutMs = httpConfig.sessionTimeoutMs ?? 30 * 60 * 1000;
+  activeSessionTimeoutMs = sessionTimeoutMs;
   const cleaningUp = new Set<string>();
   cleanupInterval = setInterval(() => {
     const now = Date.now();
@@ -238,6 +240,27 @@ export async function startHttpServer(
           nodeVersion: process.version,
         })
       );
+      return;
+    }
+
+    // Session renew endpoint
+    if (url.pathname === '/mcp/renew' && req.method === 'POST') {
+      const renewSessionId = req.headers['mcp-session-id'] as string | undefined;
+      if (!renewSessionId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing mcp-session-id header' }));
+        return;
+      }
+      const renewSession = sessions.get(renewSessionId);
+      if (!renewSession) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Session not found' }));
+        return;
+      }
+      renewSession.lastActiveAt = new Date();
+      const expiresAt = new Date(renewSession.lastActiveAt.getTime() + sessionTimeoutMs);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ renewed: true, expiresAt: expiresAt.toISOString() }));
       return;
     }
 
@@ -403,6 +426,31 @@ async function handleNewSession(req: IncomingMessage, res: ServerResponse): Prom
       sessions.set(sessionId, { transport, server, createdAt: now, lastActiveAt: now });
       console.error(`MCP session created: ${maskSessionId(sessionId)}`);
     },
+  });
+
+  // Register session://info resource on this per-session server
+  server.resource('Session Info', 'session://info', async () => {
+    const sid = transport.sessionId;
+    const session = sid ? sessions.get(sid) : undefined;
+    const now = new Date();
+    const info = {
+      sessionId: sid ? maskSessionId(sid) : 'unknown',
+      createdAt: session?.createdAt.toISOString() ?? now.toISOString(),
+      lastActiveAt: session?.lastActiveAt.toISOString() ?? now.toISOString(),
+      expiresAt: session
+        ? new Date(session.lastActiveAt.getTime() + activeSessionTimeoutMs).toISOString()
+        : null,
+      serverVersion: getPackageVersion(),
+    };
+    return {
+      contents: [
+        {
+          uri: 'session://info',
+          mimeType: 'application/json',
+          text: JSON.stringify(info, null, 2),
+        },
+      ],
+    };
   });
 
   // Clean up on transport close

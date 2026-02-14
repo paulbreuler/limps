@@ -3,6 +3,10 @@
  * Based on patterns from mcp-obsidian for safe path filtering.
  */
 
+import { basename, extname } from 'path';
+import type { ExclusionsConfig } from '../config.js';
+import { DEFAULT_EXCLUSIONS } from '../config.js';
+
 /**
  * Configuration for PathFilter.
  */
@@ -131,4 +135,89 @@ export class PathFilter {
   filterPaths(paths: string[]): string[] {
     return paths.filter((path) => this.isAllowed(path));
   }
+}
+
+/**
+ * Check if a directory name should be excluded based on exclusions config.
+ *
+ * @param dirName - Directory basename to check
+ * @param exclusions - Exclusions configuration (uses defaults if not provided)
+ * @returns true if the directory should be excluded
+ */
+export function isExcludedDirectory(dirName: string, exclusions?: ExclusionsConfig): boolean {
+  const dirs = exclusions?.directories ?? DEFAULT_EXCLUSIONS.directories;
+  return dirs.includes(dirName);
+}
+
+/**
+ * Check if a file name should be excluded based on exclusions config.
+ * Checks both exact file patterns and binary extensions.
+ *
+ * @param fileName - File basename to check
+ * @param exclusions - Exclusions configuration (uses defaults if not provided)
+ * @returns true if the file should be excluded
+ */
+export function isExcludedFile(fileName: string, exclusions?: ExclusionsConfig): boolean {
+  const patterns = exclusions?.filePatterns ?? DEFAULT_EXCLUSIONS.filePatterns;
+  const binaryExts = exclusions?.binaryExtensions ?? DEFAULT_EXCLUSIONS.binaryExtensions;
+
+  // Check exact name matches and glob patterns
+  for (const pattern of patterns) {
+    if (pattern.startsWith('*.')) {
+      // Glob extension pattern: *.pyc matches any file ending in .pyc
+      const ext = pattern.slice(1); // e.g., ".pyc"
+      if (fileName.endsWith(ext)) {
+        return true;
+      }
+    } else if (fileName === pattern) {
+      return true;
+    }
+  }
+
+  // Check binary extensions
+  const ext = extname(fileName).toLowerCase();
+  if (ext && binaryExts.includes(ext)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a file size exceeds the maximum allowed size.
+ *
+ * @param size - File size in bytes
+ * @param exclusions - Exclusions configuration (uses defaults if not provided)
+ * @returns true if the file exceeds the maximum size
+ */
+export function exceedsMaxFileSize(size: number, exclusions?: ExclusionsConfig): boolean {
+  const maxSize = exclusions?.maxFileSize ?? DEFAULT_EXCLUSIONS.maxFileSize;
+  return size > maxSize;
+}
+
+/**
+ * Check if a file should be excluded based on all exclusion criteria.
+ * Combines directory, file pattern, binary extension, and size checks.
+ *
+ * @param filePath - Full file path to check
+ * @param fileSize - File size in bytes
+ * @param exclusions - Exclusions configuration
+ * @returns true if the file should be excluded
+ */
+export function shouldExcludeFile(
+  filePath: string,
+  fileSize: number,
+  exclusions?: ExclusionsConfig
+): boolean {
+  const name = basename(filePath);
+
+  if (isExcludedFile(name, exclusions)) {
+    return true;
+  }
+
+  if (exceedsMaxFileSize(fileSize, exclusions)) {
+    return true;
+  }
+
+  return false;
 }

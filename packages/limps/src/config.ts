@@ -81,6 +81,59 @@ export interface HealthConfig {
 }
 
 /**
+ * Index mode for a watched path.
+ * - "full": hash-based change detection, FTS indexing, frontmatter parsing (default)
+ * - "presence": only record path/size/mtime in file_presence table, skip content processing
+ */
+export type IndexMode = 'full' | 'presence';
+
+/**
+ * Exclusions configuration for indexing.
+ */
+export interface ExclusionsConfig {
+  directories?: string[];
+  filePatterns?: string[];
+  maxFileSize?: number;
+  binaryExtensions?: string[];
+}
+
+/**
+ * Default maximum file size in bytes (1 MB).
+ * Files larger than this are skipped during indexing and rejected on write.
+ */
+export const DEFAULT_MAX_FILE_SIZE = 1_048_576;
+
+/**
+ * Default exclusions applied globally unless overridden.
+ */
+export const DEFAULT_EXCLUSIONS: Required<ExclusionsConfig> = {
+  directories: [
+    'node_modules',
+    '.git',
+    'vendor',
+    'build',
+    'dist',
+    '__pycache__',
+    '.cache',
+    '.obsidian',
+  ],
+  filePatterns: ['*.pyc', '*.so', '*.dylib', '*.dll', '*.exe', '.DS_Store', 'Thumbs.db'],
+  binaryExtensions: [
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.bmp',
+    '.ico',
+    '.pdf',
+    '.zip',
+    '.tar',
+    '.gz',
+  ],
+  maxFileSize: DEFAULT_MAX_FILE_SIZE,
+};
+
+/**
  * Rate limiting configuration.
  */
 export interface RateLimitConfig {
@@ -118,6 +171,22 @@ export const DEFAULT_HTTP_SERVER_CONFIG: HttpServerConfig = {
 };
 
 /**
+ * Per-path indexing configuration for multi-path support.
+ */
+export interface PathConfig {
+  path: string;
+  indexMode?: IndexMode; // default: 'full'
+  fileExtensions?: string[]; // override global
+  exclusions?: {
+    directories?: string[];
+    filePatterns?: string[];
+    maxFileSize?: number;
+  };
+  maxDepth?: number; // override global
+  priority?: number; // higher = indexed first (default: 50)
+}
+
+/**
  * Server configuration interface.
  */
 export interface ServerConfig {
@@ -133,10 +202,12 @@ export interface ServerConfig {
     weights: Partial<ScoringWeights>;
     biases: Partial<ScoringBiases>;
   };
+  paths?: PathConfig[]; // Multi-path config with per-path settings
   tools?: ToolFilteringConfig;
   retrieval?: RetrievalConfig;
   server?: Partial<HttpServerConfig>; // HTTP server settings (port, host)
   health?: HealthConfig;
+  exclusions?: ExclusionsConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
 }
 
@@ -178,12 +249,6 @@ const CONFIG_MIGRATIONS: ConfigMigrationStep[] = [
  * Default file extensions to index.
  */
 const DEFAULT_FILE_EXTENSIONS = ['.md'];
-
-/**
- * Default maximum file size in bytes (1 MB).
- * Files larger than this are skipped during indexing and rejected on write.
- */
-export const DEFAULT_MAX_FILE_SIZE = 1_048_576;
 
 /**
  * Default maximum directory recursion depth for indexing and watching.
@@ -751,6 +816,68 @@ export function getMaxFileSize(config: ServerConfig): number {
  */
 export function getMaxDepth(config: ServerConfig): number {
   return config.maxDepth ?? DEFAULT_MAX_DEPTH;
+}
+
+/**
+ * Get exclusions configuration from config, merged with defaults.
+ */
+export function getExclusions(config: ServerConfig): Required<ExclusionsConfig> {
+  const overrides = config.exclusions ?? {};
+  return {
+    directories: overrides.directories ?? DEFAULT_EXCLUSIONS.directories,
+    filePatterns: overrides.filePatterns ?? DEFAULT_EXCLUSIONS.filePatterns,
+    binaryExtensions: overrides.binaryExtensions ?? DEFAULT_EXCLUSIONS.binaryExtensions,
+    maxFileSize: overrides.maxFileSize ?? DEFAULT_EXCLUSIONS.maxFileSize,
+  };
+}
+
+/**
+ * Resolve multi-path configuration from ServerConfig.
+ * If `paths[]` is provided, use it directly.
+ * Otherwise, synthesize from `plansPath` (priority: 100) + `docsPaths` (priority: 50).
+ *
+ * @param config - Server configuration
+ * @returns Array of PathConfig sorted by priority (descending)
+ */
+export function getResolvedPaths(config: ServerConfig): PathConfig[] {
+  if (config.paths && config.paths.length > 0) {
+    // Use explicit paths config, fill in defaults
+    const resolved = config.paths.map((p) => ({
+      ...p,
+      indexMode: p.indexMode ?? ('full' as IndexMode),
+      priority: p.priority ?? 50,
+    }));
+    // Sort by priority descending (higher = indexed first)
+    return resolved.sort((a, b) => (b.priority ?? 50) - (a.priority ?? 50));
+  }
+
+  // Synthesize from legacy plansPath + docsPaths
+  const result: PathConfig[] = [];
+  const seen = new Set<string>();
+
+  // plansPath gets highest priority
+  result.push({
+    path: config.plansPath,
+    indexMode: 'full',
+    priority: 100,
+  });
+  seen.add(config.plansPath);
+
+  // docsPaths get default priority
+  if (config.docsPaths) {
+    for (const p of config.docsPaths) {
+      if (!seen.has(p)) {
+        seen.add(p);
+        result.push({
+          path: p,
+          indexMode: 'full',
+          priority: 50,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 import { isIPv6 } from 'net';

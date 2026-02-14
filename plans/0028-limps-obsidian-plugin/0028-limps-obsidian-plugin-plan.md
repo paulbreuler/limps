@@ -1,3 +1,5 @@
+> **SUPERSEDED** by [0050-obsidian-deep-integration](../0050-obsidian-deep-integration/0050-obsidian-deep-integration-plan.md)
+
 ---
 title: limps Obsidian Plugin — Primary Human UI
 status: draft

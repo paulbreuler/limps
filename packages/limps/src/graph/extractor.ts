@@ -4,6 +4,7 @@ import type { Entity, EntityType, Relationship, RelationType } from './types.js'
 import { PATTERNS } from './patterns.js';
 import { parseFrontmatter } from './parser.js';
 import { parseDependencyRef } from '../utils/dependency-ref.js';
+import { DocumentAnalyzer } from '../analysis/document-structure.js';
 
 export interface ExtractionResult {
   entities: Entity[];
@@ -255,6 +256,40 @@ export class EntityExtractor {
       }
     };
 
+    const docAnalyzer = new DocumentAnalyzer();
+
+    const linkDocumentReferences = (
+      sourceCanonicalId: string,
+      content: string,
+      sourcePath: string
+    ): void => {
+      const analysis = docAnalyzer.analyze(content, sourcePath);
+      for (const ref of analysis.references) {
+        const targetCanonical = `file:${ref.target}`;
+        upsertEntity('file', targetCanonical, ref.target, undefined, {
+          referenceType: ref.type,
+          crossRepo: ref.crossRepo,
+        });
+        const relKey = `${sourceCanonicalId}|${targetCanonical}|REFERENCES`;
+        if (!relationshipKeys.has(relKey)) {
+          relationshipKeys.add(relKey);
+          const source = entitiesByCanonical.get(sourceCanonicalId);
+          const target = entitiesByCanonical.get(targetCanonical);
+          if (source && target) {
+            result.relationships.push({
+              id: nextRelationshipId++,
+              sourceId: source.id,
+              targetId: target.id,
+              relationType: 'REFERENCES',
+              confidence: ref.confidence,
+              metadata: { referenceType: ref.type, line: ref.line, crossRepo: ref.crossRepo },
+              createdAt: now,
+            });
+          }
+        }
+      }
+    };
+
     const extractInlineReferences = (sourceCanonicalId: string, content: string): void => {
       linkFileReferences(sourceCanonicalId, getMatches(content, PATTERNS.inlineFile));
       linkDependencyReferences(sourceCanonicalId, content);
@@ -298,6 +333,7 @@ export class EntityExtractor {
     }
 
     extractInlineReferences(planCanonicalId, planContent);
+    linkDocumentReferences(planCanonicalId, planContent, planMarkdownPath);
 
     const agentsDir = join(planRoot, 'agents');
     if (!existsSync(agentsDir)) {
@@ -345,6 +381,7 @@ export class EntityExtractor {
         linkTagReferences(agentCanonical, frontmatter.tags ?? []);
 
         extractInlineReferences(agentCanonical, content);
+        linkDocumentReferences(agentCanonical, content, agentPath);
       }
     }
 

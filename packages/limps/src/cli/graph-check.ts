@@ -45,6 +45,12 @@ export function graphCheck(
       case 'stale_wip':
         conflicts = detector.detectStaleWip();
         break;
+      case 'concept_conflict':
+        conflicts = detector.detectConceptConflicts();
+        break;
+      case 'duplicate_content':
+        conflicts = detector.detectDuplicateContent();
+        break;
       default:
         conflicts = detector.detectAll();
     }

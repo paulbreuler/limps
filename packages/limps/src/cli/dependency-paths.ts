@@ -176,7 +176,11 @@ export function convertDependenciesToPaths(
       }
 
       if (hasDependencies) {
-        const converted = convertDependencyValuesToPaths(frontmatter.dependencies, byNumber, planId);
+        const converted = convertDependencyValuesToPaths(
+          frontmatter.dependencies,
+          byNumber,
+          planId
+        );
         frontmatter.dependencies = converted.next;
         convertedForFile += converted.converted;
         warningsForFile.push(...converted.warnings);

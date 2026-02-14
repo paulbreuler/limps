@@ -37,17 +37,29 @@ export function computeLinkStats(resolvedLinks: unknown, unresolvedLinks: unknow
   };
 }
 
+export type McpSessionStatus = 'off' | 'connected' | 'disconnected' | 'reconnecting';
+
 export interface RuntimeStatusLabelInput {
   daemonRunning: boolean;
   links: LinkStats;
   mcpEnabled: boolean;
   mcpConnected: boolean;
+  mcpSessionStatus?: McpSessionStatus;
 }
 
 export function buildRuntimeStatusLabel(input: RuntimeStatusLabelInput): string {
   const daemonLabel = input.daemonRunning ? 'daemon:up' : 'daemon:down';
   const linksLabel = `links:r${input.links.resolvedReferences}/u${input.links.unresolvedReferences}`;
-  const mcpLabel = input.mcpEnabled ? `mcp:${input.mcpConnected ? 'up' : 'down'}` : 'mcp:off';
+
+  let mcpLabel: string;
+  if (input.mcpSessionStatus && input.mcpSessionStatus !== 'off') {
+    mcpLabel = `mcp:${input.mcpSessionStatus}`;
+  } else if (input.mcpEnabled) {
+    mcpLabel = `mcp:${input.mcpConnected ? 'up' : 'down'}`;
+  } else {
+    mcpLabel = 'mcp:off';
+  }
+
   return `local-intel ${daemonLabel} ${linksLabel} ${mcpLabel}`;
 }
 

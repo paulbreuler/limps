@@ -22,6 +22,7 @@ export const RELATION_TYPES = [
   'SIMILAR_TO',
   'BLOCKS',
   'TAGGED_WITH',
+  'REFERENCES',
 ] as const;
 
 export type RelationType = (typeof RELATION_TYPES)[number];

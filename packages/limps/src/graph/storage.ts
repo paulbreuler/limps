@@ -459,6 +459,7 @@ export class GraphStorage {
       SIMILAR_TO: 0,
       BLOCKS: 0,
       TAGGED_WITH: 0,
+      REFERENCES: 0,
     };
 
     const entityRows = this.db
@@ -529,6 +530,16 @@ export class GraphStorage {
       });
       return [];
     }
+  }
+
+  getAllEntities(): Entity[] {
+    const rows = this.db.prepare('SELECT * FROM entities').all() as EntityRow[];
+    return rows.map(mapEntity);
+  }
+
+  getAllRelationships(): Relationship[] {
+    const rows = this.db.prepare('SELECT * FROM relationships').all() as RelationshipRow[];
+    return rows.map(mapRelationship);
   }
 
   private getEntityById(id: number): Entity | null {

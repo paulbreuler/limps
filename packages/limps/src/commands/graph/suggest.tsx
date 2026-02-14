@@ -10,7 +10,9 @@ import { graphSuggest, type GraphSuggestType } from '../../cli/graph-suggest.js'
 
 export const description = 'Get graph-based suggestions';
 
-export const args = z.tuple([z.string().describe('suggestion type: consolidate or next-task')]);
+export const args = z.tuple([
+  z.string().describe('suggestion type: consolidate, next-task, or hub-documents'),
+]);
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
@@ -22,7 +24,7 @@ interface Props {
   options: z.infer<typeof options>;
 }
 
-const VALID_TYPES = ['consolidate', 'next-task'];
+const VALID_TYPES = ['consolidate', 'next-task', 'hub-documents'];
 
 export default function GraphSuggestCommand({ args, options }: Props): React.ReactNode {
   const [typeArg] = args;
@@ -32,12 +34,16 @@ export default function GraphSuggestCommand({ args, options }: Props): React.Rea
 
   const help = buildHelpOutput({
     usage: 'limps graph suggest <type> [options]',
-    arguments: ['type  Suggestion type: consolidate, next-task'],
+    arguments: ['type  Suggestion type: consolidate, next-task, hub-documents'],
     options: ['--config Path to config file', '--json Output as JSON'],
     sections: [
       {
         title: 'Examples',
-        lines: ['limps graph suggest consolidate', 'limps graph suggest next-task --json'],
+        lines: [
+          'limps graph suggest consolidate',
+          'limps graph suggest next-task --json',
+          'limps graph suggest hub-documents',
+        ],
       },
     ],
   });

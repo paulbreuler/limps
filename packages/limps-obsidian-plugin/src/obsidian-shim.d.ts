@@ -1,3 +1,7 @@
+interface HTMLElement {
+  empty(): void;
+}
+
 declare module 'obsidian' {
   export function addIcon(iconId: string, svgContent: string): void;
   export type ObsidianProtocolHandler = (params: Record<string, string>) => void;
@@ -69,6 +73,8 @@ declare module 'obsidian' {
   export class Vault {
     adapter: DataAdapter;
     on(name: string, callback: (...args: unknown[]) => unknown): unknown;
+    read(file: TFile): Promise<string>;
+    getFiles(): TFile[];
   }
 
   export class App {
@@ -79,6 +85,23 @@ declare module 'obsidian' {
       unresolvedLinks?: Record<string, Record<string, number>>;
       on?: (name: string, callback: (...args: unknown[]) => unknown) => unknown;
     };
+  }
+
+  export abstract class Modal {
+    app: App;
+    contentEl: HTMLElement;
+    constructor(app: App);
+    open(): void;
+    close(): void;
+    onOpen(): void;
+    onClose(): void;
+  }
+
+  export abstract class SuggestModal<T> extends Modal {
+    setPlaceholder(placeholder: string): void;
+    abstract getSuggestions(query: string): T[];
+    abstract renderSuggestion(value: T, el: HTMLElement): void;
+    abstract onChooseSuggestion(item: T, evt: MouseEvent | KeyboardEvent): void;
   }
 
   export abstract class ItemView {

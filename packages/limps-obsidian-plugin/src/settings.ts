@@ -10,6 +10,10 @@ export interface LimpsPluginSettings {
   eventRefreshDebounceMs: number;
   showHealthRibbon: boolean;
   showStatusBar: boolean;
+  enablePersistentMcp: boolean;
+  mcpEndpoint: string;
+  mcpKeepaliveIntervalMs: number;
+  mcpReconnectMaxAttempts: number;
   enableObsidianMcp: boolean;
   obsidianMcpTransport: 'http' | 'stdio';
   obsidianMcpEndpoint: string;
@@ -17,6 +21,12 @@ export interface LimpsPluginSettings {
   obsidianMcpArgs: string;
   obsidianMcpCwd: string;
   obsidianMcpTimeoutMs: number;
+  enableScheduledHealthChecks: boolean;
+  healthCheckIntervalMs: number;
+  autoReindexOnChange: boolean;
+  autoApplyProposals: boolean;
+  autoApplyProposalTypes: string[];
+  notifyOnIssuesFound: boolean;
 }
 
 export const DEFAULT_SETTINGS: LimpsPluginSettings = {
@@ -28,6 +38,10 @@ export const DEFAULT_SETTINGS: LimpsPluginSettings = {
   eventRefreshDebounceMs: 750,
   showHealthRibbon: true,
   showStatusBar: true,
+  enablePersistentMcp: true,
+  mcpEndpoint: 'http://127.0.0.1:4269/mcp',
+  mcpKeepaliveIntervalMs: 840_000,
+  mcpReconnectMaxAttempts: 10,
   enableObsidianMcp: false,
   obsidianMcpTransport: 'http',
   obsidianMcpEndpoint: 'http://127.0.0.1:3000/mcp',
@@ -35,6 +49,12 @@ export const DEFAULT_SETTINGS: LimpsPluginSettings = {
   obsidianMcpArgs: '',
   obsidianMcpCwd: '',
   obsidianMcpTimeoutMs: 2500,
+  enableScheduledHealthChecks: false,
+  healthCheckIntervalMs: 14_400_000,
+  autoReindexOnChange: true,
+  autoApplyProposals: false,
+  autoApplyProposalTypes: ['frontmatter_cleanup', 'staleness_update', 'link_normalization'],
+  notifyOnIssuesFound: true,
 };
 
 export class LimpsSettingTab extends PluginSettingTab {
@@ -188,6 +208,149 @@ export class LimpsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    this.renderSectionHeader(
+      containerEl,
+      'Scheduled Health Checks',
+      'Periodically run health checks against the limps daemon to detect staleness, drift, and conflicts.'
+    );
+
+    new Setting(containerEl)
+      .setName('Enable scheduled health checks')
+      .setDesc('Periodically run health checks in the background')
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.enableScheduledHealthChecks).onChange(async (value) => {
+          this.plugin.settings.enableScheduledHealthChecks = value;
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+
+    if (this.plugin.settings.enableScheduledHealthChecks) {
+      new Setting(containerEl)
+        .setName('Health check interval (hours)')
+        .setDesc('How often to run scheduled health checks')
+        .addSlider((slider) => {
+          slider
+            .setLimits(1, 24, 1)
+            .setValue(Math.round(this.plugin.settings.healthCheckIntervalMs / 3_600_000))
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              this.plugin.settings.healthCheckIntervalMs = value * 3_600_000;
+              await this.plugin.saveSettings();
+            });
+        });
+    }
+
+    new Setting(containerEl)
+      .setName('Auto-reindex on change')
+      .setDesc('Automatically trigger graph reindex when plan files are modified')
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.autoReindexOnChange).onChange(async (value) => {
+          this.plugin.settings.autoReindexOnChange = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Auto-apply proposals')
+      .setDesc('Automatically apply safe proposals of whitelisted types after health checks')
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.autoApplyProposals).onChange(async (value) => {
+          this.plugin.settings.autoApplyProposals = value;
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+
+    if (this.plugin.settings.autoApplyProposals) {
+      new Setting(containerEl)
+        .setName('Auto-apply proposal types')
+        .setDesc('Comma-separated list of proposal types to auto-apply (e.g. frontmatter_cleanup, staleness_update, link_normalization)')
+        .addText((text) => {
+          text
+            .setPlaceholder('frontmatter_cleanup, staleness_update, link_normalization')
+            .setValue(this.plugin.settings.autoApplyProposalTypes.join(', '))
+            .onChange(async (value) => {
+              this.plugin.settings.autoApplyProposalTypes = value
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+              await this.plugin.saveSettings();
+            });
+        });
+    }
+
+    new Setting(containerEl)
+      .setName('Notify on issues found')
+      .setDesc('Show Obsidian notifications when health checks or auto-fix operations find issues')
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.notifyOnIssuesFound).onChange(async (value) => {
+          this.plugin.settings.notifyOnIssuesFound = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    this.renderSectionHeader(
+      containerEl,
+      'Persistent MCP Connection',
+      'Maintain a persistent MCP session to the limps HTTP daemon for real-time tool access.'
+    );
+
+    new Setting(containerEl)
+      .setName('Enable persistent MCP')
+      .setDesc('Keep a live MCP session to the daemon with auto-reconnect and keepalive')
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.enablePersistentMcp).onChange(async (value) => {
+          this.plugin.settings.enablePersistentMcp = value;
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+
+    if (this.plugin.settings.enablePersistentMcp) {
+      new Setting(containerEl)
+        .setName('MCP endpoint')
+        .setDesc('HTTP endpoint for the limps MCP daemon')
+        .addText((text) => {
+          text
+            .setPlaceholder('http://127.0.0.1:4269/mcp')
+            .setValue(this.plugin.settings.mcpEndpoint)
+            .onChange(async (value) => {
+              this.plugin.settings.mcpEndpoint =
+                value.trim() || DEFAULT_SETTINGS.mcpEndpoint;
+              await this.plugin.saveSettings();
+            });
+        });
+
+      new Setting(containerEl)
+        .setName('Keepalive interval (ms)')
+        .setDesc('How often to ping the daemon to keep the session alive')
+        .addSlider((slider) => {
+          slider
+            .setLimits(30_000, 1_800_000, 30_000)
+            .setValue(this.plugin.settings.mcpKeepaliveIntervalMs)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              this.plugin.settings.mcpKeepaliveIntervalMs = value;
+              await this.plugin.saveSettings();
+            });
+        });
+
+      new Setting(containerEl)
+        .setName('Max reconnect attempts')
+        .setDesc('Number of reconnect attempts before falling back to CLI')
+        .addSlider((slider) => {
+          slider
+            .setLimits(1, 20, 1)
+            .setValue(this.plugin.settings.mcpReconnectMaxAttempts)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              this.plugin.settings.mcpReconnectMaxAttempts = value;
+              await this.plugin.saveSettings();
+            });
+        });
+    }
 
     this.renderSectionHeader(
       containerEl,

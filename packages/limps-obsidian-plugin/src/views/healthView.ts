@@ -128,6 +128,8 @@ export class HealthView extends ItemView {
         </div>
       </div>`;
 
+    const mcpSessionHint = this.renderMcpSessionCard(disabledAttr);
+
     const mcpHint = this.plugin.settings.enableObsidianMcp
       ? `<div class="card">
           <div>Validate Obsidian MCP connectivity for AI-governed workflows.</div>
@@ -157,7 +159,9 @@ export class HealthView extends ItemView {
       </div>
       ${emptyHint}
       ${graphLinksHint}
+      ${mcpSessionHint}
       ${mcpHint}
+      ${this.renderNotificationLog()}
     `;
   }
 
@@ -264,6 +268,18 @@ export class HealthView extends ItemView {
     this.bindAction('check-obsidian-mcp', async () => {
       await this.plugin.checkObsidianMcp();
     });
+    this.bindAction('clear-notifications', async () => {
+      this.plugin.clearNotificationLog();
+      this.render();
+    });
+    this.bindAction('mcp-reconnect', async () => {
+      const client = this.plugin.getMcpClient();
+      if (client) {
+        await client.disconnect();
+        await client.connect(this.plugin.settings.mcpEndpoint);
+      }
+      await this.refresh();
+    });
   }
 
   private bindAction(action: string, run: () => Promise<void>): void {
@@ -285,6 +301,72 @@ export class HealthView extends ItemView {
       this.actionInFlight = false;
       this.render();
     }
+  }
+
+  private renderMcpSessionCard(disabledAttr: string): string {
+    if (!this.plugin.settings.enablePersistentMcp) {
+      return '';
+    }
+
+    const session = this.plugin.getMcpSessionInfo();
+    const statusLabel = session.status === 'connected' ? 'Connected'
+      : session.status === 'reconnecting' ? 'Reconnecting...'
+      : 'Disconnected';
+
+    const sessionAge = session.connectedAt
+      ? this.formatDuration(Date.now() - session.connectedAt)
+      : 'N/A';
+
+    const lastKeepalive = session.lastKeepaliveAt
+      ? this.formatDuration(Date.now() - session.lastKeepaliveAt) + ' ago'
+      : 'N/A';
+
+    const reconnectButton = session.status !== 'connected'
+      ? `<button type="button" class="mod-cta" data-action="mcp-reconnect" ${disabledAttr}>Reconnect</button>`
+      : '';
+
+    return `<div class="card">
+      <div><strong>MCP Session:</strong> ${statusLabel}</div>
+      <div><strong>Session age:</strong> ${sessionAge}</div>
+      <div><strong>Last keepalive:</strong> ${lastKeepalive}</div>
+      <div class="actions">
+        ${reconnectButton}
+      </div>
+    </div>`;
+  }
+
+  private renderNotificationLog(): string {
+    const log = this.plugin.getNotificationLog();
+    if (log.length === 0) return '';
+
+    const recent = log.slice(-10).reverse();
+    const rows = recent
+      .map((entry) => {
+        const time = entry.timestamp.slice(11, 19);
+        const badge = entry.severity === 'error' ? 'err'
+          : entry.severity === 'warning' ? 'warn'
+          : entry.severity === 'success' ? 'ok'
+          : 'info';
+        return `<div class="log-entry"><span class="log-badge log-${entry.severity}">${badge}</span> <span class="log-time">${time}</span> ${this.escapeHtml(entry.message)}</div>`;
+      })
+      .join('');
+
+    return `<div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>Notification Log</strong>
+        <button type="button" data-action="clear-notifications" style="font-size:0.8em;">Clear</button>
+      </div>
+      <div class="log-entries" style="font-size:0.85em; margin-top:4px;">${rows}</div>
+    </div>`;
+  }
+
+  private formatDuration(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
   }
 
   private escapeHtml(value: string): string {
