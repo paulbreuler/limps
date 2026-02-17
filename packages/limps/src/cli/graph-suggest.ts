@@ -3,11 +3,15 @@ import type { ServerConfig } from '../config.js';
 import { GraphStorage } from '../graph/storage.js';
 import type { EmbeddingStore } from '../graph/similarity.js';
 import { EntityResolver } from '../graph/resolver.js';
+import { LinkAnalyzer } from '../analysis/link-analysis.js';
+import { discoverRelationships } from '../analysis/relationship-discoverer.js';
 
-export type GraphSuggestType = 'consolidate' | 'next-task';
+export type GraphSuggestType = 'consolidate' | 'next-task' | 'hub-documents' | 'relationships';
 
 export interface GraphSuggestOptions {
   planId?: string;
+  topK?: number;
+  minConfidence?: number;
 }
 
 export interface GraphSuggestResult {
@@ -40,6 +44,30 @@ export function graphSuggest(
       type,
       suggestions: result.suggestions,
     };
+  }
+
+  if (type === 'hub-documents') {
+    const analyzer = new LinkAnalyzer(db);
+    const topK = _options?.topK ?? 10;
+    const hubResult = analyzer.findHubDocuments(topK);
+    const suggestions = hubResult.hubs.map(
+      (hub) =>
+        `${hub.entityId} "${hub.name}" (score: ${hub.score.toFixed(4)}, in: ${hub.inDegree}, out: ${hub.outDegree})`
+    );
+    return { type, suggestions };
+  }
+
+  if (type === 'relationships') {
+    const minConf = _options?.minConfidence ?? 0.3;
+    const discovered = discoverRelationships(db, {
+      minConfidence: minConf,
+      planId: _options?.planId,
+    });
+    const suggestions = discovered.relationships.map(
+      (r) =>
+        `${r.sourceId} "${r.sourceName}" <-> ${r.targetId} "${r.targetName}" (confidence: ${r.confidence.toFixed(2)}, ${r.reason})`
+    );
+    return { type, suggestions };
   }
 
   // next-task: suggest based on graph analysis

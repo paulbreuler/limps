@@ -54,6 +54,7 @@ describe('completion engine', () => {
     expect(suggestions).toContain('list');
     expect(suggestions).toContain('score');
     expect(suggestions).toContain('scores');
+    expect(suggestions).toContain('deps-to-paths');
   });
 
   it('suggests plans and agents for plan score options', () => {

@@ -1,0 +1,42 @@
+{
+  "name": "@sudosandwich/limps-obsidian-plugin",
+  "version": "0.0.2",
+  "description": "Obsidian plugin for limps (Bootstrap + Health MVP)",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-plugin.mjs",
+    "dev": "tsc -p tsconfig.json --watch",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test": "node scripts/run-tests.mjs",
+    "preview:3d": "node scripts/preview-graph.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "limps",
+    "plugin"
+  ],
+  "author": "Paul Breuler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulbreuler/limps.git",
+    "directory": "packages/limps-obsidian-plugin"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@codemirror/lint": "^6.9.4",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.14",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-force-graph-2d": "^1.29.1",
+    "react-force-graph-3d": "^1.29.1"
+  }
+}

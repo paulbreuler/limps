@@ -42,6 +42,29 @@ files: []
     expect(parsed.frontmatter.dependencies).toEqual([]);
   });
 
+  it('normalizes file-path dependencies into local agent numbers', () => {
+    const content = `---
+status: GAP
+persona: coder
+depends_on:
+  - "./001_base.agent.md"
+  - "[Base](./002_core.agent.md)"
+  - "[[003_ui.agent|UI]]"
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 4
+`;
+    const parsed = parseAgentFile('/plans/0001-test/agents/004_agent.agent.md', content);
+    expect(parsed).not.toBeNull();
+    if (!parsed) {
+      return;
+    }
+    expect(parsed.frontmatter.dependencies).toEqual(['001', '002', '003']);
+  });
+
   it('extracts plan folder without requiring a /plans/ path segment', () => {
     const planFolder = extractPlanFolder(
       '/workspace/my-project/0007-feature/agents/002_test.agent.md'

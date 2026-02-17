@@ -1,0 +1,10 @@
+{
+  "id": "limps-obsidian-plugin",
+  "name": "Local Intelligence",
+  "version": "0.0.2",
+  "minAppVersion": "1.5.0",
+  "description": "Local Intelligence Hub for Obsidian: health, graph sync, and directed knowledge graph visualization",
+  "author": "Paul Breuler",
+  "authorUrl": "https://github.com/paulbreuler",
+  "isDesktopOnly": true
+}

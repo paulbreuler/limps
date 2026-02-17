@@ -1,0 +1,1705 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forceCollide, forceRadial } from "d3-force-3d";
+import ForceGraph2D, {
+  type ForceGraphMethods as ForceGraph2DMethods,
+} from "react-force-graph-2d";
+import ForceGraph3D, {
+  type ForceGraphMethods as ForceGraph3DMethods,
+} from "react-force-graph-3d";
+import type LimpsPlugin from "../main.js";
+import { buildDirectedGraph } from "../graph/directedGraph.js";
+import type {
+  DirectedEdgeType,
+  DirectedGraphData,
+  DirectedGraphEdge,
+  DirectedGraphNode,
+  DirectedGraphWarning,
+} from "../graph/directedGraph.js";
+import { useObsidianApp } from "../react/app-context.js";
+
+interface DirectedGraphReactViewProps {
+  plugin: LimpsPlugin;
+}
+
+type LayerId =
+  | "plan-structure"
+  | "dependencies"
+  | "plan-surfaces"
+  | "references"
+  | "semantic";
+type DisplayTheme = "day" | "night";
+
+interface LayerOption {
+  id: LayerId;
+  label: string;
+  description: string;
+  edgeTypes: DirectedEdgeType[];
+}
+
+type LayerState = Record<LayerId, boolean>;
+
+interface ForceNode {
+  id: string;
+  label: string;
+  type: DirectedGraphNode["type"];
+  filePath: string;
+  planId: string;
+  val: number;
+  degree: number;
+  mass: number;
+  collisionRadius: number;
+}
+
+interface ForceLink {
+  source: string;
+  target: string;
+  type: DirectedEdgeType;
+  label: string;
+  weight: number;
+}
+
+interface ZoomTransform {
+  k: number;
+}
+
+interface DisplaySettings {
+  theme: DisplayTheme;
+  showArrows: boolean;
+  planLevelReferences: boolean;
+  textFadeThreshold: number;
+  nodeSizeScale: number;
+  nodeRelSize3D: number;
+  linkThickness: number;
+  linkOpacity: number;
+  labelMaxChars: number;
+}
+
+interface ForceSettings {
+  centerForce: number;
+  repelForce: number;
+  linkForce: number;
+  linkDistance: number;
+}
+
+interface LinkEndpoint {
+  degree?: number;
+}
+
+interface GraphCameraPosition {
+  x?: number;
+  y?: number;
+  z?: number;
+}
+
+interface GraphLookAt {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface GraphApi {
+  centerAt?: (x?: number, y?: number, ms?: number) => void;
+  zoomToFit: (ms?: number, padding?: number) => void;
+  zoom?: (k: number, ms?: number) => void;
+  cameraPosition?: (
+    position?: GraphCameraPosition,
+    lookAt?: GraphLookAt,
+    ms?: number,
+  ) => void;
+  getGraphBbox?: () => {
+    x?: [number, number];
+    y?: [number, number];
+    z?: [number, number];
+  } | null;
+  d3Force: (name: string, force?: unknown) => unknown;
+  d3ReheatSimulation?: () => void;
+  pauseAnimation?: () => unknown;
+  resumeAnimation?: () => unknown;
+  refresh?: () => unknown;
+}
+
+const LAYER_OPTIONS: LayerOption[] = [
+  {
+    id: "plan-structure",
+    label: "Plan relationships",
+    description: "plan contains agent",
+    edgeTypes: ["plan-contains"],
+  },
+  {
+    id: "dependencies",
+    label: "Dependencies",
+    description: "depends_on / blocks",
+    edgeTypes: ["depends-on"],
+  },
+  {
+    id: "plan-surfaces",
+    label: "Plan docs",
+    description: "related docs/canvas/base",
+    edgeTypes: ["related-doc", "related-canvas", "related-base"],
+  },
+  {
+    id: "references",
+    label: "References",
+    description: "markdown links",
+    edgeTypes: ["references"],
+  },
+  {
+    id: "semantic",
+    label: "Semantic",
+    description: "shared tags",
+    edgeTypes: ["semantic-tag"],
+  },
+];
+
+const DEFAULT_LAYERS: LayerState = {
+  "plan-structure": true,
+  dependencies: true,
+  "plan-surfaces": true,
+  references: true,
+  semantic: true,
+};
+
+const PHYSICS_COOLDOWN_TICKS = 1_000_000;
+
+const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  theme: "day",
+  showArrows: true,
+  planLevelReferences: true,
+  textFadeThreshold: 0.62,
+  nodeSizeScale: 1.2,
+  nodeRelSize3D: 5.6,
+  linkThickness: 1.35,
+  linkOpacity: 0.78,
+  labelMaxChars: 26,
+};
+
+const DEFAULT_FORCE_SETTINGS: ForceSettings = {
+  centerForce: 0.14,
+  repelForce: 220,
+  linkForce: 0.22,
+  linkDistance: 180,
+};
+
+const EDGE_LABELS: Record<DirectedEdgeType, string> = {
+  "plan-contains": "contains",
+  "depends-on": "depends_on",
+  "related-doc": "related_doc",
+  "related-canvas": "related_canvas",
+  "related-base": "related_base",
+  references: "references",
+  "semantic-tag": "semantic",
+};
+
+const EDGE_WEIGHT: Record<DirectedEdgeType, number> = {
+  "plan-contains": 1.1,
+  "depends-on": 1.6,
+  "related-doc": 0.9,
+  "related-canvas": 0.9,
+  "related-base": 0.9,
+  references: 0.55,
+  "semantic-tag": 0.45,
+};
+
+const EDGE_IS_DASHED: Record<DirectedEdgeType, boolean> = {
+  "plan-contains": false,
+  "depends-on": false,
+  "related-doc": true,
+  "related-canvas": true,
+  "related-base": true,
+  references: true,
+  "semantic-tag": true,
+};
+
+const EDGE_IS_HARD: Record<DirectedEdgeType, boolean> = {
+  "plan-contains": true,
+  "depends-on": true,
+  "related-doc": false,
+  "related-canvas": false,
+  "related-base": false,
+  references: false,
+  "semantic-tag": false,
+};
+
+const EDGE_COLORS: Record<DisplayTheme, Record<DirectedEdgeType, string>> = {
+  day: {
+    "plan-contains": "#1e40af",
+    "depends-on": "#b91c1c",
+    "related-doc": "#0f766e",
+    "related-canvas": "#6d28d9",
+    "related-base": "#0f766e",
+    references: "#334155",
+    "semantic-tag": "#b45309",
+  },
+  night: {
+    "plan-contains": "#60a5fa",
+    "depends-on": "#f87171",
+    "related-doc": "#2dd4bf",
+    "related-canvas": "#c084fc",
+    "related-base": "#2dd4bf",
+    references: "#cbd5e1",
+    "semantic-tag": "#fbbf24",
+  },
+};
+
+const NODE_COLORS: Record<
+  DisplayTheme,
+  Record<DirectedGraphNode["type"], string>
+> = {
+  day: {
+    plan: "#3b82f6",
+    agent: "#8b5cf6",
+    doc: "#10b981",
+    roadmap: "#ec4899",
+    canvas: "#f59e0b",
+    base: "#ef4444",
+  },
+  night: {
+    plan: "#60a5fa",
+    agent: "#c4b5fd",
+    doc: "#5eead4",
+    roadmap: "#f9a8d4",
+    canvas: "#fde68a",
+    base: "#fca5a5",
+  },
+};
+
+const LAYER_PRIMARY_EDGE_TYPE: Record<LayerId, DirectedEdgeType> = {
+  "plan-structure": "plan-contains",
+  dependencies: "depends-on",
+  "plan-surfaces": "related-doc",
+  references: "references",
+  semantic: "semantic-tag",
+};
+
+function nodeValue(type: DirectedGraphNode["type"]): number {
+  if (type === "plan") return 8;
+  if (type === "roadmap") return 6;
+  if (type === "agent") return 4;
+  return 2.5;
+}
+
+function getEndpointDegree(value: unknown): number {
+  const endpoint = value as LinkEndpoint | null;
+  const maybe = endpoint?.degree;
+  return typeof maybe === "number" && Number.isFinite(maybe) ? maybe : 0;
+}
+
+function isEdgeEnabledByLayers(
+  edgeType: DirectedEdgeType,
+  layers: LayerState,
+): boolean {
+  return LAYER_OPTIONS.some(
+    (option) => layers[option.id] && option.edgeTypes.includes(edgeType),
+  );
+}
+
+function shouldShowEdge(edge: DirectedGraphEdge, layers: LayerState): boolean {
+  return isEdgeEnabledByLayers(edge.type, layers);
+}
+
+function shouldRenderLabel(
+  node: ForceNode,
+  globalScale: number,
+  textFadeThreshold: number,
+): boolean {
+  if (globalScale < textFadeThreshold) {
+    return false;
+  }
+
+  if (globalScale < textFadeThreshold + 0.45) {
+    return node.type === "plan" || node.type === "roadmap";
+  }
+
+  if (globalScale < textFadeThreshold + 0.9) {
+    return (
+      node.type === "plan" || node.type === "roadmap" || node.type === "agent"
+    );
+  }
+
+  return true;
+}
+
+function truncateLabel(value: string, limit: number): string {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, Math.max(0, limit - 1))}…`;
+}
+
+function fileNameFromPath(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, "/");
+  const name = normalized.split("/").pop();
+  return name && name.length > 0 ? name : filePath;
+}
+
+function isSoftEdgeType(type: DirectedEdgeType): boolean {
+  return EDGE_IS_DASHED[type];
+}
+
+function edgeWidthForLink(link: ForceLink, linkThickness: number): number {
+  const hard = EDGE_IS_HARD[link.type];
+  const weighted = Math.sqrt(Math.max(0.2, link.weight));
+  const scale = hard ? 0.92 : 0.76;
+  const minWidth = hard ? 0.9 : 0.65;
+  const maxWidth = hard ? 2.2 : 1.65;
+  return Math.min(
+    maxWidth,
+    Math.max(minWidth, weighted * linkThickness * scale),
+  );
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return hex;
+  }
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+}
+
+function estimateCollisionRadius(
+  node: DirectedGraphNode,
+  degree: number,
+  sizeScale: number,
+  labelMaxChars: number,
+): number {
+  const nodeRadius = Math.max(
+    3.5,
+    (nodeValue(node.type) + Math.sqrt(degree) * 1.35) * 1.35 * sizeScale,
+  );
+  const visibleChars = Math.min(labelMaxChars, Math.max(8, node.label.length));
+  const labelRadius = Math.min(28, visibleChars * 1.1);
+  return nodeRadius + labelRadius;
+}
+
+export function DirectedGraphReactView({
+  plugin,
+}: DirectedGraphReactViewProps) {
+  useObsidianApp();
+  const [graph, setGraph] = useState<DirectedGraphData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [layers, setLayers] = useState<LayerState>(DEFAULT_LAYERS);
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(
+    DEFAULT_DISPLAY_SETTINGS,
+  );
+  const [forceSettings, setForceSettings] = useState<ForceSettings>(
+    DEFAULT_FORCE_SETTINGS,
+  );
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [showLayerPanel, setShowLayerPanel] = useState<boolean>(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState<boolean>(false);
+  const [use3D, setUse3D] = useState<boolean>(false);
+  const [canvasSize, setCanvasSize] = useState<{
+    width: number;
+    height: number;
+  }>({ width: 960, height: 640 });
+
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const graph2dHostRef = useRef<HTMLDivElement | null>(null);
+  const graph3dHostRef = useRef<HTMLDivElement | null>(null);
+  const fg2dRef = useRef<ForceGraph2DMethods<ForceNode, ForceLink> | undefined>(
+    undefined,
+  );
+  const fg3dRef = useRef<ForceGraph3DMethods<ForceNode, ForceLink> | undefined>(
+    undefined,
+  );
+  const zoomRef = useRef<number>(1);
+  const cameraDistanceRef = useRef<number>(800);
+
+  const getGraphApi = useCallback((): GraphApi | null => {
+    return use3D
+      ? ((fg3dRef.current as unknown as GraphApi | undefined) ?? null)
+      : ((fg2dRef.current as unknown as GraphApi | undefined) ?? null);
+  }, [use3D]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const plansPath = plugin.getPlansPathFromConfig();
+      const next = buildDirectedGraph(plansPath);
+      setGraph(next);
+    } catch (cause) {
+      setGraph(null);
+      setError(String(cause));
+    } finally {
+      setLoading(false);
+    }
+  }, [plugin]);
+
+  const syncAndReload = useCallback(async () => {
+    await plugin.syncObsidianGraphLinks();
+    await load();
+  }, [load, plugin]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const width = Math.max(300, Math.floor(entry.contentRect.width));
+      const height = Math.max(260, Math.floor(entry.contentRect.height));
+      setCanvasSize((current) => {
+        if (current.width === width && current.height === height)
+          return current;
+        return { width, height };
+      });
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!use3D) return;
+    if (typeof document === "undefined") return;
+    const canvas = document.createElement("canvas");
+    const hasWebGl = Boolean(
+      canvas.getContext("webgl2") || canvas.getContext("webgl"),
+    );
+    if (!hasWebGl) {
+      setUse3D(false);
+    }
+  }, [use3D]);
+
+  useEffect(() => {
+    const graph3d = fg3dRef.current as unknown as GraphApi | undefined;
+    const graph2d = fg2dRef.current as unknown as GraphApi | undefined;
+
+    if (use3D) {
+      graph2d?.pauseAnimation?.();
+      graph3d?.resumeAnimation?.();
+      graph3d?.refresh?.();
+      console.info("[limps-graph] switched to 3D");
+    } else {
+      graph3d?.pauseAnimation?.();
+      graph2d?.resumeAnimation?.();
+      graph2d?.refresh?.();
+      console.info("[limps-graph] switched to 2D");
+    }
+  }, [use3D]);
+
+  useEffect(() => {
+    const host = graph3dHostRef.current;
+    if (!host) return;
+
+    const canvas = host.querySelector("canvas");
+    if (!canvas) return;
+
+    const onLost = (event: Event) => {
+      event.preventDefault();
+      console.warn("[limps-graph] 3D WebGL context lost");
+    };
+    const onRestored = () => {
+      console.info("[limps-graph] 3D WebGL context restored");
+      const graph3d = fg3dRef.current as unknown as GraphApi | undefined;
+      graph3d?.refresh?.();
+    };
+
+    canvas.addEventListener("webglcontextlost", onLost, false);
+    canvas.addEventListener("webglcontextrestored", onRestored, false);
+    return () => {
+      canvas.removeEventListener("webglcontextlost", onLost, false);
+      canvas.removeEventListener("webglcontextrestored", onRestored, false);
+    };
+  }, [canvasSize.height, canvasSize.width]);
+
+  const layerCounts = useMemo(() => {
+    const counts: Record<LayerId, number> = {
+      "plan-structure": 0,
+      dependencies: 0,
+      "plan-surfaces": 0,
+      references: 0,
+      semantic: 0,
+    };
+    if (!graph) return counts;
+
+    for (const edge of graph.edges) {
+      for (const option of LAYER_OPTIONS) {
+        if (option.edgeTypes.includes(edge.type)) {
+          counts[option.id] += 1;
+        }
+      }
+    }
+
+    return counts;
+  }, [graph]);
+
+  const graphTheme = useMemo(() => {
+    const mode = displaySettings.theme;
+    return {
+      mode,
+      backgroundColor: mode === "night" ? "#050815" : "#f8fafc",
+      labelColor: mode === "night" ? "#e2e8f0" : "#0f172a",
+      edgeColors: EDGE_COLORS[mode],
+      nodeColors: NODE_COLORS[mode],
+    };
+  }, [displaySettings.theme]);
+
+  const forceData = useMemo(() => {
+    if (!graph) {
+      return { nodes: [] as ForceNode[], links: [] as ForceLink[] };
+    }
+
+    const nodeById = new Map<string, DirectedGraphNode>(
+      graph.nodes.map((node) => [node.id, node] as const),
+    );
+    const planNodeByPlanId = new Map<string, DirectedGraphNode>();
+    for (const node of graph.nodes) {
+      if (node.type === "plan" && !planNodeByPlanId.has(node.planId)) {
+        planNodeByPlanId.set(node.planId, node);
+      }
+    }
+
+    const normalizedEdges: DirectedGraphEdge[] = [];
+    const normalizedEdgeSet = new Set<string>();
+    for (const edge of graph.edges) {
+      if (!shouldShowEdge(edge, layers)) continue;
+
+      if (displaySettings.planLevelReferences && edge.type === "references") {
+        const sourceNode = nodeById.get(edge.from);
+        const targetNode = nodeById.get(edge.to);
+        if (!sourceNode || !targetNode) continue;
+        const sourcePlan = planNodeByPlanId.get(sourceNode.planId);
+        const targetPlan = planNodeByPlanId.get(targetNode.planId);
+        if (!sourcePlan || !targetPlan) continue;
+        if (sourcePlan.id === targetPlan.id) continue;
+
+        const collapsedKey = `${sourcePlan.id}::${targetPlan.id}::references`;
+        if (normalizedEdgeSet.has(collapsedKey)) continue;
+        normalizedEdgeSet.add(collapsedKey);
+        normalizedEdges.push({
+          from: sourcePlan.id,
+          to: targetPlan.id,
+          type: "references",
+        });
+        continue;
+      }
+
+      const key = `${edge.from}::${edge.to}::${edge.type}`;
+      if (normalizedEdgeSet.has(key)) continue;
+      normalizedEdgeSet.add(key);
+      normalizedEdges.push(edge);
+    }
+
+    const filteredByLayer = normalizedEdges.map((edge) => ({
+      source: edge.from,
+      target: edge.to,
+      type: edge.type,
+      label: EDGE_LABELS[edge.type],
+      weight: EDGE_WEIGHT[edge.type],
+    }));
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const matchedNodeIds = new Set<string>();
+    if (normalizedSearch.length > 0) {
+      for (const node of graph.nodes) {
+        const haystack = `${node.label} ${node.filePath}`.toLowerCase();
+        if (haystack.includes(normalizedSearch)) {
+          matchedNodeIds.add(node.id);
+        }
+      }
+    }
+
+    const expandedNodeIds = new Set<string>(matchedNodeIds);
+    if (normalizedSearch.length > 0) {
+      for (const edge of filteredByLayer) {
+        if (
+          matchedNodeIds.has(edge.source) ||
+          matchedNodeIds.has(edge.target)
+        ) {
+          expandedNodeIds.add(edge.source);
+          expandedNodeIds.add(edge.target);
+        }
+      }
+    }
+
+    const links =
+      normalizedSearch.length === 0
+        ? filteredByLayer
+        : filteredByLayer.filter(
+            (edge) =>
+              expandedNodeIds.has(edge.source) &&
+              expandedNodeIds.has(edge.target),
+          );
+
+    const visibleNodeIds = new Set<string>();
+    for (const link of links) {
+      visibleNodeIds.add(link.source);
+      visibleNodeIds.add(link.target);
+    }
+
+    if (
+      normalizedSearch.length > 0 &&
+      visibleNodeIds.size === 0 &&
+      expandedNodeIds.size > 0
+    ) {
+      for (const id of expandedNodeIds) {
+        visibleNodeIds.add(id);
+      }
+    }
+
+    const degreeById = new Map<string, number>();
+    for (const link of links) {
+      degreeById.set(link.source, (degreeById.get(link.source) ?? 0) + 1);
+      degreeById.set(link.target, (degreeById.get(link.target) ?? 0) + 1);
+    }
+
+    const nodes = graph.nodes
+      .filter(
+        (node) => visibleNodeIds.size === 0 || visibleNodeIds.has(node.id),
+      )
+      .map((node) => {
+        const degree = degreeById.get(node.id) ?? 0;
+        return {
+          id: node.id,
+          label: node.label,
+          type: node.type,
+          filePath: node.filePath,
+          planId: node.planId,
+          degree,
+          val:
+            (nodeValue(node.type) + Math.sqrt(degree) * 1.35) *
+            displaySettings.nodeSizeScale,
+          mass: 1 + Math.log2(1 + degree) * 2.4,
+          collisionRadius: estimateCollisionRadius(
+            node,
+            degree,
+            displaySettings.nodeSizeScale,
+            displaySettings.labelMaxChars,
+          ),
+        };
+      });
+
+    return {
+      nodes,
+      links,
+    };
+  }, [
+    graph,
+    layers,
+    searchTerm,
+    displaySettings.planLevelReferences,
+    displaySettings.labelMaxChars,
+    displaySettings.nodeSizeScale,
+  ]);
+
+  useEffect(() => {
+    const graphApi = getGraphApi();
+    if (!graphApi) return;
+
+    const charge = graphApi.d3Force("charge");
+    const chargeApi = charge as unknown as {
+      strength?: (value: number | ((node: ForceNode) => number)) => unknown;
+    };
+    if (chargeApi && typeof chargeApi.strength === "function") {
+      chargeApi.strength((node: ForceNode) => {
+        const degree = Math.max(0, node.degree ?? 0);
+        const mass = Math.max(1, node.mass ?? 1);
+        const base = -Math.max(20, forceSettings.repelForce);
+        const degreeBias = Math.min(55, degree * 2.2);
+        return (base - degreeBias) / Math.max(1, mass * 0.35);
+      });
+    }
+
+    const linkForce = graphApi.d3Force("link");
+    if (linkForce) {
+      const linkApi = linkForce as unknown as {
+        distance: (fn: (link: ForceLink) => number) => unknown;
+        strength: (fn: (link: ForceLink) => number) => unknown;
+      };
+
+      linkApi.distance((link) => {
+        const sourceDegree = getEndpointDegree(link.source);
+        const targetDegree = getEndpointDegree(link.target);
+        const hubness = (sourceDegree + targetDegree) / 2;
+        const orbitDistance = Math.max(30, forceSettings.linkDistance);
+        const distanceByHub = Math.min(90, hubness * 2.5);
+        const weightBias = Math.min(45, link.weight * 10);
+        return Math.max(30, orbitDistance + distanceByHub - weightBias);
+      });
+
+      linkApi.strength((link) => {
+        const sourceDegree = getEndpointDegree(link.source);
+        const targetDegree = getEndpointDegree(link.target);
+        const hubness = (sourceDegree + targetDegree) / 2;
+        const elastic = Math.max(0.02, forceSettings.linkForce);
+        const weighted =
+          0.06 + link.weight * 0.08 + Math.min(0.25, hubness * 0.01);
+        return Math.min(0.55, elastic * weighted);
+      });
+    }
+
+    const xForce = graphApi.d3Force("x");
+    const xApi = xForce as unknown as {
+      strength?: (value: number | ((node: ForceNode) => number)) => unknown;
+    };
+    if (xApi && typeof xApi.strength === "function") {
+      xApi.strength((node: ForceNode) =>
+        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0,
+      );
+    }
+
+    const yForce = graphApi.d3Force("y");
+    const yApi = yForce as unknown as {
+      strength?: (value: number | ((node: ForceNode) => number)) => unknown;
+    };
+    if (yApi && typeof yApi.strength === "function") {
+      yApi.strength((node: ForceNode) =>
+        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0,
+      );
+    }
+
+    const collisionForce = forceCollide<ForceNode>((node: ForceNode) =>
+      Math.max(10, node.collisionRadius),
+    )
+      .strength(0.35)
+      .iterations(1);
+    graphApi.d3Force("collision", collisionForce);
+
+    const radialForce = forceRadial<ForceNode>(
+      (node: ForceNode) => {
+        const degree = Math.max(0, node.degree ?? 0);
+        if (degree === 0) {
+          // Keep isolated nodes free-floating; no radial anchor.
+          return Number.NaN;
+        }
+        return 60 + Math.min(250, Math.sqrt(degree) * 28);
+      },
+      0,
+      0,
+      0,
+    ).strength((node: ForceNode) =>
+      node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.03) : 0,
+    );
+    graphApi.d3Force("radial", radialForce);
+
+    const reheatApi = graphApi as { d3ReheatSimulation?: () => void };
+    if (typeof reheatApi.d3ReheatSimulation === "function") {
+      reheatApi.d3ReheatSimulation();
+    }
+  }, [forceData, forceSettings, getGraphApi]);
+
+  const toggleLayer = useCallback((layerId: LayerId) => {
+    setLayers((current) => ({
+      ...current,
+      [layerId]: !current[layerId],
+    }));
+  }, []);
+
+  const updateDisplaySetting = useCallback(
+    <K extends keyof DisplaySettings>(key: K, value: DisplaySettings[K]) => {
+      setDisplaySettings((current) => ({
+        ...current,
+        [key]: value,
+      }));
+    },
+    [],
+  );
+
+  const updateForceSetting = useCallback(
+    <K extends keyof ForceSettings>(key: K, value: ForceSettings[K]) => {
+      setForceSettings((current) => ({
+        ...current,
+        [key]: value,
+      }));
+    },
+    [],
+  );
+
+  const getCurrentBounds = useCallback(() => {
+    const graphApi = getGraphApi();
+    const bbox = graphApi?.getGraphBbox?.();
+    const x0 = bbox?.x?.[0];
+    const x1 = bbox?.x?.[1];
+    const y0 = bbox?.y?.[0];
+    const y1 = bbox?.y?.[1];
+    const z0 = bbox?.z?.[0] ?? 0;
+    const z1 = bbox?.z?.[1] ?? 0;
+    if (
+      typeof x0 === "number" &&
+      typeof x1 === "number" &&
+      typeof y0 === "number" &&
+      typeof y1 === "number" &&
+      Number.isFinite(x0) &&
+      Number.isFinite(x1) &&
+      Number.isFinite(y0) &&
+      Number.isFinite(y1)
+    ) {
+      return { x0, x1, y0, y1, z0, z1 };
+    }
+
+    if (forceData.nodes.length === 0) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+
+    for (const raw of forceData.nodes) {
+      const node = raw as ForceNode & { x?: number; y?: number; z?: number };
+      const x = typeof node.x === "number" ? node.x : 0;
+      const y = typeof node.y === "number" ? node.y : 0;
+      const z = typeof node.z === "number" ? node.z : 0;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      minZ = Math.min(minZ, z);
+      maxZ = Math.max(maxZ, z);
+    }
+
+    if (
+      !Number.isFinite(minX) ||
+      !Number.isFinite(maxX) ||
+      !Number.isFinite(minY) ||
+      !Number.isFinite(maxY)
+    ) {
+      return null;
+    }
+
+    return { x0: minX, x1: maxX, y0: minY, y1: maxY, z0: minZ, z1: maxZ };
+  }, [forceData.nodes, getGraphApi]);
+
+  const centerGraph = useCallback(() => {
+    const graphApi = getGraphApi();
+    if (!graphApi) return;
+    const bounds = getCurrentBounds();
+    const centerX = bounds ? (bounds.x0 + bounds.x1) / 2 : 0;
+    const centerY = bounds ? (bounds.y0 + bounds.y1) / 2 : 0;
+    const centerZ = bounds ? (bounds.z0 + bounds.z1) / 2 : 0;
+    if (use3D && graphApi.cameraPosition) {
+      graphApi.cameraPosition(
+        { x: centerX, y: centerY, z: centerZ + cameraDistanceRef.current },
+        { x: centerX, y: centerY, z: centerZ },
+        350,
+      );
+      return;
+    }
+    graphApi.centerAt?.(centerX, centerY, 350);
+  }, [getCurrentBounds, getGraphApi, use3D]);
+
+  const fitGraph = useCallback(() => {
+    const graphApi = getGraphApi();
+    if (!graphApi) return;
+    const bounds = getCurrentBounds();
+    if (!bounds) {
+      graphApi.zoomToFit(450, 70);
+      return;
+    }
+
+    const centerX = (bounds.x0 + bounds.x1) / 2;
+    const centerY = (bounds.y0 + bounds.y1) / 2;
+    const centerZ = (bounds.z0 + bounds.z1) / 2;
+    const dx = Math.max(1, bounds.x1 - bounds.x0);
+    const dy = Math.max(1, bounds.y1 - bounds.y0);
+    const dz = Math.max(1, bounds.z1 - bounds.z0);
+
+    if (use3D && graphApi.cameraPosition) {
+      const extent = Math.max(dx, dy, dz);
+      const distance = Math.max(240, Math.min(4200, extent * 2.25));
+      cameraDistanceRef.current = distance;
+      graphApi.cameraPosition(
+        { x: centerX, y: centerY, z: centerZ + distance },
+        { x: centerX, y: centerY, z: centerZ },
+        450,
+      );
+      return;
+    }
+
+    graphApi.centerAt?.(centerX, centerY, 250);
+    if (typeof graphApi.zoom === "function") {
+      const paddingPx = 80;
+      const usableWidth = Math.max(120, canvasSize.width - paddingPx * 2);
+      const usableHeight = Math.max(120, canvasSize.height - paddingPx * 2);
+      const fitScale = Math.max(
+        0.14,
+        Math.min(8, Math.min(usableWidth / dx, usableHeight / dy)),
+      );
+      zoomRef.current = fitScale;
+      graphApi.zoom(fitScale, 250);
+      return;
+    }
+
+    graphApi.zoomToFit(450, 70);
+  }, [
+    canvasSize.height,
+    canvasSize.width,
+    getCurrentBounds,
+    getGraphApi,
+    use3D,
+  ]);
+
+  useEffect(() => {
+    if (!use3D) return;
+    if (forceData.nodes.length === 0) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const placeCamera = () => {
+      if (cancelled) return;
+      const graphApi = getGraphApi();
+      const bounds = getCurrentBounds();
+      if (
+        !graphApi ||
+        !bounds ||
+        typeof graphApi.cameraPosition !== "function"
+      ) {
+        attempts += 1;
+        if (attempts < 12) {
+          requestAnimationFrame(placeCamera);
+        }
+        return;
+      }
+
+      const centerX = (bounds.x0 + bounds.x1) / 2;
+      const centerY = (bounds.y0 + bounds.y1) / 2;
+      const centerZ = (bounds.z0 + bounds.z1) / 2;
+      const extent = Math.max(
+        1,
+        bounds.x1 - bounds.x0,
+        bounds.y1 - bounds.y0,
+        bounds.z1 - bounds.z0,
+      );
+      const distance = Math.max(240, Math.min(4200, extent * 2.25));
+      cameraDistanceRef.current = distance;
+      graphApi.cameraPosition(
+        { x: centerX, y: centerY, z: centerZ + distance },
+        { x: centerX, y: centerY, z: centerZ },
+        450,
+      );
+    };
+
+    const timer = setTimeout(() => {
+      requestAnimationFrame(placeCamera);
+    }, 80);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    forceData.links.length,
+    forceData.nodes.length,
+    getCurrentBounds,
+    getGraphApi,
+    use3D,
+  ]);
+
+  const zoomByFactor = useCallback(
+    (factor: number) => {
+      const graphApi = getGraphApi();
+      if (!graphApi) return;
+      if (typeof graphApi.zoom === "function") {
+        const next = Math.max(0.2, Math.min(10, zoomRef.current * factor));
+        graphApi.zoom(next, 220);
+        zoomRef.current = next;
+        return;
+      }
+
+      if (use3D && typeof graphApi.cameraPosition === "function") {
+        const nextDistance = Math.max(
+          140,
+          Math.min(3200, cameraDistanceRef.current / factor),
+        );
+        cameraDistanceRef.current = nextDistance;
+        const bounds = getCurrentBounds();
+        const centerX = bounds ? (bounds.x0 + bounds.x1) / 2 : 0;
+        const centerY = bounds ? (bounds.y0 + bounds.y1) / 2 : 0;
+        const centerZ = bounds ? (bounds.z0 + bounds.z1) / 2 : 0;
+        graphApi.cameraPosition(
+          { x: centerX, y: centerY, z: centerZ + nextDistance },
+          { x: centerX, y: centerY, z: centerZ },
+          220,
+        );
+      }
+    },
+    [getCurrentBounds, getGraphApi, use3D],
+  );
+
+  const reheatSimulation = useCallback(() => {
+    const graphApi = getGraphApi();
+    if (graphApi && typeof graphApi.d3ReheatSimulation === "function") {
+      graphApi.d3ReheatSimulation();
+    }
+  }, [getGraphApi]);
+
+  const stabilizeGraph = useCallback(() => {
+    reheatSimulation();
+    setTimeout(() => {
+      fitGraph();
+    }, 420);
+  }, [fitGraph, reheatSimulation]);
+
+  const handleNodeClick = useCallback(
+    (node: ForceNode) => {
+      const vaultPath = plugin.getVaultPath();
+      const relativePath = node.filePath
+        .replace(vaultPath, "")
+        .replace(/^\/+/, "")
+        .replace(/\\/g, "/");
+      const workspace = plugin.app.workspace as {
+        openLinkText?: (
+          linkText: string,
+          sourcePath: string,
+          newLeaf?: boolean,
+        ) => unknown;
+      };
+      if (workspace.openLinkText) {
+        workspace.openLinkText(relativePath, "", false);
+      }
+    },
+    [plugin],
+  );
+
+  const openWarningLocation = useCallback(
+    (warning: DirectedGraphWarning) => {
+      if (!warning.filePath) return;
+      void plugin.openFileAtLine(warning.filePath, warning.line);
+    },
+    [plugin],
+  );
+
+  const cycleLines = useMemo(() => {
+    if (!graph || graph.cycles.length === 0) return [];
+    return graph.cycles.slice(0, 3).map((cycle) => cycle.labels.join(" -> "));
+  }, [graph]);
+
+  const unresolvedWarnings = useMemo(() => {
+    if (!graph) return [] as DirectedGraphWarning[];
+    const details = graph.warningDetails ?? [];
+    return details.filter((warning) => warning.kind.startsWith("unresolved-"));
+  }, [graph]);
+
+  const nonUnresolvedWarnings = useMemo(() => {
+    if (!graph) return [] as DirectedGraphWarning[];
+    const details = graph.warningDetails ?? [];
+    return details.filter((warning) => !warning.kind.startsWith("unresolved-"));
+  }, [graph]);
+
+  const summary = graph
+    ? [
+        `Plans: ${graph.stats.plans}`,
+        `Roadmap: ${graph.stats.roadmap}`,
+        `Agents: ${graph.stats.agents}`,
+        `Docs: ${graph.stats.docs}`,
+        `Edges: ${graph.stats.edges}`,
+        `Refs: ${graph.stats.referenceEdges}`,
+        `Semantic: ${graph.stats.semanticEdges}`,
+        `Cycles: ${graph.cycles.length}`,
+      ].join(" | ")
+    : loading
+      ? "Loading local intelligence graph..."
+      : error
+        ? `Graph error: ${error}`
+        : "No graph data available";
+
+  return (
+    <div className="limps-directed-graph-view">
+      <div className="graph-header">
+        <h3>Local Intelligence Graph</h3>
+        <button
+          type="button"
+          className="graph-close-btn"
+          title="Close graph and return to Local Intelligence Hub"
+          aria-label="Close graph and return to Local Intelligence Hub"
+          onClick={() => void plugin.closeDirectedGraphAndOpenHealthView()}
+        >
+          ✕
+        </button>
+      </div>
+      <div
+        className={`summary ${error ? "error" : graph && graph.cycles.length > 0 ? "warning" : "healthy"}`}
+      >
+        {summary}
+      </div>
+
+      <div className="actions">
+        <button type="button" onClick={() => void load()} disabled={loading}>
+          Refresh
+        </button>
+        <button
+          type="button"
+          className="mod-cta"
+          onClick={() => void syncAndReload()}
+          disabled={loading}
+        >
+          Sync Obsidian Graph
+        </button>
+      </div>
+
+      <div
+        className="graph-scroll"
+        style={{ backgroundColor: graphTheme.backgroundColor }}
+      >
+        <div className="graph-canvas-host" ref={hostRef}>
+          <div className="graph-overlay graph-overlay-left">
+            {showLayerPanel ? (
+              <div className="layer-panel">
+                <div className="layer-panel-title">Filters</div>
+                <div className="layer-legend">
+                  Solid: hard links · Dotted: soft/semantic links
+                </div>
+                <div className="layer-search-wrap">
+                  <input
+                    className="layer-search"
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) =>
+                      setSearchTerm(event.currentTarget.value)
+                    }
+                    placeholder="Search files..."
+                  />
+                </div>
+                {LAYER_OPTIONS.map((option) => (
+                  <label className="layer-toggle" key={option.id}>
+                    <span
+                      className={`layer-edge-key ${EDGE_IS_DASHED[LAYER_PRIMARY_EDGE_TYPE[option.id]] ? "dashed" : "solid"}`}
+                      style={{
+                        color:
+                          graphTheme.edgeColors[
+                            LAYER_PRIMARY_EDGE_TYPE[option.id]
+                          ],
+                      }}
+                    />
+                    <input
+                      type="checkbox"
+                      checked={layers[option.id]}
+                      onChange={() => toggleLayer(option.id)}
+                    />
+                    <span className="label">{option.label}</span>
+                    <span className="count">{layerCounts[option.id]}</span>
+                    <span className="desc">{option.description}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            <div className="map-toolbar">
+              <button
+                type="button"
+                className={`map-icon-btn ${showLayerPanel ? "active" : ""}`}
+                title="Filters and layers"
+                aria-label="Filters and layers"
+                onClick={() => setShowLayerPanel((open) => !open)}
+              >
+                ☰
+              </button>
+            </div>
+          </div>
+
+          <div className="graph-overlay graph-overlay-right">
+            <div className="map-toolbar">
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Center"
+                aria-label="Center"
+                onClick={centerGraph}
+              >
+                ◎
+              </button>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Fit"
+                aria-label="Fit"
+                onClick={fitGraph}
+              >
+                ⤢
+              </button>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Zoom out"
+                aria-label="Zoom out"
+                onClick={() => zoomByFactor(0.85)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Zoom in"
+                aria-label="Zoom in"
+                onClick={() => zoomByFactor(1.2)}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className={`map-icon-btn ${showSettingsPanel ? "active" : ""}`}
+                title="Display and force settings"
+                aria-label="Display and force settings"
+                onClick={() => setShowSettingsPanel((open) => !open)}
+              >
+                ⚙
+              </button>
+              <button
+                type="button"
+                className={`map-icon-btn ${use3D ? "active" : ""}`}
+                title={use3D ? "Switch to 2D" : "Switch to 3D"}
+                aria-label={use3D ? "Switch to 2D" : "Switch to 3D"}
+                onClick={() => setUse3D((value) => !value)}
+              >
+                3D
+              </button>
+            </div>
+            {showSettingsPanel ? (
+              <div className="graph-settings-panel">
+                <details>
+                  <summary>Display</summary>
+                  <label className="toggle-row">
+                    <span>Night mode</span>
+                    <input
+                      type="checkbox"
+                      checked={displaySettings.theme === "night"}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "theme",
+                          event.currentTarget.checked ? "night" : "day",
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="toggle-row">
+                    <span>Arrows</span>
+                    <input
+                      type="checkbox"
+                      checked={displaySettings.showArrows}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "showArrows",
+                          event.currentTarget.checked,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="toggle-row">
+                    <span>Plan-level references</span>
+                    <input
+                      type="checkbox"
+                      checked={displaySettings.planLevelReferences}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "planLevelReferences",
+                          event.currentTarget.checked,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Text fade threshold</span>
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={1.8}
+                      step={0.05}
+                      value={displaySettings.textFadeThreshold}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "textFadeThreshold",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Node size</span>
+                    <input
+                      type="range"
+                      min={0.65}
+                      max={1.9}
+                      step={0.05}
+                      value={displaySettings.nodeSizeScale}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "nodeSizeScale",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>3D node scale</span>
+                    <input
+                      type="range"
+                      min={3.5}
+                      max={9}
+                      step={0.1}
+                      value={displaySettings.nodeRelSize3D}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "nodeRelSize3D",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link thickness</span>
+                    <input
+                      type="range"
+                      min={0.6}
+                      max={2.8}
+                      step={0.05}
+                      value={displaySettings.linkThickness}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "linkThickness",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link opacity</span>
+                    <input
+                      type="range"
+                      min={0.25}
+                      max={0.95}
+                      step={0.01}
+                      value={displaySettings.linkOpacity}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "linkOpacity",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Label max length</span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={44}
+                      step={1}
+                      value={displaySettings.labelMaxChars}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "labelMaxChars",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                </details>
+
+                <details>
+                  <summary>Forces</summary>
+                  <label className="slider-row">
+                    <span>Center force</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.02}
+                      value={forceSettings.centerForce}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "centerForce",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Repel force</span>
+                    <input
+                      type="range"
+                      min={40}
+                      max={420}
+                      step={5}
+                      value={forceSettings.repelForce}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "repelForce",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link force</span>
+                    <input
+                      type="range"
+                      min={0.05}
+                      max={1}
+                      step={0.01}
+                      value={forceSettings.linkForce}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "linkForce",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link distance</span>
+                    <input
+                      type="range"
+                      min={40}
+                      max={260}
+                      step={2}
+                      value={forceSettings.linkDistance}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "linkDistance",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={stabilizeGraph}
+                    title="Reheat simulation and refit bounds"
+                  >
+                    Stabilize
+                  </button>
+                </details>
+              </div>
+            ) : null}
+          </div>
+
+          <div
+            ref={graph3dHostRef}
+            className={`graph-render-layer ${use3D ? "visible" : "hidden"}`}
+          >
+            <ForceGraph3D
+              ref={fg3dRef}
+              graphData={forceData}
+              width={canvasSize.width}
+              height={canvasSize.height}
+              warmupTicks={60}
+              cooldownTicks={PHYSICS_COOLDOWN_TICKS}
+              linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
+              linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
+              linkWidth={(link) =>
+                edgeWidthForLink(
+                  link as ForceLink,
+                  displaySettings.linkThickness,
+                )
+              }
+              linkColor={(link) =>
+                graphTheme.edgeColors[(link as ForceLink).type]
+              }
+              linkOpacity={displaySettings.linkOpacity}
+              nodeColor={(node) =>
+                graphTheme.nodeColors[(node as ForceNode).type] ?? "#64748b"
+              }
+              nodeRelSize={displaySettings.nodeRelSize3D}
+              nodeVal={(node) => Math.max(1.45, (node as ForceNode).val)}
+              nodeLabel={(node) => {
+                const current = node as ForceNode;
+                return fileNameFromPath(current.filePath);
+              }}
+              onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+              onNodeDrag={reheatSimulation}
+              onNodeDragEnd={(node) => {
+                const dragged = node as {
+                  fx?: number;
+                  fy?: number;
+                  fz?: number;
+                  vx?: number;
+                  vy?: number;
+                  vz?: number;
+                };
+                dragged.fx = undefined;
+                dragged.fy = undefined;
+                dragged.fz = undefined;
+                if (typeof dragged.vx === "number") dragged.vx *= 0.8;
+                if (typeof dragged.vy === "number") dragged.vy *= 0.8;
+                if (typeof dragged.vz === "number") dragged.vz *= 0.8;
+                reheatSimulation();
+              }}
+              backgroundColor={graphTheme.backgroundColor}
+            />
+          </div>
+          <div
+            ref={graph2dHostRef}
+            className={`graph-render-layer ${use3D ? "hidden" : "visible"}`}
+          >
+            <ForceGraph2D
+              ref={fg2dRef}
+              graphData={forceData}
+              width={canvasSize.width}
+              height={canvasSize.height}
+              backgroundColor={graphTheme.backgroundColor}
+              nodeRelSize={4.5}
+              d3AlphaDecay={0.009}
+              d3VelocityDecay={0.18}
+              warmupTicks={60}
+              cooldownTicks={PHYSICS_COOLDOWN_TICKS}
+              linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
+              linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
+              linkWidth={(link) =>
+                edgeWidthForLink(
+                  link as ForceLink,
+                  displaySettings.linkThickness,
+                )
+              }
+              linkColor={(link) =>
+                withAlpha(
+                  graphTheme.edgeColors[(link as ForceLink).type],
+                  displaySettings.linkOpacity,
+                )
+              }
+              linkLineDash={(link) =>
+                isSoftEdgeType((link as ForceLink).type) ? [3, 3] : null
+              }
+              nodeLabel={(node) => {
+                const current = node as ForceNode;
+                return fileNameFromPath(current.filePath);
+              }}
+              onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+              onNodeDrag={reheatSimulation}
+              onZoomEnd={(transform: ZoomTransform) => {
+                if (
+                  typeof transform.k === "number" &&
+                  Number.isFinite(transform.k)
+                ) {
+                  zoomRef.current = transform.k;
+                }
+              }}
+              onNodeDragEnd={(node) => {
+                const dragged = node as {
+                  fx?: number;
+                  fy?: number;
+                  vx?: number;
+                  vy?: number;
+                };
+                dragged.fx = undefined;
+                dragged.fy = undefined;
+                if (typeof dragged.vx === "number") dragged.vx *= 0.75;
+                if (typeof dragged.vy === "number") dragged.vy *= 0.75;
+                reheatSimulation();
+              }}
+              nodeCanvasObject={(node, ctx, globalScale) => {
+                const current = node as ForceNode;
+                const color = graphTheme.nodeColors[current.type] ?? "#64748b";
+                const size = Math.max(2.5, (current.val ?? 2.5) * 1.35);
+
+                ctx.beginPath();
+                ctx.arc(node.x ?? 0, node.y ?? 0, size, 0, 2 * Math.PI, false);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                if (
+                  shouldRenderLabel(
+                    current,
+                    globalScale,
+                    displaySettings.textFadeThreshold,
+                  )
+                ) {
+                  const fontSize = Math.max(8, 11 / globalScale);
+                  ctx.font = `${fontSize}px sans-serif`;
+                  ctx.fillStyle = graphTheme.labelColor;
+                  ctx.textAlign = "left";
+                  ctx.textBaseline = "middle";
+                  const zoomRatio = Math.max(
+                    0.35,
+                    Math.min(
+                      1,
+                      globalScale - displaySettings.textFadeThreshold + 0.2,
+                    ),
+                  );
+                  const maxChars = Math.max(
+                    10,
+                    Math.min(
+                      displaySettings.labelMaxChars,
+                      Math.round(displaySettings.labelMaxChars * zoomRatio),
+                    ),
+                  );
+                  ctx.fillText(
+                    truncateLabel(current.label, maxChars),
+                    (node.x ?? 0) + size + 2,
+                    node.y ?? 0,
+                  );
+                }
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {graph &&
+      (cycleLines.length > 0 ||
+        unresolvedWarnings.length > 0 ||
+        nonUnresolvedWarnings.length > 0) ? (
+        <div className="warnings warnings-under-chart">
+          {unresolvedWarnings.length > 0 ? (
+            <details className="warning-collapsible">
+              <summary>
+                Unresolved relations ({unresolvedWarnings.length})
+              </summary>
+              <div className="warning-scroll">
+                {unresolvedWarnings.map((warning, index) => {
+                  const location = warning.filePath
+                    ? `${fileNameFromPath(warning.filePath)}${warning.line ? `:${warning.line}` : ""}`
+                    : "unknown";
+                  return (
+                    <button
+                      type="button"
+                      className="warning-link"
+                      key={`unresolved-${index}-${warning.message}`}
+                      onClick={() => openWarningLocation(warning)}
+                      title={warning.filePath ?? warning.message}
+                      disabled={!warning.filePath}
+                    >
+                      <span className="warning-link-message">
+                        {warning.message}
+                      </span>
+                      <span className="warning-link-location">{location}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
+
+          {cycleLines.length > 0 ? (
+            <details className="warning-collapsible">
+              <summary>Dependency cycles ({graph.cycles.length})</summary>
+              <div className="warning-scroll">
+                {cycleLines.map((line, index) => (
+                  <div className="warning-text-line" key={`cycle-${index}`}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+
+          {nonUnresolvedWarnings.length > 0 ? (
+            <details className="warning-collapsible">
+              <summary>Other warnings ({nonUnresolvedWarnings.length})</summary>
+              <div className="warning-scroll">
+                {nonUnresolvedWarnings.map((warning, index) => (
+                  <div
+                    className="warning-text-line"
+                    key={`warning-${index}-${warning.message}`}
+                  >
+                    {warning.message}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}

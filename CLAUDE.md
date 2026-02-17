@@ -123,3 +123,90 @@ plans/
 ### Test Organization
 
 Tests mirror the source structure in `packages/limps/tests/`. Tests run sequentially (`fileParallelism: false`) to avoid SQLite locking issues. Coverage threshold is 70% for all metrics.
+
+## Development Workflow: Test-Driven Development (TDD)
+
+Always follow test-driven development principles when working on this codebase:
+
+### 1. Write Tests First
+- Create test cases that describe the expected behavior
+- Tests should clearly document what the code should do
+- Use descriptive test names: `it('should return correct totalAgents count for PASS plans')`
+
+### 2. Run Tests and Watch Them Fail
+```bash
+npm test -w packages/limps         # Run all tests
+npm run test:watch -w packages/limps  # Watch mode for TDD
+npx vitest run -t "test pattern"   # Run specific test
+```
+
+### 3. Write Implementation Code
+- Write minimal code to pass the tests
+- Don't over-engineer; focus on passing tests
+- Run tests frequently to validate changes
+
+### 4. Refactor
+- Once tests pass, improve code quality
+- Ensure tests still pass after refactoring
+- Remove duplication and improve clarity
+
+### Example TDD Workflow
+
+```bash
+# 1. Create test file (e.g., packages/limps/tests/cli/tdd-issues.test.ts)
+# 2. Write test cases describing the fix
+
+# 3. Run tests (they will fail)
+npm run test:watch -w packages/limps
+
+# 4. Implement code to fix failing tests
+# (e.g., fix getPlanStatusSummary to return totalAgents correctly)
+
+# 5. Verify all tests pass
+npm test -w packages/limps
+
+# 6. Refactor if needed while keeping tests passing
+```
+
+## Code Style and Idioms
+
+### Naming Conventions
+- Use descriptive names that match business logic
+- Functions: `getPlanStatusSummary()`, `renderPlanStatusCards()`
+- Tests: `it('should return correct totalAgents for PASS plans')`
+- Private methods: `_formatOutput()` or `private renderCards()`
+
+### Error Handling
+- Always wrap CLI operations in try-catch
+- Return `{ ok: false, error: string }` for errors
+- Use `CommandExecResult<T>` interface for CLI wrapper results
+- Provide context-specific error messages
+
+### JSON Output
+All CLI commands with `--json` flag must:
+```typescript
+return {
+  success: true,
+  data: { /* actual data */ }
+};
+// or
+return {
+  success: false,
+  error: "Description",
+  code?: "ERROR_CODE"
+};
+```
+
+### TypeScript Best Practices
+- Export interfaces for public APIs
+- Use strict typing (no `any` except in rare cases)
+- Type generic functions: `function run<T>(options: T): Promise<Result<T>>`
+- Use discriminated unions for result types
+
+### Testing Best Practices
+- Each test file mirrors one source file (e.g., `src/cli/status.ts` → `tests/cli/status.test.ts`)
+- Setup/teardown with `beforeEach` / `afterEach`
+- Arrange-Act-Assert pattern in tests
+- Shared test utilities in `tests/` root directory
+- Mock external dependencies using vitest
+

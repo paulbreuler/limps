@@ -1,0 +1,583 @@
+.limps-health-view {
+  padding: 0.75rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Built-in Obsidian Graph styling (official variables):
+   https://docs.obsidian.md/Reference/CSS+variables/Plugins/Graph */
+.theme-light {
+  --graph-controls-width: 320px;
+  --graph-text: #0f172a;
+  --graph-line: rgba(30, 41, 59, 0.34);
+  --graph-node: #1e293b;
+  --graph-node-unresolved: #64748b;
+  --graph-node-focused: #0b1220;
+  --graph-node-tag: #5b21b6;
+  --graph-node-attachment: #0f766e;
+}
+
+.theme-dark {
+  --graph-controls-width: 320px;
+  --graph-text: #e2e8f0;
+  --graph-line: rgba(148, 163, 184, 0.42);
+  --graph-node: #e2e8f0;
+  --graph-node-unresolved: #94a3b8;
+  --graph-node-focused: #ffffff;
+  --graph-node-tag: #c4b5fd;
+  --graph-node-attachment: #5eead4;
+}
+
+.limps-health-view h3 {
+  margin: 0 0 0.75rem;
+}
+
+.limps-health-view .status {
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.limps-health-view .next-check {
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.limps-health-view .status.disconnected {
+  color: var(--text-error);
+}
+
+.limps-health-view .status.error {
+  color: var(--text-error);
+}
+
+.limps-health-view .status.healthy {
+  color: var(--text-success);
+}
+
+.limps-health-view .status.loading {
+  color: var(--text-muted);
+}
+
+.limps-health-view .card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.limps-health-view .actions-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.limps-health-view .actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.limps-health-view .actions.stacked {
+  flex-direction: column;
+}
+
+.limps-health-view .actions.stacked button {
+  width: 100%;
+}
+
+.limps-health-view .error-details {
+  margin: 0;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.limps-health-view button {
+  cursor: pointer;
+}
+
+.limps-health-view button[disabled] {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.limps-health-view .meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.limps-health-view pre {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  overflow-x: auto;
+}
+
+/* Health view: card titles */
+.limps-health-view .card-title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Health view: overview card */
+.limps-health-view .overview-card .overview-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+}
+
+.limps-health-view .overview-card .overview-label {
+  color: var(--text-muted);
+}
+
+.limps-health-view .overview-card .overview-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Health view: plan status */
+.limps-health-view .plan-row {
+  padding: 0.4rem 0;
+}
+
+.limps-health-view .plan-row + .plan-row {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.limps-health-view .plan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.limps-health-view .plan-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.limps-health-view .status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.limps-health-view .status-gap {
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+}
+.limps-health-view .status-wip {
+  background: color-mix(in srgb, var(--text-warning) 20%, transparent);
+  color: var(--text-warning);
+}
+.limps-health-view .status-pass {
+  background: color-mix(in srgb, var(--text-success) 20%, transparent);
+  color: var(--text-success);
+}
+.limps-health-view .status-blocked {
+  background: color-mix(in srgb, var(--text-error) 20%, transparent);
+  color: var(--text-error);
+}
+
+/* Health view: agent summary */
+.limps-health-view .plan-agents {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.limps-health-view .card-warning {
+  border-color: var(--text-warning);
+}
+
+.limps-directed-graph-view {
+  padding: 0.75rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.limps-directed-graph-view h3 {
+  margin: 0 0 0.75rem;
+}
+
+.limps-directed-graph-view .graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.limps-directed-graph-view .graph-header h3 {
+  margin: 0;
+}
+
+.limps-directed-graph-view .graph-close-btn {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  width: 1.9rem;
+  height: 1.9rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.limps-directed-graph-view .summary {
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.limps-directed-graph-view .summary.healthy {
+  color: var(--text-success);
+}
+
+.limps-directed-graph-view .summary.warning {
+  color: var(--text-warning);
+}
+
+.limps-directed-graph-view .summary.error {
+  color: var(--text-error);
+}
+
+.limps-directed-graph-view .summary.loading {
+  color: var(--text-muted);
+}
+
+.limps-directed-graph-view .actions {
+  margin-bottom: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.limps-directed-graph-view .warnings {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.limps-directed-graph-view .warning-section + .warning-section {
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.limps-directed-graph-view .warning-title {
+  font-weight: 700;
+  color: var(--text-normal);
+  margin-bottom: 0.3rem;
+}
+
+.limps-directed-graph-view .warnings-under-chart {
+  margin-top: 0.75rem;
+}
+
+.limps-directed-graph-view .warning-collapsible + .warning-collapsible {
+  margin-top: 0.4rem;
+}
+
+.limps-directed-graph-view .warning-collapsible > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.limps-directed-graph-view .warning-scroll {
+  margin-top: 0.45rem;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 0.1rem;
+}
+
+.limps-directed-graph-view .warning-text-line {
+  margin-bottom: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.limps-directed-graph-view .warning-link {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  padding: 0.35rem 0.45rem;
+  margin-bottom: 0.35rem;
+  cursor: pointer;
+}
+
+.limps-directed-graph-view .warning-link:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.limps-directed-graph-view .warning-link-message {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.limps-directed-graph-view .warning-link-location {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 0.74rem;
+}
+
+.limps-directed-graph-view .graph-scroll {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  min-height: 580px;
+  height: calc(100vh - 280px);
+  overflow: auto;
+  background: var(--background-primary);
+}
+
+.limps-directed-graph-view .graph-canvas-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.limps-directed-graph-view .graph-render-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.limps-directed-graph-view .graph-render-layer.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.limps-directed-graph-view .graph-render-layer.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.limps-directed-graph-view .graph-overlay {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.limps-directed-graph-view .graph-overlay > * {
+  pointer-events: auto;
+}
+
+.limps-directed-graph-view .graph-overlay-left {
+  left: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.limps-directed-graph-view .graph-overlay-right {
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.limps-directed-graph-view .layer-panel {
+  width: min(320px, calc(100vw - 3rem));
+  max-height: min(380px, calc(100vh - 340px));
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--background-primary) 94%, white 6%);
+  box-shadow: var(--shadow-s);
+  padding: 0.5rem;
+}
+
+.limps-directed-graph-view .layer-panel-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.limps-directed-graph-view .layer-legend {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.limps-directed-graph-view .layer-search-wrap {
+  margin-bottom: 0.5rem;
+}
+
+.limps-directed-graph-view .layer-search {
+  width: 100%;
+}
+
+.limps-directed-graph-view .layer-toggle {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 0.125rem 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.limps-directed-graph-view .layer-edge-key {
+  display: inline-block;
+  width: 1rem;
+  height: 0;
+  border-top: 2px solid currentColor;
+  margin-right: 0.05rem;
+}
+
+.limps-directed-graph-view .layer-edge-key.dashed {
+  border-top-style: dashed;
+}
+
+.limps-directed-graph-view .layer-toggle .label {
+  font-weight: 600;
+}
+
+.limps-directed-graph-view .layer-toggle .count {
+  color: var(--text-muted);
+}
+
+.limps-directed-graph-view .layer-toggle .desc {
+  grid-column: 3 / 5;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.limps-directed-graph-view .map-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.limps-directed-graph-view .map-icon-btn {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  background: color-mix(in srgb, var(--background-primary) 94%, white 6%);
+  box-shadow: var(--shadow-s);
+  font-size: 0.95rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.limps-directed-graph-view .map-icon-btn.active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: color-mix(in srgb, var(--interactive-accent) 75%, black 25%);
+}
+
+.limps-directed-graph-view .graph-settings-panel {
+  margin-bottom: 0.1rem;
+}
+
+.limps-directed-graph-view .graph-settings-panel {
+  width: min(300px, calc(100vw - 3rem));
+  max-height: min(420px, calc(100vh - 340px));
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--background-primary) 95%, white 5%);
+  box-shadow: var(--shadow-s);
+  padding: 0.35rem 0.45rem;
+}
+
+.limps-directed-graph-view .graph-settings-panel details {
+  padding: 0.2rem 0;
+}
+
+.limps-directed-graph-view .graph-settings-panel details + details {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 0.35rem;
+  padding-top: 0.4rem;
+}
+
+.limps-directed-graph-view .graph-settings-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.limps-directed-graph-view .graph-settings-panel .toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.limps-directed-graph-view .graph-settings-panel .slider-row {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.limps-directed-graph-view .graph-settings-panel .slider-row > span {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+
+.limps-directed-graph-view
+  .graph-settings-panel
+  .slider-row
+  > input[type="range"] {
+  width: 100%;
+}
+
+.limps-directed-graph-view .graph-settings-panel button {
+  width: 100%;
+  margin-top: 0.2rem;
+}
+
+.limps-settings-section {
+  margin: 1rem 0 0.25rem;
+}
+
+.limps-settings-section h3 {
+  margin: 0 0 0.25rem;
+}
+
+.limps-settings-section p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

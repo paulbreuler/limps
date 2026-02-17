@@ -7,7 +7,10 @@ files:
   - src/context/workspace.ts
   - src/context/schemas.ts
   - src/cli/commands/workspace/init.ts
-tags: [context, workspace, structure]
+tags:
+  - context
+  - workspace
+  - structure
 ---
 
 # Agent 000: Workspace Structure

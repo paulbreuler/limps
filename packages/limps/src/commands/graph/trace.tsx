@@ -17,6 +17,7 @@ export const options = z.object({
   json: z.boolean().optional().describe('Output as JSON'),
   direction: z.enum(['up', 'down', 'both']).optional().describe('Traversal direction'),
   depth: z.number().optional().describe('Max traversal depth'),
+  mode: z.enum(['graph', 'pagerank']).optional().describe('Trace mode: graph or pagerank'),
 });
 
 interface Props {
@@ -38,6 +39,7 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
       '--json Output as JSON',
       '--direction up|down|both (default: both)',
       '--depth Max traversal depth (default: 2)',
+      '--mode graph|pagerank (default: graph)',
     ],
     sections: [
       {
@@ -46,6 +48,7 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
           'limps graph trace plan:0042',
           'limps graph trace agent:0042#003 --direction up',
           'limps graph trace plan:0042 --depth 3 --json',
+          'limps graph trace file:src/index.ts --mode pagerank',
         ],
       },
     ],
@@ -61,6 +64,7 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
             return graphTrace(config, db, entityId, {
               direction: options.direction,
               depth: options.depth,
+              mode: options.mode,
             });
           } finally {
             db.close();
@@ -71,7 +75,7 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [jsonMode, config, entityId, options.direction, options.depth]);
+  }, [jsonMode, config, entityId, options.direction, options.depth, options.mode]);
 
   if (jsonMode) return null;
 
@@ -91,6 +95,7 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
       const result = graphTrace(config, db, entityId, {
         direction: options.direction,
         depth: options.depth,
+        mode: options.mode,
       });
       return (
         <Text>
@@ -98,7 +103,13 @@ export default function GraphTraceCommand({ args, options }: Props): React.React
             {result.root.canonicalId}
           </Text>{' '}
           ({result.root.type}) - {result.root.name}
-          {'\n'}Direction: {result.direction}, Depth: {result.depth}
+          {'\n'}Direction: {result.direction}, Depth: {result.depth}, Mode: {result.mode}
+          {result.pageRank && (
+            <>
+              {'\n'}PageRank: {result.pageRank.score.toFixed(6)} (rank #{result.pageRank.rank} of{' '}
+              {result.pageRank.totalEntities})
+            </>
+          )}
           {'\n'}Neighbors: {result.neighbors.length}, Relations: {result.relationships.length}
           {result.neighbors.map((n) => (
             <React.Fragment key={n.canonicalId}>

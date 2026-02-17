@@ -1,3 +1,5 @@
+> **SUPERSEDED** by [0050-obsidian-deep-integration](../0050-obsidian-deep-integration/0050-obsidian-deep-integration-plan.md)
+
 ---
 title: limps Obsidian Plugin — Primary Human UI
 status: draft
@@ -8,6 +10,10 @@ updated: 2026-01-31
 ---
 
 # limps Obsidian Plugin — Primary Human UI
+
+## Related docs
+
+- [[0028-limps-obsidian-plugin-requirements|Requirements (Userdoc-style)]]
 
 ## Philosophy: CLI-First, Obsidian Wraps
 

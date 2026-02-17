@@ -28,7 +28,7 @@ export const GraphInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Subtype filter. For "check": file_contention|feature_overlap|circular_dependency|stale_wip. For "suggest": consolidate|next-task'
+      'Subtype filter. For "check": file_contention|feature_overlap|circular_dependency|stale_wip|concept_conflict|duplicate_content. For "suggest": consolidate|next-task|relationships|hub-documents'
     ),
   direction: z
     .enum(['up', 'down', 'both'])
@@ -39,6 +39,10 @@ export const GraphInputSchema = z.object({
   recipe: z.string().optional().describe('Search recipe name (for "search")'),
   threshold: z.number().optional().describe('Similarity threshold 0-1 (for "overlap")'),
   incremental: z.boolean().optional().describe('Skip unchanged files (for "reindex")'),
+  mode: z
+    .enum(['graph', 'pagerank'])
+    .optional()
+    .describe('Trace mode (for "trace"). "pagerank" adds PageRank score to results'),
 });
 
 type GraphInput = z.infer<typeof GraphInputSchema>;
@@ -73,6 +77,7 @@ export async function handleGraph(input: GraphInput, context: ToolContext): Prom
           graphTrace(context.config, db, input.entityId, {
             direction: input.direction,
             depth: input.depth,
+            mode: input.mode,
           })
         );
       }
@@ -107,10 +112,21 @@ export async function handleGraph(input: GraphInput, context: ToolContext): Prom
 
       case 'suggest': {
         const suggestType = input.type as GraphSuggestType | undefined;
-        if (!suggestType || !['consolidate', 'next-task'].includes(suggestType)) {
-          return errorResult('Missing or invalid parameter: type (consolidate|next-task)');
+        if (
+          !suggestType ||
+          !['consolidate', 'next-task', 'relationships', 'hub-documents'].includes(suggestType)
+        ) {
+          return errorResult(
+            'Missing or invalid parameter: type (consolidate|next-task|relationships|hub-documents)'
+          );
         }
-        return jsonResult(graphSuggest(context.config, db, suggestType, { planId: input.planId }));
+        return jsonResult(
+          graphSuggest(context.config, db, suggestType, {
+            planId: input.planId,
+            minConfidence: input.threshold,
+            topK: input.topK,
+          })
+        );
       }
 
       default:

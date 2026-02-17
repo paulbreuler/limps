@@ -168,7 +168,9 @@ NNNN-descriptive-name/
 title: [Descriptive Name]
 status: GAP
 persona: coder
-depends_on: [000, 001]   # zero-padded agent numbers this agent depends on; [] if none
+depends_on:
+  - "./000_agent_infrastructure.agent.md"
+  - "./001_agent_testing_utilities.agent.md"   # prefer relative markdown paths; [] if none
 files: [src/path/to/file.ts]
 tags: [feature-area]
 ---
@@ -249,6 +251,12 @@ Gotchas:
 Agent files must be self-contained for execution. Scoped references are allowed
 when necessary (explicit file + heading), but broad searching means the distillation
 is too thin.
+
+## Dependency Format Preference
+
+- Prefer `depends_on` entries as relative file paths to agent markdown files (for Obsidian graph visibility)
+- LIMPS runtime supports both numeric IDs and file paths
+- If numeric IDs exist, normalize with: `limps plan deps-to-paths`
 
 ## Work Type Adjustments
 

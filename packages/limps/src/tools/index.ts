@@ -32,6 +32,7 @@ import { InferStatusInputSchema, handleInferStatus } from './infer-status.js';
 import { GetProposalsInputSchema, handleGetProposals } from './get-proposals.js';
 import { ApplyProposalInputSchema, handleApplyProposal } from './apply-proposal.js';
 import { GraphInputSchema, handleGraph } from './graph.js';
+import { PingInputSchema, handlePing } from './ping.js';
 
 export const CORE_TOOL_NAMES = [
   'create_plan',
@@ -57,6 +58,7 @@ export const CORE_TOOL_NAMES = [
   'get_proposals',
   'apply_proposal',
   'graph',
+  'ping',
 ] as const;
 
 const ReindexDocsInputSchema = z.object({}).strict();
@@ -548,6 +550,17 @@ For full CLI usage run \`limps graph <command> --help\`.`,
     async (input) => {
       const parsed = GraphInputSchema.parse(input);
       return handleGraph(parsed, context);
+    }
+  );
+
+  // Keepalive / health
+  registerTool(
+    'ping',
+    'Lightweight keepalive that returns pong with a timestamp',
+    PingInputSchema.shape,
+    async (input) => {
+      const parsed = PingInputSchema.parse(input);
+      return handlePing(parsed, context);
     }
   );
 }

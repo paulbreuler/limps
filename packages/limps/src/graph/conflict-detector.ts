@@ -1,13 +1,29 @@
 import type { Entity, Relationship } from './types.js';
 import type { GraphStorage } from './storage.js';
 
+/**
+ * Compute Jaccard similarity between two sets.
+ * Returns 0 if both sets are empty.
+ */
+export function jaccardSimilarity<T>(a: Set<T>, b: Set<T>): number {
+  if (a.size === 0 && b.size === 0) return 0;
+  let intersection = 0;
+  for (const item of a) {
+    if (b.has(item)) intersection++;
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
 export type ConflictSeverity = 'warning' | 'error';
 
 export type ConflictType =
   | 'file_contention'
   | 'feature_overlap'
   | 'circular_dependency'
-  | 'stale_wip';
+  | 'stale_wip'
+  | 'concept_conflict'
+  | 'duplicate_content';
 
 export interface ConflictReport {
   type: ConflictType;
@@ -21,12 +37,16 @@ export interface ConflictDetectorOptions {
   staleWarningDays?: number;
   staleErrorDays?: number;
   overlapThreshold?: number;
+  conceptConflictThreshold?: number;
+  duplicateContentThreshold?: number;
 }
 
 const DEFAULT_OPTIONS: Required<ConflictDetectorOptions> = {
   staleWarningDays: 7,
   staleErrorDays: 14,
   overlapThreshold: 0.85,
+  conceptConflictThreshold: 0.7,
+  duplicateContentThreshold: 0.9,
 };
 
 export class ConflictDetector {
@@ -45,6 +65,8 @@ export class ConflictDetector {
       ...this.detectFeatureOverlap(),
       ...this.detectCircularDependencies(),
       ...this.detectStaleWip(),
+      ...this.detectConceptConflicts(),
+      ...this.detectDuplicateContent(),
     ];
   }
 
@@ -198,6 +220,91 @@ export class ConflictDetector {
           entities: [agent.canonicalId],
           metadata: { daysSinceUpdate: Math.floor(daysSinceUpdate) },
         });
+      }
+    }
+
+    return reports;
+  }
+
+  detectConceptConflicts(): ConflictReport[] {
+    const reports: ConflictReport[] = [];
+    const concepts = this.storage.getEntitiesByType('concept');
+
+    // Find concepts that share the same tag connections (similar concept scope)
+    for (let i = 0; i < concepts.length; i++) {
+      const a = concepts[i];
+      if (!a) continue;
+      const aRels = this.storage.getRelationships(a.id, 'outgoing');
+      const aTags = new Set(
+        aRels.filter((r) => r.relationType === 'TAGGED_WITH').map((r) => r.targetId)
+      );
+
+      for (let j = i + 1; j < concepts.length; j++) {
+        const b = concepts[j];
+        if (!b) continue;
+        const bRels = this.storage.getRelationships(b.id, 'outgoing');
+        const bTags = new Set(
+          bRels.filter((r) => r.relationType === 'TAGGED_WITH').map((r) => r.targetId)
+        );
+
+        const similarity = jaccardSimilarity(aTags, bTags);
+        if (similarity >= this.opts.conceptConflictThreshold && aTags.size > 0) {
+          reports.push({
+            type: 'concept_conflict',
+            severity: 'warning',
+            message: `Concepts "${a.name}" and "${b.name}" have ${(similarity * 100).toFixed(0)}% tag overlap - may be redundant`,
+            entities: [a.canonicalId, b.canonicalId],
+            metadata: { similarity },
+          });
+        }
+      }
+    }
+
+    return reports;
+  }
+
+  detectDuplicateContent(): ConflictReport[] {
+    const reports: ConflictReport[] = [];
+    const features = this.storage.getEntitiesByType('feature');
+
+    // Group features that share similar tag sets
+    for (let i = 0; i < features.length; i++) {
+      const a = features[i];
+      if (!a) continue;
+      const aRels = this.storage.getRelationships(a.id, 'outgoing');
+      const aTags = new Set(
+        aRels.filter((r) => r.relationType === 'TAGGED_WITH').map((r) => r.targetId)
+      );
+      const aFiles = new Set(
+        aRels.filter((r) => r.relationType === 'MODIFIES').map((r) => r.targetId)
+      );
+
+      for (let j = i + 1; j < features.length; j++) {
+        const b = features[j];
+        if (!b) continue;
+        const bRels = this.storage.getRelationships(b.id, 'outgoing');
+        const bTags = new Set(
+          bRels.filter((r) => r.relationType === 'TAGGED_WITH').map((r) => r.targetId)
+        );
+        const bFiles = new Set(
+          bRels.filter((r) => r.relationType === 'MODIFIES').map((r) => r.targetId)
+        );
+
+        // Check both tag and file overlap
+        const tagSim = jaccardSimilarity(aTags, bTags);
+        const fileSim = jaccardSimilarity(aFiles, bFiles);
+        const combinedSim =
+          aTags.size + aFiles.size > 0 && bTags.size + bFiles.size > 0 ? (tagSim + fileSim) / 2 : 0;
+
+        if (combinedSim >= this.opts.duplicateContentThreshold) {
+          reports.push({
+            type: 'duplicate_content',
+            severity: 'warning',
+            message: `Features "${a.name}" and "${b.name}" appear to be duplicates (${(combinedSim * 100).toFixed(0)}% similarity)`,
+            entities: [a.canonicalId, b.canonicalId],
+            metadata: { tagSimilarity: tagSim, fileSimilarity: fileSim },
+          });
+        }
       }
     }
 

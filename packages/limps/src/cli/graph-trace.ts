@@ -2,10 +2,14 @@ import type { Database as DatabaseType } from 'better-sqlite3';
 import type { ServerConfig } from '../config.js';
 import { GraphStorage } from '../graph/storage.js';
 import type { Entity, Relationship } from '../graph/types.js';
+import { LinkAnalyzer } from '../analysis/link-analysis.js';
+
+export type GraphTraceMode = 'graph' | 'pagerank';
 
 export interface GraphTraceOptions {
   direction?: 'up' | 'down' | 'both';
   depth?: number;
+  mode?: GraphTraceMode;
 }
 
 export interface GraphTraceResult {
@@ -15,6 +19,12 @@ export interface GraphTraceResult {
   relationships: Relationship[];
   direction: string;
   depth: number;
+  mode: GraphTraceMode;
+  pageRank?: {
+    score: number;
+    rank: number;
+    totalEntities: number;
+  };
 }
 
 export function graphTrace(
@@ -26,6 +36,7 @@ export function graphTrace(
   const storage = new GraphStorage(db);
   const direction = options?.direction ?? 'both';
   const depth = options?.depth ?? 2;
+  const mode = options?.mode ?? 'graph';
 
   const entity = storage.getEntity(entityId);
   if (!entity) {
@@ -46,12 +57,32 @@ export function graphTrace(
     }
   }
 
-  return {
+  const result: GraphTraceResult = {
     root: entity,
     neighbors,
     paths,
     relationships,
     direction,
     depth,
+    mode,
   };
+
+  // Compute PageRank if requested
+  if (mode === 'pagerank') {
+    const analyzer = new LinkAnalyzer(db);
+    const fullRank = analyzer.computeFullPageRank();
+    const score = fullRank.get(entity.canonicalId) ?? 0;
+
+    // Compute rank position
+    const sortedScores = Array.from(fullRank.values()).sort((a, b) => b - a);
+    const rank = sortedScores.indexOf(score) + 1;
+
+    result.pageRank = {
+      score,
+      rank,
+      totalEntities: fullRank.size,
+    };
+  }
+
+  return result;
 }

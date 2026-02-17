@@ -3,6 +3,8 @@ import { basename, dirname, join } from 'path';
 import type { Entity, EntityType, Relationship, RelationType } from './types.js';
 import { PATTERNS } from './patterns.js';
 import { parseFrontmatter } from './parser.js';
+import { parseDependencyRef } from '../utils/dependency-ref.js';
+import { DocumentAnalyzer } from '../analysis/document-structure.js';
 
 export interface ExtractionResult {
   entities: Entity[];
@@ -40,18 +42,19 @@ function normalizeTag(value: string): string | null {
   return cleaned;
 }
 
-function toAgentCanonicalId(planId: string, ref: string): string {
+function toAgentCanonicalId(planId: string, ref: string): string | null {
   const trimmed = ref.trim();
-  if (/^\d{4}#\d{3}$/.test(trimmed)) {
-    return `agent:${trimmed}`;
-  }
-  if (/^\d{3}$/.test(trimmed)) {
-    return `agent:${planId}#${trimmed}`;
-  }
   if (trimmed.startsWith('agent:')) {
     return trimmed;
   }
-  return `agent:${planId}#${trimmed.padStart(3, '0')}`;
+
+  const parsed = parseDependencyRef(trimmed);
+  if (!parsed) {
+    return null;
+  }
+
+  const targetPlanId = parsed.planId ?? planId;
+  return `agent:${targetPlanId}#${parsed.agentNumber}`;
 }
 
 function inferPlanRoot(inputPath: string): string {
@@ -216,8 +219,12 @@ export class EntityExtractor {
 
     const linkDependencyReferences = (sourceCanonicalId: string, content: string): void => {
       for (const dep of getMatches(content, PATTERNS.inlineDepends)) {
-        const depCanonical = ensureAgentEntity(toAgentCanonicalId(planId, dep));
-        upsertRelationship(sourceCanonicalId, depCanonical, 'DEPENDS_ON');
+        const depCanonical = toAgentCanonicalId(planId, dep);
+        if (!depCanonical) {
+          continue;
+        }
+        const depEntity = ensureAgentEntity(depCanonical);
+        upsertRelationship(sourceCanonicalId, depEntity, 'DEPENDS_ON');
       }
 
       for (const agentMatch of content.matchAll(withGlobal(PATTERNS.agentId))) {
@@ -246,6 +253,40 @@ export class EntityExtractor {
         const refCanonical = `plan:${refPlanId}`;
         upsertEntity('plan', refCanonical, `Plan ${refPlanId}`, undefined, {});
         upsertRelationship(sourceCanonicalId, refCanonical, 'DEPENDS_ON');
+      }
+    };
+
+    const docAnalyzer = new DocumentAnalyzer();
+
+    const linkDocumentReferences = (
+      sourceCanonicalId: string,
+      content: string,
+      sourcePath: string
+    ): void => {
+      const analysis = docAnalyzer.analyze(content, sourcePath);
+      for (const ref of analysis.references) {
+        const targetCanonical = `file:${ref.target}`;
+        upsertEntity('file', targetCanonical, ref.target, undefined, {
+          referenceType: ref.type,
+          crossRepo: ref.crossRepo,
+        });
+        const relKey = `${sourceCanonicalId}|${targetCanonical}|REFERENCES`;
+        if (!relationshipKeys.has(relKey)) {
+          relationshipKeys.add(relKey);
+          const source = entitiesByCanonical.get(sourceCanonicalId);
+          const target = entitiesByCanonical.get(targetCanonical);
+          if (source && target) {
+            result.relationships.push({
+              id: nextRelationshipId++,
+              sourceId: source.id,
+              targetId: target.id,
+              relationType: 'REFERENCES',
+              confidence: ref.confidence,
+              metadata: { referenceType: ref.type, line: ref.line, crossRepo: ref.crossRepo },
+              createdAt: now,
+            });
+          }
+        }
       }
     };
 
@@ -292,6 +333,7 @@ export class EntityExtractor {
     }
 
     extractInlineReferences(planCanonicalId, planContent);
+    linkDocumentReferences(planCanonicalId, planContent, planMarkdownPath);
 
     const agentsDir = join(planRoot, 'agents');
     if (!existsSync(agentsDir)) {
@@ -324,8 +366,12 @@ export class EntityExtractor {
         upsertRelationship(planCanonicalId, agentCanonical, 'CONTAINS');
 
         for (const dep of frontmatter.depends ?? []) {
-          const depCanonical = ensureAgentEntity(toAgentCanonicalId(planId, dep));
-          upsertRelationship(agentCanonical, depCanonical, 'DEPENDS_ON');
+          const depCanonical = toAgentCanonicalId(planId, dep);
+          if (!depCanonical) {
+            continue;
+          }
+          const depEntity = ensureAgentEntity(depCanonical);
+          upsertRelationship(agentCanonical, depEntity, 'DEPENDS_ON');
         }
 
         linkFileReferences(
@@ -335,6 +381,7 @@ export class EntityExtractor {
         linkTagReferences(agentCanonical, frontmatter.tags ?? []);
 
         extractInlineReferences(agentCanonical, content);
+        linkDocumentReferences(agentCanonical, content, agentPath);
       }
     }
 

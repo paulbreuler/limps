@@ -4,8 +4,11 @@ import { join, relative } from 'path';
 import { createHash } from 'crypto';
 import { FrontmatterHandler } from './utils/frontmatter.js';
 import { PathFilter } from './utils/pathfilter.js';
+import { isExcludedDirectory, shouldExcludeFile } from './utils/pathfilter.js';
 import { checkPathSafety, isSymlink } from './utils/fs-safety.js';
-import { DEFAULT_MAX_DEPTH, DEFAULT_MAX_FILE_SIZE } from './config.js';
+import { DEFAULT_MAX_DEPTH, DEFAULT_MAX_FILE_SIZE, DEFAULT_EXCLUSIONS } from './config.js';
+import type { ExclusionsConfig, PathConfig } from './config.js';
+import { streamingScan, type ScanProgress } from './scanner.js';
 
 /**
  * Document metadata interface.
@@ -19,6 +22,25 @@ export interface DocumentMetadata {
   dependencies?: string[];
   modifiedAt: number;
   hash: string;
+}
+
+/**
+ * File presence metadata (recorded without parsing content).
+ */
+export interface FilePresence {
+  path: string;
+  size: number;
+  mtime: number;
+  type: string;
+  indexedAt: number;
+}
+
+/**
+ * Result of a presence-only indexing operation.
+ */
+export interface PresenceIndexingResult {
+  recorded: number;
+  skipped: number;
 }
 
 /**
@@ -70,6 +92,18 @@ export function createSchema(db: DatabaseType): void {
       content
     )
   `);
+
+  // Create file_presence table for presence-only indexing
+  // Records that files exist (path, size, mtime) without parsing content
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS file_presence (
+      path TEXT PRIMARY KEY,
+      size INTEGER NOT NULL,
+      mtime INTEGER NOT NULL,
+      type TEXT NOT NULL DEFAULT 'file',
+      indexed_at INTEGER NOT NULL
+    )
+  `);
 }
 
 /**
@@ -81,6 +115,7 @@ export function clearIndex(db: DatabaseType): void {
   db.exec(`
     DELETE FROM documents_fts;
     DELETE FROM documents;
+    DELETE FROM file_presence;
   `);
 }
 
@@ -655,3 +690,278 @@ export async function indexAllPaths(
 
   return result;
 }
+
+/**
+ * Recursively collect all file paths from a directory for presence indexing.
+ * Respects exclusions for directories, file patterns, and binary extensions.
+ *
+ * @param dir - Directory to scan
+ * @param exclusions - Exclusions configuration
+ * @param maxDepth - Maximum recursion depth
+ * @param currentDepth - Current recursion depth (internal)
+ * @returns Array of { path, size, mtime } entries
+ */
+function collectPresenceFiles(
+  dir: string,
+  exclusions?: ExclusionsConfig,
+  maxDepth: number = DEFAULT_MAX_DEPTH,
+  currentDepth = 0
+): { path: string; size: number; mtime: number }[] {
+  if (currentDepth > maxDepth) {
+    return [];
+  }
+
+  const results: { path: string; size: number; mtime: number }[] = [];
+
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+
+    // Skip symlinks
+    if (isSymlink(fullPath)) {
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      if (isExcludedDirectory(entry.name, exclusions)) {
+        continue;
+      }
+      results.push(...collectPresenceFiles(fullPath, exclusions, maxDepth, currentDepth + 1));
+    } else if (entry.isFile()) {
+      try {
+        const stats = statSync(fullPath);
+        if (shouldExcludeFile(fullPath, stats.size, exclusions)) {
+          continue;
+        }
+        results.push({
+          path: fullPath,
+          size: stats.size,
+          mtime: Math.floor(stats.mtimeMs),
+        });
+      } catch {
+        // Skip files we can't stat
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Index files in presence-only mode.
+ * Records path/size/mtime in file_presence table without parsing content.
+ * Uses batched inserts (100 per transaction) for performance.
+ *
+ * @param db - Database instance
+ * @param dirPath - Directory path to scan
+ * @param exclusions - Optional exclusions configuration
+ * @param maxDepth - Maximum recursion depth
+ * @returns Presence indexing result
+ */
+export function indexPresence(
+  db: DatabaseType,
+  dirPath: string,
+  exclusions?: ExclusionsConfig,
+  maxDepth: number = DEFAULT_MAX_DEPTH
+): PresenceIndexingResult {
+  if (!existsSync(dirPath)) {
+    throw new Error(`Directory not found: ${dirPath}`);
+  }
+
+  const files = collectPresenceFiles(dirPath, exclusions, maxDepth);
+  const now = Date.now();
+  const BATCH_SIZE = 100;
+
+  const insertStmt = db.prepare(`
+    INSERT OR REPLACE INTO file_presence (path, size, mtime, type, indexed_at)
+    VALUES (?, ?, ?, 'file', ?)
+  `);
+
+  let recorded = 0;
+  let skipped = 0;
+
+  const checkStmt = db.prepare('SELECT size, mtime FROM file_presence WHERE path = ?');
+
+  for (let i = 0; i < files.length; i += BATCH_SIZE) {
+    const batch = files.slice(i, i + BATCH_SIZE);
+    const transaction = db.transaction(() => {
+      for (const file of batch) {
+        const existing = checkStmt.get(file.path) as { size: number; mtime: number } | undefined;
+
+        if (existing && existing.size === file.size && existing.mtime === file.mtime) {
+          skipped++;
+          continue;
+        }
+
+        insertStmt.run(file.path, file.size, file.mtime, now);
+        recorded++;
+      }
+    });
+    transaction();
+  }
+
+  return { recorded, skipped };
+}
+
+/**
+ * Get file presence record for a specific path.
+ *
+ * @param db - Database instance
+ * @param path - File path to look up
+ * @returns FilePresence record or undefined
+ */
+export function getFilePresence(db: DatabaseType, path: string): FilePresence | undefined {
+  const row = db
+    .prepare('SELECT path, size, mtime, type, indexed_at FROM file_presence WHERE path = ?')
+    .get(path) as
+    | { path: string; size: number; mtime: number; type: string; indexed_at: number }
+    | undefined;
+
+  if (!row) {
+    return undefined;
+  }
+
+  return {
+    path: row.path,
+    size: row.size,
+    mtime: row.mtime,
+    type: row.type,
+    indexedAt: row.indexed_at,
+  };
+}
+
+/**
+ * Search file presence records by path pattern (SQL LIKE).
+ *
+ * @param db - Database instance
+ * @param pattern - SQL LIKE pattern (e.g., '%.md' or '%/src/%')
+ * @returns Array of matching FilePresence records
+ */
+export function searchFilePresence(db: DatabaseType, pattern: string): FilePresence[] {
+  const rows = db
+    .prepare('SELECT path, size, mtime, type, indexed_at FROM file_presence WHERE path LIKE ?')
+    .all(pattern) as {
+    path: string;
+    size: number;
+    mtime: number;
+    type: string;
+    indexed_at: number;
+  }[];
+
+  return rows.map((row) => ({
+    path: row.path,
+    size: row.size,
+    mtime: row.mtime,
+    type: row.type,
+    indexedAt: row.indexed_at,
+  }));
+}
+
+/**
+ * Record a single file's presence in the file_presence table.
+ */
+function recordPresenceEntry(
+  db: DatabaseType,
+  filePath: string,
+  size: number,
+  mtime: number
+): void {
+  const dotIndex = filePath.lastIndexOf('.');
+  const ext = dotIndex !== -1 ? filePath.slice(dotIndex) : 'file';
+  db.prepare(
+    `INSERT OR REPLACE INTO file_presence (path, size, mtime, type, indexed_at)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(filePath, size, Math.floor(mtime), ext, Date.now());
+}
+
+/**
+ * Index documents from multi-path config using the streaming scanner.
+ * Supports both 'full' (FTS) and 'presence' (metadata-only) index modes.
+ *
+ * @param db - Database instance
+ * @param pathConfigs - Array of PathConfig entries
+ * @param exclusions - Global exclusions config
+ * @param globalExtensions - Default file extensions
+ * @param globalMaxDepth - Default max directory depth
+ * @param globalMaxFileSize - Default max file size
+ * @param onProgress - Optional progress callback
+ * @returns Combined indexing result
+ */
+export async function indexAllPathsStreaming(
+  db: DatabaseType,
+  pathConfigs: PathConfig[],
+  exclusions: ExclusionsConfig = DEFAULT_EXCLUSIONS,
+  globalExtensions: string[] = ['.md'],
+  globalMaxDepth: number = DEFAULT_MAX_DEPTH,
+  globalMaxFileSize: number = DEFAULT_MAX_FILE_SIZE,
+  onProgress?: (progress: ScanProgress) => void
+): Promise<IndexingResult> {
+  const result: IndexingResult = {
+    indexed: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  const scanner = streamingScan(
+    pathConfigs,
+    exclusions,
+    globalExtensions,
+    globalMaxDepth,
+    globalMaxFileSize,
+    onProgress
+  );
+
+  for await (const entry of scanner) {
+    try {
+      if (entry.indexMode === 'presence') {
+        recordPresenceEntry(db, entry.path, entry.stat.size, entry.stat.mtime);
+        result.indexed++;
+        continue;
+      }
+
+      // Full indexing mode
+      if (!existsSync(entry.path)) {
+        result.errors.push({ path: entry.path, error: 'File not found' });
+        continue;
+      }
+
+      const content = readFileSync(entry.path, 'utf-8');
+      const hash = calculateHash(content);
+
+      const existing = db.prepare('SELECT hash FROM documents WHERE path = ?').get(entry.path) as
+        | { hash: string }
+        | undefined;
+
+      if (existing && existing.hash === hash) {
+        result.skipped++;
+        continue;
+      }
+
+      const wasExisting = existing !== undefined;
+      await indexDocument(db, entry.path, globalMaxFileSize);
+
+      if (wasExisting) {
+        result.updated++;
+      } else {
+        result.indexed++;
+      }
+    } catch (error) {
+      result.errors.push({
+        path: entry.path,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return result;
+}
+
+// Re-export scanner types for consumers
+export type { ScanProgress };

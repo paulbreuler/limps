@@ -1179,13 +1179,24 @@ Add to config:
 
 - `@sudosandwich/limps-headless` — Headless UI contract extraction, semantic analysis, and drift detection (Radix UI and Base UI migration).
 
-## Obsidian Compatibility
+## Obsidian Integration
 
-limps works with Obsidian vaults. Open your `plans/` directory as a vault for visual editing:
+The `@sudosandwich/limps-obsidian-plugin` package provides deep Obsidian integration:
 
-- Full YAML frontmatter support
-- Tag management (frontmatter and inline `#tag`)
-- Automatic exclusion of `.obsidian/`, `.git/`, `node_modules/`
+- **Persistent MCP session** to the limps daemon with auto-reconnect, keepalive, and CLI fallback
+- **Document management** — create, update, delete plan documents from within Obsidian
+- **Task management** — get next task, update task status (GAP/WIP/PASS/BLOCKED)
+- **Search & proposals** — full-text search, proposal review, and auto-apply for safe fix types
+- **Health Hub** — sidebar view with daemon, graph, link, and MCP status
+- **Directed graph view** — interactive 2D/3D force graph with clickable nodes
+- **Scheduled health checks** — periodic staleness, drift, and conflict detection
+- **Vault automation** — auto-reindex when plan files change, event-driven refresh
+- **Editor diagnostics** — inline link validation
+- **Graph sync** to Obsidian surfaces (`.md`, `.canvas`, `.base`)
+
+Full YAML frontmatter support, tag management (frontmatter and inline `#tag`), and automatic exclusion of `.obsidian/`, `.git/`, `node_modules/`.
+
+See [`packages/limps-obsidian-plugin/README.md`](packages/limps-obsidian-plugin/README.md) for setup instructions, commands, and settings reference.
 
 ![Obsidian vault with limps plans](https://github.com/paulbreuler/limps/blob/main/.github/assets/obsidian-vault.png?raw=true)
 
