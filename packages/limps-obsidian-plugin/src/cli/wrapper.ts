@@ -584,6 +584,231 @@ export async function startDaemon(options: LimpsRunOptions): Promise<StartDaemon
   };
 }
 
+// --- Intelligence wrapper functions ---
+
+export interface ConflictDetail {
+  type: string;
+  severity: string;
+  message: string;
+  entities: string[];
+}
+
+export interface FullGraphHealth {
+  summary: GraphHealthSummary;
+  conflicts: ConflictDetail[];
+}
+
+export interface FullGraphHealthFetchResult {
+  ok: boolean;
+  health?: FullGraphHealth;
+  error?: string;
+}
+
+function parseConflicts(raw: unknown[]): ConflictDetail[] {
+  return raw
+    .map((item) => {
+      const rec = getObjectRecord(item);
+      if (!rec) return null;
+      return {
+        type: getString(rec.type) ?? 'unknown',
+        severity: getString(rec.severity) ?? 'warning',
+        message: getString(rec.message) ?? '',
+        entities: Array.isArray(rec.entities)
+          ? rec.entities.filter((e): e is string => typeof e === 'string')
+          : [],
+      };
+    })
+    .filter((c): c is ConflictDetail => c !== null);
+}
+
+export async function getFullGraphHealth(options: LimpsRunOptions): Promise<FullGraphHealthFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(['graph', 'health', '--json'], {
+    ...options,
+    parseJson: true,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error ?? (result.stderr || 'Failed to run limps graph health'),
+    };
+  }
+
+  const topLevel = getObjectRecord(result.data);
+  const dataRecord = getObjectRecord(topLevel?.data);
+  const summary = parseGraphSummary(dataRecord?.summary);
+  const rawConflicts = Array.isArray(dataRecord?.conflicts) ? dataRecord.conflicts : [];
+
+  return {
+    ok: true,
+    health: {
+      summary,
+      conflicts: parseConflicts(rawConflicts),
+    },
+  };
+}
+
+export interface HealthCheckSummary {
+  staleCount: number;
+  inferenceSuggestions: number;
+  driftCount: number;
+}
+
+export interface HealthCheckFetchResult {
+  ok: boolean;
+  summary?: HealthCheckSummary;
+  error?: string;
+}
+
+export async function getHealthCheck(options: LimpsRunOptions): Promise<HealthCheckFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(['health', 'check', '--json'], {
+    ...options,
+    parseJson: true,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error ?? (result.stderr || 'Failed to run limps health check'),
+    };
+  }
+
+  const topLevel = getObjectRecord(result.data);
+  const dataRecord = getObjectRecord(topLevel?.data);
+  const summaryRecord = getObjectRecord(dataRecord?.summary);
+
+  return {
+    ok: true,
+    summary: {
+      staleCount: getNumber(summaryRecord?.staleCount) ?? 0,
+      inferenceSuggestions: getNumber(summaryRecord?.inferenceSuggestions) ?? 0,
+      driftCount: getNumber(summaryRecord?.driftCount) ?? 0,
+    },
+  };
+}
+
+export interface PlanStatusInfo {
+  name: string;
+  completion: number;
+  status: string;
+  agentCount: number;
+  statusCounts: { GAP: number; WIP: number; PASS: number; BLOCKED: number };
+  blockedAgents: string[];
+}
+
+export interface PlanStatusesFetchResult {
+  ok: boolean;
+  plans?: PlanStatusInfo[];
+  error?: string;
+}
+
+interface PlanListEntry {
+  number: string;
+  name: string;
+  status: string;
+}
+
+export async function getPlanStatuses(options: LimpsRunOptions): Promise<PlanStatusesFetchResult> {
+  const listResult = await runLimps<Record<string, unknown>>(['plan', 'list', '--json'], {
+    ...options,
+    parseJson: true,
+  });
+
+  if (!listResult.ok) {
+    return {
+      ok: false,
+      error: listResult.error ?? 'Failed to list plans',
+    };
+  }
+
+  const topLevel = getObjectRecord(listResult.data);
+  const dataRecord = getObjectRecord(topLevel?.data);
+  const rawPlans = Array.isArray(dataRecord?.plans) ? dataRecord.plans : [];
+
+  const plans: PlanListEntry[] = rawPlans
+    .map((p) => {
+      const rec = getObjectRecord(p);
+      if (!rec) return null;
+      return {
+        number: getString(rec.number) ?? '',
+        name: getString(rec.name) ?? '',
+        status: getString(rec.status) ?? 'GAP',
+      };
+    })
+    .filter((p): p is PlanListEntry => p !== null && p.number !== '');
+
+  const statuses: PlanStatusInfo[] = [];
+  for (const plan of plans) {
+    const planId = `${plan.number}-${plan.name}`;
+    const statusResult = await runLimps<Record<string, unknown>>(['plan', 'status', planId, '--json'], {
+      ...options,
+      parseJson: true,
+    });
+
+    if (!statusResult.ok) {
+      statuses.push({
+        name: plan.name,
+        completion: 0,
+        status: plan.status,
+        agentCount: 0,
+        statusCounts: { GAP: 0, WIP: 0, PASS: 0, BLOCKED: 0 },
+        blockedAgents: [],
+      });
+      continue;
+    }
+
+    const sTopLevel = getObjectRecord(statusResult.data);
+    const sData = getObjectRecord(sTopLevel?.data);
+    const sCounts = getObjectRecord(sData?.statusCounts);
+
+    statuses.push({
+      name: getString(sData?.planName) ?? plan.name,
+      completion: getNumber(sData?.completionPercentage) ?? 0,
+      status: plan.status,
+      agentCount: getNumber(sData?.totalAgents) ?? 0,
+      statusCounts: {
+        GAP: getNumber(sCounts?.GAP) ?? 0,
+        WIP: getNumber(sCounts?.WIP) ?? 0,
+        PASS: getNumber(sCounts?.PASS) ?? 0,
+        BLOCKED: getNumber(sCounts?.BLOCKED) ?? 0,
+      },
+      blockedAgents: Array.isArray(sData?.blockedAgents)
+        ? (sData.blockedAgents as unknown[]).filter((a): a is string => typeof a === 'string')
+        : [],
+    });
+  }
+
+  return { ok: true, plans: statuses };
+}
+
+export interface DocumentCountFetchResult {
+  ok: boolean;
+  total?: number;
+  error?: string;
+}
+
+export async function getDocumentCount(options: LimpsRunOptions): Promise<DocumentCountFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(['docs', 'list', '--json', '--depth', '1'], {
+    ...options,
+    parseJson: true,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error ?? 'Failed to get document count',
+    };
+  }
+
+  const topLevel = getObjectRecord(result.data);
+  const dataRecord = getObjectRecord(topLevel?.data);
+
+  return {
+    ok: true,
+    total: getNumber(dataRecord?.total) ?? 0,
+  };
+}
+
 export async function runGraphReindex(options: LimpsRunOptions): Promise<CommandExecResult> {
   return runLimps(['graph', 'reindex', '--json'], {
     ...options,
