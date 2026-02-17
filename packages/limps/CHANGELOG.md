@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/paulbreuler/limps/compare/limps-v3.4.0...limps-v3.5.0) (2026-02-17)
+
+
+### Features
+
+* Obsidian deep integration with auto-discover, graph viz, and server enhancements ([#142](https://github.com/paulbreuler/limps/issues/142)) ([b17c530](https://github.com/paulbreuler/limps/commit/b17c530580dc06f55f84d6a49fd6ed5f31e50aa9))
+
 ## [3.4.0](https://github.com/paulbreuler/limps/compare/limps-v3.3.1...limps-v3.4.0) (2026-02-11)
 
 
