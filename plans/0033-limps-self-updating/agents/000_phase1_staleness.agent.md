@@ -20,9 +20,6 @@ updated: 2026-02-02
 
 
 
-
-
-
 # Agent 000: Phase 1 - Staleness Detection
 
 **Plan Location**: `plans/0033-limps-self-updating/0033-limps-self-updating-plan.md`

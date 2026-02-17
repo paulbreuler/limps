@@ -234,8 +234,9 @@ function extractTechnicalTerms(content: string): Map<string, ExtractedConcept> {
     }
   }
 
-  // SCREAMING_SNAKE_CASE constants
-  const screamingPattern = /\b([A-Z][A-Z0-9_]{3,})\b/g;
+  // SCREAMING_SNAKE_CASE constants: start with a letter, contain at least 4 chars total,
+  // and must end with a letter or digit to avoid matching tokens like "A___".
+  const screamingPattern = /\b([A-Z][A-Z0-9_]{2,}[A-Z0-9])\b/g;
   for (const match of stripped.matchAll(screamingPattern)) {
     const term = match[1];
     if (!term) continue;

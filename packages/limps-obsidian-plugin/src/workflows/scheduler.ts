@@ -10,6 +10,7 @@ export interface HealthCheckResult {
 
 export class WorkflowScheduler {
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private running = false;
   private readonly getRunOptions: () => LimpsRunOptions;
   private readonly onResults: (results: HealthCheckResult[]) => void;
 
@@ -40,6 +41,16 @@ export class WorkflowScheduler {
   }
 
   async runNow(): Promise<HealthCheckResult[]> {
+    if (this.running) return [];
+    this.running = true;
+    try {
+      return await this.runChecks();
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async runChecks(): Promise<HealthCheckResult[]> {
     const options = this.getRunOptions();
     const timestamp = new Date().toISOString();
     const results: HealthCheckResult[] = [];

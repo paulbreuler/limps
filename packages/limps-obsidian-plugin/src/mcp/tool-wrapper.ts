@@ -21,12 +21,12 @@ function extractTextFromMcpResult(result: CallToolResult): string | undefined {
 }
 
 function parseToolResult(result: CallToolResult): ToolResult {
+  const text = extractTextFromMcpResult(result);
+
   if (result.isError) {
-    const text = extractTextFromMcpResult(result);
     return { success: false, error: text ?? 'Tool returned an error' };
   }
 
-  const text = extractTextFromMcpResult(result);
   if (!text) {
     return { success: true };
   }

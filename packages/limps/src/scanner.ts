@@ -90,8 +90,9 @@ function matchesExtensions(filename: string, extensions: string[]): boolean {
 }
 
 /**
- * Recursively scan a directory tree using opendir() for memory efficiency.
- * Yields one file at a time.
+ * Recursively scan a directory tree using opendirSync()/readSync() for memory efficiency.
+ * Yields one file at a time. Uses an async generator so callers can `for await` and
+ * interleave indexing work (e.g. DB writes) between entries without blocking the event loop.
  */
 async function* scanDir(
   dir: string,
