@@ -1,8 +1,8 @@
-import { execFile } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { promisify } from 'node:util';
+import { execFile } from "node:child_process";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
@@ -29,14 +29,14 @@ export interface CommandExecResult<T = unknown> {
 
 function buildExecEnv(command: string): NodeJS.ProcessEnv {
   const pathParts: string[] = [];
-  if (command.includes('/')) {
+  if (command.includes("/")) {
     pathParts.push(dirname(command));
   }
-  pathParts.push('/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin');
+  pathParts.push("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin");
   pathParts.push(...getNvmNodeBinDirs());
   if (process.env.PATH) pathParts.push(process.env.PATH);
 
-  const mergedPath = pathParts.filter(Boolean).join(':');
+  const mergedPath = pathParts.filter(Boolean).join(":");
   return {
     ...process.env,
     PATH: mergedPath,
@@ -113,36 +113,49 @@ export interface DependencyPathConversionFetchResult {
   error?: string;
 }
 
-function parseErrorCode(code: number | string | null | undefined): number | null {
-  if (typeof code === 'number') return code;
-  if (typeof code === 'string') {
+function parseErrorCode(
+  code: number | string | null | undefined,
+): number | null {
+  if (typeof code === "number") return code;
+  if (typeof code === "string") {
     const parsed = Number.parseInt(code, 10);
     return Number.isNaN(parsed) ? null : parsed;
   }
   return null;
 }
 
-function parseJsonOutput<T>(value: string): { ok: true; data: T } | { ok: false; error: string } {
+function parseJsonOutput<T>(
+  value: string,
+): { ok: true; data: T } | { ok: false; error: string } {
   try {
     return { ok: true, data: JSON.parse(value) as T };
   } catch (error) {
-    return { ok: false, error: `Failed to parse JSON output: ${String(error)}` };
+    return {
+      ok: false,
+      error: `Failed to parse JSON output: ${String(error)}`,
+    };
   }
 }
 
-export async function execCommand<T = unknown>(options: CommandExecOptions): Promise<CommandExecResult<T>> {
+export async function execCommand<T = unknown>(
+  options: CommandExecOptions,
+): Promise<CommandExecResult<T>> {
   const baseResult = {
     command: options.command,
     args: options.args,
   };
 
   try {
-    const { stdout, stderr } = await execFileAsync(options.command, options.args, {
-      cwd: options.cwd,
-      timeout: options.timeoutMs,
-      maxBuffer: 10 * 1024 * 1024,
-      env: buildExecEnv(options.command),
-    });
+    const { stdout, stderr } = await execFileAsync(
+      options.command,
+      options.args,
+      {
+        cwd: options.cwd,
+        timeout: options.timeoutMs,
+        maxBuffer: 10 * 1024 * 1024,
+        env: buildExecEnv(options.command),
+      },
+    );
 
     if (options.parseJson) {
       const parsed = parseJsonOutput<T>(stdout);
@@ -184,9 +197,9 @@ export async function execCommand<T = unknown>(options: CommandExecOptions): Pro
     const execError = error as ExecErrorShape;
     const code = parseErrorCode(execError.code);
     const signal = execError.signal ?? null;
-    const timedOut = execError.killed === true && signal === 'SIGTERM';
-    const stdout = execError.stdout ?? '';
-    const stderr = execError.stderr ?? '';
+    const timedOut = execError.killed === true && signal === "SIGTERM";
+    const stdout = execError.stdout ?? "";
+    const stderr = execError.stderr ?? "";
 
     return {
       ...baseResult,
@@ -196,18 +209,18 @@ export async function execCommand<T = unknown>(options: CommandExecOptions): Pro
       code,
       signal,
       timedOut,
-      error: execError.message ?? 'Command failed',
+      error: execError.message ?? "Command failed",
     };
   }
 }
 
 export async function runLimps<T = unknown>(
   limpsArgs: string[],
-  options: LimpsRunOptions
+  options: LimpsRunOptions,
 ): Promise<CommandExecResult<T>> {
   const args = [...limpsArgs];
-  if (options.configPath && !args.includes('--config')) {
-    args.push('--config', options.configPath);
+  if (options.configPath && !args.includes("--config")) {
+    args.push("--config", options.configPath);
   }
 
   const runWithCommand = (command: string): Promise<CommandExecResult<T>> => {
@@ -226,8 +239,10 @@ export async function runLimps<T = unknown>(
     return initial;
   }
 
-  const canFallbackToRepoBinary = options.limpsPath === 'limps';
-  const repoBinary = canFallbackToRepoBinary ? getRepoBinaryCandidate(options.configPath) : null;
+  const canFallbackToRepoBinary = options.limpsPath === "limps";
+  const repoBinary = canFallbackToRepoBinary
+    ? getRepoBinaryCandidate(options.configPath)
+    : null;
   if (!repoBinary || !isCommandNotFound(initial)) {
     return initial;
   }
@@ -235,14 +250,21 @@ export async function runLimps<T = unknown>(
   return runWithCommand(repoBinary);
 }
 
-function resolveCommandInvocation(command: string, args: string[]): CommandInvocation {
+function resolveCommandInvocation(
+  command: string,
+  args: string[],
+): CommandInvocation {
   const lower = command.toLowerCase();
-  if (lower.endsWith('.js') || lower.endsWith('.cjs') || lower.endsWith('.mjs')) {
+  if (
+    lower.endsWith(".js") ||
+    lower.endsWith(".cjs") ||
+    lower.endsWith(".mjs")
+  ) {
     const nodeExecutable = getNodeExecutable();
-    if (nodeExecutable === 'node') {
+    if (nodeExecutable === "node") {
       return {
-        command: '/usr/bin/env',
-        args: ['node', command, ...args],
+        command: "/usr/bin/env",
+        args: ["node", command, ...args],
       };
     }
 
@@ -262,7 +284,9 @@ function getNodeExecutable(): string {
   const envCandidates = [
     process.env.NODE,
     process.env.npm_node_execpath,
-  ].filter((value): value is string => typeof value === 'string' && value.length > 0);
+  ].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
 
   for (const candidate of envCandidates) {
     if (existsSync(candidate)) {
@@ -271,10 +295,10 @@ function getNodeExecutable(): string {
   }
 
   const absoluteCandidates = [
-    '/opt/homebrew/bin/node',
-    '/usr/local/bin/node',
-    '/usr/bin/node',
-    ...getNvmNodeBinDirs().map((dir) => join(dir, 'node')),
+    "/opt/homebrew/bin/node",
+    "/usr/local/bin/node",
+    "/usr/bin/node",
+    ...getNvmNodeBinDirs().map((dir) => join(dir, "node")),
   ];
 
   for (const candidate of absoluteCandidates) {
@@ -283,52 +307,55 @@ function getNodeExecutable(): string {
     }
   }
 
-  return 'node';
+  return "node";
 }
 
 function getNvmNodeBinDirs(): string[] {
-  const root = join(homedir(), '.nvm', 'versions', 'node');
+  const root = join(homedir(), ".nvm", "versions", "node");
   if (!existsSync(root)) return [];
 
   try {
     return readdirSync(root)
-      .map((entry) => join(root, entry, 'bin'))
-      .filter((dir) => existsSync(join(dir, 'node')));
+      .map((entry) => join(root, entry, "bin"))
+      .filter((dir) => existsSync(join(dir, "node")));
   } catch {
     return [];
   }
 }
 
 function isCommandNotFound(result: CommandExecResult): boolean {
-  const message = `${result.error ?? ''}\n${result.stderr}`.toLowerCase();
-  return message.includes('enoent') || message.includes('not found');
+  const message = `${result.error ?? ""}\n${result.stderr}`.toLowerCase();
+  return message.includes("enoent") || message.includes("not found");
 }
 
 function getRepoBinaryCandidate(configPath?: string): string | null {
   if (!configPath) return null;
   const configDir = dirname(configPath);
-  const repoRoot = resolve(configDir, '..');
-  const candidate = join(repoRoot, 'packages', 'limps', 'dist', 'cli.js');
+  const repoRoot = resolve(configDir, "..");
+  const candidate = join(repoRoot, "packages", "limps", "dist", "cli.js");
   return existsSync(candidate) ? candidate : null;
 }
 
 function isUnsupportedJsonFlag(result: CommandExecResult): boolean {
-  const text = `${result.stderr}\n${result.stdout}\n${result.error ?? ''}`.toLowerCase();
-  return text.includes('unknown option') && text.includes('--json');
+  const text =
+    `${result.stderr}\n${result.stdout}\n${result.error ?? ""}`.toLowerCase();
+  return text.includes("unknown option") && text.includes("--json");
 }
 
-export function parseDependencyPathConversionText(output: string): DependencyPathConversionResult | null {
+export function parseDependencyPathConversionText(
+  output: string,
+): DependencyPathConversionResult | null {
   const parseCount = (label: string): number | null => {
-    const match = output.match(new RegExp(`${label}:\\s*(\\d+)`, 'i'));
+    const match = output.match(new RegExp(`${label}:\\s*(\\d+)`, "i"));
     if (!match?.[1]) return null;
     const value = Number.parseInt(match[1], 10);
     return Number.isNaN(value) ? null : value;
   };
 
-  const plansProcessed = parseCount('Plans processed');
-  const filesScanned = parseCount('Files scanned');
-  const filesUpdated = parseCount('Files updated');
-  const dependenciesConverted = parseCount('Dependencies converted');
+  const plansProcessed = parseCount("Plans processed");
+  const filesScanned = parseCount("Files scanned");
+  const filesUpdated = parseCount("Files updated");
+  const dependenciesConverted = parseCount("Dependencies converted");
   if (
     plansProcessed === null ||
     filesScanned === null ||
@@ -353,9 +380,9 @@ export function parseDependencyPathConversionText(output: string): DependencyPat
 }
 
 async function runDepsToPathsTextFallback(
-  options: LimpsRunOptions
+  options: LimpsRunOptions,
 ): Promise<DependencyPathConversionFetchResult> {
-  const textResult = await runLimps(['plan', 'deps-to-paths'], {
+  const textResult = await runLimps(["plan", "deps-to-paths"], {
     ...options,
     parseJson: false,
   });
@@ -363,15 +390,19 @@ async function runDepsToPathsTextFallback(
   if (!textResult.ok) {
     return {
       ok: false,
-      error: textResult.error ?? (textResult.stderr || 'Failed to run limps plan deps-to-paths'),
+      error:
+        textResult.error ??
+        (textResult.stderr || "Failed to run limps plan deps-to-paths"),
     };
   }
 
-  const parsed = parseDependencyPathConversionText(textResult.stdout || textResult.stderr);
+  const parsed = parseDependencyPathConversionText(
+    textResult.stdout || textResult.stderr,
+  );
   if (!parsed) {
     return {
       ok: false,
-      error: 'Failed to parse limps plan deps-to-paths output',
+      error: "Failed to parse limps plan deps-to-paths output",
     };
   }
 
@@ -382,32 +413,38 @@ async function runDepsToPathsTextFallback(
 }
 
 function getObjectRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object') return null;
+  if (!value || typeof value !== "object") return null;
   return value as Record<string, unknown>;
 }
 
 function getNumber(value: unknown): number | undefined {
-  return typeof value === 'number' ? value : undefined;
+  return typeof value === "number" ? value : undefined;
 }
 
 function getBoolean(value: unknown): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined;
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function getString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
+  return typeof value === "string" ? value : undefined;
 }
 
-export async function getDaemonStatus(options: LimpsRunOptions): Promise<DaemonStatusResult> {
-  const result = await runLimps<Record<string, unknown>>(['server', 'status', '--json'], {
-    ...options,
-    parseJson: true,
-  });
+export async function getDaemonStatus(
+  options: LimpsRunOptions,
+): Promise<DaemonStatusResult> {
+  const result = await runLimps<Record<string, unknown>>(
+    ["server", "status", "--json"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!result.ok) {
     return {
       ok: false,
-      error: result.error ?? (result.stderr || 'Failed to run limps server status'),
+      error:
+        result.error ?? (result.stderr || "Failed to run limps server status"),
     };
   }
 
@@ -418,7 +455,7 @@ export async function getDaemonStatus(options: LimpsRunOptions): Promise<DaemonS
   if (running === undefined) {
     return {
       ok: false,
-      error: 'Unexpected `limps server status --json` response shape',
+      error: "Unexpected `limps server status --json` response shape",
     };
   }
 
@@ -441,7 +478,7 @@ function defaultGraphSummary(): GraphHealthSummary {
     conflictCount: 0,
     errorCount: 0,
     warningCount: 0,
-    lastIndexed: '',
+    lastIndexed: "",
   };
 }
 
@@ -461,23 +498,31 @@ function parseGraphSummary(value: unknown): GraphHealthSummary {
   };
 }
 
-export async function getGraphHealth(options: LimpsRunOptions): Promise<GraphHealthFetchResult> {
-  const result = await runLimps<Record<string, unknown>>(['graph', 'health', '--json'], {
-    ...options,
-    parseJson: true,
-  });
+export async function getGraphHealth(
+  options: LimpsRunOptions,
+): Promise<GraphHealthFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(
+    ["graph", "health", "--json"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!result.ok) {
     return {
       ok: false,
-      error: result.error ?? (result.stderr || 'Failed to run limps graph health'),
+      error:
+        result.error ?? (result.stderr || "Failed to run limps graph health"),
     };
   }
 
   const topLevel = getObjectRecord(result.data);
   const dataRecord = getObjectRecord(topLevel?.data);
   const summary = parseGraphSummary(dataRecord?.summary);
-  const conflicts = Array.isArray(dataRecord?.conflicts) ? dataRecord.conflicts : [];
+  const conflicts = Array.isArray(dataRecord?.conflicts)
+    ? dataRecord.conflicts
+    : [];
 
   return {
     ok: true,
@@ -494,17 +539,17 @@ export async function getGraphHealth(options: LimpsRunOptions): Promise<GraphHea
  */
 export function discoverConfig(fromDir: string): string | null {
   let currentDir = resolve(fromDir);
-  const root = resolve('/');
+  const root = resolve("/");
 
   while (currentDir !== root) {
-    const configPath = resolve(currentDir, '.limps', 'config.json');
+    const configPath = resolve(currentDir, ".limps", "config.json");
     if (existsSync(configPath)) {
       return configPath;
     }
     currentDir = dirname(currentDir);
   }
 
-  const rootConfigPath = resolve(root, '.limps', 'config.json');
+  const rootConfigPath = resolve(root, ".limps", "config.json");
   if (existsSync(rootConfigPath)) {
     return rootConfigPath;
   }
@@ -522,7 +567,7 @@ export interface LimpsConfig {
  */
 export function readLimpsConfig(configPath: string): LimpsConfig | null {
   try {
-    const raw = readFileSync(configPath, 'utf8');
+    const raw = readFileSync(configPath, "utf8");
     const parsed = JSON.parse(raw) as LimpsConfig;
     return parsed;
   } catch {
@@ -541,7 +586,9 @@ export interface StartDaemonResult {
  * Start the limps daemon via `limps server start --json`.
  * If the daemon is already running, returns success with current status.
  */
-export async function startDaemon(options: LimpsRunOptions): Promise<StartDaemonResult> {
+export async function startDaemon(
+  options: LimpsRunOptions,
+): Promise<StartDaemonResult> {
   // First check if daemon is already running
   const status = await getDaemonStatus(options);
   if (status.ok && status.daemon?.running) {
@@ -553,7 +600,7 @@ export async function startDaemon(options: LimpsRunOptions): Promise<StartDaemon
   }
 
   // Try to start the daemon (server start does not support --json)
-  const result = await runLimps(['server', 'start'], {
+  const result = await runLimps(["server", "start"], {
     ...options,
     parseJson: false,
     timeoutMs: Math.max(options.timeoutMs, 10_000),
@@ -562,7 +609,7 @@ export async function startDaemon(options: LimpsRunOptions): Promise<StartDaemon
   if (!result.ok) {
     return {
       ok: false,
-      error: result.error ?? (result.stderr || 'Failed to start limps daemon'),
+      error: result.error ?? (result.stderr || "Failed to start limps daemon"),
     };
   }
 
@@ -580,7 +627,7 @@ export async function startDaemon(options: LimpsRunOptions): Promise<StartDaemon
 
   return {
     ok: false,
-    error: 'Daemon started but health check failed',
+    error: "Daemon started but health check failed",
   };
 }
 
@@ -610,34 +657,42 @@ function parseConflicts(raw: unknown[]): ConflictDetail[] {
       const rec = getObjectRecord(item);
       if (!rec) return null;
       return {
-        type: getString(rec.type) ?? 'unknown',
-        severity: getString(rec.severity) ?? 'warning',
-        message: getString(rec.message) ?? '',
+        type: getString(rec.type) ?? "unknown",
+        severity: getString(rec.severity) ?? "warning",
+        message: getString(rec.message) ?? "",
         entities: Array.isArray(rec.entities)
-          ? rec.entities.filter((e): e is string => typeof e === 'string')
+          ? rec.entities.filter((e): e is string => typeof e === "string")
           : [],
       };
     })
     .filter((c): c is ConflictDetail => c !== null);
 }
 
-export async function getFullGraphHealth(options: LimpsRunOptions): Promise<FullGraphHealthFetchResult> {
-  const result = await runLimps<Record<string, unknown>>(['graph', 'health', '--json'], {
-    ...options,
-    parseJson: true,
-  });
+export async function getFullGraphHealth(
+  options: LimpsRunOptions,
+): Promise<FullGraphHealthFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(
+    ["graph", "health", "--json"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!result.ok) {
     return {
       ok: false,
-      error: result.error ?? (result.stderr || 'Failed to run limps graph health'),
+      error:
+        result.error ?? (result.stderr || "Failed to run limps graph health"),
     };
   }
 
   const topLevel = getObjectRecord(result.data);
   const dataRecord = getObjectRecord(topLevel?.data);
   const summary = parseGraphSummary(dataRecord?.summary);
-  const rawConflicts = Array.isArray(dataRecord?.conflicts) ? dataRecord.conflicts : [];
+  const rawConflicts = Array.isArray(dataRecord?.conflicts)
+    ? dataRecord.conflicts
+    : [];
 
   return {
     ok: true,
@@ -648,10 +703,17 @@ export async function getFullGraphHealth(options: LimpsRunOptions): Promise<Full
   };
 }
 
+export interface PlanIssueSummary {
+  planId: string;
+  count: number;
+}
+
 export interface HealthCheckSummary {
   staleCount: number;
   inferenceSuggestions: number;
   driftCount: number;
+  inferenceByPlan: PlanIssueSummary[];
+  driftByPlan: PlanIssueSummary[];
 }
 
 export interface HealthCheckFetchResult {
@@ -660,31 +722,36 @@ export interface HealthCheckFetchResult {
   error?: string;
 }
 
-export async function getHealthCheck(options: LimpsRunOptions): Promise<HealthCheckFetchResult> {
-  const result = await runLimps<Record<string, unknown>>(['health', 'check', '--json'], {
-    ...options,
-    parseJson: true,
-  });
+export async function getHealthCheck(
+  options: LimpsRunOptions,
+): Promise<HealthCheckFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(
+    ["health", "check", "--json"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!result.ok) {
     return {
       ok: false,
-      error: result.error ?? (result.stderr || 'Failed to run limps health check'),
+      error:
+        result.error ?? (result.stderr || "Failed to run limps health check"),
     };
   }
 
-  const topLevel = getObjectRecord(result.data);
-  const dataRecord = getObjectRecord(topLevel?.data);
-  const summaryRecord = getObjectRecord(dataRecord?.summary);
-
   return {
     ok: true,
-    summary: {
-      staleCount: getNumber(summaryRecord?.staleCount) ?? 0,
-      inferenceSuggestions: getNumber(summaryRecord?.inferenceSuggestions) ?? 0,
-      driftCount: getNumber(summaryRecord?.driftCount) ?? 0,
-    },
+    summary: parseHealthCheckData(result.data),
   };
+}
+
+export interface AgentDetail {
+  agentNumber: string;
+  title: string;
+  status: "GAP" | "WIP" | "PASS" | "BLOCKED";
+  persona: string;
 }
 
 export interface PlanStatusInfo {
@@ -694,6 +761,7 @@ export interface PlanStatusInfo {
   agentCount: number;
   statusCounts: { GAP: number; WIP: number; PASS: number; BLOCKED: number };
   blockedAgents: string[];
+  agents: AgentDetail[];
 }
 
 export interface PlanStatusesFetchResult {
@@ -708,16 +776,145 @@ interface PlanListEntry {
   status: string;
 }
 
-export async function getPlanStatuses(options: LimpsRunOptions): Promise<PlanStatusesFetchResult> {
-  const listResult = await runLimps<Record<string, unknown>>(['plan', 'list', '--json'], {
-    ...options,
-    parseJson: true,
-  });
+/**
+ * Build a planId suitable for `plan status <planId>`.
+ *
+ * Uses number-only format (e.g. "0001") because `plan list --json` returns
+ * human-readable title-cased names that don't match directory slugs.
+ * The CLI's `findPlanDirectory()` reliably matches number-only strings
+ * via its number-prefix strategy.
+ */
+export function buildPlanId(number: string, _name: string): string {
+  return number;
+}
+
+/**
+ * Parse a single plan list entry from raw JSON data.
+ */
+export function parsePlanListEntry(
+  raw: unknown,
+): { number: string; name: string; status: string } | null {
+  const rec = getObjectRecord(raw);
+  if (!rec) return null;
+  const number = getString(rec.number) ?? "";
+  if (number === "") return null;
+  return {
+    number,
+    name: getString(rec.name) ?? "",
+    status: getString(rec.status) ?? "GAP",
+  };
+}
+
+/**
+ * Parse a single agent entry from `plan agents --json` output.
+ */
+export function parseAgentDetail(raw: unknown): AgentDetail | null {
+  const rec = getObjectRecord(raw);
+  if (!rec) return null;
+  const agentNumber = getString(rec.agentNumber) ?? "";
+  if (!agentNumber) return null;
+  const statusRaw = getString(rec.status) ?? getString(getObjectRecord(rec.frontmatter)?.status);
+  const validStatuses = new Set(["GAP", "WIP", "PASS", "BLOCKED"]);
+  const status = validStatuses.has(statusRaw ?? "") ? (statusRaw as AgentDetail["status"]) : "GAP";
+  return {
+    agentNumber,
+    title: getString(rec.title) ?? `Agent ${agentNumber}`,
+    status,
+    persona: getString(rec.persona) ?? getString(getObjectRecord(rec.frontmatter)?.persona) ?? "coder",
+  };
+}
+
+/**
+ * Parse agent list from `plan agents <planId> --json` output.
+ */
+export function parseAgentList(raw: unknown): AgentDetail[] {
+  const topLevel = getObjectRecord(raw);
+  const dataRecord = getObjectRecord(topLevel?.data);
+  const rawAgents = Array.isArray(dataRecord?.agents) ? dataRecord.agents : [];
+  return rawAgents
+    .map((a) => parseAgentDetail(a))
+    .filter((a): a is AgentDetail => a !== null);
+}
+
+/**
+ * Parse plan status data from `plan status <planId> --json` output.
+ */
+export function parsePlanStatusData(
+  raw: unknown,
+  fallbackName: string,
+): PlanStatusInfo {
+  const topLevel = getObjectRecord(raw);
+  const sData = getObjectRecord(topLevel?.data);
+  const sCounts = getObjectRecord(sData?.statusCounts);
+
+  return {
+    name: getString(sData?.planName) ?? fallbackName,
+    completion: getNumber(sData?.completionPercentage) ?? 0,
+    status: "",
+    agentCount: getNumber(sData?.totalAgents) ?? 0,
+    statusCounts: {
+      GAP: getNumber(sCounts?.GAP) ?? 0,
+      WIP: getNumber(sCounts?.WIP) ?? 0,
+      PASS: getNumber(sCounts?.PASS) ?? 0,
+      BLOCKED: getNumber(sCounts?.BLOCKED) ?? 0,
+    },
+    blockedAgents: Array.isArray(sData?.blockedAgents)
+      ? (sData.blockedAgents as unknown[]).filter(
+          (a): a is string => typeof a === "string",
+        )
+      : [],
+    agents: [],
+  };
+}
+
+function parsePlanIssueSummaries(raw: unknown): PlanIssueSummary[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      const rec = getObjectRecord(item);
+      if (!rec) return null;
+      const planId = getString(rec.planId);
+      const count = getNumber(rec.count);
+      if (!planId || count === undefined) return null;
+      return { planId, count };
+    })
+    .filter((s): s is PlanIssueSummary => s !== null);
+}
+
+/**
+ * Parse health check data from `health check --json` output.
+ */
+export function parseHealthCheckData(raw: unknown): HealthCheckSummary {
+  const topLevel = getObjectRecord(raw);
+  const dataRecord = getObjectRecord(topLevel?.data);
+  const summaryRecord = getObjectRecord(dataRecord?.summary);
+  const inferenceRecord = getObjectRecord(dataRecord?.inference);
+  const driftRecord = getObjectRecord(dataRecord?.drift);
+
+  return {
+    staleCount: getNumber(summaryRecord?.staleCount) ?? 0,
+    inferenceSuggestions: getNumber(summaryRecord?.inferenceSuggestions) ?? 0,
+    driftCount: getNumber(summaryRecord?.driftCount) ?? 0,
+    inferenceByPlan: parsePlanIssueSummaries(inferenceRecord?.suggestionsByPlan),
+    driftByPlan: parsePlanIssueSummaries(driftRecord?.driftsByPlan),
+  };
+}
+
+export async function getPlanStatuses(
+  options: LimpsRunOptions,
+): Promise<PlanStatusesFetchResult> {
+  const listResult = await runLimps<Record<string, unknown>>(
+    ["plan", "list", "--json"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!listResult.ok) {
     return {
       ok: false,
-      error: listResult.error ?? 'Failed to list plans',
+      error: listResult.error ?? "Failed to list plans",
     };
   }
 
@@ -726,24 +923,26 @@ export async function getPlanStatuses(options: LimpsRunOptions): Promise<PlanSta
   const rawPlans = Array.isArray(dataRecord?.plans) ? dataRecord.plans : [];
 
   const plans: PlanListEntry[] = rawPlans
-    .map((p) => {
-      const rec = getObjectRecord(p);
-      if (!rec) return null;
-      return {
-        number: getString(rec.number) ?? '',
-        name: getString(rec.name) ?? '',
-        status: getString(rec.status) ?? 'GAP',
-      };
-    })
-    .filter((p): p is PlanListEntry => p !== null && p.number !== '');
+    .map((p) => parsePlanListEntry(p))
+    .filter((p): p is PlanListEntry => p !== null && p.number !== "");
 
   const statuses: PlanStatusInfo[] = [];
   for (const plan of plans) {
-    const planId = `${plan.number}-${plan.name}`;
-    const statusResult = await runLimps<Record<string, unknown>>(['plan', 'status', planId, '--json'], {
-      ...options,
-      parseJson: true,
-    });
+    const planId = buildPlanId(plan.number, plan.name);
+
+    // Fetch plan status and agent details in parallel
+    const [statusResult, agentsResult] = await Promise.all([
+      runLimps<Record<string, unknown>>(
+        ["plan", "status", planId, "--json"],
+        { ...options, parseJson: true },
+      ),
+      runLimps<Record<string, unknown>>(
+        ["plan", "agents", planId, "--json"],
+        { ...options, parseJson: true },
+      ),
+    ]);
+
+    const agents = agentsResult.ok ? parseAgentList(agentsResult.data) : [];
 
     if (!statusResult.ok) {
       statuses.push({
@@ -753,28 +952,16 @@ export async function getPlanStatuses(options: LimpsRunOptions): Promise<PlanSta
         agentCount: 0,
         statusCounts: { GAP: 0, WIP: 0, PASS: 0, BLOCKED: 0 },
         blockedAgents: [],
+        agents,
       });
       continue;
     }
 
-    const sTopLevel = getObjectRecord(statusResult.data);
-    const sData = getObjectRecord(sTopLevel?.data);
-    const sCounts = getObjectRecord(sData?.statusCounts);
-
+    const parsed = parsePlanStatusData(statusResult.data, plan.name);
     statuses.push({
-      name: getString(sData?.planName) ?? plan.name,
-      completion: getNumber(sData?.completionPercentage) ?? 0,
+      ...parsed,
       status: plan.status,
-      agentCount: getNumber(sData?.totalAgents) ?? 0,
-      statusCounts: {
-        GAP: getNumber(sCounts?.GAP) ?? 0,
-        WIP: getNumber(sCounts?.WIP) ?? 0,
-        PASS: getNumber(sCounts?.PASS) ?? 0,
-        BLOCKED: getNumber(sCounts?.BLOCKED) ?? 0,
-      },
-      blockedAgents: Array.isArray(sData?.blockedAgents)
-        ? (sData.blockedAgents as unknown[]).filter((a): a is string => typeof a === 'string')
-        : [],
+      agents,
     });
   }
 
@@ -787,16 +974,21 @@ export interface DocumentCountFetchResult {
   error?: string;
 }
 
-export async function getDocumentCount(options: LimpsRunOptions): Promise<DocumentCountFetchResult> {
-  const result = await runLimps<Record<string, unknown>>(['docs', 'list', '--json', '--depth', '1'], {
-    ...options,
-    parseJson: true,
-  });
+export async function getDocumentCount(
+  options: LimpsRunOptions,
+): Promise<DocumentCountFetchResult> {
+  const result = await runLimps<Record<string, unknown>>(
+    ["docs", "list", "--json", "--depth", "1"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!result.ok) {
     return {
       ok: false,
-      error: result.error ?? 'Failed to get document count',
+      error: result.error ?? "Failed to get document count",
     };
   }
 
@@ -809,20 +1001,25 @@ export async function getDocumentCount(options: LimpsRunOptions): Promise<Docume
   };
 }
 
-export async function runGraphReindex(options: LimpsRunOptions): Promise<CommandExecResult> {
-  return runLimps(['graph', 'reindex', '--json'], {
+export async function runGraphReindex(
+  options: LimpsRunOptions,
+): Promise<CommandExecResult> {
+  return runLimps(["graph", "reindex", "--json"], {
     ...options,
     parseJson: false,
   });
 }
 
 export async function runDepsToPaths(
-  options: LimpsRunOptions
+  options: LimpsRunOptions,
 ): Promise<DependencyPathConversionFetchResult> {
-  const result = await runLimps<Record<string, unknown>>(['plan', 'deps-to-paths', '--json'], {
-    ...options,
-    parseJson: true,
-  });
+  const result = await runLimps<Record<string, unknown>>(
+    ["plan", "deps-to-paths", "--json"],
+    {
+      ...options,
+      parseJson: true,
+    },
+  );
 
   if (!result.ok) {
     if (isUnsupportedJsonFlag(result)) {
@@ -830,7 +1027,9 @@ export async function runDepsToPaths(
     }
     return {
       ok: false,
-      error: result.error ?? (result.stderr || 'Failed to run limps plan deps-to-paths'),
+      error:
+        result.error ??
+        (result.stderr || "Failed to run limps plan deps-to-paths"),
     };
   }
 
@@ -839,7 +1038,7 @@ export async function runDepsToPaths(
   if (!dataRecord) {
     return {
       ok: false,
-      error: 'Unexpected `limps plan deps-to-paths --json` response shape',
+      error: "Unexpected `limps plan deps-to-paths --json` response shape",
     };
   }
 
@@ -851,7 +1050,7 @@ export async function runDepsToPaths(
       filesUpdated: getNumber(dataRecord.filesUpdated) ?? 0,
       dependenciesConverted: getNumber(dataRecord.dependenciesConverted) ?? 0,
       warnings: Array.isArray(dataRecord.warnings)
-        ? dataRecord.warnings.filter((v): v is string => typeof v === 'string')
+        ? dataRecord.warnings.filter((v): v is string => typeof v === "string")
         : [],
     },
   };

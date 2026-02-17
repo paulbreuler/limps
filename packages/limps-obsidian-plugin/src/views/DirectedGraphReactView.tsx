@@ -1,25 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { forceCollide, forceRadial } from 'd3-force-3d';
-import ForceGraph2D, { type ForceGraphMethods as ForceGraph2DMethods } from 'react-force-graph-2d';
-import ForceGraph3D, { type ForceGraphMethods as ForceGraph3DMethods } from 'react-force-graph-3d';
-import type LimpsPlugin from '../main.js';
-import { buildDirectedGraph } from '../graph/directedGraph.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forceCollide, forceRadial } from "d3-force-3d";
+import ForceGraph2D, {
+  type ForceGraphMethods as ForceGraph2DMethods,
+} from "react-force-graph-2d";
+import ForceGraph3D, {
+  type ForceGraphMethods as ForceGraph3DMethods,
+} from "react-force-graph-3d";
+import type LimpsPlugin from "../main.js";
+import { buildDirectedGraph } from "../graph/directedGraph.js";
 import type {
   DirectedEdgeType,
   DirectedGraphData,
   DirectedGraphEdge,
   DirectedGraphNode,
   DirectedGraphWarning,
-} from '../graph/directedGraph.js';
-import { useObsidianApp } from '../react/app-context.js';
+} from "../graph/directedGraph.js";
+import { useObsidianApp } from "../react/app-context.js";
 
 interface DirectedGraphReactViewProps {
   plugin: LimpsPlugin;
 }
 
-type LayoutMode = 'physics' | 'flow';
-type LayerId = 'plan-structure' | 'dependencies' | 'plan-surfaces' | 'references' | 'semantic';
-type DisplayTheme = 'day' | 'night';
+type LayerId =
+  | "plan-structure"
+  | "dependencies"
+  | "plan-surfaces"
+  | "references"
+  | "semantic";
+type DisplayTheme = "day" | "night";
 
 interface LayerOption {
   id: LayerId;
@@ -33,7 +41,7 @@ type LayerState = Record<LayerId, boolean>;
 interface ForceNode {
   id: string;
   label: string;
-  type: DirectedGraphNode['type'];
+  type: DirectedGraphNode["type"];
   filePath: string;
   planId: string;
   val: number;
@@ -93,8 +101,16 @@ interface GraphApi {
   centerAt?: (x?: number, y?: number, ms?: number) => void;
   zoomToFit: (ms?: number, padding?: number) => void;
   zoom?: (k: number, ms?: number) => void;
-  cameraPosition?: (position?: GraphCameraPosition, lookAt?: GraphLookAt, ms?: number) => void;
-  getGraphBbox?: () => { x?: [number, number]; y?: [number, number]; z?: [number, number] } | null;
+  cameraPosition?: (
+    position?: GraphCameraPosition,
+    lookAt?: GraphLookAt,
+    ms?: number,
+  ) => void;
+  getGraphBbox?: () => {
+    x?: [number, number];
+    y?: [number, number];
+    z?: [number, number];
+  } | null;
   d3Force: (name: string, force?: unknown) => unknown;
   d3ReheatSimulation?: () => void;
   pauseAnimation?: () => unknown;
@@ -104,41 +120,41 @@ interface GraphApi {
 
 const LAYER_OPTIONS: LayerOption[] = [
   {
-    id: 'plan-structure',
-    label: 'Plan relationships',
-    description: 'plan contains agent',
-    edgeTypes: ['plan-contains'],
+    id: "plan-structure",
+    label: "Plan relationships",
+    description: "plan contains agent",
+    edgeTypes: ["plan-contains"],
   },
   {
-    id: 'dependencies',
-    label: 'Dependencies',
-    description: 'depends_on / blocks',
-    edgeTypes: ['depends-on'],
+    id: "dependencies",
+    label: "Dependencies",
+    description: "depends_on / blocks",
+    edgeTypes: ["depends-on"],
   },
   {
-    id: 'plan-surfaces',
-    label: 'Plan docs',
-    description: 'related docs/canvas/base',
-    edgeTypes: ['related-doc', 'related-canvas', 'related-base'],
+    id: "plan-surfaces",
+    label: "Plan docs",
+    description: "related docs/canvas/base",
+    edgeTypes: ["related-doc", "related-canvas", "related-base"],
   },
   {
-    id: 'references',
-    label: 'References',
-    description: 'markdown links',
-    edgeTypes: ['references'],
+    id: "references",
+    label: "References",
+    description: "markdown links",
+    edgeTypes: ["references"],
   },
   {
-    id: 'semantic',
-    label: 'Semantic',
-    description: 'shared tags',
-    edgeTypes: ['semantic-tag'],
+    id: "semantic",
+    label: "Semantic",
+    description: "shared tags",
+    edgeTypes: ["semantic-tag"],
   },
 ];
 
 const DEFAULT_LAYERS: LayerState = {
-  'plan-structure': true,
+  "plan-structure": true,
   dependencies: true,
-  'plan-surfaces': true,
+  "plan-surfaces": true,
   references: true,
   semantic: true,
 };
@@ -146,7 +162,7 @@ const DEFAULT_LAYERS: LayerState = {
 const PHYSICS_COOLDOWN_TICKS = 1_000_000;
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
-  theme: 'day',
+  theme: "day",
   showArrows: true,
   planLevelReferences: true,
   textFadeThreshold: 0.62,
@@ -165,125 +181,139 @@ const DEFAULT_FORCE_SETTINGS: ForceSettings = {
 };
 
 const EDGE_LABELS: Record<DirectedEdgeType, string> = {
-  'plan-contains': 'contains',
-  'depends-on': 'depends_on',
-  'related-doc': 'related_doc',
-  'related-canvas': 'related_canvas',
-  'related-base': 'related_base',
-  references: 'references',
-  'semantic-tag': 'semantic',
+  "plan-contains": "contains",
+  "depends-on": "depends_on",
+  "related-doc": "related_doc",
+  "related-canvas": "related_canvas",
+  "related-base": "related_base",
+  references: "references",
+  "semantic-tag": "semantic",
 };
 
 const EDGE_WEIGHT: Record<DirectedEdgeType, number> = {
-  'plan-contains': 1.1,
-  'depends-on': 1.6,
-  'related-doc': 0.9,
-  'related-canvas': 0.9,
-  'related-base': 0.9,
+  "plan-contains": 1.1,
+  "depends-on": 1.6,
+  "related-doc": 0.9,
+  "related-canvas": 0.9,
+  "related-base": 0.9,
   references: 0.55,
-  'semantic-tag': 0.45,
+  "semantic-tag": 0.45,
 };
 
 const EDGE_IS_DASHED: Record<DirectedEdgeType, boolean> = {
-  'plan-contains': false,
-  'depends-on': false,
-  'related-doc': true,
-  'related-canvas': true,
-  'related-base': true,
+  "plan-contains": false,
+  "depends-on": false,
+  "related-doc": true,
+  "related-canvas": true,
+  "related-base": true,
   references: true,
-  'semantic-tag': true,
+  "semantic-tag": true,
 };
 
 const EDGE_IS_HARD: Record<DirectedEdgeType, boolean> = {
-  'plan-contains': true,
-  'depends-on': true,
-  'related-doc': false,
-  'related-canvas': false,
-  'related-base': false,
+  "plan-contains": true,
+  "depends-on": true,
+  "related-doc": false,
+  "related-canvas": false,
+  "related-base": false,
   references: false,
-  'semantic-tag': false,
+  "semantic-tag": false,
 };
 
 const EDGE_COLORS: Record<DisplayTheme, Record<DirectedEdgeType, string>> = {
   day: {
-    'plan-contains': '#1e40af',
-    'depends-on': '#b91c1c',
-    'related-doc': '#0f766e',
-    'related-canvas': '#6d28d9',
-    'related-base': '#0f766e',
-    references: '#334155',
-    'semantic-tag': '#b45309',
+    "plan-contains": "#1e40af",
+    "depends-on": "#b91c1c",
+    "related-doc": "#0f766e",
+    "related-canvas": "#6d28d9",
+    "related-base": "#0f766e",
+    references: "#334155",
+    "semantic-tag": "#b45309",
   },
   night: {
-    'plan-contains': '#60a5fa',
-    'depends-on': '#f87171',
-    'related-doc': '#2dd4bf',
-    'related-canvas': '#c084fc',
-    'related-base': '#2dd4bf',
-    references: '#cbd5e1',
-    'semantic-tag': '#fbbf24',
+    "plan-contains": "#60a5fa",
+    "depends-on": "#f87171",
+    "related-doc": "#2dd4bf",
+    "related-canvas": "#c084fc",
+    "related-base": "#2dd4bf",
+    references: "#cbd5e1",
+    "semantic-tag": "#fbbf24",
   },
 };
 
-const NODE_COLORS: Record<DisplayTheme, Record<DirectedGraphNode['type'], string>> = {
+const NODE_COLORS: Record<
+  DisplayTheme,
+  Record<DirectedGraphNode["type"], string>
+> = {
   day: {
-    plan: '#3b82f6',
-    agent: '#8b5cf6',
-    doc: '#10b981',
-    roadmap: '#ec4899',
-    canvas: '#f59e0b',
-    base: '#ef4444',
+    plan: "#3b82f6",
+    agent: "#8b5cf6",
+    doc: "#10b981",
+    roadmap: "#ec4899",
+    canvas: "#f59e0b",
+    base: "#ef4444",
   },
   night: {
-    plan: '#60a5fa',
-    agent: '#c4b5fd',
-    doc: '#5eead4',
-    roadmap: '#f9a8d4',
-    canvas: '#fde68a',
-    base: '#fca5a5',
+    plan: "#60a5fa",
+    agent: "#c4b5fd",
+    doc: "#5eead4",
+    roadmap: "#f9a8d4",
+    canvas: "#fde68a",
+    base: "#fca5a5",
   },
 };
 
 const LAYER_PRIMARY_EDGE_TYPE: Record<LayerId, DirectedEdgeType> = {
-  'plan-structure': 'plan-contains',
-  dependencies: 'depends-on',
-  'plan-surfaces': 'related-doc',
-  references: 'references',
-  semantic: 'semantic-tag',
+  "plan-structure": "plan-contains",
+  dependencies: "depends-on",
+  "plan-surfaces": "related-doc",
+  references: "references",
+  semantic: "semantic-tag",
 };
 
-function nodeValue(type: DirectedGraphNode['type']): number {
-  if (type === 'plan') return 8;
-  if (type === 'roadmap') return 6;
-  if (type === 'agent') return 4;
+function nodeValue(type: DirectedGraphNode["type"]): number {
+  if (type === "plan") return 8;
+  if (type === "roadmap") return 6;
+  if (type === "agent") return 4;
   return 2.5;
 }
 
 function getEndpointDegree(value: unknown): number {
   const endpoint = value as LinkEndpoint | null;
   const maybe = endpoint?.degree;
-  return typeof maybe === 'number' && Number.isFinite(maybe) ? maybe : 0;
+  return typeof maybe === "number" && Number.isFinite(maybe) ? maybe : 0;
 }
 
-function isEdgeEnabledByLayers(edgeType: DirectedEdgeType, layers: LayerState): boolean {
-  return LAYER_OPTIONS.some((option) => layers[option.id] && option.edgeTypes.includes(edgeType));
+function isEdgeEnabledByLayers(
+  edgeType: DirectedEdgeType,
+  layers: LayerState,
+): boolean {
+  return LAYER_OPTIONS.some(
+    (option) => layers[option.id] && option.edgeTypes.includes(edgeType),
+  );
 }
 
 function shouldShowEdge(edge: DirectedGraphEdge, layers: LayerState): boolean {
   return isEdgeEnabledByLayers(edge.type, layers);
 }
 
-function shouldRenderLabel(node: ForceNode, globalScale: number, textFadeThreshold: number): boolean {
+function shouldRenderLabel(
+  node: ForceNode,
+  globalScale: number,
+  textFadeThreshold: number,
+): boolean {
   if (globalScale < textFadeThreshold) {
     return false;
   }
 
   if (globalScale < textFadeThreshold + 0.45) {
-    return node.type === 'plan' || node.type === 'roadmap';
+    return node.type === "plan" || node.type === "roadmap";
   }
 
   if (globalScale < textFadeThreshold + 0.9) {
-    return node.type === 'plan' || node.type === 'roadmap' || node.type === 'agent';
+    return (
+      node.type === "plan" || node.type === "roadmap" || node.type === "agent"
+    );
   }
 
   return true;
@@ -295,8 +325,8 @@ function truncateLabel(value: string, limit: number): string {
 }
 
 function fileNameFromPath(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/');
-  const name = normalized.split('/').pop();
+  const normalized = filePath.replace(/\\/g, "/");
+  const name = normalized.split("/").pop();
   return name && name.length > 0 ? name : filePath;
 }
 
@@ -310,11 +340,14 @@ function edgeWidthForLink(link: ForceLink, linkThickness: number): number {
   const scale = hard ? 0.92 : 0.76;
   const minWidth = hard ? 0.9 : 0.65;
   const maxWidth = hard ? 2.2 : 1.65;
-  return Math.min(maxWidth, Math.max(minWidth, weighted * linkThickness * scale));
+  return Math.min(
+    maxWidth,
+    Math.max(minWidth, weighted * linkThickness * scale),
+  );
 }
 
 function withAlpha(hex: string, alpha: number): string {
-  const normalized = hex.replace('#', '');
+  const normalized = hex.replace("#", "");
   if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
     return hex;
   }
@@ -324,33 +357,53 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
-function estimateCollisionRadius(node: DirectedGraphNode, degree: number, sizeScale: number, labelMaxChars: number): number {
-  const nodeRadius = Math.max(3.5, (nodeValue(node.type) + Math.sqrt(degree) * 1.35) * 1.35 * sizeScale);
+function estimateCollisionRadius(
+  node: DirectedGraphNode,
+  degree: number,
+  sizeScale: number,
+  labelMaxChars: number,
+): number {
+  const nodeRadius = Math.max(
+    3.5,
+    (nodeValue(node.type) + Math.sqrt(degree) * 1.35) * 1.35 * sizeScale,
+  );
   const visibleChars = Math.min(labelMaxChars, Math.max(8, node.label.length));
   const labelRadius = Math.min(28, visibleChars * 1.1);
   return nodeRadius + labelRadius;
 }
 
-export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) {
+export function DirectedGraphReactView({
+  plugin,
+}: DirectedGraphReactViewProps) {
   useObsidianApp();
   const [graph, setGraph] = useState<DirectedGraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('physics');
   const [layers, setLayers] = useState<LayerState>(DEFAULT_LAYERS);
-  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(DEFAULT_DISPLAY_SETTINGS);
-  const [forceSettings, setForceSettings] = useState<ForceSettings>(DEFAULT_FORCE_SETTINGS);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(
+    DEFAULT_DISPLAY_SETTINGS,
+  );
+  const [forceSettings, setForceSettings] = useState<ForceSettings>(
+    DEFAULT_FORCE_SETTINGS,
+  );
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [showLayerPanel, setShowLayerPanel] = useState<boolean>(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState<boolean>(false);
   const [use3D, setUse3D] = useState<boolean>(false);
-  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 960, height: 640 });
+  const [canvasSize, setCanvasSize] = useState<{
+    width: number;
+    height: number;
+  }>({ width: 960, height: 640 });
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const graph2dHostRef = useRef<HTMLDivElement | null>(null);
   const graph3dHostRef = useRef<HTMLDivElement | null>(null);
-  const fg2dRef = useRef<ForceGraph2DMethods<ForceNode, ForceLink> | undefined>(undefined);
-  const fg3dRef = useRef<ForceGraph3DMethods<ForceNode, ForceLink> | undefined>(undefined);
+  const fg2dRef = useRef<ForceGraph2DMethods<ForceNode, ForceLink> | undefined>(
+    undefined,
+  );
+  const fg3dRef = useRef<ForceGraph3DMethods<ForceNode, ForceLink> | undefined>(
+    undefined,
+  );
   const zoomRef = useRef<number>(1);
   const cameraDistanceRef = useRef<number>(800);
 
@@ -386,7 +439,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!host || typeof ResizeObserver === 'undefined') return;
+    if (!host || typeof ResizeObserver === "undefined") return;
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
@@ -394,7 +447,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       const width = Math.max(300, Math.floor(entry.contentRect.width));
       const height = Math.max(260, Math.floor(entry.contentRect.height));
       setCanvasSize((current) => {
-        if (current.width === width && current.height === height) return current;
+        if (current.width === width && current.height === height)
+          return current;
         return { width, height };
       });
     });
@@ -404,9 +458,11 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
   useEffect(() => {
     if (!use3D) return;
-    if (typeof document === 'undefined') return;
-    const canvas = document.createElement('canvas');
-    const hasWebGl = Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+    if (typeof document === "undefined") return;
+    const canvas = document.createElement("canvas");
+    const hasWebGl = Boolean(
+      canvas.getContext("webgl2") || canvas.getContext("webgl"),
+    );
     if (!hasWebGl) {
       setUse3D(false);
     }
@@ -420,12 +476,12 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       graph2d?.pauseAnimation?.();
       graph3d?.resumeAnimation?.();
       graph3d?.refresh?.();
-      console.info('[limps-graph] switched to 3D');
+      console.info("[limps-graph] switched to 3D");
     } else {
       graph3d?.pauseAnimation?.();
       graph2d?.resumeAnimation?.();
       graph2d?.refresh?.();
-      console.info('[limps-graph] switched to 2D');
+      console.info("[limps-graph] switched to 2D");
     }
   }, [use3D]);
 
@@ -433,32 +489,32 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     const host = graph3dHostRef.current;
     if (!host) return;
 
-    const canvas = host.querySelector('canvas');
+    const canvas = host.querySelector("canvas");
     if (!canvas) return;
 
     const onLost = (event: Event) => {
       event.preventDefault();
-      console.warn('[limps-graph] 3D WebGL context lost');
+      console.warn("[limps-graph] 3D WebGL context lost");
     };
     const onRestored = () => {
-      console.info('[limps-graph] 3D WebGL context restored');
+      console.info("[limps-graph] 3D WebGL context restored");
       const graph3d = fg3dRef.current as unknown as GraphApi | undefined;
       graph3d?.refresh?.();
     };
 
-    canvas.addEventListener('webglcontextlost', onLost, false);
-    canvas.addEventListener('webglcontextrestored', onRestored, false);
+    canvas.addEventListener("webglcontextlost", onLost, false);
+    canvas.addEventListener("webglcontextrestored", onRestored, false);
     return () => {
-      canvas.removeEventListener('webglcontextlost', onLost, false);
-      canvas.removeEventListener('webglcontextrestored', onRestored, false);
+      canvas.removeEventListener("webglcontextlost", onLost, false);
+      canvas.removeEventListener("webglcontextrestored", onRestored, false);
     };
   }, [canvasSize.height, canvasSize.width]);
 
   const layerCounts = useMemo(() => {
     const counts: Record<LayerId, number> = {
-      'plan-structure': 0,
+      "plan-structure": 0,
       dependencies: 0,
-      'plan-surfaces': 0,
+      "plan-surfaces": 0,
       references: 0,
       semantic: 0,
     };
@@ -479,8 +535,8 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     const mode = displaySettings.theme;
     return {
       mode,
-      backgroundColor: mode === 'night' ? '#050815' : '#f8fafc',
-      labelColor: mode === 'night' ? '#e2e8f0' : '#0f172a',
+      backgroundColor: mode === "night" ? "#050815" : "#f8fafc",
+      labelColor: mode === "night" ? "#e2e8f0" : "#0f172a",
       edgeColors: EDGE_COLORS[mode],
       nodeColors: NODE_COLORS[mode],
     };
@@ -491,10 +547,12 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       return { nodes: [] as ForceNode[], links: [] as ForceLink[] };
     }
 
-    const nodeById = new Map<string, DirectedGraphNode>(graph.nodes.map((node) => [node.id, node] as const));
+    const nodeById = new Map<string, DirectedGraphNode>(
+      graph.nodes.map((node) => [node.id, node] as const),
+    );
     const planNodeByPlanId = new Map<string, DirectedGraphNode>();
     for (const node of graph.nodes) {
-      if (node.type === 'plan' && !planNodeByPlanId.has(node.planId)) {
+      if (node.type === "plan" && !planNodeByPlanId.has(node.planId)) {
         planNodeByPlanId.set(node.planId, node);
       }
     }
@@ -504,7 +562,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     for (const edge of graph.edges) {
       if (!shouldShowEdge(edge, layers)) continue;
 
-      if (displaySettings.planLevelReferences && edge.type === 'references') {
+      if (displaySettings.planLevelReferences && edge.type === "references") {
         const sourceNode = nodeById.get(edge.from);
         const targetNode = nodeById.get(edge.to);
         if (!sourceNode || !targetNode) continue;
@@ -519,7 +577,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         normalizedEdges.push({
           from: sourcePlan.id,
           to: targetPlan.id,
-          type: 'references',
+          type: "references",
         });
         continue;
       }
@@ -552,7 +610,10 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     const expandedNodeIds = new Set<string>(matchedNodeIds);
     if (normalizedSearch.length > 0) {
       for (const edge of filteredByLayer) {
-        if (matchedNodeIds.has(edge.source) || matchedNodeIds.has(edge.target)) {
+        if (
+          matchedNodeIds.has(edge.source) ||
+          matchedNodeIds.has(edge.target)
+        ) {
           expandedNodeIds.add(edge.source);
           expandedNodeIds.add(edge.target);
         }
@@ -562,7 +623,11 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     const links =
       normalizedSearch.length === 0
         ? filteredByLayer
-        : filteredByLayer.filter((edge) => expandedNodeIds.has(edge.source) && expandedNodeIds.has(edge.target));
+        : filteredByLayer.filter(
+            (edge) =>
+              expandedNodeIds.has(edge.source) &&
+              expandedNodeIds.has(edge.target),
+          );
 
     const visibleNodeIds = new Set<string>();
     for (const link of links) {
@@ -570,7 +635,11 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       visibleNodeIds.add(link.target);
     }
 
-    if (normalizedSearch.length > 0 && visibleNodeIds.size === 0 && expandedNodeIds.size > 0) {
+    if (
+      normalizedSearch.length > 0 &&
+      visibleNodeIds.size === 0 &&
+      expandedNodeIds.size > 0
+    ) {
       for (const id of expandedNodeIds) {
         visibleNodeIds.add(id);
       }
@@ -583,7 +652,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }
 
     const nodes = graph.nodes
-      .filter((node) => visibleNodeIds.size === 0 || visibleNodeIds.has(node.id))
+      .filter(
+        (node) => visibleNodeIds.size === 0 || visibleNodeIds.has(node.id),
+      )
       .map((node) => {
         const degree = degreeById.get(node.id) ?? 0;
         return {
@@ -593,13 +664,15 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
           filePath: node.filePath,
           planId: node.planId,
           degree,
-          val: (nodeValue(node.type) + Math.sqrt(degree) * 1.35) * displaySettings.nodeSizeScale,
+          val:
+            (nodeValue(node.type) + Math.sqrt(degree) * 1.35) *
+            displaySettings.nodeSizeScale,
           mass: 1 + Math.log2(1 + degree) * 2.4,
           collisionRadius: estimateCollisionRadius(
             node,
             degree,
             displaySettings.nodeSizeScale,
-            displaySettings.labelMaxChars
+            displaySettings.labelMaxChars,
           ),
         };
       });
@@ -619,16 +692,14 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
   useEffect(() => {
     const graphApi = getGraphApi();
-    if (!graphApi || layoutMode !== 'physics') return;
+    if (!graphApi) return;
 
-    const charge = graphApi.d3Force('charge');
+    const charge = graphApi.d3Force("charge");
     const chargeApi = charge as unknown as {
       strength?: (value: number | ((node: ForceNode) => number)) => unknown;
     };
-    if (chargeApi && typeof chargeApi.strength === 'function') {
-      (
-        chargeApi.strength
-      )((node: ForceNode) => {
+    if (chargeApi && typeof chargeApi.strength === "function") {
+      chargeApi.strength((node: ForceNode) => {
         const degree = Math.max(0, node.degree ?? 0);
         const mass = Math.max(1, node.mass ?? 1);
         const base = -Math.max(20, forceSettings.repelForce);
@@ -637,7 +708,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       });
     }
 
-    const linkForce = graphApi.d3Force('link');
+    const linkForce = graphApi.d3Force("link");
     if (linkForce) {
       const linkApi = linkForce as unknown as {
         distance: (fn: (link: ForceLink) => number) => unknown;
@@ -659,35 +730,38 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         const targetDegree = getEndpointDegree(link.target);
         const hubness = (sourceDegree + targetDegree) / 2;
         const elastic = Math.max(0.02, forceSettings.linkForce);
-        const weighted = 0.06 + link.weight * 0.08 + Math.min(0.25, hubness * 0.01);
+        const weighted =
+          0.06 + link.weight * 0.08 + Math.min(0.25, hubness * 0.01);
         return Math.min(0.55, elastic * weighted);
       });
     }
 
-    const xForce = graphApi.d3Force('x');
+    const xForce = graphApi.d3Force("x");
     const xApi = xForce as unknown as {
       strength?: (value: number | ((node: ForceNode) => number)) => unknown;
     };
-    if (xApi && typeof xApi.strength === 'function') {
+    if (xApi && typeof xApi.strength === "function") {
       xApi.strength((node: ForceNode) =>
-        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0
+        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0,
       );
     }
 
-    const yForce = graphApi.d3Force('y');
+    const yForce = graphApi.d3Force("y");
     const yApi = yForce as unknown as {
       strength?: (value: number | ((node: ForceNode) => number)) => unknown;
     };
-    if (yApi && typeof yApi.strength === 'function') {
+    if (yApi && typeof yApi.strength === "function") {
       yApi.strength((node: ForceNode) =>
-        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0
+        node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.035) : 0,
       );
     }
 
-    const collisionForce = forceCollide<ForceNode>((node: ForceNode) => Math.max(10, node.collisionRadius))
+    const collisionForce = forceCollide<ForceNode>((node: ForceNode) =>
+      Math.max(10, node.collisionRadius),
+    )
       .strength(0.35)
       .iterations(1);
-    graphApi.d3Force('collision', collisionForce);
+    graphApi.d3Force("collision", collisionForce);
 
     const radialForce = forceRadial<ForceNode>(
       (node: ForceNode) => {
@@ -700,17 +774,17 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       },
       0,
       0,
-      0
+      0,
     ).strength((node: ForceNode) =>
-      node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.03) : 0
+      node.degree > 0 ? Math.max(0, forceSettings.centerForce * 0.03) : 0,
     );
-    graphApi.d3Force('radial', radialForce);
+    graphApi.d3Force("radial", radialForce);
 
     const reheatApi = graphApi as { d3ReheatSimulation?: () => void };
-    if (typeof reheatApi.d3ReheatSimulation === 'function') {
+    if (typeof reheatApi.d3ReheatSimulation === "function") {
       reheatApi.d3ReheatSimulation();
     }
-  }, [forceData, forceSettings, layoutMode, getGraphApi]);
+  }, [forceData, forceSettings, getGraphApi]);
 
   const toggleLayer = useCallback((layerId: LayerId) => {
     setLayers((current) => ({
@@ -719,19 +793,25 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     }));
   }, []);
 
-  const updateDisplaySetting = useCallback(<K extends keyof DisplaySettings>(key: K, value: DisplaySettings[K]) => {
-    setDisplaySettings((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }, []);
+  const updateDisplaySetting = useCallback(
+    <K extends keyof DisplaySettings>(key: K, value: DisplaySettings[K]) => {
+      setDisplaySettings((current) => ({
+        ...current,
+        [key]: value,
+      }));
+    },
+    [],
+  );
 
-  const updateForceSetting = useCallback(<K extends keyof ForceSettings>(key: K, value: ForceSettings[K]) => {
-    setForceSettings((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }, []);
+  const updateForceSetting = useCallback(
+    <K extends keyof ForceSettings>(key: K, value: ForceSettings[K]) => {
+      setForceSettings((current) => ({
+        ...current,
+        [key]: value,
+      }));
+    },
+    [],
+  );
 
   const getCurrentBounds = useCallback(() => {
     const graphApi = getGraphApi();
@@ -743,10 +823,10 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
     const z0 = bbox?.z?.[0] ?? 0;
     const z1 = bbox?.z?.[1] ?? 0;
     if (
-      typeof x0 === 'number' &&
-      typeof x1 === 'number' &&
-      typeof y0 === 'number' &&
-      typeof y1 === 'number' &&
+      typeof x0 === "number" &&
+      typeof x1 === "number" &&
+      typeof y0 === "number" &&
+      typeof y1 === "number" &&
       Number.isFinite(x0) &&
       Number.isFinite(x1) &&
       Number.isFinite(y0) &&
@@ -768,9 +848,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
     for (const raw of forceData.nodes) {
       const node = raw as ForceNode & { x?: number; y?: number; z?: number };
-      const x = typeof node.x === 'number' ? node.x : 0;
-      const y = typeof node.y === 'number' ? node.y : 0;
-      const z = typeof node.z === 'number' ? node.z : 0;
+      const x = typeof node.x === "number" ? node.x : 0;
+      const y = typeof node.y === "number" ? node.y : 0;
+      const z = typeof node.z === "number" ? node.z : 0;
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
@@ -779,7 +859,12 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       maxZ = Math.max(maxZ, z);
     }
 
-    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+    if (
+      !Number.isFinite(minX) ||
+      !Number.isFinite(maxX) ||
+      !Number.isFinite(minY) ||
+      !Number.isFinite(maxY)
+    ) {
       return null;
     }
 
@@ -797,7 +882,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       graphApi.cameraPosition(
         { x: centerX, y: centerY, z: centerZ + cameraDistanceRef.current },
         { x: centerX, y: centerY, z: centerZ },
-        350
+        350,
       );
       return;
     }
@@ -827,24 +912,33 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       graphApi.cameraPosition(
         { x: centerX, y: centerY, z: centerZ + distance },
         { x: centerX, y: centerY, z: centerZ },
-        450
+        450,
       );
       return;
     }
 
     graphApi.centerAt?.(centerX, centerY, 250);
-    if (typeof graphApi.zoom === 'function') {
+    if (typeof graphApi.zoom === "function") {
       const paddingPx = 80;
       const usableWidth = Math.max(120, canvasSize.width - paddingPx * 2);
       const usableHeight = Math.max(120, canvasSize.height - paddingPx * 2);
-      const fitScale = Math.max(0.14, Math.min(8, Math.min(usableWidth / dx, usableHeight / dy)));
+      const fitScale = Math.max(
+        0.14,
+        Math.min(8, Math.min(usableWidth / dx, usableHeight / dy)),
+      );
       zoomRef.current = fitScale;
       graphApi.zoom(fitScale, 250);
       return;
     }
 
     graphApi.zoomToFit(450, 70);
-  }, [canvasSize.height, canvasSize.width, getCurrentBounds, getGraphApi, use3D]);
+  }, [
+    canvasSize.height,
+    canvasSize.width,
+    getCurrentBounds,
+    getGraphApi,
+    use3D,
+  ]);
 
   useEffect(() => {
     if (!use3D) return;
@@ -857,7 +951,11 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       if (cancelled) return;
       const graphApi = getGraphApi();
       const bounds = getCurrentBounds();
-      if (!graphApi || !bounds || typeof graphApi.cameraPosition !== 'function') {
+      if (
+        !graphApi ||
+        !bounds ||
+        typeof graphApi.cameraPosition !== "function"
+      ) {
         attempts += 1;
         if (attempts < 12) {
           requestAnimationFrame(placeCamera);
@@ -868,13 +966,18 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       const centerX = (bounds.x0 + bounds.x1) / 2;
       const centerY = (bounds.y0 + bounds.y1) / 2;
       const centerZ = (bounds.z0 + bounds.z1) / 2;
-      const extent = Math.max(1, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0);
+      const extent = Math.max(
+        1,
+        bounds.x1 - bounds.x0,
+        bounds.y1 - bounds.y0,
+        bounds.z1 - bounds.z0,
+      );
       const distance = Math.max(240, Math.min(4200, extent * 2.25));
       cameraDistanceRef.current = distance;
       graphApi.cameraPosition(
         { x: centerX, y: centerY, z: centerZ + distance },
         { x: centerX, y: centerY, z: centerZ },
-        450
+        450,
       );
     };
 
@@ -886,32 +989,48 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [forceData.links.length, forceData.nodes.length, getCurrentBounds, getGraphApi, use3D]);
+  }, [
+    forceData.links.length,
+    forceData.nodes.length,
+    getCurrentBounds,
+    getGraphApi,
+    use3D,
+  ]);
 
-  const zoomByFactor = useCallback((factor: number) => {
-    const graphApi = getGraphApi();
-    if (!graphApi) return;
-    if (typeof graphApi.zoom === 'function') {
-      const next = Math.max(0.2, Math.min(10, zoomRef.current * factor));
-      graphApi.zoom(next, 220);
-      zoomRef.current = next;
-      return;
-    }
+  const zoomByFactor = useCallback(
+    (factor: number) => {
+      const graphApi = getGraphApi();
+      if (!graphApi) return;
+      if (typeof graphApi.zoom === "function") {
+        const next = Math.max(0.2, Math.min(10, zoomRef.current * factor));
+        graphApi.zoom(next, 220);
+        zoomRef.current = next;
+        return;
+      }
 
-    if (use3D && typeof graphApi.cameraPosition === 'function') {
-      const nextDistance = Math.max(140, Math.min(3200, cameraDistanceRef.current / factor));
-      cameraDistanceRef.current = nextDistance;
-      const bounds = getCurrentBounds();
-      const centerX = bounds ? (bounds.x0 + bounds.x1) / 2 : 0;
-      const centerY = bounds ? (bounds.y0 + bounds.y1) / 2 : 0;
-      const centerZ = bounds ? (bounds.z0 + bounds.z1) / 2 : 0;
-      graphApi.cameraPosition({ x: centerX, y: centerY, z: centerZ + nextDistance }, { x: centerX, y: centerY, z: centerZ }, 220);
-    }
-  }, [getCurrentBounds, getGraphApi, use3D]);
+      if (use3D && typeof graphApi.cameraPosition === "function") {
+        const nextDistance = Math.max(
+          140,
+          Math.min(3200, cameraDistanceRef.current / factor),
+        );
+        cameraDistanceRef.current = nextDistance;
+        const bounds = getCurrentBounds();
+        const centerX = bounds ? (bounds.x0 + bounds.x1) / 2 : 0;
+        const centerY = bounds ? (bounds.y0 + bounds.y1) / 2 : 0;
+        const centerZ = bounds ? (bounds.z0 + bounds.z1) / 2 : 0;
+        graphApi.cameraPosition(
+          { x: centerX, y: centerY, z: centerZ + nextDistance },
+          { x: centerX, y: centerY, z: centerZ },
+          220,
+        );
+      }
+    },
+    [getCurrentBounds, getGraphApi, use3D],
+  );
 
   const reheatSimulation = useCallback(() => {
     const graphApi = getGraphApi();
-    if (graphApi && typeof graphApi.d3ReheatSimulation === 'function') {
+    if (graphApi && typeof graphApi.d3ReheatSimulation === "function") {
       graphApi.d3ReheatSimulation();
     }
   }, [getGraphApi]);
@@ -926,15 +1045,22 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
   const handleNodeClick = useCallback(
     (node: ForceNode) => {
       const vaultPath = plugin.getVaultPath();
-      const relativePath = node.filePath.replace(vaultPath, '').replace(/^\/+/, '').replace(/\\/g, '/');
+      const relativePath = node.filePath
+        .replace(vaultPath, "")
+        .replace(/^\/+/, "")
+        .replace(/\\/g, "/");
       const workspace = plugin.app.workspace as {
-        openLinkText?: (linkText: string, sourcePath: string, newLeaf?: boolean) => unknown;
+        openLinkText?: (
+          linkText: string,
+          sourcePath: string,
+          newLeaf?: boolean,
+        ) => unknown;
       };
       if (workspace.openLinkText) {
-        workspace.openLinkText(relativePath, '', false);
+        workspace.openLinkText(relativePath, "", false);
       }
     },
-    [plugin]
+    [plugin],
   );
 
   const openWarningLocation = useCallback(
@@ -942,24 +1068,24 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
       if (!warning.filePath) return;
       void plugin.openFileAtLine(warning.filePath, warning.line);
     },
-    [plugin]
+    [plugin],
   );
 
   const cycleLines = useMemo(() => {
     if (!graph || graph.cycles.length === 0) return [];
-    return graph.cycles.slice(0, 3).map((cycle) => cycle.labels.join(' -> '));
+    return graph.cycles.slice(0, 3).map((cycle) => cycle.labels.join(" -> "));
   }, [graph]);
 
   const unresolvedWarnings = useMemo(() => {
     if (!graph) return [] as DirectedGraphWarning[];
     const details = graph.warningDetails ?? [];
-    return details.filter((warning) => warning.kind.startsWith('unresolved-'));
+    return details.filter((warning) => warning.kind.startsWith("unresolved-"));
   }, [graph]);
 
   const nonUnresolvedWarnings = useMemo(() => {
     if (!graph) return [] as DirectedGraphWarning[];
     const details = graph.warningDetails ?? [];
-    return details.filter((warning) => !warning.kind.startsWith('unresolved-'));
+    return details.filter((warning) => !warning.kind.startsWith("unresolved-"));
   }, [graph]);
 
   const summary = graph
@@ -972,12 +1098,12 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         `Refs: ${graph.stats.referenceEdges}`,
         `Semantic: ${graph.stats.semanticEdges}`,
         `Cycles: ${graph.cycles.length}`,
-      ].join(' | ')
+      ].join(" | ")
     : loading
-      ? 'Loading local intelligence graph...'
+      ? "Loading local intelligence graph..."
       : error
         ? `Graph error: ${error}`
-        : 'No graph data available';
+        : "No graph data available";
 
   return (
     <div className="limps-directed-graph-view">
@@ -993,7 +1119,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
           ✕
         </button>
       </div>
-      <div className={`summary ${error ? 'error' : graph && graph.cycles.length > 0 ? 'warning' : 'healthy'}`}>
+      <div
+        className={`summary ${error ? "error" : graph && graph.cycles.length > 0 ? "warning" : "healthy"}`}
+      >
         {summary}
       </div>
 
@@ -1001,38 +1129,49 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         <button type="button" onClick={() => void load()} disabled={loading}>
           Refresh
         </button>
-        <button type="button" className="mod-cta" onClick={() => void syncAndReload()} disabled={loading}>
-          Sync Obsidian Graph
-        </button>
         <button
           type="button"
-          onClick={() => setLayoutMode((current) => (current === 'physics' ? 'flow' : 'physics'))}
+          className="mod-cta"
+          onClick={() => void syncAndReload()}
+          disabled={loading}
         >
-          Layout: {layoutMode === 'physics' ? 'Physics' : 'Flow'}
+          Sync Obsidian Graph
         </button>
       </div>
 
-      <div className="graph-scroll" style={{ backgroundColor: graphTheme.backgroundColor }}>
+      <div
+        className="graph-scroll"
+        style={{ backgroundColor: graphTheme.backgroundColor }}
+      >
         <div className="graph-canvas-host" ref={hostRef}>
           <div className="graph-overlay graph-overlay-left">
             {showLayerPanel ? (
               <div className="layer-panel">
-              <div className="layer-panel-title">Filters</div>
-              <div className="layer-legend">Solid: hard links · Dotted: soft/semantic links</div>
-              <div className="layer-search-wrap">
-                <input
-                  className="layer-search"
-                  type="text"
+                <div className="layer-panel-title">Filters</div>
+                <div className="layer-legend">
+                  Solid: hard links · Dotted: soft/semantic links
+                </div>
+                <div className="layer-search-wrap">
+                  <input
+                    className="layer-search"
+                    type="text"
                     value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                    onChange={(event) =>
+                      setSearchTerm(event.currentTarget.value)
+                    }
                     placeholder="Search files..."
                   />
                 </div>
                 {LAYER_OPTIONS.map((option) => (
                   <label className="layer-toggle" key={option.id}>
                     <span
-                      className={`layer-edge-key ${EDGE_IS_DASHED[LAYER_PRIMARY_EDGE_TYPE[option.id]] ? 'dashed' : 'solid'}`}
-                      style={{ color: graphTheme.edgeColors[LAYER_PRIMARY_EDGE_TYPE[option.id]] }}
+                      className={`layer-edge-key ${EDGE_IS_DASHED[LAYER_PRIMARY_EDGE_TYPE[option.id]] ? "dashed" : "solid"}`}
+                      style={{
+                        color:
+                          graphTheme.edgeColors[
+                            LAYER_PRIMARY_EDGE_TYPE[option.id]
+                          ],
+                      }}
                     />
                     <input
                       type="checkbox"
@@ -1049,7 +1188,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
             <div className="map-toolbar">
               <button
                 type="button"
-                className={`map-icon-btn ${showLayerPanel ? 'active' : ''}`}
+                className={`map-icon-btn ${showLayerPanel ? "active" : ""}`}
                 title="Filters and layers"
                 aria-label="Filters and layers"
                 onClick={() => setShowLayerPanel((open) => !open)}
@@ -1061,10 +1200,22 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
 
           <div className="graph-overlay graph-overlay-right">
             <div className="map-toolbar">
-              <button type="button" className="map-icon-btn" title="Center" aria-label="Center" onClick={centerGraph}>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Center"
+                aria-label="Center"
+                onClick={centerGraph}
+              >
                 ◎
               </button>
-              <button type="button" className="map-icon-btn" title="Fit" aria-label="Fit" onClick={fitGraph}>
+              <button
+                type="button"
+                className="map-icon-btn"
+                title="Fit"
+                aria-label="Fit"
+                onClick={fitGraph}
+              >
                 ⤢
               </button>
               <button
@@ -1087,7 +1238,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               </button>
               <button
                 type="button"
-                className={`map-icon-btn ${showSettingsPanel ? 'active' : ''}`}
+                className={`map-icon-btn ${showSettingsPanel ? "active" : ""}`}
                 title="Display and force settings"
                 aria-label="Display and force settings"
                 onClick={() => setShowSettingsPanel((open) => !open)}
@@ -1096,9 +1247,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               </button>
               <button
                 type="button"
-                className={`map-icon-btn ${use3D ? 'active' : ''}`}
-                title={use3D ? 'Switch to 2D' : 'Switch to 3D'}
-                aria-label={use3D ? 'Switch to 2D' : 'Switch to 3D'}
+                className={`map-icon-btn ${use3D ? "active" : ""}`}
+                title={use3D ? "Switch to 2D" : "Switch to 3D"}
+                aria-label={use3D ? "Switch to 2D" : "Switch to 3D"}
                 onClick={() => setUse3D((value) => !value)}
               >
                 3D
@@ -1106,175 +1257,249 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
             </div>
             {showSettingsPanel ? (
               <div className="graph-settings-panel">
-              <details>
-                <summary>Display</summary>
-                <label className="toggle-row">
-                  <span>Night mode</span>
-                  <input
-                    type="checkbox"
-                    checked={displaySettings.theme === 'night'}
-                    onChange={(event) => updateDisplaySetting('theme', event.currentTarget.checked ? 'night' : 'day')}
-                  />
-                </label>
-                <label className="toggle-row">
-                  <span>Arrows</span>
-                  <input
-                    type="checkbox"
-                    checked={displaySettings.showArrows}
-                    onChange={(event) => updateDisplaySetting('showArrows', event.currentTarget.checked)}
-                  />
-                </label>
-                <label className="toggle-row">
-                  <span>Plan-level references</span>
-                  <input
-                    type="checkbox"
-                    checked={displaySettings.planLevelReferences}
-                    onChange={(event) =>
-                      updateDisplaySetting('planLevelReferences', event.currentTarget.checked)
-                    }
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Text fade threshold</span>
-                  <input
-                    type="range"
-                    min={0.4}
-                    max={1.8}
-                    step={0.05}
-                    value={displaySettings.textFadeThreshold}
-                    onChange={(event) =>
-                      updateDisplaySetting('textFadeThreshold', Number(event.currentTarget.value))
-                    }
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Node size</span>
-                  <input
-                    type="range"
-                    min={0.65}
-                    max={1.9}
-                    step={0.05}
-                    value={displaySettings.nodeSizeScale}
-                    onChange={(event) => updateDisplaySetting('nodeSizeScale', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>3D node scale</span>
-                  <input
-                    type="range"
-                    min={3.5}
-                    max={9}
-                    step={0.1}
-                    value={displaySettings.nodeRelSize3D}
-                    onChange={(event) => updateDisplaySetting('nodeRelSize3D', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Link thickness</span>
-                  <input
-                    type="range"
-                    min={0.6}
-                    max={2.8}
-                    step={0.05}
-                    value={displaySettings.linkThickness}
-                    onChange={(event) => updateDisplaySetting('linkThickness', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Link opacity</span>
-                  <input
-                    type="range"
-                    min={0.25}
-                    max={0.95}
-                    step={0.01}
-                    value={displaySettings.linkOpacity}
-                    onChange={(event) => updateDisplaySetting('linkOpacity', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Label max length</span>
-                  <input
-                    type="range"
-                    min={10}
-                    max={44}
-                    step={1}
-                    value={displaySettings.labelMaxChars}
-                    onChange={(event) => updateDisplaySetting('labelMaxChars', Number(event.currentTarget.value))}
-                  />
-                </label>
-              </details>
+                <details>
+                  <summary>Display</summary>
+                  <label className="toggle-row">
+                    <span>Night mode</span>
+                    <input
+                      type="checkbox"
+                      checked={displaySettings.theme === "night"}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "theme",
+                          event.currentTarget.checked ? "night" : "day",
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="toggle-row">
+                    <span>Arrows</span>
+                    <input
+                      type="checkbox"
+                      checked={displaySettings.showArrows}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "showArrows",
+                          event.currentTarget.checked,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="toggle-row">
+                    <span>Plan-level references</span>
+                    <input
+                      type="checkbox"
+                      checked={displaySettings.planLevelReferences}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "planLevelReferences",
+                          event.currentTarget.checked,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Text fade threshold</span>
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={1.8}
+                      step={0.05}
+                      value={displaySettings.textFadeThreshold}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "textFadeThreshold",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Node size</span>
+                    <input
+                      type="range"
+                      min={0.65}
+                      max={1.9}
+                      step={0.05}
+                      value={displaySettings.nodeSizeScale}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "nodeSizeScale",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>3D node scale</span>
+                    <input
+                      type="range"
+                      min={3.5}
+                      max={9}
+                      step={0.1}
+                      value={displaySettings.nodeRelSize3D}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "nodeRelSize3D",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link thickness</span>
+                    <input
+                      type="range"
+                      min={0.6}
+                      max={2.8}
+                      step={0.05}
+                      value={displaySettings.linkThickness}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "linkThickness",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link opacity</span>
+                    <input
+                      type="range"
+                      min={0.25}
+                      max={0.95}
+                      step={0.01}
+                      value={displaySettings.linkOpacity}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "linkOpacity",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Label max length</span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={44}
+                      step={1}
+                      value={displaySettings.labelMaxChars}
+                      onChange={(event) =>
+                        updateDisplaySetting(
+                          "labelMaxChars",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                </details>
 
-              <details>
-                <summary>Forces</summary>
-                <label className="slider-row">
-                  <span>Center force</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    value={forceSettings.centerForce}
-                    onChange={(event) => updateForceSetting('centerForce', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Repel force</span>
-                  <input
-                    type="range"
-                    min={40}
-                    max={420}
-                    step={5}
-                    value={forceSettings.repelForce}
-                    onChange={(event) => updateForceSetting('repelForce', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Link force</span>
-                  <input
-                    type="range"
-                    min={0.05}
-                    max={1}
-                    step={0.01}
-                    value={forceSettings.linkForce}
-                    onChange={(event) => updateForceSetting('linkForce', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="slider-row">
-                  <span>Link distance</span>
-                  <input
-                    type="range"
-                    min={40}
-                    max={260}
-                    step={2}
-                    value={forceSettings.linkDistance}
-                    onChange={(event) => updateForceSetting('linkDistance', Number(event.currentTarget.value))}
-                  />
-                </label>
-                <button type="button" onClick={stabilizeGraph} title="Reheat simulation and refit bounds">
-                  Stabilize
-                </button>
-              </details>
+                <details>
+                  <summary>Forces</summary>
+                  <label className="slider-row">
+                    <span>Center force</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.02}
+                      value={forceSettings.centerForce}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "centerForce",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Repel force</span>
+                    <input
+                      type="range"
+                      min={40}
+                      max={420}
+                      step={5}
+                      value={forceSettings.repelForce}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "repelForce",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link force</span>
+                    <input
+                      type="range"
+                      min={0.05}
+                      max={1}
+                      step={0.01}
+                      value={forceSettings.linkForce}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "linkForce",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="slider-row">
+                    <span>Link distance</span>
+                    <input
+                      type="range"
+                      min={40}
+                      max={260}
+                      step={2}
+                      value={forceSettings.linkDistance}
+                      onChange={(event) =>
+                        updateForceSetting(
+                          "linkDistance",
+                          Number(event.currentTarget.value),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={stabilizeGraph}
+                    title="Reheat simulation and refit bounds"
+                  >
+                    Stabilize
+                  </button>
+                </details>
               </div>
             ) : null}
           </div>
 
           <div
             ref={graph3dHostRef}
-            className={`graph-render-layer ${use3D ? 'visible' : 'hidden'}`}
+            className={`graph-render-layer ${use3D ? "visible" : "hidden"}`}
           >
             <ForceGraph3D
               ref={fg3dRef}
               graphData={forceData}
               width={canvasSize.width}
               height={canvasSize.height}
-              warmupTicks={layoutMode === 'physics' ? 60 : 20}
-              cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
+              warmupTicks={60}
+              cooldownTicks={PHYSICS_COOLDOWN_TICKS}
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
               linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
-              linkWidth={(link) => edgeWidthForLink(link as ForceLink, displaySettings.linkThickness)}
-              linkColor={(link) => graphTheme.edgeColors[(link as ForceLink).type]}
+              linkWidth={(link) =>
+                edgeWidthForLink(
+                  link as ForceLink,
+                  displaySettings.linkThickness,
+                )
+              }
+              linkColor={(link) =>
+                graphTheme.edgeColors[(link as ForceLink).type]
+              }
               linkOpacity={displaySettings.linkOpacity}
-              nodeColor={(node) => graphTheme.nodeColors[(node as ForceNode).type] ?? '#64748b'}
+              nodeColor={(node) =>
+                graphTheme.nodeColors[(node as ForceNode).type] ?? "#64748b"
+              }
               nodeRelSize={displaySettings.nodeRelSize3D}
               nodeVal={(node) => Math.max(1.45, (node as ForceNode).val)}
               nodeLabel={(node) => {
@@ -1284,13 +1509,20 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               onNodeClick={(node) => handleNodeClick(node as ForceNode)}
               onNodeDrag={reheatSimulation}
               onNodeDragEnd={(node) => {
-                const dragged = node as { fx?: number; fy?: number; fz?: number; vx?: number; vy?: number; vz?: number };
+                const dragged = node as {
+                  fx?: number;
+                  fy?: number;
+                  fz?: number;
+                  vx?: number;
+                  vy?: number;
+                  vz?: number;
+                };
                 dragged.fx = undefined;
                 dragged.fy = undefined;
                 dragged.fz = undefined;
-                if (typeof dragged.vx === 'number') dragged.vx *= 0.8;
-                if (typeof dragged.vy === 'number') dragged.vy *= 0.8;
-                if (typeof dragged.vz === 'number') dragged.vz *= 0.8;
+                if (typeof dragged.vx === "number") dragged.vx *= 0.8;
+                if (typeof dragged.vy === "number") dragged.vy *= 0.8;
+                if (typeof dragged.vz === "number") dragged.vz *= 0.8;
                 reheatSimulation();
               }}
               backgroundColor={graphTheme.backgroundColor}
@@ -1298,7 +1530,7 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
           </div>
           <div
             ref={graph2dHostRef}
-            className={`graph-render-layer ${use3D ? 'hidden' : 'visible'}`}
+            className={`graph-render-layer ${use3D ? "hidden" : "visible"}`}
           >
             <ForceGraph2D
               ref={fg2dRef}
@@ -1307,17 +1539,23 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               height={canvasSize.height}
               backgroundColor={graphTheme.backgroundColor}
               nodeRelSize={4.5}
-              dagMode={layoutMode === 'flow' ? 'td' : undefined}
-              dagLevelDistance={layoutMode === 'flow' ? 90 : undefined}
-              d3AlphaDecay={layoutMode === 'physics' ? 0.009 : 0.04}
-              d3VelocityDecay={layoutMode === 'physics' ? 0.18 : 0.45}
-              warmupTicks={layoutMode === 'physics' ? 60 : 20}
-              cooldownTicks={layoutMode === 'physics' ? PHYSICS_COOLDOWN_TICKS : 120}
+              d3AlphaDecay={0.009}
+              d3VelocityDecay={0.18}
+              warmupTicks={60}
+              cooldownTicks={PHYSICS_COOLDOWN_TICKS}
               linkDirectionalArrowLength={displaySettings.showArrows ? 4 : 0}
               linkDirectionalArrowRelPos={displaySettings.showArrows ? 1 : 0}
-              linkWidth={(link) => edgeWidthForLink(link as ForceLink, displaySettings.linkThickness)}
+              linkWidth={(link) =>
+                edgeWidthForLink(
+                  link as ForceLink,
+                  displaySettings.linkThickness,
+                )
+              }
               linkColor={(link) =>
-                withAlpha(graphTheme.edgeColors[(link as ForceLink).type], displaySettings.linkOpacity)
+                withAlpha(
+                  graphTheme.edgeColors[(link as ForceLink).type],
+                  displaySettings.linkOpacity,
+                )
               }
               linkLineDash={(link) =>
                 isSoftEdgeType((link as ForceLink).type) ? [3, 3] : null
@@ -1329,21 +1567,29 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               onNodeClick={(node) => handleNodeClick(node as ForceNode)}
               onNodeDrag={reheatSimulation}
               onZoomEnd={(transform: ZoomTransform) => {
-                if (typeof transform.k === 'number' && Number.isFinite(transform.k)) {
+                if (
+                  typeof transform.k === "number" &&
+                  Number.isFinite(transform.k)
+                ) {
                   zoomRef.current = transform.k;
                 }
               }}
               onNodeDragEnd={(node) => {
-                const dragged = node as { fx?: number; fy?: number; vx?: number; vy?: number };
+                const dragged = node as {
+                  fx?: number;
+                  fy?: number;
+                  vx?: number;
+                  vy?: number;
+                };
                 dragged.fx = undefined;
                 dragged.fy = undefined;
-                if (typeof dragged.vx === 'number') dragged.vx *= 0.75;
-                if (typeof dragged.vy === 'number') dragged.vy *= 0.75;
+                if (typeof dragged.vx === "number") dragged.vx *= 0.75;
+                if (typeof dragged.vy === "number") dragged.vy *= 0.75;
                 reheatSimulation();
               }}
               nodeCanvasObject={(node, ctx, globalScale) => {
                 const current = node as ForceNode;
-                const color = graphTheme.nodeColors[current.type] ?? '#64748b';
+                const color = graphTheme.nodeColors[current.type] ?? "#64748b";
                 const size = Math.max(2.5, (current.val ?? 2.5) * 1.35);
 
                 ctx.beginPath();
@@ -1351,21 +1597,37 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                 ctx.fillStyle = color;
                 ctx.fill();
 
-                if (shouldRenderLabel(current, globalScale, displaySettings.textFadeThreshold)) {
+                if (
+                  shouldRenderLabel(
+                    current,
+                    globalScale,
+                    displaySettings.textFadeThreshold,
+                  )
+                ) {
                   const fontSize = Math.max(8, 11 / globalScale);
                   ctx.font = `${fontSize}px sans-serif`;
                   ctx.fillStyle = graphTheme.labelColor;
-                  ctx.textAlign = 'left';
-                  ctx.textBaseline = 'middle';
+                  ctx.textAlign = "left";
+                  ctx.textBaseline = "middle";
                   const zoomRatio = Math.max(
                     0.35,
-                    Math.min(1, globalScale - displaySettings.textFadeThreshold + 0.2)
+                    Math.min(
+                      1,
+                      globalScale - displaySettings.textFadeThreshold + 0.2,
+                    ),
                   );
                   const maxChars = Math.max(
                     10,
-                    Math.min(displaySettings.labelMaxChars, Math.round(displaySettings.labelMaxChars * zoomRatio))
+                    Math.min(
+                      displaySettings.labelMaxChars,
+                      Math.round(displaySettings.labelMaxChars * zoomRatio),
+                    ),
                   );
-                  ctx.fillText(truncateLabel(current.label, maxChars), (node.x ?? 0) + size + 2, node.y ?? 0);
+                  ctx.fillText(
+                    truncateLabel(current.label, maxChars),
+                    (node.x ?? 0) + size + 2,
+                    node.y ?? 0,
+                  );
                 }
               }}
             />
@@ -1373,16 +1635,21 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
         </div>
       </div>
 
-      {graph && (cycleLines.length > 0 || unresolvedWarnings.length > 0 || nonUnresolvedWarnings.length > 0) ? (
+      {graph &&
+      (cycleLines.length > 0 ||
+        unresolvedWarnings.length > 0 ||
+        nonUnresolvedWarnings.length > 0) ? (
         <div className="warnings warnings-under-chart">
           {unresolvedWarnings.length > 0 ? (
             <details className="warning-collapsible">
-              <summary>Unresolved relations ({unresolvedWarnings.length})</summary>
+              <summary>
+                Unresolved relations ({unresolvedWarnings.length})
+              </summary>
               <div className="warning-scroll">
                 {unresolvedWarnings.map((warning, index) => {
                   const location = warning.filePath
-                    ? `${fileNameFromPath(warning.filePath)}${warning.line ? `:${warning.line}` : ''}`
-                    : 'unknown';
+                    ? `${fileNameFromPath(warning.filePath)}${warning.line ? `:${warning.line}` : ""}`
+                    : "unknown";
                   return (
                     <button
                       type="button"
@@ -1392,7 +1659,9 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
                       title={warning.filePath ?? warning.message}
                       disabled={!warning.filePath}
                     >
-                      <span className="warning-link-message">{warning.message}</span>
+                      <span className="warning-link-message">
+                        {warning.message}
+                      </span>
                       <span className="warning-link-location">{location}</span>
                     </button>
                   );
@@ -1419,7 +1688,10 @@ export function DirectedGraphReactView({ plugin }: DirectedGraphReactViewProps) 
               <summary>Other warnings ({nonUnresolvedWarnings.length})</summary>
               <div className="warning-scroll">
                 {nonUnresolvedWarnings.map((warning, index) => (
-                  <div className="warning-text-line" key={`warning-${index}-${warning.message}`}>
+                  <div
+                    className="warning-text-line"
+                    key={`warning-${index}-${warning.message}`}
+                  >
                     {warning.message}
                   </div>
                 ))}

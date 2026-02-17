@@ -13,7 +13,7 @@ await build({
   bundle: true,
   format: "cjs",
   platform: "node",
-  target: ["node18"],
+  target: ["es2022"],
   external: ["obsidian", "electron", "@codemirror/*"],
   sourcemap: false,
 });

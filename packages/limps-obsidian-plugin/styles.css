@@ -193,118 +193,20 @@
   color: var(--text-error);
 }
 
-/* Health view: progress bar */
-.limps-health-view .plan-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.limps-health-view .progress-bar {
-  flex: 1;
-  height: 6px;
-  background: var(--background-modifier-border);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.limps-health-view .progress-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.limps-health-view .progress-pct {
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  min-width: 2.5rem;
-  text-align: right;
-}
-
-/* Health view: agent breakdown */
+/* Health view: agent summary */
 .limps-health-view .plan-agents {
   font-size: 0.78rem;
   color: var(--text-muted);
-}
-
-.limps-health-view .agent-count {
-  font-weight: 600;
-}
-
-.limps-health-view .agent-count.pass {
-  color: var(--text-success);
-}
-.limps-health-view .agent-count.wip {
-  color: var(--text-warning);
-}
-.limps-health-view .agent-count.gap {
-  color: var(--text-muted);
-}
-.limps-health-view .agent-count.blocked {
-  color: var(--text-error);
-}
-
-/* Health view: issues card */
-.limps-health-view .card-issues {
-  border-color: var(--text-warning);
 }
 
 .limps-health-view .card-warning {
   border-color: var(--text-warning);
 }
 
-.limps-health-view .issue-section {
-  margin-bottom: 0.4rem;
-}
-
-.limps-health-view .issue-section-title {
-  font-weight: 600;
-  font-size: 0.82rem;
-  margin-bottom: 0.25rem;
-}
-
-.limps-health-view .issue-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.2rem 0;
-  font-size: 0.82rem;
-}
-
-.limps-health-view .issue-badge {
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.05rem 0.35rem;
-  border-radius: 3px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-top: 0.1rem;
-}
-
-.limps-health-view .severity-error {
-  background: color-mix(in srgb, var(--text-error) 20%, transparent);
-  color: var(--text-error);
-}
-
-.limps-health-view .severity-warning {
-  background: color-mix(in srgb, var(--text-warning) 20%, transparent);
-  color: var(--text-warning);
-}
-
-.limps-health-view .severity-info {
-  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
-  color: var(--interactive-accent);
-}
-
-.limps-health-view .issue-message {
-  overflow-wrap: anywhere;
-}
-
 .limps-directed-graph-view {
   padding: 0.75rem;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .limps-directed-graph-view h3 {
@@ -445,7 +347,7 @@
   border-radius: 8px;
   min-height: 580px;
   height: calc(100vh - 280px);
-  overflow: hidden;
+  overflow: auto;
   background: var(--background-primary);
 }
 

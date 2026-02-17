@@ -128,6 +128,148 @@ files: []
       expect(summary.blockedAgents).toHaveLength(1);
       expect(summary.blockedAgents[0]).toContain('Blocked Task');
     });
+
+    it('returns correct totalAgents for PASS status plan with multiple agents', () => {
+      const planDir = join(plansDir, '0001-signed-envelope');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      // Create multiple agents all with PASS status
+      writeFileSync(
+        join(agentsDir, '001_agent.agent.md'),
+        `---
+status: PASS
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 1
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '002_agent.agent.md'),
+        `---
+status: PASS
+persona: reviewer
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 2
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '003_agent.agent.md'),
+        `---
+status: PASS
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+
+# Agent 3
+`,
+        'utf-8'
+      );
+
+      const summary = getPlanStatusSummary(config, '1');
+
+      // Verify totalAgents is correct even when all agents are PASS
+      expect(summary.totalAgents).toBe(3);
+      expect(summary.statusCounts.PASS).toBe(3);
+      expect(summary.completionPercentage).toBe(100);
+    });
+
+    it('returns correct totalAgents for all-PASS plan', () => {
+      const planDir = join(plansDir, '0001-test');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      for (let i = 1; i <= 3; i++) {
+        writeFileSync(
+          join(agentsDir, `${String(i).padStart(3, '0')}_agent.agent.md`),
+          `---
+status: PASS
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+# Agent ${i}
+`,
+          'utf-8'
+        );
+      }
+
+      const summary = getPlanStatusSummary(config, '1');
+
+      expect(summary.totalAgents).toBe(3);
+      expect(summary.statusCounts.PASS).toBe(3);
+      expect(summary.completionPercentage).toBe(100);
+    });
+
+    it('returns correct totalAgents for mixed status plan', () => {
+      const planDir = join(plansDir, '0002-test');
+      const agentsDir = join(planDir, 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+
+      writeFileSync(
+        join(agentsDir, '001_agent.agent.md'),
+        `---
+status: PASS
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+# Agent 001
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '002_agent.agent.md'),
+        `---
+status: WIP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+# Agent 002
+`,
+        'utf-8'
+      );
+
+      writeFileSync(
+        join(agentsDir, '003_agent.agent.md'),
+        `---
+status: GAP
+persona: coder
+dependencies: []
+blocks: []
+files: []
+---
+# Agent 003
+`,
+        'utf-8'
+      );
+
+      const summary = getPlanStatusSummary(config, '2');
+
+      expect(summary.totalAgents).toBe(3);
+      expect(summary.statusCounts.PASS).toBe(1);
+      expect(summary.statusCounts.WIP).toBe(1);
+      expect(summary.statusCounts.GAP).toBe(1);
+    });
   });
 
   describe('status output', () => {
