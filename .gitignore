@@ -61,3 +61,6 @@ opencode.json
 
 # MCP client configuration (local development)
 .mcp.json
+
+# Local deployment scripts (machine-specific paths)
+deploy-obsidian-plugin.sh
