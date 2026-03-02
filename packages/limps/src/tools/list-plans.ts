@@ -6,8 +6,10 @@
  */
 
 import { z } from 'zod';
+import { existsSync } from 'fs';
 import { getPlansData } from '../cli/list-plans.js';
 import type { ToolContext, ToolResult } from '../types.js';
+import { toJsonText } from '../utils/tool-response.js';
 
 /**
  * Input schema for list_plans tool.
@@ -33,6 +35,19 @@ export async function handleListPlans(
   context: ToolContext
 ): Promise<ToolResult> {
   const { prettyPrint = false } = input;
+
+  if (!existsSync(context.config.plansPath)) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `plansPath does not exist: ${context.config.plansPath}. Configure a valid plansPath in your limps config.`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
   const result = getPlansData(context.config);
 
   if ('error' in result) {
@@ -51,7 +66,20 @@ export async function handleListPlans(
     content: [
       {
         type: 'text',
-        text: JSON.stringify(result, null, prettyPrint ? 2 : undefined),
+        text: toJsonText(
+          result as unknown as Record<string, unknown>,
+          [
+            {
+              tool: 'list_agents',
+              reason: 'View agents and task status for a specific plan',
+            },
+            {
+              tool: 'get_next_task',
+              reason: 'Get the highest-priority task across any plan',
+            },
+          ],
+          prettyPrint
+        ),
       },
     ],
   };

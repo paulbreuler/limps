@@ -54,6 +54,8 @@ export default function CreatePlanCommand({ args, options }: Props): React.React
             name,
             description: options.description,
             body: options.body,
+            templateName: 'default',
+            ifExists: 'return',
           },
           context
         );

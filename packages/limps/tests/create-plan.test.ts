@@ -165,11 +165,28 @@ describe('reject-duplicate', () => {
     }
   });
 
-  it('should reject duplicate names', async () => {
+  it('should return existing plan info when duplicate name (ifExists: return default)', async () => {
     // Create existing plan
     mkdirSync(join(plansDir, '0001-existing-plan'), { recursive: true });
 
-    const result = await handleCreatePlan({ name: 'existing-plan' }, context);
+    const result = await handleCreatePlan(
+      { name: 'existing-plan', templateName: 'default', ifExists: 'return' },
+      context
+    );
+
+    expect(result.isError).toBeFalsy();
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.alreadyExists).toBe(true);
+  });
+
+  it('should reject duplicate names when ifExists is fail', async () => {
+    // Create existing plan
+    mkdirSync(join(plansDir, '0001-existing-plan'), { recursive: true });
+
+    const result = await handleCreatePlan(
+      { name: 'existing-plan', templateName: 'default', ifExists: 'fail' },
+      context
+    );
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('already exists');
@@ -190,10 +207,13 @@ describe('reject-duplicate', () => {
     expect(planDirs.some((d) => d.startsWith('0042-0042-'))).toBe(false);
   });
 
-  it('should reject duplicate when full directory name matches', async () => {
+  it('should reject duplicate when full directory name matches and ifExists is fail', async () => {
     mkdirSync(join(plansDir, '0042-limps-headless-pivot'), { recursive: true });
 
-    const result = await handleCreatePlan({ name: '0042-limps-headless-pivot' }, context);
+    const result = await handleCreatePlan(
+      { name: '0042-limps-headless-pivot', templateName: 'default', ifExists: 'fail' },
+      context
+    );
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('already exists');

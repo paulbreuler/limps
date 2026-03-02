@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import type { ToolContext, ToolResult } from '../types.js';
+import type { ToolContext, ToolResult, NextStep } from '../types.js';
 import { findAgentFilePath, readAgentFile, updateAgentFrontmatter } from '../agent-parser.js';
+import { toJsonText } from '../utils/tool-response.js';
+import { runHooks } from '../hooks/runner.js';
 
 /**
  * Input schema for update_task_status tool.
@@ -72,11 +74,44 @@ export async function handleUpdateTaskStatus(
     };
   }
 
+  // Fire agent:status-changed hook (non-blocking)
+  void runHooks(
+    'agent:status-changed',
+    { taskId, previousStatus: oldStatus, newStatus: status, agentFilePath },
+    context.config.hooksPath
+  );
+
+  // Recommend next action based on new status
+  const nextSteps: NextStep[] = [];
+  if (status === 'WIP') {
+    nextSteps.push({
+      tool: 'get_next_task',
+      reason: 'After finishing this task, get the next one',
+      params: { planId: taskId.split('#')[0] },
+    });
+  } else if (status === 'PASS') {
+    nextSteps.push({
+      tool: 'get_plan_status',
+      reason: 'Check overall plan completion after marking task as PASS',
+      params: { planId: taskId.split('#')[0] },
+    });
+  }
+
   return {
     content: [
       {
         type: 'text',
-        text: `Task ${taskId} status updated from ${oldStatus} to ${status}${agentId ? ` by agent ${agentId}` : ''}${notes ? `. Notes: ${notes}` : ''}`,
+        text: toJsonText(
+          {
+            taskId,
+            previousStatus: oldStatus,
+            newStatus: status,
+            updated: true,
+            ...(agentId ? { agentId } : {}),
+            ...(notes ? { notes } : {}),
+          },
+          nextSteps
+        ),
       },
     ],
   };

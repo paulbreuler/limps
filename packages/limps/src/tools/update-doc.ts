@@ -13,6 +13,8 @@ import { getMaxFileSize } from '../config.js';
 import { getDocsRoot } from '../utils/repo-root.js';
 import { checkSymlinkAncestors, checkPathContainment } from '../utils/fs-safety.js';
 import type { ToolContext, ToolResult } from '../types.js';
+import { sanitizeDocPath } from '../utils/sanitize-input.js';
+import { runHooks } from '../hooks/runner.js';
 
 /**
  * Patch operation schema.
@@ -141,6 +143,9 @@ export async function handleUpdateDoc(
   const frontmatterHandler = new FrontmatterHandler();
 
   try {
+    // Sanitize path: reject null bytes, bidi overrides, and path traversal
+    sanitizeDocPath(path);
+
     // Validate path
     const validated = validatePath(path, repoRoot);
 
@@ -369,6 +374,13 @@ export async function handleUpdateDoc(
 
     // Re-index the file, passing maxFileSize to ensure consistent validation
     await indexDocument(context.db, validated.absolute, maxFileSize);
+
+    // Non-blocking hook notification
+    void runHooks(
+      'doc:updated',
+      { path: validated.relative, size, changes },
+      context.config.hooksPath
+    );
 
     const output: UpdateDocOutput = {
       path: validated.relative,

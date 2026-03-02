@@ -209,6 +209,7 @@ export interface ServerConfig {
   health?: HealthConfig;
   exclusions?: ExclusionsConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
+  hooksPath?: string; // Directory for filesystem-based event hooks (default: ~/.limps/hooks/)
 }
 
 /**

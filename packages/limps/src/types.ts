@@ -10,6 +10,18 @@ export interface ToolContext {
 }
 
 /**
+ * A suggested next action for the AI agent to take after a tool call.
+ */
+export interface NextStep {
+  /** MCP tool name to call next */
+  tool: string;
+  /** Human-readable explanation of why this step is recommended */
+  reason: string;
+  /** Optional suggested input parameters for the tool */
+  params?: Record<string, unknown>;
+}
+
+/**
  * Context passed to resource handlers.
  */
 export interface ResourceContext {

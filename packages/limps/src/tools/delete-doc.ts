@@ -11,6 +11,7 @@ import { createBackup, formatTimestamp } from '../utils/backup.js';
 import { notFound, restrictedPath, DocumentError } from '../utils/errors.js';
 import { removeDocument, removeDocumentsByPathPrefix } from '../indexer.js';
 import { getDocsRoot } from '../utils/repo-root.js';
+import { runHooks } from '../hooks/runner.js';
 
 /**
  * Trash directory name (relative to repo root).
@@ -161,6 +162,9 @@ export async function handleDeleteDoc(
     } else {
       await removeDocument(db, absolutePath);
     }
+
+    // Non-blocking hook notification
+    void runHooks('doc:deleted', { path: inputPath, permanent }, context.config.hooksPath);
 
     // Perform deletion
     if (permanent) {

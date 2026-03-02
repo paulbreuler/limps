@@ -57,8 +57,9 @@ describe('create-plan CLI command integration', () => {
     );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toContain('created successfully');
-    expect(result.content[0].text).toContain('my-test-plan');
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.created).toBe(true);
+    expect(payload.plan).toContain('my-test-plan');
 
     // Verify the plan directory was created
     const planDirs = readdirSync(plansDir);
@@ -66,14 +67,18 @@ describe('create-plan CLI command integration', () => {
     expect(planDirs[0]).toContain('my-test-plan');
   });
 
-  it('should handle duplicate plan names', async () => {
+  it('should handle duplicate plan names (returns existing plan info by default)', async () => {
     // Create an existing plan directory
     mkdirSync(join(plansDir, '0001-existing-plan'), { recursive: true });
 
-    const result = await handleCreatePlan({ name: 'existing-plan' }, context);
+    const result = await handleCreatePlan(
+      { name: 'existing-plan', templateName: 'default', ifExists: 'return' },
+      context
+    );
 
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('already exists');
+    expect(result.isError).toBeFalsy();
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.alreadyExists).toBe(true);
   });
 
   it('should auto-increment plan numbers', async () => {
@@ -81,10 +86,14 @@ describe('create-plan CLI command integration', () => {
     mkdirSync(join(plansDir, '0001-first-plan'), { recursive: true });
     mkdirSync(join(plansDir, '0002-second-plan'), { recursive: true });
 
-    const result = await handleCreatePlan({ name: 'third-plan' }, context);
+    const result = await handleCreatePlan(
+      { name: 'third-plan', templateName: 'default', ifExists: 'return' },
+      context
+    );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toContain('created successfully');
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.created).toBe(true);
 
     // Verify the new plan has number 0003
     const planDirs = readdirSync(plansDir);
@@ -94,10 +103,14 @@ describe('create-plan CLI command integration', () => {
   });
 
   it('should work without description option', async () => {
-    const result = await handleCreatePlan({ name: 'simple-plan' }, context);
+    const result = await handleCreatePlan(
+      { name: 'simple-plan', templateName: 'default', ifExists: 'return' },
+      context
+    );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toContain('created successfully');
-    expect(result.content[0].text).toContain('simple-plan');
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.created).toBe(true);
+    expect(payload.plan).toContain('simple-plan');
   });
 });

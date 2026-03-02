@@ -283,7 +283,8 @@ describe('handleJsonOutput', () => {
     expect(mockConsoleLog).toHaveBeenCalledWith(
       JSON.stringify({ success: false, error: 'Something failed' }, null, 2)
     );
-    expect(mockProcessExit).toHaveBeenCalledWith(1);
+    // Generic Error maps to EXIT_SYSTEM (2)
+    expect(mockProcessExit).toHaveBeenCalledWith(2);
   });
 
   it('includes error code when provided', async () => {

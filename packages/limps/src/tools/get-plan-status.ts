@@ -7,7 +7,8 @@
 
 import { z } from 'zod';
 import { getPlanStatusSummary } from '../cli/status.js';
-import type { ToolContext, ToolResult } from '../types.js';
+import type { ToolContext, ToolResult, NextStep } from '../types.js';
+import { toJsonText } from '../utils/tool-response.js';
 
 /**
  * Input schema for get_plan_status tool.
@@ -31,11 +32,30 @@ export async function handleGetPlanStatus(
   try {
     const summary = getPlanStatusSummary(context.config, input.planId);
 
+    // Suggest infer_status when there are blockers
+    const summaryRecord = summary as unknown as Record<string, unknown>;
+    const nextSteps: NextStep[] = [];
+    const hasBlockers =
+      Array.isArray(summaryRecord['blocked']) && (summaryRecord['blocked'] as unknown[]).length > 0;
+    if (hasBlockers) {
+      nextSteps.push({
+        tool: 'infer_status',
+        reason: 'Resolve blocked tasks by inferring status from agent files',
+        params: { planId: input.planId },
+      });
+    } else {
+      nextSteps.push({
+        tool: 'get_next_task',
+        reason: 'Get the next available task to work on',
+        params: { planId: input.planId },
+      });
+    }
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(summary, null, 2),
+          text: toJsonText(summaryRecord, nextSteps, true),
         },
       ],
     };

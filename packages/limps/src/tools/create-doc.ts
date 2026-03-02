@@ -18,6 +18,8 @@ import { getMaxFileSize } from '../config.js';
 import { getDocsRoot } from '../utils/repo-root.js';
 import { checkSymlinkAncestors, checkPathContainment } from '../utils/fs-safety.js';
 import type { ToolContext, ToolResult } from '../types.js';
+import { sanitizeDocPath } from '../utils/sanitize-input.js';
+import { runHooks } from '../hooks/runner.js';
 
 /**
  * Input schema for create_doc tool.
@@ -99,6 +101,9 @@ export async function handleCreateDoc(
   const repoRoot = getDocsRoot(context.config);
 
   try {
+    // Sanitize path: reject null bytes, bidi overrides, and path traversal
+    sanitizeDocPath(path);
+
     // Validate path (must not exist, must be writable)
     const validated = validatePath(path, repoRoot, {
       requireWritable: true,
@@ -169,6 +174,13 @@ export async function handleCreateDoc(
 
     // Index the new file, passing maxFileSize to ensure consistent validation
     await indexDocument(context.db, validated.absolute, maxFileSize);
+
+    // Non-blocking hook notification
+    void runHooks(
+      'doc:created',
+      { path: validated.relative, size, type: validated.type },
+      context.config.hooksPath
+    );
 
     const output: CreateDocOutput = {
       path: validated.relative,

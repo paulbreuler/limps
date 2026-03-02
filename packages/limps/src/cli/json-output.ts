@@ -5,15 +5,18 @@
  * This enables scripting, CI/CD integration, and machine-readable output.
  */
 
+import type { HelpMeta } from '../utils/cli-help.js';
+import type { NextStep } from '../types.js';
+import { exitCodeForError } from '../utils/errors.js';
+
 /**
  * Success envelope for JSON output.
  */
 export interface JsonSuccess<T> {
   success: true;
   data: T;
+  next_steps?: NextStep[];
 }
-
-import type { HelpMeta } from '../utils/cli-help.js';
 
 /**
  * Error envelope for JSON output.
@@ -35,13 +38,20 @@ export type JsonEnvelope<T> = JsonSuccess<T> | JsonError;
  * Wrap data in success envelope.
  *
  * @param data - The data to wrap
+ * @param nextSteps - Optional recommended next actions for AI agents
  * @returns Success envelope with data
  */
-export function wrapSuccess<T>(data: T): JsonSuccess<T> {
-  return {
+export function wrapSuccess<T>(data: T, nextSteps?: NextStep[]): JsonSuccess<T> {
+  const envelope: JsonSuccess<T> = {
     success: true,
     data,
   };
+
+  if (nextSteps && nextSteps.length > 0) {
+    envelope.next_steps = nextSteps;
+  }
+
+  return envelope;
 }
 
 /**
@@ -106,6 +116,7 @@ export function isJsonMode(options: { json?: boolean }): boolean {
 /**
  * Handle JSON output for a command.
  * Executes the data getter and outputs JSON, catching errors.
+ * Uses semantic exit codes: 1=validation, 2=system, 3=usage.
  *
  * @param getData - Function that returns data or throws
  * @param errorCode - Optional error code for failures
@@ -121,6 +132,7 @@ export function handleJsonOutput<T>(getData: () => T, errorCode?: string): never
         ? (error as Error & { suggestions?: string[] }).suggestions
         : undefined;
 
-    outputJson(wrapError(message, { code: errorCode, suggestions }), 1);
+    const code = exitCodeForError(error);
+    outputJson(wrapError(message, { code: errorCode, suggestions }), code);
   }
 }

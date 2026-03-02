@@ -12,6 +12,9 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { indexDocument } from '../indexer.js';
 import type { ToolContext, ToolResult } from '../types.js';
+import { toJsonText } from '../utils/tool-response.js';
+import { sanitizePlanName } from '../utils/sanitize-input.js';
+import { runHooks } from '../hooks/runner.js';
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +27,16 @@ export const CreatePlanInputSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   body: z.string().optional(),
+  templateName: z
+    .enum(['default', 'spec'])
+    .default('default')
+    .describe('Template to use (default: minimal 3-section plan; spec: 12-section specification)'),
+  ifExists: z
+    .enum(['return', 'fail'])
+    .default('return')
+    .describe(
+      "What to do when a plan with this name already exists (default: 'return' existing plan info)"
+    ),
 });
 
 /**
@@ -110,13 +123,21 @@ function loadTemplate(
   name: string,
   description?: string,
   body?: string,
-  bodyProvided = false
+  bodyProvided = false,
+  templateName: 'default' | 'spec' = 'default'
 ): string {
-  // Try to find template in templates/plan.md
-  // Resolve relative to repository root
+  // Template file resolution: named templates take priority, then plan.md fallback
+  const templateFileName = templateName === 'spec' ? 'spec.md' : 'plan.md';
   const possibleTemplatePaths = [
-    join(process.cwd(), 'templates', 'plan.md'),
-    join(__dirname, '..', '..', 'templates', 'plan.md'),
+    join(process.cwd(), 'templates', templateFileName),
+    join(__dirname, '..', '..', 'templates', templateFileName),
+    // For 'default' also try plan.md if spec.md not found
+    ...(templateName === 'default'
+      ? [
+          join(process.cwd(), 'templates', 'plan.md'),
+          join(__dirname, '..', '..', 'templates', 'plan.md'),
+        ]
+      : []),
   ];
 
   let templateContent = '';
@@ -180,20 +201,60 @@ export async function handleCreatePlan(
   input: z.infer<typeof CreatePlanInputSchema>,
   context: ToolContext
 ): Promise<ToolResult> {
-  const { name, description, body } = input;
+  const { name, description, body, templateName = 'default', ifExists = 'return' } = input;
   const bodyProvided = Object.prototype.hasOwnProperty.call(input, 'body');
   const { plansPath } = context.config;
 
-  // Check if plan already exists
-  if (planExists(plansPath, name)) {
+  // Sanitize name: reject null bytes, path-traversal, and overly long inputs
+  try {
+    sanitizePlanName(name);
+  } catch (err) {
     return {
       content: [
         {
           type: 'text',
-          text: `Plan with name "${name}" already exists`,
+          text: `Invalid plan name: ${err instanceof Error ? err.message : String(err)}`,
         },
       ],
       isError: true,
+    };
+  }
+
+  // Check if plan already exists
+  if (planExists(plansPath, name)) {
+    if (ifExists === 'fail') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Plan with name "${name}" already exists`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // ifExists === 'return': return existing plan info as a success
+    const existingDirName = hasNumberPrefix(name) ? name : name;
+    const existingDir = join(plansPath, existingDirName);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: toJsonText({ plan: name, planDir: existingDir, alreadyExists: true }, [
+            {
+              tool: 'list_agents',
+              reason: 'View existing agents for this plan',
+              params: { planId: name },
+            },
+            {
+              tool: 'get_next_task',
+              reason: 'Get the next available task in this plan',
+              params: { planId: name },
+            },
+          ]),
+        },
+      ],
     };
   }
 
@@ -211,7 +272,14 @@ export async function handleCreatePlan(
 
     // Create plan file with descriptive name (e.g., 0004-integration-tests-plan.md)
     const planFileName = `${planDirName}-plan.md`;
-    const planContent = loadTemplate(planNumber, planDirName, description, body, bodyProvided);
+    const planContent = loadTemplate(
+      planNumber,
+      planDirName,
+      description,
+      body,
+      bodyProvided,
+      templateName
+    );
     const tempPlanFilePath = join(tempDir, planFileName);
     writeFileSync(tempPlanFilePath, planContent, 'utf-8');
 
@@ -222,11 +290,29 @@ export async function handleCreatePlan(
     const planFilePath = join(planDir, planFileName);
     await indexDocument(context.db, planFilePath);
 
+    // Fire plan:created hook (non-blocking)
+    void runHooks(
+      'plan:created',
+      { plan: planDirName, planDir, planFile: planFilePath },
+      context.config.hooksPath
+    );
+
     return {
       content: [
         {
           type: 'text',
-          text: `Plan "${planDirName}" created successfully at ${planDir}`,
+          text: toJsonText({ plan: planDirName, planDir, created: true }, [
+            {
+              tool: 'list_agents',
+              reason: 'Add agent task files to the new plan',
+              params: { planId: planDirName },
+            },
+            {
+              tool: 'get_next_task',
+              reason: 'Get the first available task once agents are added',
+              params: { planId: planDirName },
+            },
+          ]),
         },
       ],
     };

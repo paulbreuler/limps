@@ -28,6 +28,7 @@ import {
 import { startWatcher, stopWatcher, DEFAULT_SETTLE_DELAY } from './watcher.js';
 import { resolveConfigPath } from './utils/config-resolver.js';
 import { checkFdBudget } from './utils/fd-safety.js';
+import { runHooks } from './hooks/runner.js';
 
 /**
  * Result of initializing the shared server resources.
@@ -188,6 +189,9 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
     console.error('No full-index paths to watch.');
   }
 
+  // Fire server:startup hook (non-blocking)
+  void runHooks('server:startup', { plansPath: config.plansPath }, config.hooksPath);
+
   return { config, db, watcher };
 }
 
@@ -197,6 +201,13 @@ export async function initServerResources(configPathArg?: string): Promise<Serve
  * @param resources - The resources to shut down
  */
 export async function shutdownServerResources(resources: ServerResources): Promise<void> {
+  // Fire server:shutdown hook (await so it runs before teardown)
+  await runHooks(
+    'server:shutdown',
+    { plansPath: resources.config.plansPath },
+    resources.config.hooksPath
+  );
+
   if (resources.watcher) {
     await stopWatcher(resources.watcher);
     console.error('File watcher stopped');
