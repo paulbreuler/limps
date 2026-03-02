@@ -45,9 +45,13 @@ interface PlanMeta {
  */
 function queryPlanMetaFromDb(db: ResourceContext['db'], planDir: string): StatusCounts | null {
   try {
+    // Escape LIKE metacharacters so a planDir containing % or _ is treated literally
+    const escaped = planDir.replace(/[%_]/g, '\\$&');
     const rows = db
-      .prepare(`SELECT content FROM documents WHERE path LIKE ? AND path LIKE '%/agents/%'`)
-      .all(`${planDir}%`) as { content: string }[];
+      .prepare(
+        `SELECT content FROM documents WHERE path LIKE ? ESCAPE '\\' AND path LIKE '%/agents/%'`
+      )
+      .all(`${escaped}%`) as { content: string }[];
 
     if (rows.length === 0) return null;
 
