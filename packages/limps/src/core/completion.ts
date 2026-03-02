@@ -12,10 +12,20 @@ const ROOT_COMMANDS = [
   'health',
   'graph',
   'proposals',
+  'gen',
   'completion',
   'init',
   'reset',
   'version',
+  // Group aliases
+  'gn',
+  'pl',
+  'dc',
+  'gr',
+  'hl',
+  'sv',
+  'cf',
+  'pr',
 ];
 
 const GROUP_COMMANDS: Record<string, string[]> = {
@@ -37,6 +47,20 @@ const GROUP_COMMANDS: Record<string, string[]> = {
   health: ['check', 'staleness', 'inference'],
   graph: ['reindex', 'health', 'search', 'trace', 'entity', 'overlap', 'check', 'suggest', 'watch'],
   proposals: ['apply', 'apply-safe'],
+  gen: [
+    'persona',
+    'pe',
+    'journey',
+    'jn',
+    'spec',
+    'sp',
+    'agent',
+    'ag',
+    'agents',
+    'ags',
+    'primer',
+    'pr',
+  ],
 };
 
 const COMMAND_OPTIONS: Record<string, string[]> = {

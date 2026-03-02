@@ -4,6 +4,7 @@ import { getPackageVersion } from './utils/version.js';
 import { startHttpServer, stopHttpServer } from './server-http.js';
 import { logRedactedError } from './utils/safe-logging.js';
 import { getCompletionSuggestions } from './core/completion.js';
+import { GROUP_ALIASES } from './core/aliases.js';
 
 const args = process.argv.slice(2);
 const isCompletionRequest = process.env.LIMPS_COMPLETE === '1';
@@ -18,20 +19,33 @@ if (isCompletionRequest) {
   process.exit(0);
 }
 
+// Expand group aliases (gn→gen, pl→plan, etc.)
+const [firstArg, ...remainingArgs] = args;
+if (firstArg && GROUP_ALIASES[firstArg]) {
+  process.argv = [...process.argv.slice(0, 2), GROUP_ALIASES[firstArg], ...remainingArgs];
+}
+
+// Re-read args after alias expansion
+const expandedArgs = process.argv.slice(2);
+
 // Check if running server start command with --foreground flag — bypass Ink for clean stdio
 const isStartForeground =
-  args.includes('--foreground') && args[0] === 'server' && args[1] === 'start';
+  expandedArgs.includes('--foreground') &&
+  expandedArgs[0] === 'server' &&
+  expandedArgs[1] === 'start';
 const wantsHelp =
-  args.includes('--help') || args.includes('-h') || (isStartForeground && args.includes('help'));
+  expandedArgs.includes('--help') ||
+  expandedArgs.includes('-h') ||
+  (isStartForeground && expandedArgs.includes('help'));
 
 if (isStartForeground && !wantsHelp) {
   // Parse --config option
-  const configIndex = args.indexOf('--config');
-  const configPath = configIndex !== -1 ? args[configIndex + 1] : undefined;
-  const portIndex = args.indexOf('--port');
-  const hostIndex = args.indexOf('--host');
-  const portArg = portIndex !== -1 ? args[portIndex + 1] : undefined;
-  const hostArg = hostIndex !== -1 ? args[hostIndex + 1] : undefined;
+  const configIndex = expandedArgs.indexOf('--config');
+  const configPath = configIndex !== -1 ? expandedArgs[configIndex + 1] : undefined;
+  const portIndex = expandedArgs.indexOf('--port');
+  const hostIndex = expandedArgs.indexOf('--host');
+  const portArg = portIndex !== -1 ? expandedArgs[portIndex + 1] : undefined;
+  const hostArg = hostIndex !== -1 ? expandedArgs[hostIndex + 1] : undefined;
   const port = portArg ? Number.parseInt(portArg, 10) : undefined;
   const host = hostArg || undefined;
 
