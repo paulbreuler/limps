@@ -4,6 +4,8 @@ import { join, relative } from 'path';
 import { createHash } from 'crypto';
 import { FrontmatterHandler } from './utils/frontmatter.js';
 import { PathFilter } from './utils/pathfilter.js';
+import { scanForInjection } from './utils/sanitize-input.js';
+import { runHooks } from './hooks/runner.js';
 import { isExcludedDirectory, shouldExcludeFile } from './utils/pathfilter.js';
 import { checkPathSafety, isSymlink } from './utils/fs-safety.js';
 import { DEFAULT_MAX_DEPTH, DEFAULT_MAX_FILE_SIZE, DEFAULT_EXCLUSIONS } from './config.js';
@@ -280,6 +282,10 @@ export async function indexDocument(
   }
 
   const content = readFileSync(filePath, 'utf-8');
+
+  // Non-blocking injection scan — logs warning, never blocks indexing
+  scanForInjection(filePath, content);
+
   const stats = statSync(filePath);
   const modifiedAt = stats.mtimeMs;
   const hash = calculateHash(content);
@@ -329,6 +335,9 @@ export async function indexDocument(
 
   // Update or insert document
   await updateDocumentIndex(db, metadata);
+
+  // Non-blocking hook notification
+  void runHooks('doc:indexed', { path: filePath, title: metadata.title });
 
   return metadata;
 }

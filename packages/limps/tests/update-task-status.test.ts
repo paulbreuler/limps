@@ -296,7 +296,9 @@ Build Component IR + module graph with alias and re-export resolution.
     );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toContain('by agent agent-123');
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.agentId).toBe('agent-123');
+    expect(payload.newStatus).toBe('WIP');
 
     // Verify agent frontmatter was updated
     const updatedContent = readFileSync(agentFile, 'utf-8');
@@ -311,7 +313,8 @@ Build Component IR + module graph with alias and re-export resolution.
     );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toContain('Notes: Starting work on this task');
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.notes).toBe('Starting work on this task');
 
     // Verify agent frontmatter was updated
     const updatedContent = readFileSync(agentFile, 'utf-8');
@@ -330,7 +333,8 @@ Build Component IR + module graph with alias and re-export resolution.
     );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toContain('by agent agent-456');
-    expect(result.content[0].text).toContain('Notes: Ready to begin');
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.agentId).toBe('agent-456');
+    expect(payload.notes).toBe('Ready to begin');
   });
 });

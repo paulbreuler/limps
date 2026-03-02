@@ -239,6 +239,64 @@ export function noSpaceError(path: string): DocumentError {
 }
 
 /**
+ * Semantic exit codes for CLI commands.
+ * Scripts and AI-driven pipelines can distinguish error categories.
+ *
+ * 0 = success
+ * 1 = validation error (bad input, NOT_FOUND, ALREADY_EXISTS, PLAN_NOT_FOUND)
+ * 2 = system error (DB lock, ENOSPC, EACCES, INTERNAL_ERROR)
+ * 3 = usage error (wrong flags, missing required args)
+ */
+export const EXIT_SUCCESS = 0;
+export const EXIT_VALIDATION = 1;
+export const EXIT_SYSTEM = 2;
+export const EXIT_USAGE = 3;
+
+const VALIDATION_CODES: ReadonlySet<string> = new Set([
+  'NOT_FOUND',
+  'ENOENT',
+  'ALREADY_EXISTS',
+  'EEXIST',
+  'PLAN_NOT_FOUND',
+  'TASK_NOT_FOUND',
+  'VALIDATION_ERROR',
+  'RESTRICTED_PATH',
+]);
+
+const SYSTEM_CODES: ReadonlySet<string> = new Set([
+  'EACCES',
+  'PERMISSION_DENIED',
+  'ENOSPC',
+  'INTERNAL_ERROR',
+  'EISDIR',
+  'ENOTDIR',
+]);
+
+/**
+ * Map a known error code string to a semantic exit code.
+ * Defaults to EXIT_VALIDATION for unrecognised codes on typed errors.
+ */
+function codeToExitCode(code: string): number {
+  if (VALIDATION_CODES.has(code)) return EXIT_VALIDATION;
+  if (SYSTEM_CODES.has(code)) return EXIT_SYSTEM;
+  return EXIT_VALIDATION;
+}
+
+/**
+ * Map an error to a semantic exit code.
+ *
+ * @param err - The error to map
+ * @returns Exit code (0, 1, 2, or 3)
+ */
+export function exitCodeForError(err: unknown): number {
+  if (err instanceof DocumentError || err instanceof LimpsError) {
+    return codeToExitCode(err.code);
+  }
+
+  return EXIT_SYSTEM;
+}
+
+/**
  * Error thrown when recursion depth limit is exceeded.
  * Used by RLM sub-call processing.
  */

@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { existsSync } from 'fs';
 import { getAgentsData } from '../cli/list-agents.js';
 import type { ToolContext, ToolResult } from '../types.js';
 
@@ -28,6 +29,18 @@ export async function handleListAgents(
   input: z.infer<typeof ListAgentsInputSchema>,
   context: ToolContext
 ): Promise<ToolResult> {
+  if (!existsSync(context.config.plansPath)) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `plansPath does not exist: ${context.config.plansPath}. Configure a valid plansPath in your limps config.`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
   const result = getAgentsData(context.config, input.planId);
 
   if ('error' in result) {

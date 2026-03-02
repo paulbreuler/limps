@@ -10,6 +10,7 @@ import { readFile, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import type { ToolContext, ToolResult } from '../types.js';
 import { validatePath } from '../utils/paths.js';
+import { checkPathSafety, checkSymlinkAncestors } from '../utils/fs-safety.js';
 import { notFound } from '../utils/errors.js';
 import { createEnvironment, type DocVariable } from '../rlm/sandbox.js';
 import { validateCode } from '../rlm/security.js';
@@ -105,9 +106,38 @@ export async function handleProcessDoc(
     // Validate path BEFORE loading (per gotchas)
     const validated = validatePath(path, repoRoot);
 
-    // Check if file exists
+    // Block symlink traversal BEFORE existence check — symlink in path components
+    // is detectable even if the final target file doesn't exist.
+    const ancestorCheck = checkSymlinkAncestors(validated.absolute, repoRoot);
+    if (!ancestorCheck.safe) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Permission denied (read): ${path}: ${ancestorCheck.reason}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Check if file exists (after symlink check so traversal is caught first)
     if (!existsSync(validated.absolute)) {
       throw notFound(path);
+    }
+
+    // Block unsafe file types (devices, FIFOs, etc.)
+    const safetyCheck = checkPathSafety(validated.absolute, {});
+    if (!safetyCheck.safe) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Permission denied (read): ${path}: ${safetyCheck.reason}`,
+          },
+        ],
+        isError: true,
+      };
     }
 
     // Read file stats and content

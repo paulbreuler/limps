@@ -33,6 +33,9 @@ import { GetProposalsInputSchema, handleGetProposals } from './get-proposals.js'
 import { ApplyProposalInputSchema, handleApplyProposal } from './apply-proposal.js';
 import { GraphInputSchema, handleGraph } from './graph.js';
 import { PingInputSchema, handlePing } from './ping.js';
+import { GetPrimerInputSchema, getPrimerHandler } from './get-primer.js';
+import { ValidateInvestInputSchema, validateInvestHandler } from './validate-invest.js';
+import { GenerateArtifactInputSchema, generateArtifactHandler } from './generate-artifact.js';
 
 export const CORE_TOOL_NAMES = [
   'create_plan',
@@ -59,6 +62,9 @@ export const CORE_TOOL_NAMES = [
   'apply_proposal',
   'graph',
   'ping',
+  'get_primer',
+  'validate_invest',
+  'generate_artifact',
 ] as const;
 
 const ReindexDocsInputSchema = z.object({}).strict();
@@ -561,6 +567,37 @@ For full CLI usage run \`limps graph <command> --help\`.`,
     async (input) => {
       const parsed = PingInputSchema.parse(input);
       return handlePing(parsed, context);
+    }
+  );
+
+  // Document Generation Tools
+  registerTool(
+    'get_primer',
+    'Resolve the primer file for a plan. Checks override path, plan-local PRIMER.md, then global config.',
+    GetPrimerInputSchema.shape,
+    async (input) => {
+      const parsed = GetPrimerInputSchema.parse(input);
+      return getPrimerHandler(parsed, context);
+    }
+  );
+
+  registerTool(
+    'validate_invest',
+    'Validate an agent task against INVEST criteria (Independent, Negotiable, Valuable, Estimable, Small, Testable). Returns score and per-criterion results.',
+    ValidateInvestInputSchema.shape,
+    async (input) => {
+      const parsed = ValidateInvestInputSchema.parse(input);
+      return validateInvestHandler(parsed, context);
+    }
+  );
+
+  registerTool(
+    'generate_artifact',
+    'Generate a planning artifact (persona, journey, spec, or agent task). Creates the file with appropriate frontmatter and structure.',
+    GenerateArtifactInputSchema.shape,
+    async (input) => {
+      const parsed = GenerateArtifactInputSchema.parse(input);
+      return generateArtifactHandler(parsed, context);
     }
   );
 }

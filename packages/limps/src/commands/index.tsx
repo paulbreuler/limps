@@ -26,31 +26,30 @@ export default function DefaultCommand(): React.ReactNode {
       {'\n'}
       <Text color="yellow">Usage:</Text> limps {'<group|command>'} [options]{'\n'}
       {'\n'}
-      <Text color="cyan">Recommended Groups:</Text>
+      <Text color="cyan">Groups:</Text>
       {'\n'}
-      {'  '}server{'         '}Daemon lifecycle (start/stop/status/bridge){'\n'}
-      {'  '}plan{'           '}Plan and task workflows{'\n'}
-      {'  '}docs{'           '}Document CRUD/search/process/tags{'\n'}
-      {'  '}config{'         '}Project configuration{'\n'}
-      {'  '}health{'         '}Health checks and inference{'\n'}
-      {'  '}graph{'          '}Knowledge graph operations{'\n'}
-      {'  '}proposals{'      '}Review and apply suggested fixes{'\n'}
+      {'  '}gn, gen{'        '}Generate planning artifacts (persona, journey, spec, agent){'\n'}
+      {'  '}pl, plan{'       '}Plan and task workflows{'\n'}
+      {'  '}dc, docs{'       '}Document CRUD/search/process/tags{'\n'}
+      {'  '}gr, graph{'      '}Knowledge graph operations{'\n'}
+      {'  '}hl, health{'     '}Health checks and inference{'\n'}
+      {'  '}sv, server{'     '}Daemon lifecycle (start/stop/status/bridge){'\n'}
+      {'  '}cf, config{'     '}Project configuration{'\n'}
+      {'  '}pr, proposals{'  '}Review and apply suggested fixes{'\n'}
       {'\n'}
-      <Text color="cyan">Common Commands:</Text>
+      <Text color="cyan">Commands:</Text>
       {'\n'}
       {'  '}init {'<name>   '}Initialize a new project{'\n'}
-      {'  '}plan list{'      '}List plans with status{'\n'}
-      {'  '}plan agents 4{'  '}List agents in plan 4{'\n'}
-      {'  '}plan score --plan 4 --agent 3{'  '}Score a specific task{'\n'}
-      {'  '}plan scores --plan 4{'  '}Compare all available task scores{'\n'}
-      {'  '}docs search "query"{'  '}Search indexed documents{'\n'}
-      {'  '}completion zsh Enable shell tab completion{'\n'}
-      {'\n'}
-      <Text color="cyan">Other:</Text>
-      {'\n'}
+      {'  '}completion{'    '}Enable shell tab completion{'\n'}
       {'  '}version{'       '}Show version information{'\n'}
       {'\n'}
-      Run <Text color="green">limps {'<group|command>'}</Text> without args for guided help.{'\n'}
+      <Text color="cyan">Examples:</Text>
+      {'\n'}
+      {'  '}limps pl list{'           '}List plans with status{'\n'}
+      {'  '}limps pl agents 4{'      '}List agents in plan 4{'\n'}
+      {'  '}limps dc search "query"{'  '}Search indexed documents{'\n'}
+      {'\n'}
+      Run <Text color="green">limps {'<group>'}</Text> without args for guided help.{'\n'}
       Run <Text color="green">limps {'<group|command>'} --help</Text> for full documentation.
     </Text>
   );

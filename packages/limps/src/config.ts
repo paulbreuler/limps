@@ -209,6 +209,13 @@ export interface ServerConfig {
   health?: HealthConfig;
   exclusions?: ExclusionsConfig;
   extensions?: string[]; // Extension package names to load (e.g., ["@sudosandwich/limps-headless"])
+  hooksPath?: string; // Directory for filesystem-based event hooks (default: ~/.limps/hooks/)
+  workspacePath?: string; // Replaces plansPath; defaults to "workspace/"
+  personasPath?: string; // Defaults to "personas/"
+  journeysPath?: string; // Defaults to "journeys/"
+  specsPath?: string; // Defaults to "specs/"
+  primerPath?: string; // Global fallback primer path
+  acpPort?: number; // ACP Hub port (default: 7379)
 }
 
 /**
@@ -546,6 +553,26 @@ export function loadConfig(configPath: string): ServerConfig {
     health: resolvedHealth,
     extensions: typedConfig.extensions,
   };
+
+  // Resolve optional document model paths
+  if (typedConfig.workspacePath) {
+    resolvedConfig.workspacePath = resolvePath(typedConfig.workspacePath);
+  }
+  if (typedConfig.personasPath) {
+    resolvedConfig.personasPath = resolvePath(typedConfig.personasPath);
+  }
+  if (typedConfig.journeysPath) {
+    resolvedConfig.journeysPath = resolvePath(typedConfig.journeysPath);
+  }
+  if (typedConfig.specsPath) {
+    resolvedConfig.specsPath = resolvePath(typedConfig.specsPath);
+  }
+  if (typedConfig.primerPath) {
+    resolvedConfig.primerPath = resolvePath(typedConfig.primerPath);
+  }
+  if (typedConfig.acpPort !== undefined) {
+    resolvedConfig.acpPort = typedConfig.acpPort;
+  }
 
   // Preserve extension-specific config keys at top level.
   const mergedConfig: ServerConfig = {

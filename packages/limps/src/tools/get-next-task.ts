@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { existsSync } from 'fs';
 import { getNextTaskData } from '../cli/next-task.js';
 import type { ToolContext, ToolResult } from '../types.js';
 import type { ScoringBiases, ScoringWeights } from '../config.js';
+import { toJsonText } from '../utils/tool-response.js';
 
 /**
  * Input schema for get_next_task tool.
@@ -90,6 +92,18 @@ export async function handleGetNextTask(
 ): Promise<ToolResult> {
   const { planId, prettyPrint = false } = input;
 
+  if (!existsSync(context.config.plansPath)) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `plansPath does not exist: ${context.config.plansPath}. Configure a valid plansPath in your limps config.`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
   const result = await getNextTaskData(context.config, planId);
 
   if ('error' in result) {
@@ -129,7 +143,7 @@ export async function handleGetNextTask(
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
+        text: toJsonText(
           {
             taskId: task.taskId,
             title: task.title,
@@ -142,8 +156,14 @@ export async function handleGetNextTask(
             configUsed,
             otherAvailableTasks,
           },
-          null,
-          prettyPrint ? 2 : undefined
+          [
+            {
+              tool: 'update_task_status',
+              reason: 'Mark this task as WIP before starting work',
+              params: { taskId: task.taskId, status: 'WIP' },
+            },
+          ],
+          prettyPrint
         ),
       },
     ],

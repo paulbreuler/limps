@@ -159,8 +159,8 @@ This is a test feature plan.
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('limps');
-      expect(result.stdout).toContain('Recommended Groups:');
-      expect(result.stdout).toContain('Common Commands:');
+      expect(result.stdout).toContain('Groups:');
+      expect(result.stdout).toContain('Commands:');
     });
   });
 

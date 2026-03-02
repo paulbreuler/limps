@@ -59,10 +59,12 @@
     "LICENSE"
   ],
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.14.1",
     "@iarna/toml": "^3.0.0",
     "@modelcontextprotocol/sdk": "^1.25.0",
-    "better-sqlite3": "^12.6.2",
     "@parcel/watcher": "^2.5.1",
+    "@zed-industries/claude-agent-acp": "^0.19.2",
+    "better-sqlite3": "^12.6.2",
     "fast-json-patch": "^3.1.1",
     "gray-matter": "^4.0.3",
     "ink": "^6.6.0",
