@@ -5,7 +5,7 @@ import { join, dirname } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
 import { Persona } from '../../documents/persona.js';
 import { loadCommandContext } from '../../core/command-context.js';
-import { isJsonMode, handleJsonOutput } from '../../cli/json-output.js';
+import { isJsonMode, handleJsonOutput, JSON_OPTION } from '../../cli/json-output.js';
 
 export const description = 'Create a persona document';
 
@@ -14,7 +14,7 @@ export const args = z.tuple([z.string().describe('Name of the persona')]);
 export const options = z.object({
   description: z.string().optional().describe('Persona description'),
   config: z.string().optional().describe('Path to config file'),
-  json: z.boolean().optional().default(false),
+  json: JSON_OPTION,
 });
 
 interface Props {

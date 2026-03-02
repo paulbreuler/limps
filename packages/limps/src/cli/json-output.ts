@@ -5,6 +5,7 @@
  * This enables scripting, CI/CD integration, and machine-readable output.
  */
 
+import { z } from 'zod';
 import type { HelpMeta } from '../utils/cli-help.js';
 import type { NextStep } from '../types.js';
 import { exitCodeForError } from '../utils/errors.js';
@@ -136,3 +137,12 @@ export function handleJsonOutput<T>(getData: () => T, errorCode?: string): never
     outputJson(wrapError(message, { code: errorCode, suggestions }), code);
   }
 }
+
+/**
+ * Shared Zod schema for the --json flag used across all commands.
+ * Single source of truth for description and default value.
+ */
+export const JSON_OPTION = z
+  .boolean()
+  .default(false)
+  .describe('Output results as JSON: { success, data }');

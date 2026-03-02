@@ -5,7 +5,7 @@ import { join, dirname } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
 import { Journey } from '../../documents/journey.js';
 import { loadCommandContext } from '../../core/command-context.js';
-import { isJsonMode, handleJsonOutput } from '../../cli/json-output.js';
+import { isJsonMode, handleJsonOutput, JSON_OPTION } from '../../cli/json-output.js';
 
 export const description = 'Create a user journey document';
 
@@ -15,7 +15,7 @@ export const options = z.object({
   persona: z.string().optional().describe('Path to persona file'),
   description: z.string().optional().describe('Journey scenario description'),
   config: z.string().optional().describe('Path to config file'),
-  json: z.boolean().optional().default(false),
+  json: JSON_OPTION,
 });
 
 interface Props {

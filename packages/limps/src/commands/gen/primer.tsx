@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { join } from 'path';
 import { existsSync, writeFileSync } from 'fs';
 import { loadCommandContext } from '../../core/command-context.js';
-import { isJsonMode, handleJsonOutput } from '../../cli/json-output.js';
+import { isJsonMode, handleJsonOutput, JSON_OPTION } from '../../cli/json-output.js';
 
 export const description = 'Create or update a plan PRIMER.md file';
 
@@ -12,7 +12,7 @@ export const args = z.tuple([z.string().describe('Plan ID (e.g., "0001-feature-n
 
 export const options = z.object({
   config: z.string().optional().describe('Path to config file'),
-  json: z.boolean().optional().default(false),
+  json: JSON_OPTION,
 });
 
 interface Props {

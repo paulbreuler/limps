@@ -5,7 +5,7 @@ import { join, dirname } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
 import { Spec } from '../../documents/spec.js';
 import { loadCommandContext } from '../../core/command-context.js';
-import { isJsonMode, handleJsonOutput } from '../../cli/json-output.js';
+import { isJsonMode, handleJsonOutput, JSON_OPTION } from '../../cli/json-output.js';
 
 export const description = 'Generate a spec document for a plan';
 
@@ -14,7 +14,7 @@ export const args = z.tuple([z.string().describe('Plan ID (e.g., "0001-feature-n
 export const options = z.object({
   title: z.string().optional().describe('Spec title (defaults to plan ID)'),
   config: z.string().optional().describe('Path to config file'),
-  json: z.boolean().optional().default(false),
+  json: JSON_OPTION,
 });
 
 interface Props {

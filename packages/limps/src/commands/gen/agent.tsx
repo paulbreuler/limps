@@ -7,7 +7,7 @@ import { AgentTask } from '../../documents/agent-task.js';
 import { resolvePrimer } from '../../documents/primer-resolver.js';
 import { validateInvest } from '../../utils/invest.js';
 import { loadCommandContext } from '../../core/command-context.js';
-import { isJsonMode, handleJsonOutput } from '../../cli/json-output.js';
+import { isJsonMode, handleJsonOutput, JSON_OPTION } from '../../cli/json-output.js';
 
 export const description = 'Create an agent task document';
 
@@ -21,7 +21,7 @@ export const options = z.object({
   primer: z.string().optional().describe('Override primer file path'),
   strict: z.boolean().optional().default(false).describe('Fail if INVEST score < 60'),
   config: z.string().optional().describe('Path to config file'),
-  json: z.boolean().optional().default(false),
+  json: JSON_OPTION,
 });
 
 interface Props {
