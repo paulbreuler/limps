@@ -24,6 +24,21 @@ const INJECTION_MARKERS: RegExp[] = [
  */
 const DANGEROUS_UNICODE_RE = /[\u202E\u200B\uFEFF]/;
 
+/** Shared guard: reject strings containing null bytes. */
+function rejectNullBytes(value: string, label: string): void {
+  if (value.includes('\0')) {
+    throw new Error(`${label} must not contain null bytes`);
+  }
+}
+
+/** Shared guard: reject strings that contain path-traversal segments. */
+function rejectPathTraversal(value: string, label: string): void {
+  const segments = value.split(/[\\/]/);
+  if (segments.includes('..')) {
+    throw new Error(`${label} must not contain path-traversal segments (..)`);
+  }
+}
+
 /**
  * Sanitize a plan name supplied by the caller.
  *
@@ -38,13 +53,8 @@ const DANGEROUS_UNICODE_RE = /[\u202E\u200B\uFEFF]/;
  * @throws {Error} with a descriptive message when input is rejected
  */
 export function sanitizePlanName(name: string): string {
-  if (name.includes('\0')) {
-    throw new Error('Plan name must not contain null bytes');
-  }
-
-  if (name.includes('..')) {
-    throw new Error('Plan name must not contain path-traversal segments (..)');
-  }
+  rejectNullBytes(name, 'Plan name');
+  rejectPathTraversal(name, 'Plan name');
 
   if (name.length > 100) {
     throw new Error(`Plan name must not exceed 100 characters (got ${name.length})`);
@@ -81,9 +91,7 @@ export function sanitizePlanName(name: string): string {
  * @throws {Error} with a descriptive message when input is rejected
  */
 export function sanitizeDocPath(docPath: string): string {
-  if (docPath.includes('\0')) {
-    throw new Error('Document path must not contain null bytes');
-  }
+  rejectNullBytes(docPath, 'Document path');
 
   if (DANGEROUS_UNICODE_RE.test(docPath)) {
     throw new Error(
@@ -91,10 +99,7 @@ export function sanitizeDocPath(docPath: string): string {
     );
   }
 
-  const segments = docPath.split(/[\\/]/);
-  if (segments.includes('..')) {
-    throw new Error('Document path must not contain path-traversal segments (..)');
-  }
+  rejectPathTraversal(docPath, 'Document path');
 
   return docPath.trim();
 }

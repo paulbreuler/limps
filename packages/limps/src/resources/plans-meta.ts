@@ -12,29 +12,38 @@ import { readdirSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { ResourceContext, ResourceResult } from '../types.js';
 
+interface StatusCounts {
+  GAP: number;
+  WIP: number;
+  PASS: number;
+  BLOCKED: number;
+}
+
+/**
+ * Extract the agent status from frontmatter content.
+ * Returns 'GAP' when no status field is present.
+ */
+const STATUS_RE = /^status:\s*["']?(GAP|WIP|PASS|BLOCKED)["']?/im;
+
+function extractStatus(content: string): keyof StatusCounts {
+  const match = STATUS_RE.exec(content);
+  return match ? (match[1] as keyof StatusCounts) : 'GAP';
+}
+
 /**
  * Lightweight plan metadata returned from the DB.
  */
 interface PlanMeta {
   planId: string;
   name: string;
-  taskCounts: {
-    GAP: number;
-    WIP: number;
-    PASS: number;
-    BLOCKED: number;
-    total: number;
-  };
+  taskCounts: StatusCounts & { total: number };
   source: 'db' | 'fs';
 }
 
 /**
  * Count agent statuses from the database for a given plan directory prefix.
  */
-function queryPlanMetaFromDb(
-  db: ResourceContext['db'],
-  planDir: string
-): { GAP: number; WIP: number; PASS: number; BLOCKED: number } | null {
+function queryPlanMetaFromDb(db: ResourceContext['db'], planDir: string): StatusCounts | null {
   try {
     const rows = db
       .prepare(`SELECT content FROM documents WHERE path LIKE ? AND path LIKE '%/agents/%'`)
@@ -42,16 +51,9 @@ function queryPlanMetaFromDb(
 
     if (rows.length === 0) return null;
 
-    const counts = { GAP: 0, WIP: 0, PASS: 0, BLOCKED: 0 };
+    const counts: StatusCounts = { GAP: 0, WIP: 0, PASS: 0, BLOCKED: 0 };
     for (const row of rows) {
-      // Fast frontmatter status extraction without full parse
-      const match = row.content.match(/^status:\s*["']?(GAP|WIP|PASS|BLOCKED)["']?/im);
-      if (match) {
-        const status = match[1] as keyof typeof counts;
-        counts[status]++;
-      } else {
-        counts.GAP++;
-      }
+      counts[extractStatus(row.content)]++;
     }
 
     return counts;
@@ -63,13 +65,8 @@ function queryPlanMetaFromDb(
 /**
  * Count agent statuses from the filesystem as a fallback.
  */
-function queryPlanMetaFromFs(planDir: string): {
-  GAP: number;
-  WIP: number;
-  PASS: number;
-  BLOCKED: number;
-} {
-  const counts = { GAP: 0, WIP: 0, PASS: 0, BLOCKED: 0 };
+function queryPlanMetaFromFs(planDir: string): StatusCounts {
+  const counts: StatusCounts = { GAP: 0, WIP: 0, PASS: 0, BLOCKED: 0 };
   const agentsDir = join(planDir, 'agents');
 
   if (!existsSync(agentsDir)) return counts;
@@ -80,13 +77,7 @@ function queryPlanMetaFromFs(planDir: string): {
       for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith('.md')) {
           const content = readFileSync(join(dir, entry.name), 'utf-8');
-          const match = content.match(/^status:\s*["']?(GAP|WIP|PASS|BLOCKED)["']?/im);
-          if (match) {
-            const status = match[1] as keyof typeof counts;
-            counts[status]++;
-          } else {
-            counts.GAP++;
-          }
+          counts[extractStatus(content)]++;
         } else if (entry.isDirectory()) {
           scanDir(join(dir, entry.name));
         }

@@ -273,22 +273,24 @@ const SYSTEM_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Map a known error code string to a semantic exit code.
+ * Defaults to EXIT_VALIDATION for unrecognised codes on typed errors.
+ */
+function codeToExitCode(code: string): number {
+  if (VALIDATION_CODES.has(code)) return EXIT_VALIDATION;
+  if (SYSTEM_CODES.has(code)) return EXIT_SYSTEM;
+  return EXIT_VALIDATION;
+}
+
+/**
  * Map an error to a semantic exit code.
  *
  * @param err - The error to map
  * @returns Exit code (0, 1, 2, or 3)
  */
 export function exitCodeForError(err: unknown): number {
-  if (err instanceof DocumentError) {
-    if (VALIDATION_CODES.has(err.code)) return EXIT_VALIDATION;
-    if (SYSTEM_CODES.has(err.code)) return EXIT_SYSTEM;
-    return EXIT_VALIDATION;
-  }
-
-  if (err instanceof LimpsError) {
-    if (VALIDATION_CODES.has(err.code)) return EXIT_VALIDATION;
-    if (SYSTEM_CODES.has(err.code)) return EXIT_SYSTEM;
-    return EXIT_VALIDATION;
+  if (err instanceof DocumentError || err instanceof LimpsError) {
+    return codeToExitCode(err.code);
   }
 
   return EXIT_SYSTEM;

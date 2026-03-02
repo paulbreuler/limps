@@ -26,6 +26,18 @@ const HOOK_TIMEOUT_MS = 5_000;
 export const DEFAULT_HOOKS_PATH = join(homedir(), '.limps', 'hooks');
 
 /**
+ * Race a promise against a timeout, rejecting if the timeout fires first.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
+/**
  * Resolve the filesystem path for a hook file.
  * Returns `null` when no matching file exists.
  */
@@ -77,16 +89,11 @@ export async function runHooks(
   };
 
   try {
-    // Dynamic import with timeout
-    const hookModule = (await Promise.race([
+    const hookModule = (await withTimeout(
       import(pathToFileURL(hookPath).href),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`Hook timed out after ${HOOK_TIMEOUT_MS}ms`)),
-          HOOK_TIMEOUT_MS
-        )
-      ),
-    ])) as { default?: HookFn };
+      HOOK_TIMEOUT_MS,
+      'Hook import'
+    )) as { default?: HookFn };
 
     const fn = hookModule.default;
     if (typeof fn !== 'function') {
@@ -96,15 +103,7 @@ export async function runHooks(
       return;
     }
 
-    await Promise.race([
-      Promise.resolve(fn(payload)),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`Hook timed out after ${HOOK_TIMEOUT_MS}ms`)),
-          HOOK_TIMEOUT_MS
-        )
-      ),
-    ]);
+    await withTimeout(Promise.resolve(fn(payload)), HOOK_TIMEOUT_MS, 'Hook execution');
   } catch (err) {
     // Hooks must never crash the server
     console.error(
